@@ -106,3 +106,52 @@ describe("GeneralStrip — empty / Suggested (AC16, AC18)", () => {
     expect(onAdd).toHaveBeenCalledOnce();
   });
 });
+
+// New runtime faces from the live source (youtube-autosuggest design §5.2 / §5.4).
+describe("GeneralStrip — loading face (design §5.4 / AC2/AC11)", () => {
+  it("shows skeleton tiles, the 'Finding videos…' tag, and aria-busy", () => {
+    render(
+      <GeneralStrip
+        mode="empty"
+        topicTitle="Cellular respiration"
+        generalClips={[]}
+        generalCandidates={[]}
+        totalGeneral={0}
+        loading
+        onPlay={vi.fn()}
+        onPromote={vi.fn()}
+        onDismiss={vi.fn()}
+        onAdd={vi.fn()}
+      />
+    );
+    expect(screen.getByText("Finding videos…")).toBeInTheDocument();
+    const skeletonRow = screen.getByRole("list", { name: /Looking for suggested videos/ });
+    expect(skeletonRow).toHaveAttribute("aria-busy", "true");
+    // The honest zero line must NOT show while loading (no flash of "nothing here").
+    expect(screen.queryByText(/No videos found/)).not.toBeInTheDocument();
+    // "Find more" stays available during loading.
+    expect(screen.getByRole("button", { name: /Add video/ })).toBeInTheDocument();
+  });
+});
+
+describe("GeneralStrip — zero-results face (design §5.2 / AC2 zero case)", () => {
+  it("shows the honest line, '0 candidates', and keeps 'Find more'", () => {
+    render(
+      <GeneralStrip
+        mode="empty"
+        topicTitle="Obscurium"
+        generalClips={[]}
+        generalCandidates={[]}
+        totalGeneral={0}
+        loading={false}
+        onPlay={vi.fn()}
+        onPromote={vi.fn()}
+        onDismiss={vi.fn()}
+        onAdd={vi.fn()}
+      />
+    );
+    expect(screen.getByText(/No videos found for this topic yet/)).toBeInTheDocument();
+    expect(screen.getByText("0 candidates")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Search YouTube/ })).toBeInTheDocument();
+  });
+});

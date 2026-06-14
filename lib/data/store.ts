@@ -1,4 +1,4 @@
-import type { Candidate, Clip, Topic } from "./types";
+import type { ArticleSection, Candidate, Clip, Topic } from "./types";
 
 // The seam between the GitHub Pages prototype (localStorage) and production
 // (Server Actions + Drizzle/Postgres). Only ./index.ts decides which
@@ -28,8 +28,29 @@ export interface DataStore {
 
   /** Curated clips for a topic. Empty ⇒ the page renders the empty/uncurated state. */
   listClips(topicQid: string): Promise<Clip[]>;
-  /** Auto-suggested, unvetted candidates for a topic (empty-state UI; mock this round). */
+  /**
+   * Seeded/fallback candidates for a topic (the no-key / pre-article path). Used when
+   * the live YouTube pipeline is a no-op (no API key) or before the article sections
+   * are known. Returns the seeded mock set (CURATION §6 — no chips/note).
+   */
   listCandidates(topicQid: string): Promise<Candidate[]>;
+  /**
+   * The LIVE candidate path (spec AC2): run the pluggable source pipeline (YouTube
+   * search → section matching → dedup → 24h cache) for a topic, given its article
+   * sections + the already-curated video keys (for dedup, AC8). Returns:
+   *   - the computed candidate set (possibly empty → zero-results state) when a source
+   *     is enabled (a key is present), or
+   *   - `null` when no source is enabled (the no-key no-op, AC1) — the caller then
+   *     falls back to `listCandidates` (seeded/empty).
+   * The change stays behind this seam; component call sites are untouched.
+   */
+  suggestCandidates(input: {
+    topicQid: string;
+    topicTitle: string;
+    sections: ArticleSection[];
+    /** `platform:videoId` keys already curated for this topic (AC8 dedup). */
+    curatedVideoKeys: Set<string>;
+  }): Promise<Candidate[] | null>;
 
   addClip(clip: Omit<Clip, "id" | "createdAt">): Promise<Clip>;
   updateClip(id: string, patch: Partial<Omit<Clip, "id">>): Promise<Clip>;

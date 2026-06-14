@@ -48,6 +48,29 @@ vi.mock("@/lib/wiki/article", () => ({
 import { TopicView } from "@/app/topic/TopicView";
 import { seedIfEmpty } from "@/lib/data";
 
+// A minimal YouTube search.list item the live source can normalize (F5 — drives the
+// live flow through TopicView end-to-end, with the network MOCKED like article.test.ts).
+function ytItem(videoId: string, title: string, description = "") {
+  return {
+    id: { videoId, kind: "youtube#video" },
+    snippet: {
+      title,
+      description,
+      channelTitle: "Some Channel",
+      channelId: "UC123",
+      thumbnails: { high: { url: `https://i.ytimg.com/vi/${videoId}/hq.jpg`, width: 480, height: 360 } },
+    },
+  };
+}
+function mockYtSearch(items: ReturnType<typeof ytItem>[]) {
+  return vi.spyOn(globalThis, "fetch").mockResolvedValue(
+    new Response(JSON.stringify({ items }), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    })
+  );
+}
+
 beforeEach(async () => {
   window.localStorage.clear();
   fetchFullArticle.mockReset();
@@ -250,5 +273,115 @@ describe("TopicView — candidate dismiss (AC19)", () => {
     await waitFor(() =>
       expect(screen.getByText(/4 auto-suggestions/)).toBeInTheDocument()
     );
+  });
+});
+
+// F5 — the LIVE candidate flow exercised through TopicView end-to-end. The YouTube
+// source is enabled via the env key and its single search.list call is MOCKED (no
+// network — same posture as article.test.ts). This covers the loading→populated/zero
+// transition + the aria-live announcement (AC2), sticky dismissal across a remount
+// (AC9; design §6.3), and no-second-source-call on revisit within the 24h TTL (AC11).
+describe("TopicView — live candidate flow (F5: AC2/AC9/AC11 through the view)", () => {
+  const liveArticle: FullArticle = {
+    ...article,
+    title: "Cellular respiration",
+    url: "https://en.wikipedia.org/wiki/Cellular_respiration",
+    lead: {
+      title: "Cellular respiration",
+      url: "https://en.wikipedia.org/wiki/Cellular_respiration",
+      leadHtml: "<p>Lead.</p>",
+    },
+    sections: [
+      { slug: "glycolysis", title: "Glycolysis", level: 2, html: "<p>G.</p>" },
+      { slug: "citric-acid-cycle", title: "Citric acid cycle", level: 2, html: "<p>C.</p>" },
+    ],
+  };
+
+  beforeEach(() => {
+    qid = "Q189603"; // uncurated topic → the live path runs (no clips to dedup against)
+    fetchFullArticle.mockResolvedValue(liveArticle);
+    vi.stubEnv("NEXT_PUBLIC_YOUTUBE_API_KEY", "test-key"); // enables the live source
+  });
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("(a) loads then resolves to a populated set and announces the count (AC2)", async () => {
+    mockYtSearch([
+      ytItem("v1", "Glycolysis explained step by step"),
+      ytItem("v2", "A cellular respiration overview"),
+    ]);
+    render(<TopicView />);
+    // The live results replace the seed: v2's caption appears as a general candidate.
+    expect(
+      await screen.findByText("A cellular respiration overview")
+    ).toBeInTheDocument();
+    // The polite live region announces the resolved count (design §5.4 / §8).
+    await waitFor(() =>
+      expect(screen.getByRole("status")).toHaveTextContent(
+        /Found \d+ suggested videos\./
+      )
+    );
+  });
+
+  it("(a) a zero-result live search announces 'No suggested videos found.' (AC2 zero)", async () => {
+    mockYtSearch([]); // obscure topic → nothing after normalize
+    render(<TopicView />);
+    await waitFor(() =>
+      expect(screen.getByRole("status")).toHaveTextContent(
+        "No suggested videos found."
+      )
+    );
+    // The honest zero line shows (design §5.2), not an empty tile row.
+    expect(
+      await screen.findByText(/No videos found for this topic yet/)
+    ).toBeInTheDocument();
+  });
+
+  it("(b) a dismissal persists across a remount (sticky — AC9)", async () => {
+    mockYtSearch([
+      ytItem("v1", "Glycolysis explained step by step"),
+      ytItem("v2", "A cellular respiration overview"),
+    ]);
+    const { default: userEvent } = await import("@testing-library/user-event");
+    const { unmount } = render(<TopicView />);
+    const caption = await screen.findByText("A cellular respiration overview");
+    expect(caption).toBeInTheDocument();
+    // Dismiss the v2 general candidate.
+    const dismissBtns = await screen.findAllByRole("button", {
+      name: /Dismiss as not relevant: A cellular respiration overview/,
+    });
+    await userEvent.click(dismissBtns[0]);
+    await waitFor(() =>
+      expect(
+        screen.queryByText("A cellular respiration overview")
+      ).not.toBeInTheDocument()
+    );
+    // Remount (simulates a reload): the dismissal is read back from localStorage and
+    // the cache is warm — the candidate must NOT resurface (AC9; design §6.3).
+    unmount();
+    render(<TopicView />);
+    // The OTHER candidate (v1, a section match → appears inline + in the rail) still
+    // renders (proves the live set loaded), but the dismissed general one stays gone.
+    expect(
+      (await screen.findAllByText("Glycolysis explained step by step")).length
+    ).toBeGreaterThan(0);
+    expect(
+      screen.queryByText("A cellular respiration overview")
+    ).not.toBeInTheDocument();
+  });
+
+  it("(c) revisiting within the TTL does not call the source again (AC11)", async () => {
+    const fetchSpy = mockYtSearch([ytItem("v1", "Glycolysis explained step by step")]);
+    const { unmount } = render(<TopicView />);
+    // v1 matches the Glycolysis section → appears inline AND in the rail (findAllByText).
+    await screen.findAllByText("Glycolysis explained step by step");
+    await waitFor(() => expect(fetchSpy).toHaveBeenCalledTimes(1));
+    // Revisit (warm 24h cache): the source must NOT be called a second time.
+    unmount();
+    render(<TopicView />);
+    await screen.findAllByText("Glycolysis explained step by step");
+    // Give any (incorrect) re-fetch a chance to fire, then assert it didn't.
+    await waitFor(() => expect(fetchSpy).toHaveBeenCalledTimes(1));
   });
 });
