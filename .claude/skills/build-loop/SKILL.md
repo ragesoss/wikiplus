@@ -1,6 +1,6 @@
 ---
 name: build-loop
-description: This skill should be used to build or change a wiki+ application feature — whenever the owner asks to "build", "add", "implement", "redo", "rebuild", or substantially change or fix the behavior of a feature, page, component, or flow of the wiki+ app. It runs the full role pipeline (Product → UX → Development → QA & Review + UX evaluation → Operations) by delegating each stage to the matching `.claude/agents/` role subagent, then commits and deploys the updated prototype to GitHub Pages — autonomously, from one prompt to a live deploy. Use it instead of doing feature/code work inline. A one-line copy, CI, or doc fix is NOT a feature change — do those inline, do not run this loop.
+description: This skill should be used to build or change a wiki+ application feature — whenever the owner asks to "build", "add", "implement", "redo", "rebuild", or substantially change or fix the behavior of a feature, page, component, or flow of the wiki+ app (including "run the build-loop for issue #N"). It runs the full role pipeline (Product → UX → Development → QA & Review + UX evaluation → Operations) by delegating each stage to the matching `.claude/agents/` role subagent, then commits and deploys the updated prototype to GitHub Pages — autonomously, from one prompt to a live deploy. Use it instead of doing feature/code work inline. A one-line copy, CI, or doc fix is NOT a feature change — do those inline, do not run this loop.
 ---
 
 # wiki+ build-loop — the role pipeline, enforced
@@ -39,7 +39,8 @@ recorded in `docs/AGENT_OPERATING_MODEL.md`.)
 - **Autonomy does not mean shipping red.** Drive to a *green* deploy. If QA or UX defects can't be
   cleared within the bounded fix loop in Phase 4, **stop and report — do not deploy** known-broken
   code. The Phase-6 report must then **lead with `BLOCKED`** so the owner notices, since the live site
-  won't change.
+  won't change. When working from an issue, a BLOCKED stop also **comments the reason on the issue and
+  sets `status: blocked`** (removing `status: in-progress`), leaving it open.
 - **Pin models.** Run **every** role subagent on **Opus** for the prototype build (Task/Agent tool
   `model: opus`), the orchestrator included. Cost isn't the constraint here; judgment is — Phase 5's
   deploy decision is as failure-prone as the rest, so Operations is on Opus too.
@@ -65,8 +66,13 @@ Track the phases — **and the Phase-4 fix-round count** — with a todo list. P
 enter a phase until the previous phase's **gate** is satisfied (read the artifact; confirm substance).
 
 ### 0 — Frame
+- **If working from a GitHub issue** (`run the build-loop for issue #N`, or picking one off the queue),
+  read it with `gh issue view N`. Proceed autonomously **only** if it is `type: build` **and**
+  `status: ready` (the owner's sign-off) — or the owner explicitly invoked this run on it. Never
+  auto-build a `bug`/`feedback`/`idea` issue that hasn't been groomed into a `ready` build task. On
+  pickup, swap its label `status: ready` → `status: in-progress`; the issue body is the owner intent.
 - Restate the ask in one sentence. Choose a short feature **slug** (e.g. `topic-empty-state`) for
-  artifact filenames.
+  artifact filenames (and an `issue-<N>-<slug>` branch when working from an issue).
 - Note any assumption made from an ambiguous prompt (hand it to Product to refine). Do not ask the
   owner.
 
@@ -135,7 +141,9 @@ this preference order:
    the branch, **open a PR to `main`, and report it for a one-tap mobile merge**. This is the expected
    cloud fallback, not an error.
 
-Operations owns these git mechanics — do not hand-roll them in the orchestrator.
+Operations owns these git mechanics — do not hand-roll them in the orchestrator. When working from an
+issue, the landing commit or PR carries **`Closes #N`**, so the issue closes automatically when the work
+merges to `main` (= deploys).
 **Gate:** **not deployed** until a commit actually lands on `main` and the Actions run goes green —
 **or** a PR to `main` is open and reported (case 3). Pushing only a feature branch is **not** a deploy;
 never report "deployed" on a branch push that fired no `main` workflow run.
@@ -144,7 +152,9 @@ never report "deployed" on a branch push that fired no `main` workflow run.
 Summarize for the owner, mobile-legibly: what was built, the artifact paths (spec, design, tests if
 present), the per-role commits, the **live URL** (`https://ragesoss.github.io/wikiplus/`) **or** the
 open PR to merge, and any assumption made or follow-up logged. If the loop stopped at a gate, **lead
-with `BLOCKED`** and the reason. Mark the todos done. The next round starts from the owner's reaction to
+with `BLOCKED`** and the reason. When working from an issue, post this summary as an **issue comment** (the durable,
+mobile-visible report): a green run closes the issue via the `Closes #N` merge; a blocked run leaves it
+open with `status: blocked`. Mark the todos done. The next round starts from the owner's reaction to
 the **live site**.
 
 ## If a role can't proceed

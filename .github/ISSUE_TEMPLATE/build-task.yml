@@ -1,0 +1,46 @@
+name: Build task
+description: A unit of implementation work for the build-loop (Product → UX → Dev → QA → Ops). One issue = one build run.
+title: "[build] "
+labels: ["type: build"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        One build-loop run takes **one** build task to a live deploy. Describe the **outcome**, not the
+        implementation — Product/UX/Dev decide the *how* inside the loop. Apply the **`status: ready`**
+        label only once you've signed this off as ready for a session to pick up and build autonomously.
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Outcome / intent
+      description: What should be true when this is done? The problem and the user value — not the implementation.
+      placeholder: "As a reader landing on an empty Topic page, I see auto-suggested candidate clips so the page is useful before anyone has curated it."
+    validations:
+      required: true
+  - type: textarea
+    id: references
+    attributes:
+      label: References
+      description: Design-doc sections, mockups, related issues/PRs, prior art the loop should ground itself in.
+      placeholder: "docs/TOPIC_PAGE_DESIGN.md (empty state); mockups/inline-indigo-empty-v2.html"
+  - type: textarea
+    id: scope
+    attributes:
+      label: In scope
+      description: What this build should cover.
+  - type: textarea
+    id: out-of-scope
+    attributes:
+      label: Out of scope
+      description: What it should explicitly NOT touch — keeps the run focused and the merge small.
+  - type: textarea
+    id: done-when
+    attributes:
+      label: Done when
+      description: Acceptance hints that feed Product's acceptance criteria. Not a full spec.
+      placeholder: "- Empty state shows ≥3 clearly-unvetted candidates\n- Each has a visible path to curate"
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes / assumptions / open questions
+      description: Anything the loop should know, or that you're unsure about and want Product to resolve.

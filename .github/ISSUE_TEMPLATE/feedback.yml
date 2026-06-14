@@ -1,0 +1,12 @@
+name: User feedback
+description: A reaction, request, or observation from using wiki+.
+title: "[feedback] "
+labels: ["type: feedback"]
+body:
+  - type: textarea
+    id: feedback
+    attributes:
+      label: The feedback
+      description: What you (or a user) noticed, liked, or wanted. Raw is fine — grooming into a build task comes later.
+    validations:
+      required: true

@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Project docs (vision, architecture, topic-page design)
+    url: https://github.com/ragesoss/wikiplus/tree/main/docs
+    about: Read the spec and design before filing a build task — they're what the loop builds to.

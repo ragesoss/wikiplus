@@ -14,7 +14,8 @@ with a human-written **context note** that separates factual content from the cr
 - The **Next.js 15 app** (`app/`, `components/`, `lib/`) — a client-side SPA shipped to
   **GitHub Pages** at <https://ragesoss.github.io/wikiplus/>, with `localStorage` standing in for
   the server. Push to `main` auto-deploys via `.github/workflows/deploy.yml`.
-- `TODO.md` — pending tasks.
+- Work is tracked as **GitHub Issues** (one issue = one build-loop run; see *Issue pipeline* in
+  `docs/AGENT_OPERATING_MODEL.md`). `TODO.md` holds anything not yet migrated.
 
 The production read-path (ISR/Redis/Server Actions/Postgres) is **not yet built**; all data access
 goes through the `DataStore` seam in `lib/data/` (localStorage now; swap in `lib/data/index.ts`).
@@ -64,7 +65,9 @@ role pipeline by delegating each stage to the matching `.claude/agents/` subagen
 prompt to a deployed prototype. (It's a skill, not the deterministic **Workflow** tool, which is
 local-terminal-only — the loop must run in cloud/mobile sessions; see `docs/AGENT_OPERATING_MODEL.md`.)
 Invoke `/build-loop` — or just describe the feature work and let it trigger — instead of building inline;
-the rule above still holds whenever the loop isn't used.
+the rule above still holds whenever the loop isn't used. Work is queued as **GitHub Issues** — one issue
+= one build-loop run, and a session auto-picks up only an issue signed off as `type: build` +
+`status: ready` (see *Issue pipeline* in `docs/AGENT_OPERATING_MODEL.md`).
 
 ## Planned stack (see ARCHITECTURE)
 

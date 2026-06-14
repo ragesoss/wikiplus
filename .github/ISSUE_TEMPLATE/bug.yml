@@ -1,0 +1,37 @@
+name: Bug
+description: Something is broken or behaving wrong.
+title: "[bug] "
+labels: ["type: bug"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: The wrong behavior. Include the page/URL if relevant.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected
+      description: What you expected instead.
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      options:
+        - "low — cosmetic / minor"
+        - "medium — degrades a flow"
+        - "high — blocks a core flow"
+        - "critical — data loss / broken deploy"
+    validations:
+      required: true
+  - type: markdown
+    attributes:
+      value: |
+        A bug isn't picked up by a build session until it's groomed into a build task and labelled
+        `type: build` + `status: ready`.
