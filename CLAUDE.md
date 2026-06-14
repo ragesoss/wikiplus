@@ -25,10 +25,15 @@ The application is **not yet scaffolded**. The committed stack and decisions liv
 ## How we work — agent roles
 
 This project is built and operated by Claude agents in distinct roles, defined in
-`.claude/agents/`: **product-manager, ux-designer, developer, qa-tester, operations,
-analytics**. Default flow: PM spec → UX flows → Dev implements → QA verifies → Ops deploys →
-Analytics measures → back to PM. Each role reads `docs/` first and produces the artifacts named
-in `docs/AGENT_OPERATING_MODEL.md`. Delegate work to the matching role.
+`.claude/agents/`: **product-manager, ux-designer, developer, qa-reviewer, operations,
+curation-editorial** (Analytics is deferred until there's traffic; its metric-definition work
+sits in Product). Default flow: Product spec → UX (personas/stories/design spec) → Dev implements
+→ QA & Review verifies + UX evaluates the built UI → Ops ships to staging → back to Product. UX is
+user-centered design end to end; Curation/Editorial sets the context-note standard that feeds UX,
+Dev, and Product. The build loop is designed to run **entirely in the cloud, drivable from a mobile
+Claude Code session**, from prompt to an updated staging deployment. Each role reads `docs/` first
+and produces the artifacts named in `docs/AGENT_OPERATING_MODEL.md`. Delegate work to the matching
+role.
 
 ## Planned stack (see ARCHITECTURE)
 
