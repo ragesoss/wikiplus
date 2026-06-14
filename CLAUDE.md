@@ -14,8 +14,8 @@ with a human-written **context note** that separates factual content from the cr
 - The **Next.js 15 app** (`app/`, `components/`, `lib/`) — a client-side SPA shipped to
   **GitHub Pages** at <https://ragesoss.github.io/wikiplus/>, with `localStorage` standing in for
   the server. Push to `main` auto-deploys via `.github/workflows/deploy.yml`.
-- Work is tracked as **GitHub Issues** (one issue = one build-loop run; see *Issue pipeline* in
-  `docs/AGENT_OPERATING_MODEL.md`). `TODO.md` holds anything not yet migrated.
+- Work is tracked as **GitHub Issues** (<https://github.com/ragesoss/wikiplus/issues>) — one issue =
+  one build-loop run; see *Issue pipeline* in `docs/AGENT_OPERATING_MODEL.md`.
 
 The production read-path (ISR/Redis/Server Actions/Postgres) is **not yet built**; all data access
 goes through the `DataStore` seam in `lib/data/` (localStorage now; swap in `lib/data/index.ts`).

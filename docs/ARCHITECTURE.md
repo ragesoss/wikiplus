@@ -149,10 +149,12 @@ The full article body is fetched and rendered **in the browser**, not on our ori
   cross-origin fetch is practical. (If an endpoint ever lacks CORS, proxy via a thin origin route.)
 - **Sanitize:** run the HTML through **DOMPurify** before inserting it — never inject raw
   third-party HTML. Strip editor chrome (edit-section links, reference backrefs, unwanted navboxes).
-- **Rewrite links to internal wiki+ topics:** article wikilinks (`/wiki/X`) are rewritten to
-  **`/topic/X`**, so navigation stays in wiki+ and every article becomes a portal into the topic
-  graph (topics created on demand on visit). Red links / non-article namespaces fall back to
-  Wikipedia or are de-linked.
+- **Rewrite links to internal wiki+ topics:** article wikilinks (`/wiki/X`) are rewritten to the
+  **canonical title-based Topic route `/topic/<Title>`** (paralleling Wikipedia's `/wiki/<Title>`;
+  owner directive — see *Internal-link resolution* below), so navigation stays in wiki+ and every
+  article becomes a portal into the topic graph (topics created on demand on visit). The **QID is
+  resolved under the hood** on arrival (title→QID) and never appears in the address bar. Red links /
+  non-article namespaces fall back to Wikipedia or are de-linked.
 - **Why client-side:** keeps heavy article HTML off our origin (Wikipedia's CDN serves it), so
   cached pages stay small and the read path stays cheap.
 - **SEO tradeoff (to handle):** the client-rendered body isn't in our initial HTML — acceptable,
@@ -283,15 +285,42 @@ Design points:
 - How much of the page to server-render for **SEO** beyond title/lead/clips (the body is
   client-rendered).
 - **DOMPurify allowlist** + which Wikipedia HTML to keep vs. strip (infoboxes, tables, math, navboxes).
+  *Prototype decision (Topic Page v1, `lib/wiki/article.ts`):* the client fetches **`/api/rest_v1/page/html/{title}`** (Parsoid HTML, CORS-enabled), sanitizes with an **explicit DOMPurify allowlist** (prose, headings h1–h6, lists, links, `figure`/`figcaption`/`img`, basic tables; scripts/styles/iframes/forms dropped), then **strips editor chrome** post-parse (`.mw-editsection`, references/reflist, navboxes, `table.infobox`/`sidebar`, hatnotes). Tables are allowed through sanitize but **hidden in CSS** this round (`.wiki-body table { display:none }`) — full table/infobox/math rendering is deferred. Sections are derived by walking the flattened Parsoid `<section>` stream: lead = everything before the first `h2`; each `h2`/`h3`/`h4` opens a section with a **stable kebab slug** (`slugify`, deduped), used for `#sec-<slug>`/`#h-<slug>` anchors, the TOC, and clip→section matching. Navigational sections (References/See also/External links/Further reading/etc.) are dropped.
 - **Internal-link resolution** edge cases: red links, disambiguation pages, non-article namespaces.
+  *Prototype decision (Topic Page v1; owner directive — canonical title URLs):* article-namespace
+  wikilinks are rewritten to the **canonical title route `/topic/<Title>/`** (encoded title, trailing
+  slash to match `trailingSlash: true`, basePath-prefixed for the raw `<a href>` so a hard navigation
+  resolves under the Pages subpath). The decoded title is also stashed in **`data-topic-title`** so a
+  delegated click handler in `TopicView` routes ordinary left-clicks through the Next client router
+  (no full reload); modified clicks fall through to the href. On arrival the **QID is resolved under
+  the hood** (`titleToQid` via the Wikipedia `pageprops`/`wikibase_item` API, or the seeded store) and
+  is **never shown in the address bar**. **Red links** (`.new`/`.mw-redlink`) and **namespaced links**
+  (`File:`/`Help:`/`Category:` — any href with a `:`) keep an **absolute Wikipedia URL** opening in a
+  new tab (`rel=noopener`); in-page anchors (cite/note refs) are **de-linked** to plain text. No
+  wikilink ever produces a broken `/topic/` route. The legacy `/topic?qid=Q…` URL still works as a
+  back-compat entry but is **canonicalized away**: `TopicView` resolves QID→title and `router.replace`s
+  to the title URL.
 - What scopes/claims we request from Wikimedia (e.g. username, edit count — also a moderation signal).
-- Abuse/spam handling for open contribution (rate limits via Redis, basic moderation).
-- The license chosen for wiki+ context notes.
-- Whether `stance`/`accuracy_flag` are free-form or a fixed controlled vocabulary (affects
-  filtering, consistency, and any future AI-assisted drafting).
 - YouTube search credentials: keep the **referrer-restricted client key** (prototype) or move search
   behind a **server proxy** in the production read-path — so the key isn't browser-exposed and the
   expensive search quota can be shared, secured, and cached server-side.
+
+### Resolved by the Curation Standard (`docs/CURATION_STANDARD.md`)
+
+- ~~Whether `stance`/`accuracy_flag` are free-form or a fixed controlled vocabulary.~~
+  **Resolved:** both are **fixed controlled enums** (Curation Standard §2/§3, Decision C2),
+  with an optional free-form **`*_modifier`** display field (≤24 chars, never filtered, C6).
+  Stance: `explainer | short | demonstration | classroom | opinion | myth_busting |
+  personal_experiment`. Accuracy: `accurate | accurate_with_caveat | primary_source | opinion
+  | mixed | misleading | inaccurate`. The provisional `primary-source` value splits into the
+  `demonstration` stance + `primary_source` accuracy (C4); `lib/data/types.ts` to be updated.
+- ~~The license chosen for wiki+ context notes.~~ **Resolved:** **CC BY-SA 4.0** (same as the
+  article text), with contributor agreement captured at submit time (Curation Standard §5.3,
+  Decision C5).
+- ~~Abuse/spam handling for open contribution.~~ **Policy resolved** (Curation Standard §7):
+  login-gated contribution, defined removable content, honest flagging allowed, per-identity
+  Redis rate limits + the `clip.vetted` review hold. *Enforcement* (rate-limit + moderation
+  tooling) remains Operations'/Development's to build with auth/persistence.
 
 ## Prototype phase (current — client-side, GitHub Pages)
 
@@ -314,9 +343,78 @@ exercise the production read-path (ISR/Redis/Server Actions) and is **single-use
   resolves QID→title. oEmbed is avoided — we store `platform`+`videoId` and build the click-to-load
   facade ourselves.
 - **Auth:** stubbed (reading is anonymous); real Wikimedia OAuth arrives with the server.
-- **Vocabularies:** `stance`/`accuracy_flag` in `lib/data/types.ts` are **provisional placeholders**
-  pending the Curation / Editorial standard.
+- **Vocabularies:** `stance`/`accuracy_flag` in `lib/data/types.ts` are now the **closed CURATION
+  enums** (`docs/CURATION_STANDARD.md` §2/§3, Decisions C2/C4) — no longer provisional. Chip text is
+  derived from a single **enum→label/fill map** in `lib/curation/labels.ts` (§4); optional display-only
+  `*Modifier` fields render as "Label · modifier" (C6). The AA-safe chip fills are pinned there:
+  stance = deep-violet `#5248AF`, accuracy = teal-dk `#1F6757` / action `#1F6F95` / red `#B0353B`
+  (design spec §9.3).
+- **Topic Page v1 data model** (`lib/data/types.ts`, described in `lib/data/store.ts`): the `Clip`
+  type carries the card's display fields — `platformLabel`, `orientation`, `watchUrl`/`embedUrl`,
+  `thumbnailUrl`+`thumbGrad`, `creator{name,handle,platform,url,avatarGrad,followerCount?}`,
+  `general`/`sectionSlug`+`sectionLabel`, `upvotes?`, `curatedBy?`. A separate **`Candidate`** type
+  (unvetted empty-state suggestion) shares the media/creator fields, adds `vetted:false` + `source`
+  + `matchReason`, and **omits** stance/accuracy/contextNote (CURATION §6). The `DataStore` seam gains
+  **`listCandidates(topicQid)`**; topic-level counts (videos/creators/curators) are **derived** from
+  the clip set (`deriveStats`), never stored.
+- **Live candidate auto-suggestion (now built — `lib/candidates/`).** The candidate **source** behind
+  the seam is now a **live, cached YouTube Data API search**, not only seeded mock data. A pluggable
+  source registry (`lib/candidates/index.ts`, YouTube the only registered source — TikTok/Vimeo slot in
+  additively) feeds a deterministic pipeline (`pipeline.ts`): one `search.list` call per topic →
+  case-insensitive keyword-overlap **section matching** (`matching.ts`, best single match per section,
+  non-topic-generic threshold, fixed tie-break order) → **placement** (one home per video, section beats
+  General, General capped at 5) → dedup against curated clips + sticky dismissals + within-set. The seam
+  gains **`suggestCandidates({topicQid, topicTitle, sections, curatedVideoKeys})`** (returns the computed
+  set, or **`null`** when no source is enabled — the no-key no-op). The key is read **only** from
+  `process.env.NEXT_PUBLIC_YOUTUBE_API_KEY`; with it unset (every local/CI build) `isEnabled()` is false,
+  no call is made, nothing is cached, and the seam falls back to `listCandidates` (seeded/empty) — and any
+  source-side quota/network error is swallowed to `[]` (degrade to seeded/empty, never a thrown error or
+  error UI). The computed set is cached per QID in `localStorage` (`wikiplus.candidates.<QID>`,
+  `{fetchedAt, candidates}`, 24h TTL, lazy refresh — the same shape as the eventual Redis cached set);
+  dismissals persist to `wikiplus.dismissed_candidates` keyed `(topicQid, platform, videoId)` (mirrors the
+  `dismissed_candidate` table). Orientation defaults to horizontal, vertical only on a positive Shorts
+  signal (Decision 4). Production moves the search **server-side** (key → server secret, set → Redis) — a
+  source/store swap behind the same seam, not a redesign.
 
-**Path to production:** add the Drizzle `DataStore` + Server Actions, restore per-QID path-based
-Topic pages with ISR + the Redis `cacheHandler`, and turn off `output: 'export'`. The components,
-data model, design system, and article pipeline carry forward.
+- **Routing — canonical title-based Topic URLs under static export (Topic Page v1).** The
+  user-facing Topic URL is **title-based** (`/topic/<Title>`, paralleling `/wiki/<Title>`); the QID
+  is the internal key, resolved under the hood and never shown (owner directive; AC5/AC23). The route
+  is an **optional catch-all** `app/topic/[[...slug]]/page.tsx`: `generateStaticParams` pre-renders the
+  **seeded titles** (`Photosynthesis`, `Cellular_respiration`, `Cat`) plus the bare `/topic` shell
+  (`slug: []`) that serves the `?qid=` back-compat entry. `dynamicParams = false` — arbitrary titles
+  are **not** generated, so under `output: 'export'` GitHub Pages serves **`404.html`** for them; the
+  deploy step (`deploy.yml`) makes `404.html` a **copy of the Topic SPA shell** (`out/topic/index.html`),
+  the standard GitHub-Pages SPA fallback. Because the export uses an absolute basePath `assetPrefix`,
+  that shell boots from any path; `TopicView` then reads the title from `location.pathname`
+  (`titleFromPathname`) and renders — no redirect, **no QID in the URL**, title preserved. In-app
+  navigation uses the Next client router (`<Link>` + a delegated wikilink click handler), so it never
+  triggers a full reload. Helpers live in `lib/wiki/topicRoute.ts` (`topicHref`, `titleFromPathname`).
+  *Production* drops `output: 'export'` and restores per-title path-based pages with ISR + the Redis
+  `cacheHandler` (no 404.html trick needed once a server renders unknown titles on demand).
+
+**Path to production:** add the Drizzle `DataStore` + Server Actions, restore path-based Topic pages
+with ISR + the Redis `cacheHandler`, and turn off `output: 'export'`. The components, data model,
+design system, article pipeline, and the title-based URL scheme carry forward.
+
+## Testing
+
+Two layers, both run with `yarn` (matches the committed lockfile/CI):
+
+- **Unit + component — Vitest + React Testing Library (jsdom).** `yarn test` runs `vitest run`
+  over `test/**/*.test.{ts,tsx}` (config: `vitest.config.ts`, setup: `test/setup.ts`). This is the
+  primary QA layer: pure-logic units (the DOMPurify sanitize + wikilink rewrite in
+  `lib/wiki/article.ts`, the `lib/embed/facade.ts` URL parser, the `lib/curation/labels.ts`
+  enum→label/fill maps incl. a programmatic **WCAG-AA chip-contrast check**, `deriveStats` and the
+  `DataStore`), the components, and a `TopicView` integration test driving the curated/empty/
+  loading/error state machine. **The live MediaWiki + Wikidata fetch is mocked** (cloud/CI sandboxes
+  have no network egress and the article fetch is client-side anyway). `yarn test:watch` for dev.
+- **End-to-end — Playwright (`e2e/`).** `yarn test:e2e` builds the static export and serves `out/`,
+  then drives the core loop (find topic → read → watch & weigh → contribute) in a real browser. The
+  Wikipedia/Wikidata calls are **intercepted with fixtures** (`page.route`) so the run is
+  deterministic and offline; the plus side renders from the seeded localStorage `DataStore`.
+  Requires `npx playwright install chromium` (a one-time browser download — not possible in a
+  no-egress sandbox, so e2e runs in CI / local).
+
+Test deps are devDependencies; `@testing-library/dom` is pinned explicitly (a peer of
+`@testing-library/react`). Author-run `yarn build` is **not** review — a `qa-reviewer` subagent owns
+the pass/fail-per-AC verification and the security review (CLAUDE.md).

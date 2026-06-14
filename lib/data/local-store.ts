@@ -1,8 +1,10 @@
+import { runCandidatePipeline } from "@/lib/candidates";
 import type { DataStore } from "./store";
-import type { Clip, Topic } from "./types";
+import type { ArticleSection, Candidate, Clip, Topic } from "./types";
 
 const TOPICS_KEY = "wikiplus.topics";
 const CLIPS_KEY = "wikiplus.clips";
+const CANDIDATES_KEY = "wikiplus.candidates";
 
 function read<T>(key: string): T[] {
   if (typeof window === "undefined") return [];
@@ -31,6 +33,12 @@ export class LocalStorageDataStore implements DataStore {
     return read<Topic>(TOPICS_KEY).find((t) => t.qid === qid) ?? null;
   }
 
+  async getTopicByTitle(title: string): Promise<Topic | null> {
+    const norm = (s: string) => s.replace(/_/g, " ").trim().toLowerCase();
+    const want = norm(title);
+    return read<Topic>(TOPICS_KEY).find((t) => norm(t.title) === want) ?? null;
+  }
+
   async upsertTopic(topic: Topic): Promise<Topic> {
     const topics = read<Topic>(TOPICS_KEY);
     const i = topics.findIndex((t) => t.qid === topic.qid);
@@ -46,6 +54,25 @@ export class LocalStorageDataStore implements DataStore {
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   }
 
+  async listCandidates(topicQid: string): Promise<Candidate[]> {
+    // Seeded/fallback candidates (no-key path / pre-article). The live YouTube pipeline
+    // is `suggestCandidates` below; this stays the graceful no-op result (AC1).
+    return read<Candidate>(CANDIDATES_KEY).filter((c) => c.topicQid === topicQid);
+  }
+
+  async suggestCandidates(input: {
+    topicQid: string;
+    topicTitle: string;
+    sections: ArticleSection[];
+    curatedVideoKeys: Set<string>;
+  }): Promise<Candidate[] | null> {
+    // Live path (AC2): the pluggable source pipeline (YouTube only this round) does the
+    // single search + section matching + dedup + 24h cache. Returns null when no source
+    // is enabled (no key) — the caller falls back to listCandidates (seed). The pipeline
+    // never throws (sources swallow all errors → degrade to seeded/empty, AC14).
+    return runCandidatePipeline(input);
+  }
+
   async addClip(input: Omit<Clip, "id" | "createdAt">): Promise<Clip> {
     const clips = read<Clip>(CLIPS_KEY);
     const clip: Clip = {
@@ -58,10 +85,7 @@ export class LocalStorageDataStore implements DataStore {
     return clip;
   }
 
-  async updateClip(
-    id: string,
-    patch: Partial<Omit<Clip, "id">>
-  ): Promise<Clip> {
+  async updateClip(id: string, patch: Partial<Omit<Clip, "id">>): Promise<Clip> {
     const clips = read<Clip>(CLIPS_KEY);
     const i = clips.findIndex((c) => c.id === id);
     if (i < 0) throw new Error(`Clip ${id} not found`);
@@ -75,5 +99,13 @@ export class LocalStorageDataStore implements DataStore {
       CLIPS_KEY,
       read<Clip>(CLIPS_KEY).filter((c) => c.id !== id)
     );
+  }
+
+  /** Seed helpers (used by lib/data/index.ts). */
+  _seedClips(clips: Clip[]): void {
+    write(CLIPS_KEY, clips);
+  }
+  _seedCandidates(cands: Candidate[]): void {
+    write(CANDIDATES_KEY, cands);
   }
 }
