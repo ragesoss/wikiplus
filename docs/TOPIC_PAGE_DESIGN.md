@@ -111,30 +111,67 @@ Anchoring is at **section granularity** in the mockup; tightening it to a specif
 
 Every topic starts with **zero curations**. The empty state still aims to be useful and to drive
 the curation flywheel, by bootstrapping the plus side with **auto-suggested, clearly unvetted
-candidates** plus prominent paths to curate. Reference mockup: **`mockups/inline-indigo-empty.html`**.
+candidates** plus prominent paths to curate. Reference mockup: **`mockups/inline-indigo-empty-v2.html`**
+(v2 is the settled direction; the earlier `inline-indigo-empty.html` is kept for reference).
 
-- **Auto-suggestion is multi-platform by design.** The General bar is populated automatically with
+### Auto-suggestion and manual source paths
+
+- **Auto-suggestion is multi-platform by design.** The General strip is populated automatically with
   candidates from a video search for the topic — **YouTube and TikTok** (and potentially other
   sources); the frontend treats all auto-candidates the same. Where a candidate's metadata
   (title/description/tags) matches a specific article section's keywords, it surfaces as a **single
-  inline candidate** under that section.
+  inline candidate** under that section in the article body, and as a candidate card in the rail.
   - *MVP limitation (pragmatic, not a design choice):* only **YouTube** auto-suggestion is wired up
     at first, because TikTok lacks an easily-accessible search API (see ARCHITECTURE). TikTok
     auto-suggestion switches on when it becomes practical — the design already accommodates it.
-- **Manual source paths (always available).** A **"Search TikTok"** button (and possibly other
-  source buttons) **launches TikTok (web/app) in a new window** for a manual search — useful
-  regardless of auto-suggestion, and the interim way TikTok content gets in.
+- **Manual source paths (always available) — the "Find more" row.** In the General strip and in the
+  rail, a compact row of source buttons provides one-tap exits to search manually: **"Search TikTok ↗"**
+  (opens TikTok web search), **"Search YouTube ↗"** (opens YouTube search), and **"＋ Add video"**
+  (paste-a-link flow). These appear whether or not auto-suggestion is active, and are the interim
+  path for TikTok content until a search API is available.
 - **"Add video" (logged-in only).** Paste a **YouTube or TikTok share link** for a clip that
   auto-suggestion missed; we resolve its embed/metadata and start a curation.
-- **Unvetted treatment.** Candidates are unmistakably distinct from curated clips: dashed (not
-  solid) borders, no solid offset shadow, a desaturated/hatched thumbnail, an outline "SUGGESTED"
-  badge, and — in place of a curator context note — an **auto-suggest reason** (source + why it
-  matched) with a "no context yet" hint. No stance/accuracy chips yet. TOC badges show suggestion
-  counts in a dashed/outline style, distinct from curated counts.
-- **Curation entry points.** Every candidate carries **Promote** (opens "Curate this clip" — write
-  the context note, set stance + accuracy, confirm the section; publishing turns it into a vetted
-  curated clip) and **Not relevant** (rules it out). Browsing is anonymous; **promoting or adding a
-  video requires login**.
+
+### Unvetted visual language (candidate cards)
+
+Candidates are unmistakably distinct from curated clips at every level:
+
+- **Card frame:** `border: 2px dashed` (ink) + no solid offset shadow. The dashed border is the
+  primary "provisional" signal; curated cards use solid borders with a solid ink drop-shadow.
+- **Thumbnail:** `filter: saturate(0.55) contrast(0.95)` (muted/desaturated) plus a diagonal hatch
+  overlay (`repeating-linear-gradient(45deg, rgba(44,44,44,.10) 0 6px, transparent 6px 12px)`).
+  Together these read as "not yet confirmed."
+- **"SUGGESTED" badge:** outline style — `border: 2px solid ink; background: white; color: ink`.
+  Curated clips use filled stance/accuracy chips; the outline badge is the candidate-tier equivalent.
+- **Reason line** (replaces the curator context note): a dashed indigo left-border block
+  (`border-l-4 border-dashed border-[#676EB4] bg-[#F0F1F3]`) labelled **"Auto-suggested"** with a
+  search-icon, followed by the match source and *"No context yet — a human hasn't reviewed this."*
+  No stance/accuracy chips — those appear only after a human curates.
+- **TOC badges (empty state):** dashed/outline style (`border-2 border-dashed border-[#5248AF]`) with
+  a `~N` format (tilde = approximate/unvetted count), distinct from the solid filled badges used for
+  curated clip counts.
+
+### Curation entry points on every candidate
+
+Each candidate card carries two actions:
+
+- **✓ Promote** — navigates to the contribute form pre-filled with this clip's URL, creator, and
+  topic, where the user writes the context note, sets stance + accuracy, and confirms the section;
+  publishing promotes it to a fully curated clip.
+- **✕ Not relevant** — dismisses the card from the current session (fade-out transition). The
+  candidate remains available to other logged-in curators.
+
+Browsing candidates is anonymous; **promoting or adding a video requires login**.
+
+### Empty-state zone-by-zone
+
+| Zone | Empty-state treatment |
+|------|----------------------|
+| **＋plus infobox** | Large "0 videos curated" numeral + "auto-suggestions from YouTube" subtitle + "✦ Be the first to curate" CTA (indigo hardbox button → /contribute). The synced status footer remains. |
+| **General strip** | Full-bleed indigo band with heading "＋ Suggested videos" + "uncurated" outline badge + subtitle "— auto-found candidates, not yet vetted". Below the heading: the "Find more" row (Search TikTok / Search YouTube / ＋ Add video). In the auto-suggestion-enabled version, the band also contains a horizontal-scroll row of candidate tiles. |
+| **Plus rail label** | Changes from "Videos ↓" to **"Suggested ↓ · uncurated"**. |
+| **Plus rail cards** | Candidate cards (dashed, muted thumbnail, reason line, Promote/Dismiss). |
+| **Article body** | A single inline candidate block (aside with dashed border, `candcard` style) appears after each section's text where a candidate matched that section's keywords. |
 
 ## Data implications (already reflected in the clip model)
 
