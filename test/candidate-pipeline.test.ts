@@ -248,6 +248,26 @@ describe("youtubeApiKey / youtubeSource (AC1, AC15 — env-only key)", () => {
     expect(out).toEqual([]);
     expect(fetchSpy).not.toHaveBeenCalled();
   });
+  it("sends a simple CORS GET — no non-safelisted headers (avoids a preflight that breaks the browser call)", async () => {
+    vi.stubEnv("NEXT_PUBLIC_YOUTUBE_API_KEY", KEY);
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(
+        new Response(JSON.stringify({ items: [] }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        })
+      );
+    await youtubeSource.search({ topicQid: QID, topicTitle: "X" });
+    const init = fetchSpy.mock.calls[0]?.[1] ?? {};
+    const headerNames = Object.keys((init.headers ?? {}) as Record<string, string>).map((h) =>
+      h.toLowerCase()
+    );
+    // Only CORS-safelisted request headers are allowed; a custom header (e.g. x-client)
+    // forces a preflight googleapis.com won't approve, silently breaking suggestions.
+    const SAFELISTED = new Set(["accept", "accept-language", "content-language", "content-type"]);
+    for (const name of headerNames) expect(SAFELISTED.has(name)).toBe(true);
+  });
   it("degrades to [] on a non-OK response (quota/error — AC14)", async () => {
     vi.stubEnv("NEXT_PUBLIC_YOUTUBE_API_KEY", KEY);
     vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("quota", { status: 403 }));
