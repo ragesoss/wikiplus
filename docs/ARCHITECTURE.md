@@ -285,13 +285,26 @@ Design points:
 - **DOMPurify allowlist** + which Wikipedia HTML to keep vs. strip (infoboxes, tables, math, navboxes).
 - **Internal-link resolution** edge cases: red links, disambiguation pages, non-article namespaces.
 - What scopes/claims we request from Wikimedia (e.g. username, edit count — also a moderation signal).
-- Abuse/spam handling for open contribution (rate limits via Redis, basic moderation).
-- The license chosen for wiki+ context notes.
-- Whether `stance`/`accuracy_flag` are free-form or a fixed controlled vocabulary (affects
-  filtering, consistency, and any future AI-assisted drafting).
 - YouTube search credentials: keep the **referrer-restricted client key** (prototype) or move search
   behind a **server proxy** in the production read-path — so the key isn't browser-exposed and the
   expensive search quota can be shared, secured, and cached server-side.
+
+### Resolved by the Curation Standard (`docs/CURATION_STANDARD.md`)
+
+- ~~Whether `stance`/`accuracy_flag` are free-form or a fixed controlled vocabulary.~~
+  **Resolved:** both are **fixed controlled enums** (Curation Standard §2/§3, Decision C2),
+  with an optional free-form **`*_modifier`** display field (≤24 chars, never filtered, C6).
+  Stance: `explainer | short | demonstration | classroom | opinion | myth_busting |
+  personal_experiment`. Accuracy: `accurate | accurate_with_caveat | primary_source | opinion
+  | mixed | misleading | inaccurate`. The provisional `primary-source` value splits into the
+  `demonstration` stance + `primary_source` accuracy (C4); `lib/data/types.ts` to be updated.
+- ~~The license chosen for wiki+ context notes.~~ **Resolved:** **CC BY-SA 4.0** (same as the
+  article text), with contributor agreement captured at submit time (Curation Standard §5.3,
+  Decision C5).
+- ~~Abuse/spam handling for open contribution.~~ **Policy resolved** (Curation Standard §7):
+  login-gated contribution, defined removable content, honest flagging allowed, per-identity
+  Redis rate limits + the `clip.vetted` review hold. *Enforcement* (rate-limit + moderation
+  tooling) remains Operations'/Development's to build with auth/persistence.
 
 ## Prototype phase (current — client-side, GitHub Pages)
 
