@@ -144,6 +144,10 @@ no repo to "mess with." **One issue = one build-loop run.** The durable build ar
 code, ARCHITECTURE) still live in the repo; Issues hold the **queue and the async human↔build
 conversation** — a clean split, not a divided source of truth.
 
+**Preparing issues.** The **`/prepare-issue`** skill turns a rough idea into a well-scoped build-task
+issue — it grounds the draft in `docs/`, **shows it for approval, and posts to GitHub only after the
+owner approves**; it recommends but never self-applies `status: ready`.
+
 **Labels are the metadata that gates autonomous work.** Two axes:
 - **Type** (what it is): `type: build`, `type: bug`, `type: feedback`, `type: idea`. The issue
   templates in `.github/ISSUE_TEMPLATE/` apply these automatically.

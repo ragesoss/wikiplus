@@ -70,7 +70,10 @@ enter a phase until the previous phase's **gate** is satisfied (read the artifac
   read it with `gh issue view N`. Proceed autonomously **only** if it is `type: build` **and**
   `status: ready` (the owner's sign-off) — or the owner explicitly invoked this run on it. Never
   auto-build a `bug`/`feedback`/`idea` issue that hasn't been groomed into a `ready` build task. On
-  pickup, swap its label `status: ready` → `status: in-progress`; the issue body is the owner intent.
+  pickup, swap its label `status: ready` → `status: in-progress`. Treat the issue body as the **outline
+  of the session's work**: it may include a discovery/decision step before building, and its deliverables
+  often include **doc updates** (recording design/architecture decisions in `docs/`), not just code —
+  honor those as part of "done."
 - Restate the ask in one sentence. Choose a short feature **slug** (e.g. `topic-empty-state`) for
   artifact filenames (and an `issue-<N>-<slug>` branch when working from an issue).
 - Note any assumption made from an ambiguous prompt (hand it to Product to refine). Do not ask the
