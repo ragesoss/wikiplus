@@ -16,6 +16,14 @@ import type { Candidate, Clip, Topic } from "./types";
 export interface DataStore {
   listTopics(): Promise<Topic[]>;
   getTopic(qid: string): Promise<Topic | null>;
+  /**
+   * Resolve a Wikipedia article title to a known Topic (canonical title-based route:
+   * `/topic/<Title>` → QID under the hood — ARCHITECTURE "Internal-link resolution").
+   * Matches case-insensitively with `_`/space normalized so a wikilink title (`Calvin_cycle`)
+   * finds the seeded topic. Returns null for an unseeded title — the caller then resolves
+   * title→QID via the Wikipedia API (`titleToQid`). Production: a single indexed lookup.
+   */
+  getTopicByTitle(title: string): Promise<Topic | null>;
   upsertTopic(topic: Topic): Promise<Topic>;
 
   /** Curated clips for a topic. Empty ⇒ the page renders the empty/uncurated state. */

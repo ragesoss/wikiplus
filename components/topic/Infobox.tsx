@@ -1,6 +1,7 @@
 "use client";
 
 import type { TopicStats } from "@/lib/data/types";
+import { pluralize } from "@/lib/format";
 
 // ＋plus infobox (design §5.3 curated / §6.2 empty, AC7/AC14). Curated = 3 big
 // numerals (videos / creators / curators). Empty = a "0 videos curated" block + the
@@ -42,7 +43,7 @@ export function Infobox({
             videos curated
           </p>
           <p className="mt-4 text-[12px] text-ink2">
-            {suggestionCount} auto-suggestions from {sources}
+            {pluralize(suggestionCount, "auto-suggestion")} from {sources}
           </p>
           <button
             type="button"

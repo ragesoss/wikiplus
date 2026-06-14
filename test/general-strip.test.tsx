@@ -52,7 +52,8 @@ describe("GeneralStrip — curated (AC8)", () => {
       />
     );
     expect(screen.getByText("＋ General")).toBeInTheDocument();
-    expect(screen.getByText("1 videos")).toBeInTheDocument();
+    // grammatical count at 1 (defect N3): "1 video", not "1 videos"
+    expect(screen.getByText("1 video")).toBeInTheDocument();
     expect(screen.getByText("Overview clip")).toBeInTheDocument();
     expect(screen.getByRole("list")).toBeInTheDocument();
   });
@@ -80,7 +81,8 @@ describe("GeneralStrip — empty / Suggested (AC16, AC18)", () => {
     setup();
     expect(screen.getByText("＋ Suggested videos")).toBeInTheDocument();
     expect(screen.getByText("uncurated")).toBeInTheDocument();
-    expect(screen.getByText("1 candidates")).toBeInTheDocument();
+    // grammatical count at 1 (defect N3): "1 candidate", not "1 candidates"
+    expect(screen.getByText("1 candidate")).toBeInTheDocument();
   });
 
   it("offers Search TikTok / Search YouTube deep-links in a new tab (AC18)", () => {

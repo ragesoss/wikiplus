@@ -12,7 +12,8 @@ const article: FullArticle = {
   lead: {
     title: "Photosynthesis",
     url: "https://en.wikipedia.org/wiki/Photosynthesis",
-    leadHtml: "<p>Photosynthesis is a <a href=\"/topic/Process\">process</a>.</p>",
+    leadHtml:
+      '<p>Photosynthesis is a <a href="/topic/Process/" data-topic-title="Process">process</a>.</p>',
   },
   sections: [
     { slug: "light-dependent-reactions", title: "Light-dependent reactions", level: 2, html: "<p>LDR body.</p>" },
@@ -23,14 +24,24 @@ const article: FullArticle = {
   ],
 };
 
+// Routing inputs: most tests drive the back-compat `?qid=` entry (pathname `/topic/`,
+// no title); the title-route test sets `pathname` instead. `routerReplace` records the
+// canonicalization (QID → title URL). `qidToTitle`/`titleToQid` resolve under the hood.
 let qid = "Q11982";
+let pathname = "/topic/";
+const routerReplace = vi.fn();
+const routerPush = vi.fn();
 const fetchFullArticle = vi.fn();
 
 vi.mock("next/navigation", () => ({
-  useSearchParams: () => new URLSearchParams(`qid=${qid}`),
+  useSearchParams: () =>
+    new URLSearchParams(qid ? `qid=${qid}` : ""),
+  usePathname: () => pathname,
+  useRouter: () => ({ replace: routerReplace, push: routerPush }),
 }));
 vi.mock("@/lib/wiki/article", () => ({
   qidToTitle: vi.fn(async () => "Photosynthesis"),
+  titleToQid: vi.fn(async () => "Q11982"),
   fetchFullArticle: (...a: unknown[]) => fetchFullArticle(...a),
 }));
 
@@ -40,6 +51,10 @@ import { seedIfEmpty } from "@/lib/data";
 beforeEach(async () => {
   window.localStorage.clear();
   fetchFullArticle.mockReset();
+  routerReplace.mockReset();
+  routerPush.mockReset();
+  qid = "Q11982";
+  pathname = "/topic/"; // back-compat ?qid= entry unless a test overrides
   await seedIfEmpty(); // seed the curated Photosynthesis + uncurated topics
 });
 afterEach(() => vi.clearAllMocks());
@@ -149,6 +164,67 @@ describe("TopicView — loading & error states (design §7)", () => {
     const out = screen.getByRole("link", { name: /Open on Wikipedia/ });
     expect(out).toHaveAttribute("target", "_blank");
     expect(out).toHaveAttribute("rel", "noopener");
+  });
+});
+
+// D1/AC5/AC23 — canonical title-based route. A wikilink lands on /topic/<Title>;
+// the QID is resolved UNDER THE HOOD (here via the store's seeded title→QID, no API
+// call needed) and never put back in the URL. The curated topic renders by title alone.
+describe("TopicView — canonical title route (D1, AC5, AC23)", () => {
+  beforeEach(() => {
+    qid = ""; // no ?qid= — the title in the path is the only input
+    pathname = "/topic/Photosynthesis/";
+    fetchFullArticle.mockResolvedValue(article);
+  });
+
+  it("resolves the title to the seeded topic and renders it (no QID in the URL)", async () => {
+    render(<TopicView />);
+    // Article renders from the title alone…
+    expect(
+      await screen.findByRole("heading", { name: "Photosynthesis", level: 1 })
+    ).toBeInTheDocument();
+    // …and the store lookup keyed by the resolved QID surfaces the seeded clips (curated).
+    const videosBlock = screen.getByText("Videos").closest("div")!;
+    expect(within(videosBlock).getByText("13")).toBeInTheDocument();
+    // The article fetch was driven by the TITLE, never a QID.
+    expect(fetchFullArticle).toHaveBeenCalledWith("Photosynthesis");
+    // No URL rewrite back to a ?qid= form — the title URL is already canonical.
+    expect(routerReplace).not.toHaveBeenCalled();
+  });
+
+  it("still shows the QID-backed attribution though the URL stays title-based (AC4)", async () => {
+    render(<TopicView />);
+    const attribution = await screen.findByText(/CC BY-SA 4\.0/);
+    expect(attribution).toHaveTextContent("Wikidata Q11982");
+  });
+
+  it("intercepts a wikilink click and routes in-SPA (no full reload) — AC5", async () => {
+    const { fireEvent } = await import("@testing-library/react");
+    render(<TopicView />);
+    const link = await screen.findByText("process");
+    // fireEvent (not userEvent): a raw bubbling click is what the delegated handler sees;
+    // userEvent.click on an <a href> drives jsdom's unimplemented navigation instead.
+    fireEvent.click(link);
+    // Routed via the Next client router to the canonical title URL (no QID, no reload).
+    expect(routerReplace).not.toHaveBeenCalled(); // title route needs no canonicalization
+    expect(routerPush).toHaveBeenCalledWith("/topic/Process/");
+  });
+});
+
+// Back-compat: a legacy ?qid= entry resolves QID→title and canonicalizes the URL to
+// the title-based form (QID drops out of the address bar) — D1/AC23.
+describe("TopicView — ?qid= back-compat canonicalization (AC23)", () => {
+  it("replaces the ?qid= URL with the canonical /topic/<Title>/ route", async () => {
+    qid = "Q11982";
+    pathname = "/topic/";
+    fetchFullArticle.mockResolvedValue(article);
+    render(<TopicView />);
+    await screen.findByRole("heading", { name: "Photosynthesis", level: 1 });
+    await waitFor(() =>
+      expect(routerReplace).toHaveBeenCalledWith("/topic/Photosynthesis/")
+    );
+    // The canonical target carries no QID.
+    expect(routerReplace.mock.calls[0][0]).not.toMatch(/qid|Q11982/);
   });
 });
 

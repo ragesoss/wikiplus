@@ -68,11 +68,14 @@ export function CandidateActions({
 /** Candidate card in the rail (mirrors a clip card's footprint, dashed). */
 export function CandidateCard({
   candidate,
+  active = false,
   onPromote,
   onDismiss,
   cardRef,
 }: {
   candidate: Candidate;
+  /** Scroll-sync highlight — mirrors ClipCard's active pairing (design §6.5, D2). */
+  active?: boolean;
   onPromote: (c: Candidate) => void;
   onDismiss: (c: Candidate) => void;
   cardRef?: (el: HTMLElement | null) => void;
@@ -81,7 +84,7 @@ export function CandidateCard({
     <article
       ref={cardRef}
       data-clip-section={candidate.general ? "__general" : candidate.sectionSlug}
-      className="candcard relative p-2.5"
+      className={`candcard relative p-2.5${active ? " active" : ""}`}
     >
       <div className="mb-1.5 flex items-center justify-between">
         <SuggestedBadge />

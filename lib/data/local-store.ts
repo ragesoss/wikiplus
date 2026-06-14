@@ -32,6 +32,12 @@ export class LocalStorageDataStore implements DataStore {
     return read<Topic>(TOPICS_KEY).find((t) => t.qid === qid) ?? null;
   }
 
+  async getTopicByTitle(title: string): Promise<Topic | null> {
+    const norm = (s: string) => s.replace(/_/g, " ").trim().toLowerCase();
+    const want = norm(title);
+    return read<Topic>(TOPICS_KEY).find((t) => norm(t.title) === want) ?? null;
+  }
+
   async upsertTopic(topic: Topic): Promise<Topic> {
     const topics = read<Topic>(TOPICS_KEY);
     const i = topics.findIndex((t) => t.qid === topic.qid);

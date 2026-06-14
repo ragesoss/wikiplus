@@ -149,10 +149,12 @@ The full article body is fetched and rendered **in the browser**, not on our ori
   cross-origin fetch is practical. (If an endpoint ever lacks CORS, proxy via a thin origin route.)
 - **Sanitize:** run the HTML through **DOMPurify** before inserting it — never inject raw
   third-party HTML. Strip editor chrome (edit-section links, reference backrefs, unwanted navboxes).
-- **Rewrite links to internal wiki+ topics:** article wikilinks (`/wiki/X`) are rewritten to
-  **`/topic/X`**, so navigation stays in wiki+ and every article becomes a portal into the topic
-  graph (topics created on demand on visit). Red links / non-article namespaces fall back to
-  Wikipedia or are de-linked.
+- **Rewrite links to internal wiki+ topics:** article wikilinks (`/wiki/X`) are rewritten to the
+  **canonical title-based Topic route `/topic/<Title>`** (paralleling Wikipedia's `/wiki/<Title>`;
+  owner directive — see *Internal-link resolution* below), so navigation stays in wiki+ and every
+  article becomes a portal into the topic graph (topics created on demand on visit). The **QID is
+  resolved under the hood** on arrival (title→QID) and never appears in the address bar. Red links /
+  non-article namespaces fall back to Wikipedia or are de-linked.
 - **Why client-side:** keeps heavy article HTML off our origin (Wikipedia's CDN serves it), so
   cached pages stay small and the read path stays cheap.
 - **SEO tradeoff (to handle):** the client-rendered body isn't in our initial HTML — acceptable,
@@ -285,7 +287,19 @@ Design points:
 - **DOMPurify allowlist** + which Wikipedia HTML to keep vs. strip (infoboxes, tables, math, navboxes).
   *Prototype decision (Topic Page v1, `lib/wiki/article.ts`):* the client fetches **`/api/rest_v1/page/html/{title}`** (Parsoid HTML, CORS-enabled), sanitizes with an **explicit DOMPurify allowlist** (prose, headings h1–h6, lists, links, `figure`/`figcaption`/`img`, basic tables; scripts/styles/iframes/forms dropped), then **strips editor chrome** post-parse (`.mw-editsection`, references/reflist, navboxes, `table.infobox`/`sidebar`, hatnotes). Tables are allowed through sanitize but **hidden in CSS** this round (`.wiki-body table { display:none }`) — full table/infobox/math rendering is deferred. Sections are derived by walking the flattened Parsoid `<section>` stream: lead = everything before the first `h2`; each `h2`/`h3`/`h4` opens a section with a **stable kebab slug** (`slugify`, deduped), used for `#sec-<slug>`/`#h-<slug>` anchors, the TOC, and clip→section matching. Navigational sections (References/See also/External links/Further reading/etc.) are dropped.
 - **Internal-link resolution** edge cases: red links, disambiguation pages, non-article namespaces.
-  *Prototype decision:* article-namespace wikilinks are rewritten to **`/topic/<Title>`**; **red links** (`.new`/`.mw-redlink`) and **namespaced links** (`File:`/`Help:`/`Category:` — any href with a `:`) keep an **absolute Wikipedia URL** opening in a new tab (`rel=noopener`); in-page anchors (cite/note refs) are **de-linked** to plain text. No wikilink ever produces a broken `/topic/` route.
+  *Prototype decision (Topic Page v1; owner directive — canonical title URLs):* article-namespace
+  wikilinks are rewritten to the **canonical title route `/topic/<Title>/`** (encoded title, trailing
+  slash to match `trailingSlash: true`, basePath-prefixed for the raw `<a href>` so a hard navigation
+  resolves under the Pages subpath). The decoded title is also stashed in **`data-topic-title`** so a
+  delegated click handler in `TopicView` routes ordinary left-clicks through the Next client router
+  (no full reload); modified clicks fall through to the href. On arrival the **QID is resolved under
+  the hood** (`titleToQid` via the Wikipedia `pageprops`/`wikibase_item` API, or the seeded store) and
+  is **never shown in the address bar**. **Red links** (`.new`/`.mw-redlink`) and **namespaced links**
+  (`File:`/`Help:`/`Category:` — any href with a `:`) keep an **absolute Wikipedia URL** opening in a
+  new tab (`rel=noopener`); in-page anchors (cite/note refs) are **de-linked** to plain text. No
+  wikilink ever produces a broken `/topic/` route. The legacy `/topic?qid=Q…` URL still works as a
+  back-compat entry but is **canonicalized away**: `TopicView` resolves QID→title and `router.replace`s
+  to the title URL.
 - What scopes/claims we request from Wikimedia (e.g. username, edit count — also a moderation signal).
 - YouTube search credentials: keep the **referrer-restricted client key** (prototype) or move search
   behind a **server proxy** in the production read-path — so the key isn't browser-exposed and the
@@ -346,9 +360,25 @@ exercise the production read-path (ISR/Redis/Server Actions) and is **single-use
   (`lib/data/seed.ts`); the live YouTube-search pipeline (with the `NEXT_PUBLIC_YOUTUBE_API_KEY`
   no-op-when-unset guard) is next round.
 
-**Path to production:** add the Drizzle `DataStore` + Server Actions, restore per-QID path-based
-Topic pages with ISR + the Redis `cacheHandler`, and turn off `output: 'export'`. The components,
-data model, design system, and article pipeline carry forward.
+- **Routing — canonical title-based Topic URLs under static export (Topic Page v1).** The
+  user-facing Topic URL is **title-based** (`/topic/<Title>`, paralleling `/wiki/<Title>`); the QID
+  is the internal key, resolved under the hood and never shown (owner directive; AC5/AC23). The route
+  is an **optional catch-all** `app/topic/[[...slug]]/page.tsx`: `generateStaticParams` pre-renders the
+  **seeded titles** (`Photosynthesis`, `Cellular_respiration`, `Cat`) plus the bare `/topic` shell
+  (`slug: []`) that serves the `?qid=` back-compat entry. `dynamicParams = false` — arbitrary titles
+  are **not** generated, so under `output: 'export'` GitHub Pages serves **`404.html`** for them; the
+  deploy step (`deploy.yml`) makes `404.html` a **copy of the Topic SPA shell** (`out/topic/index.html`),
+  the standard GitHub-Pages SPA fallback. Because the export uses an absolute basePath `assetPrefix`,
+  that shell boots from any path; `TopicView` then reads the title from `location.pathname`
+  (`titleFromPathname`) and renders — no redirect, **no QID in the URL**, title preserved. In-app
+  navigation uses the Next client router (`<Link>` + a delegated wikilink click handler), so it never
+  triggers a full reload. Helpers live in `lib/wiki/topicRoute.ts` (`topicHref`, `titleFromPathname`).
+  *Production* drops `output: 'export'` and restores per-title path-based pages with ISR + the Redis
+  `cacheHandler` (no 404.html trick needed once a server renders unknown titles on demand).
+
+**Path to production:** add the Drizzle `DataStore` + Server Actions, restore path-based Topic pages
+with ISR + the Redis `cacheHandler`, and turn off `output: 'export'`. The components, data model,
+design system, article pipeline, and the title-based URL scheme carry forward.
 
 ## Testing
 

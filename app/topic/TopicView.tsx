@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArticleError,
@@ -23,8 +23,10 @@ import type { Candidate, Clip, Topic } from "@/lib/data/types";
 import {
   fetchFullArticle,
   qidToTitle,
+  titleToQid,
   type FullArticle,
 } from "@/lib/wiki/article";
+import { titleFromPathname, topicHref } from "@/lib/wiki/topicRoute";
 
 const HEAD = 64;
 const READ = 120;
@@ -33,7 +35,25 @@ const IDENTITY = "@sage"; // stubbed signed-in curator (design §6.1; A7)
 type FetchState = "loading" | "ready" | "error";
 
 export function TopicView() {
-  const qid = useSearchParams().get("qid");
+  const router = useRouter();
+  const pathname = usePathname();
+  const qidParam = useSearchParams().get("qid");
+
+  // Canonical route is title-based: `/topic/<Title>` (owner directive D1; AC5/AC23).
+  // The title in the path is the source of truth; the QID is resolved UNDER THE HOOD
+  // and never shown. `?qid=` is a back-compat entry that we canonicalize away (below).
+  const routeTitle = useMemo(
+    () => (pathname ? titleFromPathname(pathname) : null),
+    [pathname]
+  );
+
+  // Resolved identity for this page: { qid, title }. `qid` keys the store; `title`
+  // drives the article fetch + display. Either the path title or the ?qid= resolves it.
+  const [resolved, setResolved] = useState<{
+    qid: string | null;
+    title: string;
+  } | null>(null);
+  const [resolveError, setResolveError] = useState(false);
 
   const [topic, setTopic] = useState<Topic | null>(null);
   const [clips, setClips] = useState<Clip[]>([]);
@@ -50,12 +70,51 @@ export function TopicView() {
 
   const [activeSlug, setActiveSlug] = useState<string | null>(null);
 
-  // Load store data (synchronous-ish; doesn't gate on the article fetch).
+  // ── Resolve the page identity (title ⇄ QID), then canonicalize the URL. ──
+  // Title route: title is canonical; resolve QID under the hood (seeded store first,
+  // then the Wikipedia API). ?qid= route: resolve QID→title, then replace the URL with
+  // the canonical /topic/<Title>/ so the QID never lingers in the address bar.
+  useEffect(() => {
+    let alive = true;
+    setResolveError(false);
+    (async () => {
+      await seedIfEmpty();
+      if (routeTitle) {
+        const known = await store.getTopicByTitle(routeTitle);
+        const title = known?.title ?? routeTitle.replace(/_/g, " ");
+        const qid = known?.qid ?? (await titleToQid(routeTitle));
+        if (!alive) return;
+        setResolved({ qid, title });
+        return;
+      }
+      if (qidParam) {
+        const t = await store.getTopic(qidParam);
+        const title = t?.title ?? (await qidToTitle(qidParam));
+        if (!alive) return;
+        if (title) {
+          // Canonicalize: swap ?qid= for the title-based URL (QID drops out of the bar).
+          router.replace(topicHref(title));
+          setResolved({ qid: qidParam, title });
+        } else {
+          setResolveError(true);
+        }
+        return;
+      }
+      if (alive) setResolveError(true);
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [routeTitle, qidParam, router]);
+
+  const qid = resolved?.qid ?? null;
+  const resolvedTitle = resolved?.title ?? null;
+
+  // Load store data (keyed by the resolved QID; doesn't gate on the article fetch).
   useEffect(() => {
     if (!qid) return;
     let alive = true;
     (async () => {
-      await seedIfEmpty();
       const [t, cl, ca] = await Promise.all([
         store.getTopic(qid),
         store.listClips(qid),
@@ -73,29 +132,30 @@ export function TopicView() {
   }, [qid]);
 
   const loadArticle = useCallback(async () => {
-    if (!qid) return;
+    if (!resolvedTitle) return;
     setFetchState("loading");
     try {
-      const t = await store.getTopic(qid);
-      const title = (await qidToTitle(qid)) ?? t?.title ?? null;
-      if (!title) throw new Error("No Wikipedia article for this QID.");
-      const full = await fetchFullArticle(title);
+      const full = await fetchFullArticle(resolvedTitle);
       setArticle(full);
       setFetchState("ready");
-      if (!t || t.title !== title) {
-        await store.upsertTopic({ qid, title });
+      // Keep the store's title in sync with the live article (no-op for seeded topics).
+      if (qid && (!topic || topic.title !== full.title)) {
+        await store.upsertTopic({ qid, title: full.title });
       }
     } catch {
       setFetchState("error");
     }
-  }, [qid]);
+    // `topic` intentionally excluded: it's a sync-target, not an input that should re-fetch.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resolvedTitle, qid]);
 
   useEffect(() => {
     void loadArticle();
   }, [loadArticle]);
 
   const mode: "curated" | "empty" = clips.length > 0 ? "curated" : "empty";
-  const topicTitle = article?.title ?? topic?.title ?? qid ?? "";
+  const topicTitle =
+    article?.title ?? topic?.title ?? resolvedTitle ?? qid ?? "";
 
   const liveCandidates = useMemo(
     () => candidates.filter((c) => !dismissed.has(c.id)),
@@ -264,6 +324,25 @@ export function TopicView() {
     }
   }, [railItems, activeSlug]);
 
+  // ── Wikilink click interception (AC5). ──
+  // Rewritten article-namespace links carry `data-topic-title` + an `/topic/<Title>/`
+  // href. Intercept ordinary left-clicks and route them through the Next client router
+  // so navigation stays in-SPA (no full reload). Modified clicks (new-tab/copy) and the
+  // externalized red/namespaced links (which lack `data-topic-title`) are left alone.
+  const onArticleClick = useCallback(
+    (e: React.MouseEvent<HTMLElement>) => {
+      if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey)
+        return;
+      const link = (e.target as HTMLElement).closest("a[data-topic-title]");
+      if (!link) return;
+      const title = link.getAttribute("data-topic-title");
+      if (!title) return;
+      e.preventDefault();
+      router.push(topicHref(title));
+    },
+    [router]
+  );
+
   // ── Candidate actions (A7: non-persisting). ──
   const dismiss = useCallback((c: Candidate) => {
     setDismissed((prev) => new Set(prev).add(c.id));
@@ -287,10 +366,12 @@ export function TopicView() {
     [article]
   );
 
-  if (!qid) {
+  // No title in the path and no resolvable ?qid= ⇒ nothing to show. (While resolving,
+  // `resolved` is null but `resolveError` is false → fall through to the loading shell.)
+  if (resolveError || (!resolved && !routeTitle && !qidParam)) {
     return (
       <p className="p-6 text-sm text-ink/60">
-        Missing topic id.{" "}
+        Topic not found.{" "}
         <Link href="/" className="text-action underline">
           Back home
         </Link>
@@ -311,7 +392,7 @@ export function TopicView() {
       <div className="mx-auto max-w-[1200px] px-5">
         {/* Masthead: title + attribution + lead (left) + infobox + TOC (right). */}
         <div className="grid grid-cols-1 gap-7 pt-6 lg:grid-cols-[1fr_360px]">
-          <div className="min-w-0">
+          <div className="min-w-0" onClick={onArticleClick}>
             {fetchState === "loading" && <ArticleSkeleton />}
             {fetchState === "error" && (
               <ArticleError
@@ -370,7 +451,7 @@ export function TopicView() {
       {/* Reader: article body sections (left) + the sticky rail (right). */}
       <div className="mx-auto max-w-[1200px] px-5 pb-16">
         <div className="grid grid-cols-1 gap-7 lg:grid-cols-[1fr_360px]">
-          <div className="min-w-0">
+          <div className="min-w-0" onClick={onArticleClick}>
             {fetchState === "ready" && article && (
               <ArticleSections
                 sections={article.sections}
@@ -412,6 +493,7 @@ export function TopicView() {
                   <CandidateCard
                     key={c.id}
                     candidate={c}
+                    active={activeSlug === c.sectionSlug}
                     onPromote={promote}
                     onDismiss={dismiss}
                     cardRef={(el) => {

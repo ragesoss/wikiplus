@@ -7,6 +7,7 @@
 // list with stable slugs, and split the body into per-section fragments.
 
 import type { ArticleSection } from "@/lib/data/types";
+import { topicHref } from "./topicRoute";
 
 const REST = "https://en.wikipedia.org/api/rest_v1";
 // Wikimedia etiquette: a descriptive Api-User-Agent identifying wiki+ + a contact
@@ -43,6 +44,33 @@ export async function qidToTitle(qid: string): Promise<string | null> {
   if (!res.ok) return null;
   const data = await res.json();
   return data?.entities?.[qid]?.sitelinks?.enwiki?.title ?? null;
+}
+
+/**
+ * Resolve an English Wikipedia article title to its Wikidata QID — the reverse of
+ * {@link qidToTitle}. Used by the title-based Topic route (`/topic/<Title>`): the
+ * canonical URL the user sees is title-based (paralleling `/wiki/<Title>`), and the
+ * QID is resolved here under the hood to key store lookups (ARCHITECTURE "Article
+ * rendering" / "Internal-link resolution"). Returns null if the page has no QID
+ * (e.g. a missing/red article) — the caller falls back to the title.
+ *
+ * Uses the Wikipedia action API `pageprops` (`wikibase_item`), which resolves
+ * redirects and is CORS-enabled for anonymous GETs.
+ */
+export async function titleToQid(title: string): Promise<string | null> {
+  const url =
+    "https://en.wikipedia.org/w/api.php" +
+    "?action=query&prop=pageprops&ppprop=wikibase_item&redirects=1" +
+    `&titles=${encodeURIComponent(title)}&format=json&origin=*`;
+  const res = await fetch(url, { headers: { "Api-User-Agent": UA } });
+  if (!res.ok) return null;
+  const data = await res.json();
+  const pages = data?.query?.pages;
+  if (!pages) return null;
+  const first = Object.values(pages)[0] as
+    | { pageprops?: { wikibase_item?: string } }
+    | undefined;
+  return first?.pageprops?.wikibase_item ?? null;
 }
 
 /** Slugify a heading to a stable anchor id (matches the mockup's kebab style). */
@@ -203,8 +231,12 @@ function dedupeSlugs(sections: ArticleSectionBody[]): ArticleSectionBody[] {
 }
 
 /**
- * Rewrite article-namespace wikilinks to internal /topic/<Title> routes (AC5,
- * design §8). Non-article / red / external links keep an absolute Wikipedia URL
+ * Rewrite article-namespace wikilinks to the canonical title-based Topic route
+ * (`/topic/<Title>/`, AC5, design §8; owner-directed title scheme — ARCHITECTURE
+ * "Internal-link resolution"). The href is basePath-prefixed + trailing-slashed so a
+ * hard navigation resolves under the GitHub Pages subpath; the decoded title is also
+ * stashed in `data-topic-title` so TopicView's click interceptor can route client-side
+ * (no full reload). Non-article / red / external links keep an absolute Wikipedia URL
  * opening in a new tab — never a broken /topic/ route.
  */
 function rewriteLinks(root: HTMLElement, _title: string) {
@@ -220,13 +252,14 @@ function rewriteLinks(root: HTMLElement, _title: string) {
     }
 
     if (m && !m[1].includes(":")) {
-      // Ordinary article link → internal topic route by title.
-      const slug = decodeURIComponent(m[1]);
+      // Ordinary article link → canonical title-based topic route.
+      const title = decodeURIComponent(m[1]);
       const isRed = a.classList.contains("new") || a.classList.contains("mw-redlink");
       if (isRed) {
         externalize(a, href);
       } else {
-        a.setAttribute("href", `/topic/${encodeURIComponent(slug)}`);
+        a.setAttribute("href", topicHref(title, { withBase: true }));
+        a.setAttribute("data-topic-title", title);
         a.removeAttribute("target");
         a.removeAttribute("rel");
       }

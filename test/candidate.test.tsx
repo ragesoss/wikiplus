@@ -48,6 +48,18 @@ describe("CandidateCard — unvetted treatment (AC15 / CURATION §6)", () => {
     expect(container.querySelector(".candcard")).not.toBeNull();
   });
 
+  it("applies the active-pairing highlight when active (D2, design §6.5)", () => {
+    const { rerender, container } = render(
+      <CandidateCard candidate={cand} onPromote={vi.fn()} onDismiss={vi.fn()} />
+    );
+    // not highlighted by default
+    expect(container.querySelector(".candcard.active")).toBeNull();
+    rerender(
+      <CandidateCard candidate={cand} active onPromote={vi.fn()} onDismiss={vi.fn()} />
+    );
+    expect(container.querySelector(".candcard.active")).not.toBeNull();
+  });
+
   it("shows the match reason + 'no context yet' hint in place of a context note", () => {
     setup();
     expect(screen.getByText(/Mentions/)).toBeInTheDocument();

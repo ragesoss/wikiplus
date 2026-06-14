@@ -81,8 +81,10 @@ export default function ContributePage() {
     return (
       <div className="mx-auto max-w-xl space-y-3 px-4 py-8">
         <p className="text-sm text-ink">Clip added.</p>
+        {/* Back-compat entry: this lightweight form only knows the QID, so it links via
+            the ?qid= path; TopicView resolves QID→title and canonicalizes the URL. */}
         <Link
-          href={`/topic?qid=${encodeURIComponent(savedQid)}`}
+          href={`/topic/?qid=${encodeURIComponent(savedQid)}`}
           className="text-action underline"
         >
           View the topic →

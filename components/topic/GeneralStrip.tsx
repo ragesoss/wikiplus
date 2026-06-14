@@ -1,6 +1,7 @@
 "use client";
 
 import type { Candidate, Clip } from "@/lib/data/types";
+import { pluralize } from "@/lib/format";
 import { CandidateActions, MatchReason, SuggestedBadge } from "./CandidateBits";
 import { VideoThumb } from "./VideoThumb";
 
@@ -58,7 +59,7 @@ export function GeneralStrip({
               : "— auto-found candidates, not yet vetted"}
           </span>
           <span className="border-2 border-ink bg-white px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-brand">
-            {totalGeneral} {mode === "curated" ? "videos" : "candidates"}
+            {pluralize(totalGeneral, mode === "curated" ? "video" : "candidate")}
           </span>
         </div>
 

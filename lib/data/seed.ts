@@ -13,6 +13,16 @@ import type { Candidate, Clip } from "./types";
 export const PHOTOSYNTHESIS_QID = "Q11982";
 export const UNCURATED_DEMO_QID = "Q189603"; // Cellular respiration
 
+// Seeded topic titles, encoded the way the canonical title route expects (spaces →
+// `_`, paralleling Wikipedia). Used by the catch-all `generateStaticParams` so a hard
+// navigation / refresh to a seeded topic resolves from a pre-built HTML file (the rest
+// fall through to the GitHub Pages 404.html SPA fallback). Keep in sync with seedIfEmpty.
+const SEEDED_TITLES = ["Photosynthesis", "Cellular respiration", "Cat"];
+
+export function staticTopicParams(): { slug: string[] }[] {
+  return SEEDED_TITLES.map((t) => ({ slug: [t.replace(/ /g, "_")] }));
+}
+
 const ago = (days: number) =>
   new Date(Date.now() - days * 86_400_000).toISOString();
 

@@ -53,6 +53,17 @@ describe("LocalStorageDataStore (AC20 seam)", () => {
   it("a topic with zero clips returns [] (the empty-state trigger, A6)", async () => {
     expect(await store.listClips("Q-empty")).toEqual([]);
   });
+
+  it("resolves a title → topic for the canonical route, normalizing _/space/case (AC5/AC23)", async () => {
+    await store.upsertTopic({ qid: "Q11982", title: "Photosynthesis" });
+    // exact, underscore form (as a wikilink path arrives), and case-insensitive all hit.
+    expect((await store.getTopicByTitle("Photosynthesis"))?.qid).toBe("Q11982");
+    expect((await store.getTopicByTitle("photosynthesis"))?.qid).toBe("Q11982");
+    await store.upsertTopic({ qid: "Q189603", title: "Cellular respiration" });
+    expect((await store.getTopicByTitle("Cellular_respiration"))?.qid).toBe("Q189603");
+    // an unseeded title returns null (caller then resolves via the Wikipedia API)
+    expect(await store.getTopicByTitle("Quagga")).toBeNull();
+  });
 });
 
 describe("seed data integrity (A3/A4)", () => {

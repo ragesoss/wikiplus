@@ -18,7 +18,8 @@ export function ArticleLeadBlock({
 }: {
   title: string;
   url: string;
-  qid: string;
+  /** Wikidata QID (under-the-hood key). Omitted only for an article with no Wikidata item. */
+  qid?: string | null;
   lead: ArticleLead;
 }) {
   return (
@@ -37,7 +38,7 @@ export function ArticleLeadBlock({
         >
           Wikipedia
         </a>{" "}
-        · CC BY-SA 4.0 · Wikidata {qid}
+        · CC BY-SA 4.0{qid ? ` · Wikidata ${qid}` : ""}
       </p>
       <div
         className="wiki-body mt-4"

@@ -3,6 +3,7 @@ import {
   fetchFullArticle,
   qidToTitle,
   slugify,
+  titleToQid,
 } from "@/lib/wiki/article";
 
 // AC3 (full sections + stable slugs), AC5 (internal wikilink rewrite + fallback),
@@ -81,22 +82,27 @@ describe("fetchFullArticle — section structure (AC3)", () => {
 });
 
 describe("wikilink rewriting (AC5)", () => {
-  it("rewrites ordinary article links to internal /topic/ routes", async () => {
+  it("rewrites ordinary article links to the canonical title-based /topic/<Title>/ route", async () => {
     mockArticleHtml(
       `<section><p><a href="./Chlorophyll">chlorophyll</a></p></section>`
     );
     const a = await fetchFullArticle("Photosynthesis");
-    expect(a.lead.leadHtml).toContain('href="/topic/Chlorophyll"');
+    // Canonical title route (owner directive D1): /topic/<Title>/ — trailing slash so a
+    // hard navigation resolves under the static-export basePath. NO QID in the href.
+    expect(a.lead.leadHtml).toContain('href="/topic/Chlorophyll/"');
+    expect(a.lead.leadHtml).not.toMatch(/qid=/);
+    // the decoded title is stashed so the client router can route without a reload
+    expect(a.lead.leadHtml).toContain('data-topic-title="Chlorophyll"');
     // internal links must NOT open in a new tab / carry rel
     expect(a.lead.leadHtml).not.toContain('target="_blank"');
   });
 
-  it("rewrites absolute en.wikipedia article links to internal routes", async () => {
+  it("rewrites absolute en.wikipedia article links to internal title routes", async () => {
     mockArticleHtml(
       `<section><p><a href="https://en.wikipedia.org/wiki/Calvin_cycle">cc</a></p></section>`
     );
     const a = await fetchFullArticle("X");
-    expect(a.lead.leadHtml).toContain('href="/topic/Calvin_cycle"');
+    expect(a.lead.leadHtml).toContain('href="/topic/Calvin_cycle/"');
   });
 
   it("does NOT route namespaced (File:/Help:/Category:) links internally", async () => {
@@ -264,5 +270,30 @@ describe("qidToTitle (AC20 — QID→title resolution path)", () => {
       })
     );
     expect(await qidToTitle("Q1")).toBeNull();
+  });
+});
+
+describe("titleToQid (AC5/AC23 — title→QID under the hood for the canonical route)", () => {
+  it("returns the wikibase_item QID for a title via pageprops", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          query: {
+            pages: { "1": { pageprops: { wikibase_item: "Q11982" } } },
+          },
+        }),
+        { status: 200 }
+      )
+    );
+    expect(await titleToQid("Photosynthesis")).toBe("Q11982");
+  });
+
+  it("returns null when the page has no Wikidata item", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ query: { pages: { "1": {} } } }), {
+        status: 200,
+      })
+    );
+    expect(await titleToQid("Some red article")).toBeNull();
   });
 });

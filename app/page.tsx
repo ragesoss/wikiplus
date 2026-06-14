@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { store, seedIfEmpty } from "@/lib/data";
 import type { Topic } from "@/lib/data/types";
+import { topicHref } from "@/lib/wiki/topicRoute";
 
 export default function HomePage() {
   const [topics, setTopics] = useState<Topic[] | null>(null);
@@ -45,7 +46,7 @@ export default function HomePage() {
           {topics.map((t) => (
             <li key={t.qid}>
               <Link
-                href={`/topic?qid=${encodeURIComponent(t.qid)}`}
+                href={topicHref(t.title)}
                 className="block rounded-xl border border-ink/10 bg-white p-4 shadow-sm transition hover:border-brand/40"
               >
                 <span className="block font-medium text-ink">{t.title}</span>
