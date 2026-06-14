@@ -283,7 +283,9 @@ Design points:
 - How much of the page to server-render for **SEO** beyond title/lead/clips (the body is
   client-rendered).
 - **DOMPurify allowlist** + which Wikipedia HTML to keep vs. strip (infoboxes, tables, math, navboxes).
+  *Prototype decision (Topic Page v1, `lib/wiki/article.ts`):* the client fetches **`/api/rest_v1/page/html/{title}`** (Parsoid HTML, CORS-enabled), sanitizes with an **explicit DOMPurify allowlist** (prose, headings h1–h6, lists, links, `figure`/`figcaption`/`img`, basic tables; scripts/styles/iframes/forms dropped), then **strips editor chrome** post-parse (`.mw-editsection`, references/reflist, navboxes, `table.infobox`/`sidebar`, hatnotes). Tables are allowed through sanitize but **hidden in CSS** this round (`.wiki-body table { display:none }`) — full table/infobox/math rendering is deferred. Sections are derived by walking the flattened Parsoid `<section>` stream: lead = everything before the first `h2`; each `h2`/`h3`/`h4` opens a section with a **stable kebab slug** (`slugify`, deduped), used for `#sec-<slug>`/`#h-<slug>` anchors, the TOC, and clip→section matching. Navigational sections (References/See also/External links/Further reading/etc.) are dropped.
 - **Internal-link resolution** edge cases: red links, disambiguation pages, non-article namespaces.
+  *Prototype decision:* article-namespace wikilinks are rewritten to **`/topic/<Title>`**; **red links** (`.new`/`.mw-redlink`) and **namespaced links** (`File:`/`Help:`/`Category:` — any href with a `:`) keep an **absolute Wikipedia URL** opening in a new tab (`rel=noopener`); in-page anchors (cite/note refs) are **de-linked** to plain text. No wikilink ever produces a broken `/topic/` route.
 - What scopes/claims we request from Wikimedia (e.g. username, edit count — also a moderation signal).
 - YouTube search credentials: keep the **referrer-restricted client key** (prototype) or move search
   behind a **server proxy** in the production read-path — so the key isn't browser-exposed and the
@@ -327,8 +329,22 @@ exercise the production read-path (ISR/Redis/Server Actions) and is **single-use
   resolves QID→title. oEmbed is avoided — we store `platform`+`videoId` and build the click-to-load
   facade ourselves.
 - **Auth:** stubbed (reading is anonymous); real Wikimedia OAuth arrives with the server.
-- **Vocabularies:** `stance`/`accuracy_flag` in `lib/data/types.ts` are **provisional placeholders**
-  pending the Curation / Editorial standard.
+- **Vocabularies:** `stance`/`accuracy_flag` in `lib/data/types.ts` are now the **closed CURATION
+  enums** (`docs/CURATION_STANDARD.md` §2/§3, Decisions C2/C4) — no longer provisional. Chip text is
+  derived from a single **enum→label/fill map** in `lib/curation/labels.ts` (§4); optional display-only
+  `*Modifier` fields render as "Label · modifier" (C6). The AA-safe chip fills are pinned there:
+  stance = deep-violet `#5248AF`, accuracy = teal-dk `#1F6757` / action `#1F6F95` / red `#B0353B`
+  (design spec §9.3).
+- **Topic Page v1 data model** (`lib/data/types.ts`, described in `lib/data/store.ts`): the `Clip`
+  type carries the card's display fields — `platformLabel`, `orientation`, `watchUrl`/`embedUrl`,
+  `thumbnailUrl`+`thumbGrad`, `creator{name,handle,platform,url,avatarGrad,followerCount?}`,
+  `general`/`sectionSlug`+`sectionLabel`, `upvotes?`, `curatedBy?`. A separate **`Candidate`** type
+  (unvetted empty-state suggestion) shares the media/creator fields, adds `vetted:false` + `source`
+  + `matchReason`, and **omits** stance/accuracy/contextNote (CURATION §6). The `DataStore` seam gains
+  **`listCandidates(topicQid)`**; topic-level counts (videos/creators/curators) are **derived** from
+  the clip set (`deriveStats`), never stored. Candidates are **seeded mock data** this round
+  (`lib/data/seed.ts`); the live YouTube-search pipeline (with the `NEXT_PUBLIC_YOUTUBE_API_KEY`
+  no-op-when-unset guard) is next round.
 
 **Path to production:** add the Drizzle `DataStore` + Server Actions, restore per-QID path-based
 Topic pages with ISR + the Redis `cacheHandler`, and turn off `output: 'export'`. The components,

@@ -1,37 +1,227 @@
 @import "tailwindcss";
 
-/* Indigo Press identity (gold #E5AB28 deliberately unused). */
+/* ── Indigo Press identity (docs/TOPIC_PAGE_DESIGN.md). Gold #E5AB28 is forbidden. ── */
 @theme {
-  --color-brand: #676eb4;
-  --color-sprout: #2a8270;
+  --color-brand: #676eb4; /* indigo */
+  --color-violet: #5248af; /* deep-violet — AA-safe chip fill (design §9.3) */
+  --color-sprout: #2a8270; /* teal */
+  --color-teal-dk: #1f6757;
   --color-action: #1f6f95;
+  --color-accred: #b0353b; /* AA-safe red (design §9.3) */
   --color-ink: #2c2c2c;
+  --color-ink2: #595959;
+  --color-muted: #717171;
+  --color-bg2: #f0f1f3;
+  --color-wikirule: #a2a9b1;
+  --color-wikilink: #3366cc;
 }
 
 body {
-  @apply bg-white text-ink antialiased;
-  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
-    Helvetica, Arial, sans-serif;
+  @apply bg-[#F7F7F7] text-ink antialiased;
+  font-family: "Open Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+    Roboto, Helvetica, Arial, sans-serif;
 }
 
-/* Sanitized Wikipedia lead HTML (kept faithful to a Wikipedia look). */
-.article-html p {
-  margin-bottom: 0.75rem;
+/* Plus-side display type (Source Sans Pro per the spec; system fallbacks). */
+.plus-disp,
+.bignum {
+  font-family: "Source Sans Pro", "Source Sans 3", ui-sans-serif, system-ui,
+    sans-serif;
+}
+.bignum {
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Hardbox language (design §5): white fill, 2px ink border, solid offset. ── */
+.plus-card {
+  background: #fff;
+  border: 2px solid var(--color-ink);
+  box-shadow: 4px 4px 0 var(--color-ink);
+}
+.hardbox-sm {
+  border: 2px solid var(--color-ink);
+  box-shadow: 2px 2px 0 var(--color-ink);
+}
+.hardbox-lg {
+  box-shadow: 6px 6px 0 var(--color-ink);
+}
+
+/* Active-pairing glow on the rail card (design §5.9). */
+.active-glow {
+  box-shadow: 6px 6px 0 var(--color-brand);
+}
+
+/* ── Unvetted candidate language (design §6.5; binding per CURATION §6). ── */
+.candcard {
+  background: #fff;
+  border: 2px dashed var(--color-ink);
+  box-shadow: none;
+}
+.candcard.active {
+  border-color: var(--color-brand);
+  box-shadow: 3px 3px 0 rgba(103, 110, 180, 0.45);
+}
+/* Candidate hatch overlay (paired with a saturate/contrast filter on the image). */
+.candthumb {
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    45deg,
+    rgba(44, 44, 44, 0.1) 0,
+    rgba(44, 44, 44, 0.1) 2px,
+    transparent 2px,
+    transparent 7px
+  );
+}
+.candcard.dismissing {
+  opacity: 0;
+  transform: scale(0.96);
+  transition: opacity 0.3s, transform 0.3s;
+}
+
+/* ── Wikipedia article side: faithful look (design §5.2/§5.6). ── */
+.wiki-body {
+  color: var(--color-ink);
+  font-size: 0.95rem;
   line-height: 1.65;
 }
-.article-html a {
-  color: var(--color-action);
+.wiki-body p {
+  margin: 0 0 0.8em;
+}
+.wiki-body h2,
+.wiki-body h3,
+.wiki-body h4,
+.wiki-title {
+  font-family: Georgia, "Times New Roman", serif;
+  color: #1b1b1b;
+}
+.wiki-body h2 {
+  font-size: 1.5rem;
+  margin: 1.4em 0 0.5em;
+  border-bottom: 1px solid var(--color-wikirule);
+  padding-bottom: 0.2em;
+}
+.wiki-body h3 {
+  font-size: 1.2rem;
+  margin: 1.1em 0 0.4em;
+}
+.wiki-body h4 {
+  font-size: 1.05rem;
+  font-weight: 700;
+  margin: 1em 0 0.3em;
+}
+.wiki-body ul,
+.wiki-body ol {
+  margin: 0 0 0.8em 1.4em;
+  list-style: revert;
+}
+.wiki-body li {
+  margin-bottom: 0.3em;
+}
+.wiki-body a.wikilink,
+.wiki-body a {
+  color: var(--color-wikilink);
+  text-decoration: none;
+}
+.wiki-body a:hover {
   text-decoration: underline;
 }
-.article-html strong,
-.article-html b {
-  font-weight: 600;
+/* Right-floated captioned figures (lead + section). */
+.wiki-body figure.wikifig,
+figure.wikifig {
+  float: right;
+  width: 300px;
+  max-width: 42%;
+  margin: 0.2em 0 0.8em 1em;
+  border: 1px solid var(--color-wikirule);
+  background: #f8f9fa;
+  padding: 4px;
+}
+figure.wikifig img {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+figure.wikifig figcaption {
+  font-size: 0.78rem;
+  color: #54595d;
+  padding: 4px 2px 0;
+  line-height: 1.4;
+}
+figure.wikifig figcaption .credit,
+figure.wikifig .credit {
+  display: block;
+  font-size: 0.7rem;
+  color: #72777d;
+}
+.wiki-body table {
+  display: none; /* keep prose clean; tables/infoboxes deferred this round */
 }
 
-/* Form fields. */
-.input {
-  @apply w-full rounded-lg border border-ink/20 px-3 py-2 text-sm;
+/* Section wrappers get a reading-line scroll offset (design §5.6/§10). */
+.sec {
+  scroll-margin-top: 80px;
 }
-.input:focus {
-  @apply outline-none ring-2 ring-action;
+.sec h2,
+.sec h3,
+.sec h4 {
+  scroll-margin-top: 80px;
+}
+/* Active section pairing highlight (design §5.6 / AC12). */
+.sec.active > :is(h2, h3, h4) {
+  box-shadow: -10px 0 0 var(--color-brand);
+  background: linear-gradient(90deg, #eef0fb, transparent 60%);
+  transition: background 0.25s, box-shadow 0.25s;
+}
+
+/* ── Accessibility: visible focus everywhere (design §11.2 / AC21). ── */
+:focus-visible {
+  outline: 3px solid var(--color-brand);
+  outline-offset: 2px;
+}
+
+/* Shimmer skeleton for the loading state (design §7.1). */
+@keyframes wikiplus-shimmer {
+  0% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.55;
+  }
+}
+.skeleton-bar {
+  background: var(--color-bg2);
+  border-radius: 3px;
+  animation: wikiplus-shimmer 1.4s ease-in-out infinite;
+}
+
+/* ── Reduced motion (design §10.4, binding). ── */
+@media (prefers-reduced-motion: reduce) {
+  .sec.active > :is(h2, h3, h4) {
+    transition: none;
+  }
+  .skeleton-bar {
+    animation: none;
+  }
+  .candcard.dismissing {
+    transition: none;
+  }
+  * {
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Form fields (modals). */
+.input,
+.field {
+  @apply w-full border-2 border-ink px-3 py-2 text-sm;
+  background: #fff;
+}
+.input:focus,
+.field:focus {
+  outline: 3px solid var(--color-brand);
+  outline-offset: 2px;
 }

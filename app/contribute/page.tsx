@@ -3,24 +3,20 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { store } from "@/lib/data";
+import {
+  ACCURACY_LABEL,
+  ACCURACY_ORDER,
+  STANCE_LABEL,
+  STANCE_ORDER,
+} from "@/lib/curation/labels";
 import type { AccuracyFlag, Stance } from "@/lib/data/types";
 import { parseVideoUrl } from "@/lib/embed/facade";
 
-// Provisional vocabularies — the Curation / Editorial role owns the final sets.
-const STANCES: Stance[] = [
-  "explainer",
-  "opinion",
-  "myth-busting",
-  "personal-experiment",
-  "primary-source",
-];
-const ACCURACY: AccuracyFlag[] = [
-  "accurate",
-  "mostly-accurate",
-  "mixed",
-  "misleading",
-  "inaccurate",
-];
+// Closed CURATION enums (docs/CURATION_STANDARD.md §2/§3). The Topic Page v1 build
+// is the full curation UX; this lightweight form remains for the prototype's
+// existing add path.
+const STANCES: Stance[] = STANCE_ORDER;
+const ACCURACY: AccuracyFlag[] = ACCURACY_ORDER;
 
 export default function ContributePage() {
   const [qid, setQid] = useState("");
@@ -28,7 +24,7 @@ export default function ContributePage() {
   const [handle, setHandle] = useState("");
   const [contextNote, setContextNote] = useState("");
   const [stance, setStance] = useState<Stance>("explainer");
-  const [accuracyFlag, setAccuracyFlag] = useState<AccuracyFlag>("mostly-accurate");
+  const [accuracyFlag, setAccuracyFlag] = useState<AccuracyFlag>("accurate");
   const [error, setError] = useState<string | null>(null);
   const [savedQid, setSavedQid] = useState<string | null>(null);
 
@@ -50,28 +46,40 @@ export default function ContributePage() {
     if (!contextNote.trim())
       return setError("A context note is the point — please add one.");
 
+    const platformLabel =
+      parsed.platform === "youtube"
+        ? "YouTube"
+        : parsed.platform === "tiktok"
+          ? "TikTok"
+          : parsed.platform === "instagram"
+            ? "Instagram"
+            : "Video";
     await store.upsertTopic({ qid: id, title: id });
     await store.addClip({
       topicQid: id,
-      videoUrl,
       platform: parsed.platform,
-      videoId: parsed.videoId,
-      title: undefined,
+      platformLabel,
+      orientation: "horizontal",
+      watchUrl: videoUrl,
+      embedUrl: parsed.embedUrl,
+      thumbnailUrl: parsed.thumbnailUrl,
+      caption: contextNote.trim().slice(0, 80),
       creator: {
-        handle: handle.trim() || "unknown",
-        displayName: handle.trim() || "Unknown creator",
+        handle: handle.trim() || "@unknown",
+        name: handle.trim() || "Unknown creator",
         platform: parsed.platform,
       },
       contextNote: contextNote.trim(),
       stance,
       accuracyFlag,
+      general: true,
     });
     setSavedQid(id);
   }
 
   if (savedQid) {
     return (
-      <div className="space-y-3">
+      <div className="mx-auto max-w-xl space-y-3 px-4 py-8">
         <p className="text-sm text-ink">Clip added.</p>
         <Link
           href={`/topic?qid=${encodeURIComponent(savedQid)}`}
@@ -84,7 +92,7 @@ export default function ContributePage() {
   }
 
   return (
-    <form onSubmit={onSubmit} className="max-w-xl space-y-5">
+    <form onSubmit={onSubmit} className="mx-auto max-w-xl space-y-5 px-4 py-8">
       <h1 className="text-2xl font-semibold text-ink">Add a clip</h1>
 
       <Field label="Topic Wikidata QID">
@@ -132,7 +140,7 @@ export default function ContributePage() {
           >
             {STANCES.map((s) => (
               <option key={s} value={s}>
-                {s}
+                {STANCE_LABEL[s]}
               </option>
             ))}
           </select>
@@ -145,7 +153,7 @@ export default function ContributePage() {
           >
             {ACCURACY.map((a) => (
               <option key={a} value={a}>
-                {a}
+                {ACCURACY_LABEL[a]}
               </option>
             ))}
           </select>

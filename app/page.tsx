@@ -16,7 +16,15 @@ export default function HomePage() {
   }, []);
 
   return (
-    <div className="space-y-6">
+    <main className="mx-auto max-w-5xl space-y-6 px-4 py-8">
+      <header className="flex items-center justify-between border-b border-ink/10 pb-3">
+        <Link href="/" className="text-lg font-semibold text-brand">
+          wiki<span className="text-sprout">+</span>
+        </Link>
+        <Link href="/contribute" className="text-sm text-action hover:underline">
+          Contribute
+        </Link>
+      </header>
       <section className="space-y-2">
         <h1 className="text-2xl font-semibold text-ink">Topics</h1>
         <p className="max-w-2xl text-sm text-ink/70">
@@ -52,6 +60,6 @@ export default function HomePage() {
           ))}
         </ul>
       )}
-    </div>
+    </main>
   );
 }
