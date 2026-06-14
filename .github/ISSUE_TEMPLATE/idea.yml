@@ -1,0 +1,12 @@
+name: Idea
+description: A product or technical idea not yet shaped for implementation.
+title: "[idea] "
+labels: ["type: idea"]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: The idea
+      description: "What, and why it might be worth doing. Promote it to a build task (and sign off with `status: ready`) once it's shaped enough to build."
+    validations:
+      required: true

@@ -136,6 +136,46 @@ orphaned or double-owned:
   curation standard; code holds the implementation; `CLAUDE.md` encodes the shared conventions all
   roles follow.
 
+## Issue pipeline — how work is queued and picked up
+
+Tasks live in **GitHub Issues**, not in repo files — so planning, bug-filing, feedback, and idea
+capture happen entirely off-git, in parallel with in-flight build sessions, with nothing to merge and
+no repo to "mess with." **One issue = one build-loop run.** The durable build artifacts (specs, design,
+code, ARCHITECTURE) still live in the repo; Issues hold the **queue and the async human↔build
+conversation** — a clean split, not a divided source of truth.
+
+**Preparing issues.** The **`/prepare-issue`** skill turns a rough idea into a well-scoped build-task
+issue — it grounds the draft in `docs/`, **shows it for approval, and posts to GitHub only after the
+owner approves**; it recommends but never self-applies `status: ready`.
+
+**Labels are the metadata that gates autonomous work.** Two axes:
+- **Type** (what it is): `type: build`, `type: bug`, `type: feedback`, `type: idea`. The issue
+  templates in `.github/ISSUE_TEMPLATE/` apply these automatically.
+- **Status** (build issues only): `status: ready`, `status: in-progress`, `status: blocked`.
+
+**The pickup gate.** A build session works an issue **only if it is `type: build` + `status: ready`**
+— the owner's deliberate sign-off — or the owner explicitly invokes the loop on a specific issue.
+Bugs, feedback, and raw ideas are **never** auto-picked; groom one into a build task and mark it
+`status: ready` to queue it. This is what makes it safe to let a session loose on the backlog.
+
+**Lifecycle.** `status: ready` → a session takes it and swaps the label to `status: in-progress` → on
+a green deploy the landing commit/PR carries **`Closes #N`**, so the issue closes exactly when the work
+ships → if the session can't reach green or hits an unresolvable fork, it comments the reason, sets
+`status: blocked`, and leaves the issue open for the owner. Invariant: **open = backlog / in-flight /
+blocked; closed = shipped & live.**
+
+**One-time label setup** (run once with `gh`; the templates' auto-labels need these to exist):
+
+```
+gh label create "type: build"        -c 1F6F95 -d "Implementation task for the build-loop"
+gh label create "type: bug"          -c B60205 -d "Defect"
+gh label create "type: feedback"     -c 0E8A16 -d "User/owner feedback"
+gh label create "type: idea"         -c 676EB4 -d "Not yet shaped for implementation"
+gh label create "status: ready"       -c 2A8270 -d "Signed off — a build session may pick this up"
+gh label create "status: in-progress" -c C5DEF5 -d "A build session is working this"
+gh label create "status: blocked"     -c D93F0B -d "Stuck — needs human input"
+```
+
 ## Bootstrap
 
 1. ✅ A root **`CLAUDE.md`** capturing shared conventions — **done**.
