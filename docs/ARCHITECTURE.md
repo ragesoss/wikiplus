@@ -223,6 +223,15 @@ it doesn't resurface. This keeps the DB proportional to real curation, not to ev
 The **YouTube Data API search quota is expensive**, so cache candidate sets with a TTL and refresh
 lazily (alongside `article_index`) — Redis is a natural home for these cached sets.
 
+**YouTube Data API key.** Search uses a **public-data API key** — not OAuth and not a service account
+(the YouTube Data API doesn't support service-account auth; OAuth is only for a *user's* private data,
+which we never touch). The key is **API-restricted to YouTube Data API v3**. *Where it lives* is the real
+decision: in the prototype it's a **browser key restricted by HTTP referrer** to `https://ragesoss.github.io/*`
+(see *Prototype phase*). Because a client key is inlined into the static bundle and publicly readable, the
+**referrer restriction plus a quota cap are the protection, not secrecy**. The production read-path should
+move search **server-side** (key held as a server secret; the expensive quota shared + cached) — see
+*Open questions*. Embedding needs no key — that's oEmbed/the facade.
+
 ## Authentication & identity
 
 Login and user identity rely entirely on **OAuth — no passwords**.
@@ -280,6 +289,9 @@ Design points:
 - The license chosen for wiki+ context notes.
 - Whether `stance`/`accuracy_flag` are free-form or a fixed controlled vocabulary (affects
   filtering, consistency, and any future AI-assisted drafting).
+- YouTube search credentials: keep the **referrer-restricted client key** (prototype) or move search
+  behind a **server proxy** in the production read-path — so the key isn't browser-exposed and the
+  expensive search quota can be shared, secured, and cached server-side.
 
 ## Prototype phase (current — client-side, GitHub Pages)
 
@@ -291,6 +303,11 @@ exercise the production read-path (ISR/Redis/Server Actions) and is **single-use
 - **Build:** Next.js static export (`output: 'export'`); `basePath` set to `/<repo>` by the Pages
   workflow. Deployed by `.github/workflows/deploy.yml` on push to `main` — the cloud,
   mobile-drivable prompt→staging loop, no server to operate.
+- **YouTube key:** `NEXT_PUBLIC_YOUTUBE_API_KEY` in `.env` (gitignored) for local dev; the Pages build
+  reads it from a **GitHub Actions secret** wired into `deploy.yml`'s build step. A `NEXT_PUBLIC_` var is
+  baked into the static export at build time, so (a) without that wiring the deployed site has no key, and
+  (b) the key is **visible in the shipped bundle by design** — the HTTP-referrer restriction (`ragesoss.github.io/*`)
+  and a quota cap are the guard, not secrecy.
 - **Data:** all access goes through the `DataStore` interface (`lib/data/store.ts`); the prototype
   uses `LocalStorageDataStore`. The swap point is the single line in `lib/data/index.ts`.
 - **Wikipedia:** article fetch + DOMPurify sanitize run client-side (as in production); Wikidata
