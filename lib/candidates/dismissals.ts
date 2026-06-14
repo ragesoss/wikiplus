@@ -82,6 +82,17 @@ export function recordDismissal(c: Candidate): void {
   }
 }
 
+/**
+ * True when this candidate has a persisted dismissal for its topic (AC9). Used by the
+ * view to reflect sticky dismissals on mount — not just the in-memory set, which resets
+ * on reload. Matches by the same `platform:videoId` identity the pipeline dedups on.
+ */
+export function isDismissed(c: Candidate): boolean {
+  const videoId = videoIdOf(c);
+  if (!videoId) return false;
+  return dismissedKeysForTopic(c.topicQid).has(identityKey(c.platform, videoId));
+}
+
 /** The set of dismissed `platform:videoId` keys for a topic (for pipeline dedup). */
 export function dismissedKeysForTopic(topicQid: string): Set<string> {
   const out = new Set<string>();

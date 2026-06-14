@@ -45,22 +45,24 @@ export interface SectionMatch {
 }
 
 /**
- * Find the best single match for one section across all results (Decision 2).
- * Returns null when no result clears the threshold: ≥1 distinct section keyword that
- * is NOT also a topic-title token must match. Single-word generic sections (their only
- * keyword is a topic token, or no keyword survives tokenization) never match.
+ * Rank ALL qualifying matches for one section, best-first (Decision 2 tie-break order).
+ * A result qualifies only if ≥1 distinct section keyword that is NOT also a topic-title
+ * token matches. Single-word generic sections (their only keyword is a topic token, or no
+ * keyword survives tokenization) never match → empty list. The first element is the best
+ * single match; later elements are the fall-throughs used when an earlier section already
+ * claimed the best video (F3 / Product refinement — see placeCandidates).
  */
-export function bestMatchForSection(
+export function rankedMatchesForSection(
   section: ArticleSection,
   results: RawCandidate[],
   topicTokens: Set<string>
-): SectionMatch | null {
+): SectionMatch[] {
   const keywords = sectionKeywords(section.title);
   // Non-topic-generic keywords are the only ones that can QUALIFY a match (threshold).
   const distinctive = keywords.filter((k) => !topicTokens.has(k));
-  if (distinctive.length === 0) return null; // e.g. "History" alone, or only topic words.
+  if (distinctive.length === 0) return []; // e.g. "History" alone, or only topic words.
 
-  let best: SectionMatch | null = null;
+  const matches: SectionMatch[] = [];
   results.forEach((raw, rank) => {
     const text = new Set(tokenize(raw.searchText));
     const titleTokens = new Set(tokenize(raw.caption));
@@ -72,17 +74,31 @@ export function bestMatchForSection(
     // Prefer a distinctive title hit as the reason keyword, else any distinctive hit.
     const reasonKeyword =
       titleHits.find((k) => !topicTokens.has(k)) ?? distinctiveMatched[0];
-    const cand: SectionMatch = {
+    matches.push({
       raw,
       rank,
       matchedKeywords: matched,
       titleKeywords: titleHits,
       score: matched.length,
       reasonKeyword,
-    };
-    if (!best || isBetter(cand, best)) best = cand;
+    });
   });
-  return best;
+  // Deterministic best-first order (same tie-break as the single-best pick).
+  matches.sort((a, b) => (isBetter(a, b) ? -1 : isBetter(b, a) ? 1 : 0));
+  return matches;
+}
+
+/**
+ * Find the best single match for one section across all results (Decision 2).
+ * Returns null when no result clears the threshold. Thin wrapper over
+ * rankedMatchesForSection for callers/tests that want only the top pick.
+ */
+export function bestMatchForSection(
+  section: ArticleSection,
+  results: RawCandidate[],
+  topicTokens: Set<string>
+): SectionMatch | null {
+  return rankedMatchesForSection(section, results, topicTokens)[0] ?? null;
 }
 
 /** Deterministic tie-break order (Decision 2): title hits, score, rank, videoId. */
@@ -126,11 +142,16 @@ export interface Placement {
 export const GENERAL_CANDIDATE_COUNT = 5;
 
 /**
- * Assign each result to its single best home (Decision 2): for each section pick its
- * best match; a video used by a section is NOT also shown as General nor matched to a
- * second section. The remaining results, in relevance order, fill the General band up
- * to GENERAL_CANDIDATE_COUNT. Inputs are already deduped (within-set + against curated
- * + dismissed) by the caller; this only does placement + matchReason + Candidate shape.
+ * Assign each result to its single best AVAILABLE home (Decision 2 + F3 refinement):
+ * for each section, in article order, claim its best match that hasn't already been
+ * claimed by an earlier section; if the best video is taken, fall through to the
+ * next-best still-unused candidate that clears the threshold (rather than the section
+ * getting nothing). This preserves "best single match per section" — each section still
+ * gets its best *available* match, one home per video — while improving section-match
+ * yield (AC5 / success metric). The remaining results, in relevance order, fill the
+ * General band up to GENERAL_CANDIDATE_COUNT. Inputs are already deduped (within-set +
+ * against curated + dismissed) by the caller; this only does placement + matchReason +
+ * Candidate shape.
  */
 export function placeCandidates(
   topicQid: string,
@@ -143,8 +164,10 @@ export function placeCandidates(
   const sectionCandidates: Candidate[] = [];
 
   for (const section of sections) {
-    const match = bestMatchForSection(section, results, topicTokens);
-    if (!match || usedVideoIds.has(match.raw.videoId)) continue;
+    // Best-first qualifying matches; take the first whose video is still unclaimed.
+    const ranked = rankedMatchesForSection(section, results, topicTokens);
+    const match = ranked.find((m) => !usedVideoIds.has(m.raw.videoId));
+    if (!match) continue;
     usedVideoIds.add(match.raw.videoId);
     sectionCandidates.push(
       toCandidate(topicQid, match.raw, {

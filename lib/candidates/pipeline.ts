@@ -1,6 +1,6 @@
 import type { ArticleSection, Candidate } from "@/lib/data/types";
 import { isStale, readCache, writeCache } from "./cache";
-import { dismissedKeysForTopic, identityKey } from "./dismissals";
+import { dismissedKeysForTopic, identityKey, videoIdOf } from "./dismissals";
 import { placeCandidates } from "./matching";
 import type { CandidateSource, RawCandidate } from "./types";
 
@@ -36,9 +36,17 @@ export async function suggestCandidates(
   const enabled = sources.filter((s) => s.isEnabled());
   if (enabled.length === 0) return null; // AC1 — no live path; do NOT write cache.
 
-  // AC11 — warm cache within TTL: return it, no source call.
+  // AC11 — warm cache within TTL: return it, no source call. BUT a cached set is a
+  // snapshot from an earlier visit; dismissals (AC9) and promotions to curated clips
+  // (AC8) that happened SINCE the cache was written are not baked into it. Re-apply the
+  // dismissed + curated-clip filter on every cache read (Decision 5: "a dismissal or a
+  // promotion updates the displayed set … without forcing a full re-search"; design §6.3:
+  // no resurface "on the next (cache-warm or re-fetched) load"). Without this, a candidate
+  // dismissed/promoted within the 24h TTL reappears on reload.
   const cached = readCache(input.topicQid);
-  if (!isStale(cached, now)) return cached!.candidates;
+  if (!isStale(cached, now)) {
+    return filterExcluded(cached!.candidates, input.topicQid, input.curatedVideoKeys);
+  }
 
   // Run each enabled source's single search (Decision 1: one call per source/topic).
   const rawLists = await Promise.all(
@@ -62,6 +70,27 @@ export async function suggestCandidates(
   // (so an obscure topic isn't re-searched every visit within the TTL).
   writeCache(input.topicQid, candidates, now);
   return candidates;
+}
+
+/**
+ * Re-apply the dismissed + curated-clip exclusion to an already-built Candidate set
+ * (AC8/AC9). Used on the warm-cache path: the cached snapshot can predate a dismissal
+ * or a promotion, so we filter on every read using the live dismissal store and the
+ * caller's current curated-video keys. Identity is the same `platform:videoId` key the
+ * dedup uses; a candidate whose video id we can't parse is kept (it can't be matched).
+ */
+function filterExcluded(
+  candidates: Candidate[],
+  topicQid: string,
+  curatedVideoKeys: Set<string>
+): Candidate[] {
+  const dismissed = dismissedKeysForTopic(topicQid);
+  return candidates.filter((c) => {
+    const videoId = videoIdOf(c);
+    if (!videoId) return true; // unparseable id can't be a dismissed/curated match
+    const k = identityKey(c.platform, videoId);
+    return !curatedVideoKeys.has(k) && !dismissed.has(k);
+  });
 }
 
 /**

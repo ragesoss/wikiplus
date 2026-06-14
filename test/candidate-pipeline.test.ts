@@ -163,6 +163,43 @@ describe("placeCandidates (AC5 best-per-section, AC7 one-home-per-video)", () =>
     expect(sectionCandidates.find((c) => c.sectionSlug === "citric-acid-cycle")).toBeUndefined();
   });
 
+  it("falls through to the next-best unused candidate when a video is two sections' best (F3)", () => {
+    // v1 is the best match for BOTH "Glycolysis" and "Citric acid cycle" (it names
+    // both). Article order: glycolysis first → it claims v1. Citric-acid-cycle must NOT
+    // get nothing — it falls through to its next-best still-unused match (v2), which
+    // clears the threshold ("cycle"/"acid"/"citric"). Previously v2 was dropped entirely.
+    const results = [
+      raw("v1", "Glycolysis and the citric acid cycle explained"),
+      raw("v2", "The citric acid cycle (Krebs cycle) in depth"),
+    ];
+    const { sectionCandidates } = placeCandidates(
+      QID,
+      "Cellular respiration",
+      results,
+      SECTIONS
+    );
+    const bySection = new Map(
+      sectionCandidates.map((c) => [c.sectionSlug, c.id])
+    );
+    expect(bySection.get("glycolysis")).toBe("cand_youtube_v1"); // earlier section claims its best
+    expect(bySection.get("citric-acid-cycle")).toBe("cand_youtube_v2"); // fall-through, not nothing
+    // One home per video preserved: v1 is not reused.
+    expect(sectionCandidates.filter((c) => c.id === "cand_youtube_v1").length).toBe(1);
+  });
+
+  it("the later section gets NO candidate only when no unused match clears the threshold (F3)", () => {
+    // v1 is the only result that names both sections; with nothing else to fall through
+    // to, the second section legitimately gets no inline candidate.
+    const results = [raw("v1", "Glycolysis and the citric acid cycle explained")];
+    const { sectionCandidates } = placeCandidates(
+      QID,
+      "Cellular respiration",
+      results,
+      SECTIONS
+    );
+    expect(sectionCandidates.map((c) => c.sectionSlug)).toEqual(["glycolysis"]);
+  });
+
   it("caps General at 5 (Decision 1)", () => {
     const results = Array.from({ length: 9 }, (_, i) =>
       raw(`v${i}`, `Cellular respiration overview ${i}`)
@@ -370,5 +407,42 @@ describe("suggestCandidates pipeline", () => {
     const out = await suggestCandidates([enabled([])], input);
     expect(out).toEqual([]);
     expect(readCache(QID)).not.toBeNull();
+  });
+
+  // F1 (HIGH/BLOCKER): the warm-cache read must re-apply the dismissed + curated filter,
+  // or a candidate dismissed/promoted within the 24h TTL reappears on reload (AC8/AC9;
+  // Decision 5; design §6.3 "no resurface on the next cache-warm or re-fetched load").
+  it("a candidate dismissed AFTER a warm cache is excluded on the next (cached) read (AC9/F1)", async () => {
+    const results = [raw("v1", "Respiration overview one"), raw("v2", "Respiration overview two")];
+    const search = vi.fn(async () => results);
+    const source: CandidateSource = { id: "y", isEnabled: () => true, search };
+    // Cold fetch: both surface and the set is cached.
+    const first = await suggestCandidates([source], input);
+    expect(first!.map((c) => c.id)).toContain("cand_youtube_v1");
+    expect(search).toHaveBeenCalledTimes(1);
+    // Dismiss v1 (sticky in localStorage), then revisit within the TTL.
+    recordDismissal(first!.find((c) => c.id === "cand_youtube_v1")!);
+    const warm = await suggestCandidates([source], input);
+    expect(search).toHaveBeenCalledTimes(1); // still the cache hit — NO re-search
+    const ids = warm!.map((c) => c.id);
+    expect(ids).not.toContain("cand_youtube_v1"); // dismissed → gone on the warm read
+    expect(ids).toContain("cand_youtube_v2");
+  });
+
+  it("a candidate promoted to a curated clip AFTER a warm cache is excluded on the next (cached) read (AC8/F1)", async () => {
+    const results = [raw("v1", "Respiration overview one"), raw("v2", "Respiration overview two")];
+    const search = vi.fn(async () => results);
+    const source: CandidateSource = { id: "y", isEnabled: () => true, search };
+    await suggestCandidates([source], input); // cold fetch + cache
+    expect(search).toHaveBeenCalledTimes(1);
+    // Simulate promotion: v1 is now a curated clip for the topic (passed in curatedVideoKeys).
+    const warm = await suggestCandidates([source], {
+      ...input,
+      curatedVideoKeys: new Set([identityKey("youtube", "v1")]),
+    });
+    expect(search).toHaveBeenCalledTimes(1); // cache hit, no re-search
+    const ids = warm!.map((c) => c.id);
+    expect(ids).not.toContain("cand_youtube_v1"); // already curated → not re-suggested
+    expect(ids).toContain("cand_youtube_v2");
   });
 });

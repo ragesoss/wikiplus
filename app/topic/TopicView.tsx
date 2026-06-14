@@ -18,8 +18,9 @@ import { Infobox } from "@/components/topic/Infobox";
 import { PlayerModal } from "@/components/topic/PlayerModal";
 import { Toc, type TocEntry } from "@/components/topic/Toc";
 import { TopicHeader } from "@/components/topic/TopicHeader";
+import { liveCandidatesEnabled } from "@/lib/candidates";
 import { curatedVideoKeys, deriveStats, seedIfEmpty, store } from "@/lib/data";
-import { recordDismissal } from "@/lib/candidates/dismissals";
+import { isDismissed, recordDismissal } from "@/lib/candidates/dismissals";
 import type { Candidate, Clip, Topic } from "@/lib/data/types";
 import {
   fetchFullArticle,
@@ -166,6 +167,10 @@ export function TopicView() {
   // Decoupled from storeReady so a slow search never blocks the page chrome (§5.4).
   useEffect(() => {
     if (!qid || !storeReady || fetchState !== "ready" || !article) return;
+    // No source enabled (every local/CI/cloud build — no key) → the live path is a no-op.
+    // Do NOT flash the loading skeleton or fire the AT announcement; nothing about a
+    // missing key should surface to the user (design §5.3). Keep the seeded/empty set.
+    if (!liveCandidatesEnabled()) return;
     let alive = true;
     setCandidatesLoading(true);
     setCandidateAnnounce("Looking for suggested videos…");
@@ -206,8 +211,12 @@ export function TopicView() {
   const topicTitle =
     article?.title ?? topic?.title ?? resolvedTitle ?? qid ?? "";
 
+  // Displayed candidates exclude both the in-memory dismissals (this session) AND any
+  // persisted dismissal (AC9; design §6.3). The persisted check makes a dismissal sticky
+  // across a reload even on the no-key seeded path, where the pipeline's cache-read filter
+  // never runs — without it, a seeded candidate dismissed before reload would reappear.
   const liveCandidates = useMemo(
-    () => candidates.filter((c) => !dismissed.has(c.id)),
+    () => candidates.filter((c) => !dismissed.has(c.id) && !isDismissed(c)),
     [candidates, dismissed]
   );
 
