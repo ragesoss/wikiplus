@@ -31,6 +31,9 @@ jobs:
         env:
           # Project pages are served under /<repo>; basePath must match.
           NEXT_PUBLIC_BASE_PATH: /${{ github.event.repository.name }}
+          # Baked into the static bundle (NEXT_PUBLIC_); referrer-restricted in the Cloud console, so
+          # bundle-visible is by design. Repo secret; unset in local/cloud builds → search must no-op then.
+          NEXT_PUBLIC_YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
       - run: touch out/.nojekyll
       - uses: actions/upload-pages-artifact@v3
         with:
