@@ -14,24 +14,74 @@ body {
     Helvetica, Arial, sans-serif;
 }
 
+/* Accessibility: focus-visible ring on all interactive elements. */
+*:focus-visible {
+  outline: 3px solid #676eb4;
+  outline-offset: 2px;
+}
+
 /* Sanitized Wikipedia lead HTML (kept faithful to a Wikipedia look). */
 .article-html p {
   margin-bottom: 0.75rem;
   line-height: 1.65;
 }
 .article-html a {
-  color: var(--color-action);
+  color: #3366cc;
   text-decoration: underline;
+}
+.article-html a:hover {
+  text-decoration: none;
 }
 .article-html strong,
 .article-html b {
   font-weight: 600;
 }
+.article-html ul,
+.article-html ol {
+  margin-bottom: 0.75rem;
+  padding-left: 1.5rem;
+}
+.article-html ul {
+  list-style-type: disc;
+}
+.article-html ol {
+  list-style-type: decimal;
+}
+.article-html li {
+  margin-bottom: 0.25rem;
+  line-height: 1.65;
+}
+.article-html table {
+  border-collapse: collapse;
+  margin-bottom: 1rem;
+  font-size: 0.9em;
+  width: 100%;
+  overflow-x: auto;
+  display: block;
+}
+.article-html th,
+.article-html td {
+  border: 1px solid #a2a9b1;
+  padding: 0.3rem 0.5rem;
+  vertical-align: top;
+}
+.article-html th {
+  background: #eaecf0;
+  font-weight: 600;
+}
+.article-html .mw-empty-elt {
+  display: none;
+}
+
+/* Article body: section styles */
+.article-body section + section {
+  margin-top: 0.5rem;
+}
 
 /* Form fields. */
 .input {
-  @apply w-full rounded-lg border border-ink/20 px-3 py-2 text-sm;
+  @apply w-full rounded-none border border-ink/20 px-3 py-2 text-sm bg-white;
 }
 .input:focus {
-  @apply outline-none ring-2 ring-action;
+  @apply outline-none ring-2 ring-brand;
 }

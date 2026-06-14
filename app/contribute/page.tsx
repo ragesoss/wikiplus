@@ -5,6 +5,8 @@ import { useEffect, useState } from "react";
 import { store } from "@/lib/data";
 import type { AccuracyFlag, Stance } from "@/lib/data/types";
 import { parseVideoUrl } from "@/lib/embed/facade";
+import { titleToQid } from "@/lib/wiki/article";
+import { SiteHeader } from "@/components/SiteHeader";
 
 // Provisional vocabularies — the Curation / Editorial role owns the final sets.
 const STANCES: Stance[] = [
@@ -32,10 +34,45 @@ export default function ContributePage() {
   const [error, setError] = useState<string | null>(null);
   const [savedQid, setSavedQid] = useState<string | null>(null);
 
+  // Wikipedia title resolver state
+  const [wikiTitle, setWikiTitle] = useState("");
+  const [qidHint, setQidHint] = useState<{ qid: string; title: string } | null>(null);
+  const [qidHintError, setQidHintError] = useState<string | null>(null);
+  const [resolving, setResolving] = useState(false);
+
   useEffect(() => {
     const p = new URLSearchParams(window.location.search).get("qid");
     if (p) setQid(p);
   }, []);
+
+  async function resolveWikiTitle() {
+    const raw = wikiTitle.trim();
+    if (!raw) return;
+
+    // Extract title from URL if pasted
+    let title = raw;
+    const urlMatch = raw.match(/en\.wikipedia\.org\/wiki\/([^?#]+)/);
+    if (urlMatch) {
+      title = decodeURIComponent(urlMatch[1].replace(/_/g, " "));
+    }
+
+    setResolving(true);
+    setQidHint(null);
+    setQidHintError(null);
+    try {
+      const resolved = await titleToQid(title);
+      if (resolved) {
+        setQidHint({ qid: resolved, title });
+        setQid(resolved);
+      } else {
+        setQidHintError(`Could not find a Wikidata QID for "${title}". Try searching Wikipedia directly.`);
+      }
+    } catch {
+      setQidHintError("Failed to resolve the title. Check your connection.");
+    } finally {
+      setResolving(false);
+    }
+  }
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -71,96 +108,158 @@ export default function ContributePage() {
 
   if (savedQid) {
     return (
-      <div className="space-y-3">
-        <p className="text-sm text-ink">Clip added.</p>
-        <Link
-          href={`/topic?qid=${encodeURIComponent(savedQid)}`}
-          className="text-action underline"
-        >
-          View the topic →
-        </Link>
+      <div className="min-h-screen bg-white">
+        <SiteHeader />
+        <main className="mx-auto max-w-5xl px-4 py-8">
+          <div className="space-y-3">
+            <p className="text-sm text-[#2C2C2C]">Clip added.</p>
+            <Link
+              href={`/topic?qid=${encodeURIComponent(savedQid)}`}
+              className="text-[#1F6F95] underline"
+            >
+              View the topic →
+            </Link>
+          </div>
+        </main>
       </div>
     );
   }
 
   return (
-    <form onSubmit={onSubmit} className="max-w-xl space-y-5">
-      <h1 className="text-2xl font-semibold text-ink">Add a clip</h1>
+    <div className="min-h-screen bg-white">
+      <SiteHeader />
+      <main className="mx-auto max-w-5xl px-4 py-8">
+        <form onSubmit={onSubmit} className="max-w-xl space-y-5">
+          <h1 className="text-2xl font-semibold text-[#2C2C2C]" style={{ fontFamily: "Georgia, serif" }}>
+            Add a clip
+          </h1>
 
-      <Field label="Topic Wikidata QID">
-        <input
-          value={qid}
-          onChange={(e) => setQid(e.target.value)}
-          placeholder="Q146"
-          className="input"
-        />
-      </Field>
+          {/* Wikipedia title resolver */}
+          <div className="border-2 border-[#2C2C2C] p-4 bg-[#f8f9fa] space-y-3">
+            <p
+              className="text-[11px] uppercase tracking-widest font-bold text-[#676EB4]"
+              style={{ fontFamily: "Source Sans 3, Source Sans Pro, system-ui, sans-serif" }}
+            >
+              Look up topic by Wikipedia article
+            </p>
+            <label className="block space-y-1">
+              <span className="block text-sm font-medium text-[#2C2C2C]">
+                Wikipedia article title or URL
+              </span>
+              <div className="flex gap-2">
+                <input
+                  value={wikiTitle}
+                  onChange={(e) => setWikiTitle(e.target.value)}
+                  onBlur={resolveWikiTitle}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      resolveWikiTitle();
+                    }
+                  }}
+                  placeholder="e.g. Photosynthesis or paste Wikipedia URL"
+                  className="input flex-1"
+                  aria-describedby="qid-hint"
+                />
+                <button
+                  type="button"
+                  onClick={resolveWikiTitle}
+                  disabled={resolving || !wikiTitle.trim()}
+                  className="px-3 py-2 bg-[#676EB4] text-white text-sm font-bold border-2 border-[#2C2C2C] shadow-[2px_2px_0_#2C2C2C] disabled:opacity-50 hover:bg-[#5248AF] focus-visible:outline-2 focus-visible:outline-[#676EB4]"
+                >
+                  {resolving ? "…" : "Resolve"}
+                </button>
+              </div>
+            </label>
+            {qidHint && (
+              <p id="qid-hint" className="text-xs text-[#2A8270] font-semibold" role="status">
+                ✓ {qidHint.title} · <span className="font-mono">{qidHint.qid}</span> (auto-filled below)
+              </p>
+            )}
+            {qidHintError && (
+              <p id="qid-hint" className="text-xs text-red-700" role="alert">
+                {qidHintError}
+              </p>
+            )}
+          </div>
 
-      <Field label="Video URL">
-        <input
-          value={videoUrl}
-          onChange={(e) => setVideoUrl(e.target.value)}
-          placeholder="https://www.youtube.com/watch?v=…"
-          className="input"
-        />
-      </Field>
+          <Field label="Topic Wikidata QID">
+            <input
+              value={qid}
+              onChange={(e) => setQid(e.target.value)}
+              placeholder="Q146"
+              className="input"
+              aria-describedby={qidHint ? "qid-hint" : undefined}
+            />
+          </Field>
 
-      <Field label="Creator handle">
-        <input
-          value={handle}
-          onChange={(e) => setHandle(e.target.value)}
-          placeholder="@creator"
-          className="input"
-        />
-      </Field>
+          <Field label="Video URL">
+            <input
+              value={videoUrl}
+              onChange={(e) => setVideoUrl(e.target.value)}
+              placeholder="https://www.youtube.com/watch?v=…"
+              className="input"
+            />
+          </Field>
 
-      <Field label="Context note — what's fact vs. the creator's opinion">
-        <textarea
-          value={contextNote}
-          onChange={(e) => setContextNote(e.target.value)}
-          rows={4}
-          className="input"
-        />
-      </Field>
+          <Field label="Creator handle">
+            <input
+              value={handle}
+              onChange={(e) => setHandle(e.target.value)}
+              placeholder="@creator"
+              className="input"
+            />
+          </Field>
 
-      <div className="grid grid-cols-2 gap-4">
-        <Field label="Stance">
-          <select
-            value={stance}
-            onChange={(e) => setStance(e.target.value as Stance)}
-            className="input"
+          <Field label="Context note — what's fact vs. the creator's opinion">
+            <textarea
+              value={contextNote}
+              onChange={(e) => setContextNote(e.target.value)}
+              rows={4}
+              className="input"
+            />
+          </Field>
+
+          <div className="grid grid-cols-2 gap-4">
+            <Field label="Stance">
+              <select
+                value={stance}
+                onChange={(e) => setStance(e.target.value as Stance)}
+                className="input"
+              >
+                {STANCES.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Accuracy">
+              <select
+                value={accuracyFlag}
+                onChange={(e) => setAccuracyFlag(e.target.value as AccuracyFlag)}
+                className="input"
+              >
+                {ACCURACY.map((a) => (
+                  <option key={a} value={a}>
+                    {a}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          </div>
+
+          {error && <p className="text-sm text-red-700" role="alert">{error}</p>}
+
+          <button
+            type="submit"
+            className="border-2 border-[#2C2C2C] bg-[#1F6F95] px-4 py-2 text-sm font-medium text-white shadow-[3px_3px_0_#2C2C2C] hover:bg-[#185f80] focus-visible:outline-2 focus-visible:outline-[#676EB4]"
           >
-            {STANCES.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <Field label="Accuracy">
-          <select
-            value={accuracyFlag}
-            onChange={(e) => setAccuracyFlag(e.target.value as AccuracyFlag)}
-            className="input"
-          >
-            {ACCURACY.map((a) => (
-              <option key={a} value={a}>
-                {a}
-              </option>
-            ))}
-          </select>
-        </Field>
-      </div>
-
-      {error && <p className="text-sm text-red-700">{error}</p>}
-
-      <button
-        type="submit"
-        className="rounded-lg bg-action px-4 py-2 text-sm font-medium text-white focus:outline-none focus:ring-2 focus:ring-action focus:ring-offset-2"
-      >
-        Add clip
-      </button>
-    </form>
+            Add clip
+          </button>
+        </form>
+      </main>
+    </div>
   );
 }
 
@@ -173,7 +272,7 @@ function Field({
 }) {
   return (
     <label className="block space-y-1">
-      <span className="block text-sm font-medium text-ink">{label}</span>
+      <span className="block text-sm font-medium text-[#2C2C2C]">{label}</span>
       {children}
     </label>
   );
