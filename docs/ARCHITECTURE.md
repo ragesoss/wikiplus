@@ -349,3 +349,26 @@ exercise the production read-path (ISR/Redis/Server Actions) and is **single-use
 **Path to production:** add the Drizzle `DataStore` + Server Actions, restore per-QID path-based
 Topic pages with ISR + the Redis `cacheHandler`, and turn off `output: 'export'`. The components,
 data model, design system, and article pipeline carry forward.
+
+## Testing
+
+Two layers, both run with `yarn` (matches the committed lockfile/CI):
+
+- **Unit + component — Vitest + React Testing Library (jsdom).** `yarn test` runs `vitest run`
+  over `test/**/*.test.{ts,tsx}` (config: `vitest.config.ts`, setup: `test/setup.ts`). This is the
+  primary QA layer: pure-logic units (the DOMPurify sanitize + wikilink rewrite in
+  `lib/wiki/article.ts`, the `lib/embed/facade.ts` URL parser, the `lib/curation/labels.ts`
+  enum→label/fill maps incl. a programmatic **WCAG-AA chip-contrast check**, `deriveStats` and the
+  `DataStore`), the components, and a `TopicView` integration test driving the curated/empty/
+  loading/error state machine. **The live MediaWiki + Wikidata fetch is mocked** (cloud/CI sandboxes
+  have no network egress and the article fetch is client-side anyway). `yarn test:watch` for dev.
+- **End-to-end — Playwright (`e2e/`).** `yarn test:e2e` builds the static export and serves `out/`,
+  then drives the core loop (find topic → read → watch & weigh → contribute) in a real browser. The
+  Wikipedia/Wikidata calls are **intercepted with fixtures** (`page.route`) so the run is
+  deterministic and offline; the plus side renders from the seeded localStorage `DataStore`.
+  Requires `npx playwright install chromium` (a one-time browser download — not possible in a
+  no-egress sandbox, so e2e runs in CI / local).
+
+Test deps are devDependencies; `@testing-library/dom` is pinned explicitly (a peer of
+`@testing-library/react`). Author-run `yarn build` is **not** review — a `qa-reviewer` subagent owns
+the pass/fail-per-AC verification and the security review (CLAUDE.md).
