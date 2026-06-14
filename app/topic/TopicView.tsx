@@ -353,24 +353,30 @@ export function TopicView() {
           className="sticky top-16 self-start"
           aria-label="wiki+ overview and contents"
         >
-          <PlusInfobox clips={clips} />
+          <PlusInfobox clips={clips} qid={qid ?? ""} />
           <TocCard
             sections={articleBody?.sections ?? []}
             clipsBySection={clipsBySection}
             currentSectionId={activeSectionId}
             onNavigate={goToSection}
           />
-          <Link
-            href={`/contribute?qid=${encodeURIComponent(qid ?? "")}`}
-            className="block text-center text-xs text-[#1F6F95] hover:underline mt-2 focus-visible:outline-2 focus-visible:outline-[#676EB4] rounded"
-          >
-            + Contribute a video
-          </Link>
+          {clips.length > 0 && (
+            <Link
+              href={`/contribute?qid=${encodeURIComponent(qid ?? "")}`}
+              className="block text-center text-xs text-[#1F6F95] hover:underline mt-2 focus-visible:outline-2 focus-visible:outline-[#676EB4] rounded"
+            >
+              + Contribute a video
+            </Link>
+          )}
         </aside>
       </div>
 
       {/* General strip */}
-      <GeneralStrip clips={generalClips} qid={qid ?? ""} />
+      <GeneralStrip
+        clips={generalClips}
+        qid={qid ?? ""}
+        topicTitle={article?.title ?? topic?.title}
+      />
 
       {/* Reader zone */}
       <div className="max-w-[1200px] mx-auto px-5 grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-7 items-start">
@@ -484,11 +490,20 @@ export function TopicView() {
             </>
           )}
 
+          {/* Empty state — YouTube suggestions in candidate card style */}
           {sectionClipOrder.length === 0 && clips.length === 0 && article && (
-            <VideoSuggestions
-              topicTitle={article.title}
-              topicQid={qid ?? ""}
-            />
+            <>
+              <div
+                className="text-[11px] uppercase tracking-widest font-bold text-[#5248AF] px-1 mb-2"
+                style={{ fontFamily: "Source Sans 3, Source Sans Pro, system-ui, sans-serif" }}
+              >
+                Suggested ↓ · uncurated
+              </div>
+              <VideoSuggestions
+                topicTitle={article.title}
+                topicQid={qid ?? ""}
+              />
+            </>
           )}
         </aside>
       </div>

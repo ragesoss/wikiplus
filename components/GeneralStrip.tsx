@@ -6,6 +6,8 @@ import type { Clip, AccuracyFlag, Stance } from "@/lib/data/types";
 import { EmbedModal } from "@/components/EmbedModal";
 import { parseVideoUrl } from "@/lib/embed/facade";
 
+const sansFont = "Source Sans 3, Source Sans Pro, system-ui, sans-serif";
+
 const ACCURACY_COLOR: Record<AccuracyFlag, string> = {
   accurate: "#2A8270",
   "mostly-accurate": "#1F6F95",
@@ -68,7 +70,7 @@ function GeneralTile({ clip }: { clip: Clip }) {
           <div className="flex flex-wrap gap-1.5">
             <span
               className="text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 border border-[#676EB4] text-[#676EB4] rounded"
-              style={{ fontFamily: "Source Sans 3, Source Sans Pro, system-ui, sans-serif" }}
+              style={{ fontFamily: sansFont }}
             >
               {STANCE_LABEL[clip.stance]}
             </span>
@@ -77,7 +79,7 @@ function GeneralTile({ clip }: { clip: Clip }) {
               style={{
                 borderColor: ACCURACY_COLOR[clip.accuracyFlag],
                 color: ACCURACY_COLOR[clip.accuracyFlag],
-                fontFamily: "Source Sans 3, Source Sans Pro, system-ui, sans-serif",
+                fontFamily: sansFont,
               }}
             >
               {ACCURACY_LABEL[clip.accuracyFlag]}
@@ -121,10 +123,100 @@ function GeneralTile({ clip }: { clip: Clip }) {
 interface GeneralStripProps {
   clips: Clip[];
   qid: string;
+  topicTitle?: string;
 }
 
-export function GeneralStrip({ clips, qid }: GeneralStripProps) {
-  if (clips.length === 0) return null;
+export function GeneralStrip({ clips, qid, topicTitle }: GeneralStripProps) {
+  const isEmpty = clips.length === 0;
+
+  // Empty-state band: show "＋ Suggested videos" with Find more row
+  if (isEmpty) {
+    if (!topicTitle) return null;
+
+    const tiktokUrl = `https://www.tiktok.com/search?q=${encodeURIComponent(topicTitle)}`;
+    const youtubeUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(`${topicTitle} explained`)}`;
+
+    return (
+      <section
+        className="w-full bg-[#676EB4] border-y-2 border-[#2C2C2C] my-6 py-5 px-5"
+        aria-label="Suggested videos for this topic — not yet vetted"
+      >
+        <div className="max-w-[1200px] mx-auto">
+          {/* Header row */}
+          <div className="flex items-center gap-3 mb-3 flex-wrap">
+            <span
+              className="text-2xl text-white font-black leading-none"
+              style={{ fontFamily: sansFont, letterSpacing: "-0.02em" }}
+            >
+              ＋ Suggested videos
+            </span>
+            <span
+              className="text-[11px] font-bold uppercase tracking-[0.18em] px-2 py-1 border-2 border-white text-white"
+              style={{ fontFamily: sansFont }}
+            >
+              uncurated
+            </span>
+            <span
+              className="text-sm text-white/80 font-normal"
+              style={{ fontFamily: sansFont }}
+            >
+              — auto-found candidates, not yet vetted
+            </span>
+          </div>
+
+          {/* Find more row */}
+          <div
+            className="flex items-center gap-2 flex-wrap"
+            role="group"
+            aria-label="Find videos to add"
+          >
+            <span
+              className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/70"
+              style={{ fontFamily: sansFont }}
+            >
+              Find more
+            </span>
+            <a
+              href={tiktokUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1.5 border-2 border-[#2C2C2C] bg-white text-[#2C2C2C] text-[12px] font-bold px-2.5 py-1.5 hover:bg-pink-50 hover:shadow-[2px_2px_0_#2C2C2C] transition-shadow"
+              style={{ fontFamily: sansFont }}
+              aria-label="Search TikTok for this topic in a new tab"
+            >
+              <span className="text-pink-500" aria-hidden="true">✦</span>
+              Search TikTok <span aria-hidden="true">↗</span>
+            </a>
+            <a
+              href={youtubeUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1.5 border-2 border-[#2C2C2C] bg-white text-[#2C2C2C] text-[12px] font-bold px-2.5 py-1.5 hover:bg-[#F0F1F3] hover:shadow-[2px_2px_0_#2C2C2C] transition-shadow"
+              style={{ fontFamily: sansFont }}
+              aria-label="Search YouTube for this topic in a new tab"
+            >
+              <svg
+                className="w-3.5 h-3.5 shrink-0 text-red-500"
+                fill="currentColor"
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+              >
+                <path d="M21.58 6.19a2.51 2.51 0 0 0-1.77-1.77C18.25 4 12 4 12 4s-6.25 0-7.81.42A2.51 2.51 0 0 0 2.42 6.19C2 7.75 2 12 2 12s0 4.25.42 5.81a2.51 2.51 0 0 0 1.77 1.77C5.75 20 12 20 12 20s6.25 0 7.81-.42a2.51 2.51 0 0 0 1.77-1.77C22 16.25 22 12 22 12s0-4.25-.42-5.81zM10 15.5v-7l6 3.5-6 3.5z" />
+              </svg>
+              Search YouTube <span aria-hidden="true">↗</span>
+            </a>
+            <Link
+              href={`/contribute?qid=${encodeURIComponent(qid)}`}
+              className="inline-flex items-center gap-1.5 border-2 border-[#2C2C2C] bg-[#2C2C2C] text-white text-[12px] font-bold px-2.5 py-1.5 hover:shadow-[2px_2px_0_rgba(0,0,0,0.4)] transition-shadow"
+              style={{ fontFamily: sansFont }}
+            >
+              <span aria-hidden="true">＋</span> Add video
+            </Link>
+          </div>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section
@@ -136,7 +228,7 @@ export function GeneralStrip({ clips, qid }: GeneralStripProps) {
           <span
             className="text-white font-black text-lg leading-none"
             style={{
-              fontFamily: "Source Sans 3, Source Sans Pro, system-ui, sans-serif",
+              fontFamily: sansFont,
               letterSpacing: "-0.02em",
             }}
           >
@@ -144,7 +236,7 @@ export function GeneralStrip({ clips, qid }: GeneralStripProps) {
           </span>
           <span
             className="text-white/90 text-[11px] uppercase tracking-widest font-bold"
-            style={{ fontFamily: "Source Sans 3, Source Sans Pro, system-ui, sans-serif" }}
+            style={{ fontFamily: sansFont }}
           >
             general overview videos
           </span>
