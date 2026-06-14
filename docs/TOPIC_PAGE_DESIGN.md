@@ -23,6 +23,11 @@ A Topic page presents two deliberately contrasting visual languages, split by co
 The wordmark is **split to label the columns**: "Wiki" sits over the article column, "＋plus"
 over the plus column.
 
+> **Implementation note (per ARCHITECTURE).** The article body is fetched and rendered
+> **client-side** from Wikipedia (sanitized), and its **wikilinks resolve to internal wiki+
+> topics** (`/topic/…`), not out to Wikipedia. The reference mockups render the article
+> statically and link externally — a mockup simplification, not the intended behavior.
+
 ## Plus visual identity — "Indigo Press"
 
 The ＋plus side has a bold, editorial "zine" treatment, recolored from the **Wiki Education

@@ -11,29 +11,35 @@ The dominant scalability lever is therefore **not** the choice of language or fr
 is **how cheaply we can serve reads.** Wikipedia itself serves the overwhelming majority of
 its traffic from cache on comparatively modest origin infrastructure.
 
-So the architecture treats a Topic page as **cacheable, near-static HTML** by default, and
-reserves dynamic server compute for the things that genuinely need it: writes (new/edited
-clips), authentication, and any personalization.
+So the architecture treats a Topic page as a **cacheable, near-static shell** by default, and
+reserves dynamic server compute for the things that genuinely need it: writes (promote / add /
+dismiss), authentication, and clip pagination.
 
 Concretely:
 
-- Topic pages are rendered with **Next.js static generation + ISR (Incremental Static
-  Regeneration) using on-demand revalidation**. A page is generated once, served from cache
-  to everyone, and regenerated only when its underlying data changes (a new annotation) or
-  its cached Wikipedia content goes stale.
-- **Cloudflare (free tier) sits in front of the VPS**, providing edge caching of those
-  pages, TLS termination, and DDoS protection. Most read requests should be answered at the
-  edge and never reach the origin.
+- The Topic **shell** — topic title + lead, the curated clips, and the (cached) candidate
+  suggestions — is rendered with **Next.js static generation + ISR** (on-demand revalidation):
+  generated once, served from cache to everyone, regenerated only when its data changes (a new
+  curation) or its cached inputs go stale.
+- The **full Wikipedia article body is fetched and rendered client-side** (see *Article
+  rendering*), so the heavy article HTML never touches our origin — it comes from Wikipedia's
+  own CDN, and our cached pages stay small.
+- Interactivity (scroll-sync, curate modals, promote/dismiss) lives in **client components**;
+  writes go through **Server Actions / route handlers** (auth-gated); "load more" clip
+  pagination is a small API route.
+- **Cloudflare (free tier) sits in front of the VPS** for edge caching of the shell, TLS, and
+  DDoS protection. Most read requests are answered at the edge and never reach the origin.
 
 ## Stack
 
 | Concern        | Choice                                  | Why |
 |----------------|-----------------------------------------|-----|
-| Framework      | **Next.js (App Router), TypeScript**    | Smoothest vibe-coding loop, huge ecosystem, first-class static/ISR for the read path. |
+| Framework      | **Next.js 15 (App Router), React 19, TypeScript** | Smoothest vibe-coding loop, first-class static/ISR for the read path; **Server Actions** for the write flows. (Node 24 LTS locally.) |
 | Database       | **Postgres**                            | Proven, scales with read replicas, strong relational fit for Topic/Clip. |
 | ORM            | **Drizzle ORM**                         | Lightweight, low-overhead, explicit SQL-shaped API — efficient and easy for agents to reason about (vs. heavier Prisma). |
-| Styling/UI     | **Tailwind CSS + shadcn/ui**            | Fast, consistent components without a heavy design system. |
-| Cache / shared state | **Redis**                         | Backs the shared ISR cache handler and future rate-limiting/session needs. |
+| Styling/UI     | **Tailwind CSS** (bespoke "Indigo Press" components) | Hand-built to the committed design; optional **headless primitives** (e.g. Radix) for dialogs/menus — not shadcn's styling, so we keep the brand identity. |
+| Article render | **Client-side** (MediaWiki REST HTML + **DOMPurify**) | Fetch + sanitize + link-rewrite the article in the browser; keeps heavy HTML off our origin (Wikipedia's CDN serves it). See *Article rendering*. |
+| Cache / shared state | **Redis**                         | Shared ISR cache handler (multi-instance), rate-limiting, and cached candidate-suggestion sets. Included from day one. |
 | Auth           | **Auth.js (NextAuth)** — OAuth only      | MVP: **Wikimedia** sign-in only (custom OAuth2 provider). Google (built-in provider) planned next. No passwords to store or secure. |
 | Reverse proxy  | **Caddy** (origin) + **Cloudflare** (edge) | Caddy gives automatic TLS and simple config at the origin; Cloudflare does edge caching. |
 | Packaging      | **Docker Compose**                      | Dev/prod parity, single-command bring-up: app + Postgres + Redis + Caddy. |
@@ -68,7 +74,9 @@ Keyed on stable identifiers, normalized, minimal.
   - `id` (internal PK)
   - `wikidata_qid` (unique) — **canonical identifier**, stable across renames/languages
   - `title`, `lang` — display attributes for the primary article
-  - `wikipedia_cache` — cached lead/section structure + fetch metadata (see below)
+  - `article_index` — cached **lightweight** article data the server needs: the lead (for the
+    shell + SEO) and the section list/headings (for matching candidates and the TOC). The full
+    article HTML is **not** stored — it's fetched client-side (see *Article rendering*).
   - `created_at`, `updated_at`
 - **clip** (a curated, contextualized social video)
   - `id`
@@ -84,13 +92,15 @@ Keyed on stable identifiers, normalized, minimal.
   - `accuracy_flag` — short label (e.g. "accurate", "minor slip", "opinion", "anecdotal") +
     optional longer note; how well the clip matches the source material
   - `timestamp_seconds` (nullable) — where the relevant part starts
-  - `section_anchor` (nullable) — which article section it relates to
+  - `section_anchor` (nullable) — which article section it relates to (`general` = whole-topic).
+    Stored as a heading **slug + heading text** so it can be re-resolved when the article
+    changes; an orphaned anchor falls back to `general` (see *Article rendering*).
   - `upvotes` (cached count)
-  - `vetted` (boolean) — `true` for human-curated clips. **Auto-suggested candidates are
-    `vetted: false`** and carry `suggestion_source` + `match_reason` *instead of* a
-    `context_note` / `stance` / `accuracy_flag`, until a curator **promotes** them (see
-    *Candidate suggestion & the empty state*).
-  - `curator_id` → contributor (null for un-promoted candidates)
+  - `vetted` (boolean) — light moderation flag. A `clip` row exists only once a human has acted
+    (promote or add-by-link), so clips are curated by construction; auto-suggested candidates
+    are **not** clip rows (see *Candidate suggestion*). `vetted` remains so we can hold a freshly
+    added clip for review if needed.
+  - `curator_id` → contributor (who promoted/added it)
   - `created_at`, `updated_at`
 - **contributor** (the wiki+ curator — distinct from the external **creator** referenced above)
   - `id` (internal PK), `display_name`, `avatar_url`, `created_at`
@@ -100,6 +110,14 @@ Keyed on stable identifiers, normalized, minimal.
   - `provider` (`wikimedia` | `google`), `provider_account_id` (the provider's stable subject id)
   - cached profile bits from the provider (name, email if granted, avatar)
   - `unique(provider, provider_account_id)`
+- **dismissed_candidate** (suppress a ruled-out suggestion so it doesn't resurface)
+  - `id`, `topic_id` → topic, `provider`, `provider_video_id`, `contributor_id` → contributor,
+    `created_at`
+  - `unique(topic_id, provider, provider_video_id)`
+
+> Auto-suggested **candidates are not stored as rows** — they're computed and cached per topic
+> (see *Candidate suggestion*). Only a **promote** (→ `clip`) or **dismiss** (→
+> `dismissed_candidate`) writes to the DB, so storage stays proportional to real curation.
 
 > Creators are external people we reference and credit, stored inline on the clip for the MVP.
 > If creator-level views (a creator's body of curated clips, follower trends) become a feature,
@@ -111,15 +129,45 @@ multilingual support and article-rename resilience essentially free.
 
 ## Wikipedia integration
 
-- **Content fetch:** retrieve article lead/sections via the **MediaWiki REST API**
-  (`/page/...`) and/or the **Action API**, and resolve/confirm the **Wikidata QID** via the
-  Wikidata API. Resolve titles ↔ QIDs at curation time.
-- **Caching & refresh:** store fetched content in `topic.wikipedia_cache` and refresh
-  **lazily** (on revalidation / when stale), not eagerly. We never need a full mirror — only
-  the topics that have been curated.
-- **Etiquette:** send a descriptive **User-Agent** identifying wiki+ and a contact, respect
-  rate limits and `maxlag`, and back off on errors. This keeps us good citizens of the
-  Wikimedia APIs and avoids being throttled.
+- **Identity:** resolve article title ↔ **Wikidata QID** (Wikidata API) at topic creation; QID
+  is the canonical topic key.
+- **Server-side, lightweight only:** the origin fetches and caches just what it needs in
+  `topic.article_index` — the **lead** (cached shell + SEO) and the **section list / headings**
+  (for matching candidates to sections and rendering the TOC). It does **not** fetch or store the
+  full article HTML.
+- **Refresh lazily:** rebuild `article_index` on revalidation / when stale; we only ever touch
+  topics someone visited or curated — never a full mirror.
+- **Etiquette:** descriptive **User-Agent / Api-User-Agent** identifying wiki+ and a contact,
+  respect rate limits and `maxlag`, back off on errors — for both server and client requests.
+
+## Article rendering (client-side)
+
+The full article body is fetched and rendered **in the browser**, not on our origin:
+
+- **Fetch:** the client requests rendered article HTML from the **MediaWiki REST API**
+  (`/api/rest_v1/page/html/{title}`), which is **CORS-enabled** for anonymous GETs — so a direct
+  cross-origin fetch is practical. (If an endpoint ever lacks CORS, proxy via a thin origin route.)
+- **Sanitize:** run the HTML through **DOMPurify** before inserting it — never inject raw
+  third-party HTML. Strip editor chrome (edit-section links, reference backrefs, unwanted navboxes).
+- **Rewrite links to internal wiki+ topics:** article wikilinks (`/wiki/X`) are rewritten to
+  **`/topic/X`**, so navigation stays in wiki+ and every article becomes a portal into the topic
+  graph (topics created on demand on visit). Red links / non-article namespaces fall back to
+  Wikipedia or are de-linked.
+- **Why client-side:** keeps heavy article HTML off our origin (Wikipedia's CDN serves it), so
+  cached pages stay small and the read path stays cheap.
+- **SEO tradeoff (to handle):** the client-rendered body isn't in our initial HTML — acceptable,
+  since the body is Wikipedia's text (we don't want to compete for it). We **server-render our
+  unique surface** (topic title, lead, curated clips + context notes) into the cached shell for
+  indexing. Revisit if discovery needs more.
+- **Section anchoring:** the client maps each clip's `section_anchor` onto the live article's
+  headings (slug + text), surviving edits, with a `general` fallback for orphans.
+
+## Topic discovery & search
+
+Topics are created on demand, so users need to *reach* uncurated ones. A search box resolves a
+query to a Wikipedia article (MediaWiki `opensearch`/search API) → wiki+ topic (title→QID,
+created on visit); internal wikilinks (above) are the other main path. This is what makes the
+empty state matter — most arrivals land on an uncurated topic and are invited to curate it.
 
 ## Video handling — embed, never host
 
@@ -167,9 +215,13 @@ paths to curate. (Product behavior in [`TOPIC_PAGE_DESIGN.md`](TOPIC_PAGE_DESIGN
   `context_note` and sets `stance` / `accuracy_flag` (flipping `vetted` to true); "not relevant"
   dismisses it. Browsing candidates is anonymous; **promoting or adding requires login**.
 
-Implementation notes: the **YouTube Data API search quota is expensive** — cache candidate result
-sets per topic and refresh lazily (like the Wikipedia content cache). Persist candidates with
-`suggestion_source` and `match_reason`, and remember dismissed candidates so they don't resurface.
+**Storage — cache, persist on action.** Candidates are **computed and cached per topic** (the
+YouTube search + section matching, carrying `suggestion_source` + `match_reason`); they are
+**not** written as `clip` rows. A `clip` row is created only when a user **promotes** a candidate
+(→ a curated clip) or **adds** one by link; **dismissing** writes a `dismissed_candidate` row so
+it doesn't resurface. This keeps the DB proportional to real curation, not to every browsed topic.
+The **YouTube Data API search quota is expensive**, so cache candidate sets with a TTL and refresh
+lazily (alongside `article_index`) — Redis is a natural home for these cached sets.
 
 ## Authentication & identity
 
@@ -206,6 +258,9 @@ Design points:
   requires **attribution** (credit + link back to the article and its history/license) and
   carries **share-alike** obligations on derivative text. The Topic page UX must include
   clear attribution and a link to the source article and license.
+- **Wikimedia Commons images are individually licensed** (various CC licenses, often requiring
+  attribution). When we display a Commons image we must show its **credit + license** and link to
+  its file page — the article's text license does not cover its images.
 - **wiki+'s own context notes:** decide and state the license under which contributor-written
   context notes are released (a permissive or share-alike CC license is the natural fit and
   keeps us compatible with the surrounding Wikipedia content). Capture contributor agreement
@@ -215,8 +270,12 @@ Design points:
 
 ## Open questions (to resolve before/while building)
 
-- Exact ISR revalidation triggers and stale-after windows for Wikipedia content.
-- What scopes/claims we request from Wikimedia (e.g. username, edit count).
+- Exact ISR revalidation triggers and stale-after windows for `article_index` and candidate sets.
+- How much of the page to server-render for **SEO** beyond title/lead/clips (the body is
+  client-rendered).
+- **DOMPurify allowlist** + which Wikipedia HTML to keep vs. strip (infoboxes, tables, math, navboxes).
+- **Internal-link resolution** edge cases: red links, disambiguation pages, non-article namespaces.
+- What scopes/claims we request from Wikimedia (e.g. username, edit count — also a moderation signal).
 - Abuse/spam handling for open contribution (rate limits via Redis, basic moderation).
 - The license chosen for wiki+ context notes.
 - Whether `stance`/`accuracy_flag` are free-form or a fixed controlled vocabulary (affects
