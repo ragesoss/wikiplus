@@ -41,8 +41,10 @@ export default function ContributePage() {
   const [resolving, setResolving] = useState(false);
 
   useEffect(() => {
-    const p = new URLSearchParams(window.location.search).get("qid");
-    if (p) setQid(p);
+    const p = new URLSearchParams(window.location.search);
+    if (p.get("qid")) setQid(p.get("qid")!);
+    if (p.get("videoUrl")) setVideoUrl(p.get("videoUrl")!);
+    if (p.get("creator")) setHandle(p.get("creator")!);
   }, []);
 
   async function resolveWikiTitle() {

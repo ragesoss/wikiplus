@@ -17,6 +17,7 @@ import { PlusInfobox } from "@/components/PlusInfobox";
 import { TocCard, MiniToc } from "@/components/TableOfContents";
 import { GeneralStrip } from "@/components/GeneralStrip";
 import { ClipCardFull } from "@/components/ClipCardFull";
+import { VideoSuggestions } from "@/components/VideoSuggestions";
 
 export function TopicView() {
   const searchParams = useSearchParams();
@@ -483,16 +484,11 @@ export function TopicView() {
             </>
           )}
 
-          {sectionClipOrder.length === 0 && clips.length === 0 && (
-            <div className="border-2 border-dashed border-[#a2a9b1] p-6 text-center text-sm text-[#54595d] rounded">
-              No clips yet.{" "}
-              <Link
-                href={`/contribute?qid=${encodeURIComponent(qid ?? "")}`}
-                className="text-[#1F6F95] underline"
-              >
-                Add the first one.
-              </Link>
-            </div>
+          {sectionClipOrder.length === 0 && clips.length === 0 && article && (
+            <VideoSuggestions
+              topicTitle={article.title}
+              topicQid={qid ?? ""}
+            />
           )}
         </aside>
       </div>
