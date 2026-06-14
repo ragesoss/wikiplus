@@ -47,5 +47,8 @@ export interface Clip {
   timestampSeconds?: number;
   /** e.g. "Light-dependent_reactions" */
   sectionAnchor?: string;
+  /** Drives embed aspect ratio — 9:16 vs 16:9. Defaults to landscape. */
+  orientation?: "landscape" | "portrait";
+  upvotes?: number;
   createdAt: string;
 }
