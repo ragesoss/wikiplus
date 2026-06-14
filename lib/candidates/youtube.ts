@@ -12,9 +12,6 @@ const SEARCH_ENDPOINT = "https://www.googleapis.com/youtube/v3/search";
 // Request a few more than we surface, to leave room for dedup + best-per-section
 // before truncating the General list to 5 (Decision 1).
 const MAX_RESULTS = 12;
-// Descriptive identifier (Wikimedia/etiquette posture; AC14). Browsers forbid setting
-// User-Agent, but we attach a referrer-friendly Accept and an identifying query note.
-const UA = "wiki+/0.0 (prototype; https://ragesoss.github.io/wikiplus/)";
 
 /** Read the build-time public key. Returns undefined locally/CI (AC1). */
 export function youtubeApiKey(): string | undefined {
@@ -56,7 +53,11 @@ export const youtubeSource: CandidateSource = {
         `&maxResults=${MAX_RESULTS}` +
         `&q=${encodeURIComponent(ctx.topicTitle)}` +
         `&key=${encodeURIComponent(key)}`;
-      const res = await fetch(url, { headers: { Accept: "application/json", "X-Client": UA } });
+      // Plain GET with only CORS-safelisted headers — a non-safelisted header (e.g.
+      // X-Client) would force a CORS preflight that googleapis.com won't approve,
+      // breaking the browser request. Browsers forbid setting User-Agent anyway, so
+      // the descriptive identifier moves to a server-side concern when search relocates.
+      const res = await fetch(url, { headers: { Accept: "application/json" } });
       if (!res.ok) return []; // AC14 — quota/4xx/5xx degrade silently.
       const data = (await res.json()) as YouTubeSearchResponse;
       return normalizeResponse(data);
