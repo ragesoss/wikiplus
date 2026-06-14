@@ -6,14 +6,20 @@ with a human-written **context note** that separates factual content from the cr
 
 ## Project status
 
-**Design & spec phase.** What exists today:
+**Prototype phase — client-side, live on GitHub Pages.** What exists today:
 - `docs/` — the spec (vision, architecture, topic-page design, agent operating model).
 - `mockups/` — interactive HTML design mockups (open `mockups/inline-index.html`; reference
   Topic page: `mockups/inline-indigo-sync.html` curated, `inline-indigo-empty-v2.html` empty).
 - `.claude/agents/` — the role subagents that build & operate this project (see below).
+- The **Next.js 15 app** (`app/`, `components/`, `lib/`) — a client-side SPA shipped to
+  **GitHub Pages** at <https://ragesoss.github.io/wikiplus/>, with `localStorage` standing in for
+  the server. Push to `main` auto-deploys via `.github/workflows/deploy.yml`.
+- `TODO.md` — pending tasks.
 
-The application is **not yet scaffolded**. The committed stack and decisions live in
-`docs/ARCHITECTURE.md` — build to that when implementation begins.
+The production read-path (ISR/Redis/Server Actions/Postgres) is **not yet built**; all data access
+goes through the `DataStore` seam in `lib/data/` (localStorage now; swap in `lib/data/index.ts`).
+`docs/ARCHITECTURE.md` is the source of truth — see its **Prototype phase** section. **Use `yarn`**
+(matches the committed lockfile and CI).
 
 ## Read first
 

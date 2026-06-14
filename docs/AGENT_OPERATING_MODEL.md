@@ -103,6 +103,22 @@ Dev** (design spec) **and after** (design evaluation), and Curation feeds in ups
 role produces is the hand-off contract: the next role works from the document/code, not from
 conversation. Roles do not invoke each other — the orchestrator drives the sequence.
 
+## Seams to watch
+
+The set-level review surfaced three boundary edges. Here's how each resolves, so nothing is
+orphaned or double-owned:
+
+- **Accessibility testing** — split by altitude: **QA & Review** owns *automated* a11y checks
+  (part of the test suite); **UX / Design** owns *judgment-based* a11y evaluation (in design
+  evaluation). Covered twice on purpose, not dropped.
+- **`docs/ARCHITECTURE.md` is co-touched** — **Development** owns the file and the technical
+  architecture; **Curation / Editorial** writes *editorial* decisions (the `stance`/`accuracy_flag`
+  vocabularies, the context-note license, the moderation policy) into its **Open questions**.
+  Coordinate through that section.
+- **SEO** has no standing owner — **Product** prioritizes it (a reach/discovery concern on the read
+  path) and **Development** implements it (how much to server-render). Already an ARCHITECTURE open
+  question.
+
 ## How roles map to tooling
 
 - **Subagent definitions** — one per role in `.claude/agents/`, each a focused system prompt encoding
