@@ -1,3 +1,4 @@
+import { identityKey, videoIdOf } from "@/lib/candidates/dismissals";
 import { LocalStorageDataStore } from "./local-store";
 import {
   PHOTOSYNTHESIS_QID,
@@ -55,6 +56,20 @@ export async function seedIfEmpty(): Promise<void> {
   if (typeof window !== "undefined") {
     window.localStorage.setItem(SEED_FLAG, SEED_VERSION);
   }
+}
+
+/**
+ * The set of `platform:videoId` identity keys already curated as clips for a topic —
+ * passed to the live candidate pipeline so an already-curated video is never suggested
+ * (AC8). Uses the same provider-video-identity parser as dismissal dedup (Decision 3).
+ */
+export function curatedVideoKeys(clips: Clip[]): Set<string> {
+  const keys = new Set<string>();
+  for (const c of clips) {
+    const videoId = videoIdOf(c);
+    if (videoId) keys.add(identityKey(c.platform, videoId));
+  }
+  return keys;
 }
 
 /** Derive the infobox counts (videos / creators / curators) from a clip set (AC7). */

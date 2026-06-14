@@ -14,6 +14,8 @@ export function GeneralStrip({
   generalClips,
   generalCandidates,
   totalGeneral,
+  loading = false,
+  prefersReduced = false,
   onPlay,
   onPromote,
   onDismiss,
@@ -25,12 +27,21 @@ export function GeneralStrip({
   generalClips: Clip[];
   generalCandidates: Candidate[];
   totalGeneral: number;
+  /** Empty mode only: the live candidate search is in flight (design §5.4). */
+  loading?: boolean;
+  /** Reduced-motion: skeletons render static (no shimmer) (design §5.4 / §8). */
+  prefersReduced?: boolean;
   onPlay: (clip: Clip) => void;
   onPromote: (c: Candidate) => void;
   onDismiss: (c: Candidate) => void;
   onAdd: () => void;
   bandRef?: (el: HTMLElement | null) => void;
 }) {
+  // Empty-mode runtime faces (design §5): loading (skeleton), zero-results (honest
+  // line), or populated. Curated mode is unaffected.
+  const showLoading = mode === "empty" && loading;
+  const showZero =
+    mode === "empty" && !loading && generalCandidates.length === 0;
   const tiktok = `https://www.tiktok.com/search?q=${encodeURIComponent(topicTitle)}`;
   const youtube = `https://www.youtube.com/results?search_query=${encodeURIComponent(
     topicTitle
@@ -59,7 +70,9 @@ export function GeneralStrip({
               : "— auto-found candidates, not yet vetted"}
           </span>
           <span className="border-2 border-ink bg-white px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-brand">
-            {pluralize(totalGeneral, mode === "curated" ? "video" : "candidate")}
+            {showLoading
+              ? "Finding videos…"
+              : pluralize(totalGeneral, mode === "curated" ? "video" : "candidate")}
           </span>
         </div>
 
@@ -76,7 +89,7 @@ export function GeneralStrip({
               href={tiktok}
               target="_blank"
               rel="noopener"
-              className="border-2 border-ink bg-white px-2.5 py-1 text-[12px] font-bold text-ink hover:bg-[#C03060] hover:text-white"
+              className="inline-flex min-h-[44px] items-center border-2 border-ink bg-white px-2.5 py-1 text-[12px] font-bold text-ink hover:bg-[#C03060] hover:text-white"
             >
               Search TikTok ↗
             </a>
@@ -84,7 +97,7 @@ export function GeneralStrip({
               href={youtube}
               target="_blank"
               rel="noopener"
-              className="border-2 border-ink bg-white px-2.5 py-1 text-[12px] font-bold text-ink hover:bg-brand hover:text-white"
+              className="inline-flex min-h-[44px] items-center border-2 border-ink bg-white px-2.5 py-1 text-[12px] font-bold text-ink hover:bg-brand hover:text-white"
             >
               Search YouTube ↗
             </a>
@@ -92,13 +105,54 @@ export function GeneralStrip({
               type="button"
               onClick={onAdd}
               aria-haspopup="dialog"
-              className="border-2 border-ink bg-brand px-2.5 py-1 text-[12px] font-bold text-white hover:shadow-[2px_2px_0_#2C2C2C]"
+              className="inline-flex min-h-[44px] items-center border-2 border-ink bg-brand px-2.5 py-1 text-[12px] font-bold text-white hover:shadow-[2px_2px_0_#2C2C2C]"
             >
               ＋ Add video
             </button>
           </div>
         )}
 
+        {/* Loading face (design §5.4): 3 skeleton tiles, announced via aria-busy. */}
+        {showLoading && (
+          <ul
+            role="list"
+            aria-busy="true"
+            aria-label="Looking for suggested videos"
+            className="mt-4 flex gap-3 overflow-x-auto pb-2"
+          >
+            {[0, 1, 2].map((i) => (
+              <li key={i} role="listitem" className="w-44 shrink-0">
+                <div
+                  className={`aspect-video w-full border-2 border-white/40 bg-white/15${
+                    prefersReduced ? "" : " animate-pulse"
+                  }`}
+                />
+                <div
+                  className={`mt-2 h-3 w-5/6 bg-white/25${
+                    prefersReduced ? "" : " animate-pulse"
+                  }`}
+                />
+                <div
+                  className={`mt-1 h-2.5 w-1/2 bg-white/15${
+                    prefersReduced ? "" : " animate-pulse"
+                  }`}
+                />
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {/* Zero-results face (design §5.2): honest line, no tile chrome. Keeps the
+            "Find more" group above as the next step. Also covers the error/quota
+            silent-degrade case (§5.5) — same honest line, never an error UI. */}
+        {showZero && (
+          <p className="mt-4 max-w-prose text-sm leading-relaxed text-white">
+            No videos found for this topic yet. Try a manual search below, or add
+            one by link.
+          </p>
+        )}
+
+        {!showLoading && !showZero && (
         <ul role="list" className="mt-4 flex gap-3 overflow-x-auto pb-2">
           {mode === "curated"
             ? generalClips.map((clip) => (
@@ -135,6 +189,7 @@ export function GeneralStrip({
                 </li>
               ))}
         </ul>
+        )}
       </div>
     </section>
   );

@@ -1,5 +1,6 @@
+import { runCandidatePipeline } from "@/lib/candidates";
 import type { DataStore } from "./store";
-import type { Candidate, Clip, Topic } from "./types";
+import type { ArticleSection, Candidate, Clip, Topic } from "./types";
 
 const TOPICS_KEY = "wikiplus.topics";
 const CLIPS_KEY = "wikiplus.clips";
@@ -54,9 +55,22 @@ export class LocalStorageDataStore implements DataStore {
   }
 
   async listCandidates(topicQid: string): Promise<Candidate[]> {
-    // Prototype: candidates are seeded mock data (spec A4). Production swaps in the
-    // cached YouTube-search pipeline (ARCHITECTURE "Candidate suggestion").
+    // Seeded/fallback candidates (no-key path / pre-article). The live YouTube pipeline
+    // is `suggestCandidates` below; this stays the graceful no-op result (AC1).
     return read<Candidate>(CANDIDATES_KEY).filter((c) => c.topicQid === topicQid);
+  }
+
+  async suggestCandidates(input: {
+    topicQid: string;
+    topicTitle: string;
+    sections: ArticleSection[];
+    curatedVideoKeys: Set<string>;
+  }): Promise<Candidate[] | null> {
+    // Live path (AC2): the pluggable source pipeline (YouTube only this round) does the
+    // single search + section matching + dedup + 24h cache. Returns null when no source
+    // is enabled (no key) — the caller falls back to listCandidates (seed). The pipeline
+    // never throws (sources swallow all errors → degrade to seeded/empty, AC14).
+    return runCandidatePipeline(input);
   }
 
   async addClip(input: Omit<Clip, "id" | "createdAt">): Promise<Clip> {

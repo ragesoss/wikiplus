@@ -49,7 +49,7 @@ export function CandidateActions({
         onClick={() => onPromote(candidate)}
         aria-label={`Promote and curate: ${candidate.caption}`}
         aria-haspopup="dialog"
-        className="border-2 border-ink bg-brand px-2.5 py-1 text-[12px] font-bold text-white hover:shadow-[2px_2px_0_#2C2C2C]"
+        className="inline-flex min-h-[44px] items-center border-2 border-ink bg-brand px-2.5 py-1 text-[12px] font-bold text-white hover:shadow-[2px_2px_0_#2C2C2C]"
       >
         ✓ Promote
       </button>
@@ -57,7 +57,7 @@ export function CandidateActions({
         type="button"
         onClick={() => onDismiss(candidate)}
         aria-label={`Dismiss as not relevant: ${candidate.caption}`}
-        className="border-2 border-ink bg-white px-2.5 py-1 text-[12px] font-bold text-ink hover:shadow-[2px_2px_0_#2C2C2C]"
+        className="inline-flex min-h-[44px] items-center border-2 border-ink bg-white px-2.5 py-1 text-[12px] font-bold text-ink hover:shadow-[2px_2px_0_#2C2C2C]"
       >
         ✕ Not relevant
       </button>

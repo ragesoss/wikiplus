@@ -18,7 +18,8 @@ import { Infobox } from "@/components/topic/Infobox";
 import { PlayerModal } from "@/components/topic/PlayerModal";
 import { Toc, type TocEntry } from "@/components/topic/Toc";
 import { TopicHeader } from "@/components/topic/TopicHeader";
-import { deriveStats, seedIfEmpty, store } from "@/lib/data";
+import { curatedVideoKeys, deriveStats, seedIfEmpty, store } from "@/lib/data";
+import { recordDismissal } from "@/lib/candidates/dismissals";
 import type { Candidate, Clip, Topic } from "@/lib/data/types";
 import {
   fetchFullArticle,
@@ -62,6 +63,10 @@ export function TopicView() {
   const [article, setArticle] = useState<FullArticle | null>(null);
   const [fetchState, setFetchState] = useState<FetchState>("loading");
   const [storeReady, setStoreReady] = useState(false);
+  // Live-candidate loading is DECOUPLED from storeReady (design §5.4): a slow YouTube
+  // search must not block the infobox / TOC / band from rendering. It announces to AT.
+  const [candidatesLoading, setCandidatesLoading] = useState(false);
+  const [candidateAnnounce, setCandidateAnnounce] = useState("");
 
   const [player, setPlayer] = useState<Clip | null>(null);
   const [curateFor, setCurateFor] = useState<Candidate | null>(null);
@@ -152,6 +157,50 @@ export function TopicView() {
   useEffect(() => {
     void loadArticle();
   }, [loadArticle]);
+
+  // ── Live candidate suggestion (spec AC2/AC11; design §5.4). ──
+  // Runs once the article sections are known (so section matching has its input) and
+  // the store has loaded (so we can dedup against curated clips, AC8). The seeded
+  // result from listCandidates is already in `candidates`; if the live pipeline returns
+  // a set (a key is present) we replace it, else we keep the seed (no-key no-op, AC1).
+  // Decoupled from storeReady so a slow search never blocks the page chrome (§5.4).
+  useEffect(() => {
+    if (!qid || !storeReady || fetchState !== "ready" || !article) return;
+    let alive = true;
+    setCandidatesLoading(true);
+    setCandidateAnnounce("Looking for suggested videos…");
+    (async () => {
+      const live = await store.suggestCandidates({
+        topicQid: qid,
+        topicTitle: article.title,
+        sections: article.sections.map((s) => ({
+          slug: s.slug,
+          title: s.title,
+          level: s.level,
+        })),
+        curatedVideoKeys: curatedVideoKeys(clips),
+      });
+      if (!alive) return;
+      if (live) {
+        setCandidates(live);
+        setCandidateAnnounce(
+          live.length === 0
+            ? "No suggested videos found."
+            : `Found ${live.length} suggested videos.`
+        );
+      } else {
+        // No-key no-op: keep the seeded/empty set already loaded; nothing to announce.
+        setCandidateAnnounce("");
+      }
+      setCandidatesLoading(false);
+    })();
+    return () => {
+      alive = false;
+    };
+    // `clips` intentionally excluded: it's a dedup input captured at run time, not a
+    // re-trigger (the curated set is stable for a topic in the prototype).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [qid, storeReady, fetchState, article]);
 
   const mode: "curated" | "empty" = clips.length > 0 ? "curated" : "empty";
   const topicTitle =
@@ -343,9 +392,18 @@ export function TopicView() {
     [router]
   );
 
-  // ── Candidate actions (A7: non-persisting). ──
+  // ── Candidate actions. Dismissal is now STICKY (spec AC9; design §6.3): persist
+  // (topicQid, platform, videoId) to localStorage so the candidate does not resurface
+  // on reload/re-fetch, and hide it immediately (count decrements via liveCandidates).
   const dismiss = useCallback((c: Candidate) => {
+    recordDismissal(c);
     setDismissed((prev) => new Set(prev).add(c.id));
+    // Move focus sensibly off the removed node (design §8): to the band heading.
+    if (typeof document !== "undefined") {
+      const heading = document.querySelector<HTMLElement>("#general-band h2");
+      heading?.setAttribute("tabindex", "-1");
+      heading?.focus();
+    }
   }, []);
   const promote = useCallback((c: Candidate) => {
     setCurateFor(c);
@@ -441,12 +499,19 @@ export function TopicView() {
           totalGeneral={
             mode === "curated" ? generalClips.length : generalCandidates.length
           }
+          loading={candidatesLoading}
+          prefersReduced={prefersReduced.current}
           onPlay={setPlayer}
           onPromote={promote}
           onDismiss={dismiss}
           onAdd={() => setAddOpen(true)}
         />
       )}
+
+      {/* Polite live region — announces the candidate search (design §5.4 / §8). */}
+      <p className="sr-only" role="status" aria-live="polite">
+        {mode === "empty" ? candidateAnnounce : ""}
+      </p>
 
       {/* Reader: article body sections (left) + the sticky rail (right). */}
       <div className="mx-auto max-w-[1200px] px-5 pb-16">
@@ -508,6 +573,20 @@ export function TopicView() {
                 strip above.
               </p>
             )}
+            {/* Rail loading / zero-results lines (design §5.2 / §5.4). */}
+            {mode === "empty" && candidatesLoading && (
+              <p className="text-sm text-muted" aria-live="polite">
+                Looking for suggestions…
+              </p>
+            )}
+            {mode === "empty" &&
+              !candidatesLoading &&
+              sectionCandidates.length === 0 && (
+                <p className="text-sm text-muted">
+                  No suggestions for this topic yet — use &lsquo;Find more&rsquo;
+                  above to add the first video.
+                </p>
+              )}
           </aside>
         </div>
       </div>

@@ -356,9 +356,25 @@ exercise the production read-path (ISR/Redis/Server Actions) and is **single-use
   (unvetted empty-state suggestion) shares the media/creator fields, adds `vetted:false` + `source`
   + `matchReason`, and **omits** stance/accuracy/contextNote (CURATION §6). The `DataStore` seam gains
   **`listCandidates(topicQid)`**; topic-level counts (videos/creators/curators) are **derived** from
-  the clip set (`deriveStats`), never stored. Candidates are **seeded mock data** this round
-  (`lib/data/seed.ts`); the live YouTube-search pipeline (with the `NEXT_PUBLIC_YOUTUBE_API_KEY`
-  no-op-when-unset guard) is next round.
+  the clip set (`deriveStats`), never stored.
+- **Live candidate auto-suggestion (now built — `lib/candidates/`).** The candidate **source** behind
+  the seam is now a **live, cached YouTube Data API search**, not only seeded mock data. A pluggable
+  source registry (`lib/candidates/index.ts`, YouTube the only registered source — TikTok/Vimeo slot in
+  additively) feeds a deterministic pipeline (`pipeline.ts`): one `search.list` call per topic →
+  case-insensitive keyword-overlap **section matching** (`matching.ts`, best single match per section,
+  non-topic-generic threshold, fixed tie-break order) → **placement** (one home per video, section beats
+  General, General capped at 5) → dedup against curated clips + sticky dismissals + within-set. The seam
+  gains **`suggestCandidates({topicQid, topicTitle, sections, curatedVideoKeys})`** (returns the computed
+  set, or **`null`** when no source is enabled — the no-key no-op). The key is read **only** from
+  `process.env.NEXT_PUBLIC_YOUTUBE_API_KEY`; with it unset (every local/CI build) `isEnabled()` is false,
+  no call is made, nothing is cached, and the seam falls back to `listCandidates` (seeded/empty) — and any
+  source-side quota/network error is swallowed to `[]` (degrade to seeded/empty, never a thrown error or
+  error UI). The computed set is cached per QID in `localStorage` (`wikiplus.candidates.<QID>`,
+  `{fetchedAt, candidates}`, 24h TTL, lazy refresh — the same shape as the eventual Redis cached set);
+  dismissals persist to `wikiplus.dismissed_candidates` keyed `(topicQid, platform, videoId)` (mirrors the
+  `dismissed_candidate` table). Orientation defaults to horizontal, vertical only on a positive Shorts
+  signal (Decision 4). Production moves the search **server-side** (key → server secret, set → Redis) — a
+  source/store swap behind the same seam, not a redesign.
 
 - **Routing — canonical title-based Topic URLs under static export (Topic Page v1).** The
   user-facing Topic URL is **title-based** (`/topic/<Title>`, paralleling `/wiki/<Title>`); the QID
