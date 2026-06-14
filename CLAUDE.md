@@ -38,8 +38,30 @@ sits in Product). Default flow: Product spec → UX (personas/stories/design spe
 user-centered design end to end; Curation/Editorial sets the context-note standard that feeds UX,
 Dev, and Product. The build loop is designed to run **entirely in the cloud, drivable from a mobile
 Claude Code session**, from prompt to an updated staging deployment. Each role reads `docs/` first
-and produces the artifacts named in `docs/AGENT_OPERATING_MODEL.md`. Delegate work to the matching
-role.
+and produces the artifacts named in `docs/AGENT_OPERATING_MODEL.md`.
+
+**This is a hard rule, not a suggestion — cloud sessions included:**
+
+- **Delegate; don't wear hats.** The session you're in is the *orchestrator*. For any non-trivial
+  feature or code change, **spawn the matching role as a subagent** (the Task tool → `.claude/agents/`)
+  and let it work in its own fresh context. Do **not** do Product/UX/Dev/QA work inline and label it
+  with a role name in the commit — that defeats the whole point (specialized attention, independent
+  verification, legibility).
+- **Artifacts are the hand-off.** Each role works from the previous role's committed artifact (spec,
+  design spec, code), not from the conversation. A design spec is an **input to Dev**, written *before*
+  implementation — never a doc edited afterward to match what shipped.
+- **QA & Review is not optional.** Code isn't "done" until a `qa-reviewer` subagent (fresh, non-author
+  eyes) has reviewed it and UX has evaluated the built UI against the design spec. A passing `yarn
+  build` by the author is not review, even for the client-side prototype.
+- **Trivial, process-neutral changes** (a CI version bump, a typo, a doc tweak) can be done inline —
+  use judgment; the rule is about feature/code work.
+- **Run the cloud orchestrator on Opus.** The discipline of delegating rather than just-doing-it is
+  meta-judgment a stronger model holds better; a 2026-06-14 Sonnet cloud session defaulted to solo
+  execution (see `docs/AGENT_OPERATING_MODEL.md`). Let the workflow pin per-role models.
+
+The deterministic enforcement of this loop is a **build-loop workflow** (Bootstrap step 3 in
+`docs/AGENT_OPERATING_MODEL.md`) — **not yet built**. Until it exists, the rule above holds by
+convention: when in doubt, delegate.
 
 ## Planned stack (see ARCHITECTURE)
 

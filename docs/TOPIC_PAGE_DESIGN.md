@@ -111,7 +111,8 @@ Anchoring is at **section granularity** in the mockup; tightening it to a specif
 
 Every topic starts with **zero curations**. The empty state still aims to be useful and to drive
 the curation flywheel, by bootstrapping the plus side with **auto-suggested, clearly unvetted
-candidates** plus prominent paths to curate. Reference mockup: **`mockups/inline-indigo-empty.html`**.
+candidates** plus prominent paths to curate. Reference mockup: **`mockups/inline-indigo-empty-v2.html`**
+(the settled design; `inline-indigo-empty.html` is the earlier v1 iteration, kept for history).
 
 - **Auto-suggestion is multi-platform by design.** The General bar is populated automatically with
   candidates from a video search for the topic — **YouTube and TikTok** (and potentially other

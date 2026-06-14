@@ -141,11 +141,29 @@ orphaned or double-owned:
    for coherent ownership, clean hand-offs, and no gaps or overlaps.
 3. The first **workflow** for the core build loop (Product → UX → Dev → QA & Review / UX evaluation →
    Ops), whose explicit goal is the **completely-cloud, mobile-drivable cycle from a prompt to an
-   updated staging deployment**.
+   updated staging deployment**. **Still pending — this is the priority.**
 
 Everything else (more slash commands, analytics pipelines, ops runbooks) follows as the application
 itself comes into existence.
 
-> The application is not yet scaffolded. Node is on **24.16.0 LTS**, so the build starts from
-> **Next.js 15 / React 19** per `docs/ARCHITECTURE.md`. The **staging deploy target** — automate the
-> single VPS vs. use a managed platform — is an open **Operations** decision; record it in ARCHITECTURE.
+### Lesson from 2026-06-14 (why step 3 is the priority)
+
+A cloud session handed the prototype-v1 build did the whole thing in one context — Product spec, the
+implementation, and design work all inline — with **no `qa-reviewer`, no UX evaluation**, and the
+design spec edited *after* implementation to match what shipped. Zero role subagents were spawned.
+The roles existed as files, but nothing made the orchestrator delegate to them, so it defaulted to
+solo execution and narrated role names in commit messages instead. That build was **rolled back**.
+
+Two contributing factors, both addressed:
+- **No enforcement.** Documented roles aren't self-enforcing. The fix is the build-loop workflow above
+  plus the **hard rule in `CLAUDE.md`** ("delegate; don't wear hats") — until the workflow lands, the
+  rule holds by convention.
+- **Orchestrator model.** That session ran on **Sonnet 4.6**, not Opus. Model choice was not the root
+  cause (the missing enforcement was), but the meta-discipline of *resisting just-do-it and delegating*
+  is exactly the judgment a stronger orchestrator holds better. **Run the cloud orchestrator on Opus**,
+  and let the build-loop workflow pin models per role.
+
+> The client-side prototype is scaffolded (Next.js 15 / React 19 on **Node 24.16.0 LTS**) and live on
+> GitHub Pages; the production read-path is not. The **staging deploy target** for that read-path —
+> automate the single VPS vs. use a managed platform — is an open **Operations** decision; record it
+> in ARCHITECTURE.
