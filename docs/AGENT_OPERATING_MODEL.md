@@ -86,12 +86,17 @@ role works from the document/code, not from conversation.
   code holds the implementation; a `CLAUDE.md` at the repo root will encode shared
   conventions all roles follow.
 
-## Bootstrap (first thing to scaffold next session)
+## Bootstrap
 
-1. A root **`CLAUDE.md`** capturing shared conventions (stack, commands, file layout, the
-   embed-not-host and read-path-caching principles, Wikimedia etiquette).
-2. **Role subagent definitions** for the six roles above.
+1. ✅ A root **`CLAUDE.md`** capturing shared conventions (orientation, stack, principles,
+   commit format) — **done**.
+2. **Role subagent definitions** (`.claude/agents/`) for the six roles above — *next session.*
+   Planned approach: **draft each role one at a time**, then **review them as a set** to confirm
+   they compose into a coherent system — clear ownership, clean hand-offs, no gaps or overlaps.
 3. A first **workflow** for the core build loop (PM spec → Dev → Testing).
 
 Everything else (slash commands, analytics pipelines, ops runbooks) follows as the
 application itself comes into existence.
+
+> The application is not yet scaffolded. Node is on **24.16.0 LTS**, so the build will start
+> from **Next.js 15 / React 19** per `docs/ARCHITECTURE.md`.
