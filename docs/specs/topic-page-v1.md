@@ -118,15 +118,16 @@ Deferred deliberately. Each is a follow-up the orchestrator should carry into th
 - **"See all" / browse-all clips flow** and pagination beyond what one topic shows.
 - **Instagram/Vimeo** embed specifics, real oEmbed metadata resolution, follower-count freshness.
 - **SEO server-render of the unique surface**, ISR/Redis/Server Actions — the production read-path.
-- **Topic search / discovery box** and on-demand topic creation UX beyond what already exists
-  (visiting `/topic?qid=…` resolving QID→title is the existing path and is retained).
+- **Topic search / discovery box** and on-demand topic creation UX. (The URL/routing change in
+  AC23 — canonical title-based `/topic/<Title>` with the QID resolved under the hood — IS in scope
+  this round, but it is a routing/resolution change, not new discovery or topic-creation UX.)
 
 ---
 
 ## Acceptance criteria
 
 Each item is independently verifiable and maps 1:1 to a QA test. "The page" = the Topic page at
-`/topic?qid=<QID>` (or the route Dev uses for the static export) for a seeded topic. "Curated
+its canonical title-based URL (`/topic/<Title>`, see AC23) for a seeded topic. "Curated
 state" = a topic with ≥1 curated clip in the store; "empty state" = a topic with zero curated clips.
 
 1. **AC1 — Two-column layout & split wordmark.** On a wide viewport, the Topic page renders a
@@ -147,10 +148,12 @@ state" = a topic with ≥1 curated clip in the store; "empty state" = a topic wi
    ("From Wikipedia") with the CC BY-SA license and a link to the source article, and shows the
    topic's Wikidata QID.
 
-5. **AC5 — Internal wikilink rewriting.** Wikilinks inside the rendered article body point to
-   internal wiki+ topic routes (`/topic/…`), not out to `en.wikipedia.org`, for ordinary
-   article-namespace links; non-article/red links fall back gracefully (Wikipedia link or
-   de-linked) rather than producing a broken internal route.
+5. **AC5 — Internal wikilink rewriting resolves (no dead-end).** Wikilinks inside the rendered
+   article body that point to ordinary article-namespace articles are rewritten to the **canonical
+   title-based internal route** (`/topic/<Title>`, see AC23 — no QID in the URL), and following one
+   **resolves to a working Topic page** rather than 404-ing or dead-ending. Non-article/red links
+   keep the graceful fallback (Wikipedia link or de-linked) rather than producing a broken internal
+   route.
 
 6. **AC6 — TOC with per-section video counts.** The plus side shows a Table of Contents that lists
    a "＋ General" entry first, then one entry per article section; each entry with anchored videos
@@ -226,6 +229,19 @@ state" = a topic with ≥1 curated clip in the store; "empty state" = a topic wi
     `output: "export"`) both complete without errors, producing a static bundle deployable to
     GitHub Pages under the workflow's `basePath`.
 
+23. **AC23 — Canonical title-based Topic URL (QID under the hood).** The user-facing canonical
+    Topic URL is **title-based and parallels Wikipedia's `/wiki/<Title>` scheme** — e.g.
+    `/topic/Photosynthesis`. The Wikidata QID remains the internal key (Topics keyed by QID, per
+    the project principles) but is **resolved under the hood and never appears in the address bar**:
+    visiting a title URL resolves Title→QID internally and renders the topic, and no user navigation
+    in scope (landing on a Topic, following a rewritten wikilink, returning to a Topic) leaves a
+    `qid=` query string in the visible URL. The scheme must work under the static-export /
+    GitHub Pages `basePath` (the SPA-fallback / deep-link mechanism that makes an arbitrary
+    `/topic/<Title>` resolve on GitHub Pages is **Development's to choose and record in
+    `docs/ARCHITECTURE.md`**). A `/topic?qid=<QID>` entry point MAY persist as a secondary /
+    back-compat redirect that normalizes to the canonical title URL, but it is not the canonical
+    user-facing form.
+
 ---
 
 ## Success metric
@@ -247,9 +263,22 @@ core working end-to-end**, measured at QA/UX review:
 
 ---
 
-## Assumptions
+## Assumptions & decisions
 
-Recorded because the prompt/design doc leave these open and the owner is offline.
+Recorded because the prompt/design doc leave these open and the owner is offline — except D1,
+which is an explicit owner directive.
+
+- **D1 — Owner directive (2026-06-14): canonical Topic URLs are title-based; QID is under the
+  hood.** During the build-loop QA phase, the owner directed: *"We'll want URLs to parallel the
+  Wikipedia scheme, so the qid keys are all under the hood, not part of what the user sees in the
+  address bar."* Ratified here as **AC23**: the canonical user-facing Topic URL is `/topic/<Title>`
+  (paralleling Wikipedia's `/wiki/<Title>`); the Wikidata QID stays the internal key but is
+  resolved Title→QID under the hood and never shown in the address bar. This **supersedes** the
+  earlier implicit `/topic?qid=<QID>` entry path (now at most a secondary / back-compat redirect
+  that normalizes to the title URL) and **resolves the QA/UX-flagged D1 wikilink defect** —
+  rewritten wikilinks pointed at `/topic/<Title>` while only a `/topic?qid=` route existed, so they
+  404'd (see refined **AC5**). On-demand topic creation and discovery UX remain **out of scope**;
+  this is a routing/resolution change only.
 
 - **A1 — Replace, don't extend, the stub.** The current `app/topic/TopicView.tsx` and
   `components/ClipCard.tsx` are a generic placeholder that does not match the committed design, so
