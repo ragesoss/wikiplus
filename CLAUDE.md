@@ -57,11 +57,14 @@ and produces the artifacts named in `docs/AGENT_OPERATING_MODEL.md`.
   use judgment; the rule is about feature/code work.
 - **Run the cloud orchestrator on Opus.** The discipline of delegating rather than just-doing-it is
   meta-judgment a stronger model holds better; a 2026-06-14 Sonnet cloud session defaulted to solo
-  execution (see `docs/AGENT_OPERATING_MODEL.md`). Let the workflow pin per-role models.
+  execution (see `docs/AGENT_OPERATING_MODEL.md`). The `/build-loop` skill pins per-role models (Opus for the judgment-heavy roles).
 
-The deterministic enforcement of this loop is a **build-loop workflow** (Bootstrap step 3 in
-`docs/AGENT_OPERATING_MODEL.md`) — **not yet built**. Until it exists, the rule above holds by
-convention: when in doubt, delegate.
+The enforcement of this loop is the **`/build-loop` skill** (`.claude/skills/build-loop/`): it runs the
+role pipeline by delegating each stage to the matching `.claude/agents/` subagent, autonomously, from a
+prompt to a deployed prototype. (It's a skill, not the deterministic **Workflow** tool, which is
+local-terminal-only — the loop must run in cloud/mobile sessions; see `docs/AGENT_OPERATING_MODEL.md`.)
+Invoke `/build-loop` — or just describe the feature work and let it trigger — instead of building inline;
+the rule above still holds whenever the loop isn't used.
 
 ## Planned stack (see ARCHITECTURE)
 

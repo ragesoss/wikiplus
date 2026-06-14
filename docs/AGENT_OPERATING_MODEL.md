@@ -2,7 +2,7 @@
 
 wiki+ is **built and operated by AI agents** (Claude) acting in distinct, named roles. This
 document describes that operating model. The role subagent definitions live in
-`.claude/agents/`; the first build-loop workflow is scaffolded next (see "Bootstrap").
+`.claude/agents/`; the build loop that enforces the pipeline is the `/build-loop` skill (see "Bootstrap").
 
 ## Premise
 
@@ -17,7 +17,7 @@ from a mobile Claude Code session** (see *How work flows*).
 
 **What a "role" actually is.** Each role is a Claude Code subagent: a focused system prompt
 with fresh context, not a persistent process. Roles do **not** invoke each other — the
-orchestrator (the main session, or a workflow) drives the sequence, and the durable hand-off
+orchestrator (the main session running the `/build-loop` skill) drives the sequence, and the durable hand-off
 is always an **artifact in the repo**. The value is specialized attention, independent
 verification, and legibility — not a literal company simulation.
 
@@ -126,8 +126,12 @@ orphaned or double-owned:
   charter-enforced**, not sandboxed.
 - **Slash commands** — for common cross-role actions (spec a feature, review the diff, deploy, report
   metrics). *Follows as the app comes into existence.*
-- **Workflows** — for multi-role pipelines that should run deterministically. The core build-loop
-  workflow must realize the **cloud, mobile-drivable prompt → staging cycle**.
+- **The build-loop skill** (`.claude/skills/build-loop/`) — the core multi-role pipeline, realizing the
+  **cloud, mobile-drivable prompt → deploy cycle**. It is a *skill*, not the deterministic **Workflow**
+  tool: that tool is local-terminal-only, and the loop must run in cloud/mobile sessions (skills, slash
+  commands, and `.claude/agents/` subagents all load from the repo clone in cloud sessions; the Workflow
+  runtime does not). It enforces the sequence by ordered, gated delegation to role subagents rather than
+  by a deterministic script.
 - **Shared artifacts / source of truth** — `docs/` holds vision, architecture, specs, design, and the
   curation standard; code holds the implementation; `CLAUDE.md` encodes the shared conventions all
   roles follow.
@@ -139,9 +143,13 @@ orphaned or double-owned:
    `developer`, `qa-reviewer`, `operations`, `curation-editorial`. (Analytics deferred; its
    metric-definition work sits in Product until launch.) Drafted one at a time, then reviewed as a set
    for coherent ownership, clean hand-offs, and no gaps or overlaps.
-3. The first **workflow** for the core build loop (Product → UX → Dev → QA & Review / UX evaluation →
-   Ops), whose explicit goal is the **completely-cloud, mobile-drivable cycle from a prompt to an
-   updated staging deployment**. **Still pending — this is the priority.**
+3. ✅ The **build-loop** for the core pipeline (Product → UX → Dev → QA & Review / UX evaluation → Ops),
+   whose explicit goal is the **completely-cloud, mobile-drivable cycle from a prompt to an updated
+   deployment** — **done**: the `/build-loop` skill (`.claude/skills/build-loop/SKILL.md`). Built as a
+   skill, not the deterministic **Workflow** tool, because that tool is local-terminal-only while the
+   loop must run in cloud/mobile sessions. It enforces the sequence by ordered, gated delegation to the
+   role subagents (an artifact gate per stage), runs autonomously from one prompt to a live deploy, and
+   pins Opus for the judgment-heavy roles.
 
 Everything else (more slash commands, analytics pipelines, ops runbooks) follows as the application
 itself comes into existence.
@@ -155,13 +163,14 @@ The roles existed as files, but nothing made the orchestrator delegate to them, 
 solo execution and narrated role names in commit messages instead. That build was **rolled back**.
 
 Two contributing factors, both addressed:
-- **No enforcement.** Documented roles aren't self-enforcing. The fix is the build-loop workflow above
-  plus the **hard rule in `CLAUDE.md`** ("delegate; don't wear hats") — until the workflow lands, the
-  rule holds by convention.
+- **No enforcement.** Documented roles aren't self-enforcing. The fix is the build-loop above — now the
+  **`/build-loop` skill** — plus the **hard rule in `CLAUDE.md`** ("delegate; don't wear hats"). The
+  skill enforces the pipeline by ordered, gated delegation; the rule still holds whenever the loop isn't
+  used.
 - **Orchestrator model.** That session ran on **Sonnet 4.6**, not Opus. Model choice was not the root
   cause (the missing enforcement was), but the meta-discipline of *resisting just-do-it and delegating*
   is exactly the judgment a stronger orchestrator holds better. **Run the cloud orchestrator on Opus**,
-  and let the build-loop workflow pin models per role.
+  and the `/build-loop` skill pins models per role (Opus across the board for the prototype build).
 
 > The client-side prototype is scaffolded (Next.js 15 / React 19 on **Node 24.16.0 LTS**) and live on
 > GitHub Pages; the production read-path is not. The **staging deploy target** for that read-path —
