@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>wiki+ · Phone Spotlight</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="data/content.js"></script>
+<style>
+  html { scroll-behavior: smooth; }
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  .carousel { scroll-snap-type: x mandatory; }
+  .carousel > * { scroll-snap-align: start; }
+  @keyframes pulseSkel { 0%,100%{opacity:.5} 50%{opacity:.9} }
+  .skel { animation: pulseSkel 1.4s ease-in-out infinite; }
+  .reading p { margin-bottom: 1rem; }
+</style>
+</head>
+<body class="bg-slate-950 text-slate-100 antialiased">
+
+<!-- TOP NAV -->
+<header class="sticky top-0 z-40 backdrop-blur bg-slate-950/80 border-b border-white/10">
+  <div class="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
+    <a href="#top" class="text-2xl font-black tracking-tight">wiki<span class="text-emerald-400">+</span></a>
+    <nav class="hidden sm:flex items-center gap-6 text-sm text-slate-300">
+      <a href="#clips" class="hover:text-white">Clips</a>
+      <a href="#article" class="hover:text-white">Article</a>
+      <span id="navStat" class="text-emerald-400 font-semibold"></span>
+    </nav>
+  </div>
+</header>
+
+<main id="top">
+  <!-- HERO -->
+  <section class="relative overflow-hidden">
+    <div class="absolute inset-0 bg-gradient-to-br from-emerald-900/40 via-slate-950 to-slate-950"></div>
+    <div class="absolute -top-24 -right-24 w-96 h-96 rounded-full bg-emerald-500/20 blur-3xl"></div>
+    <div class="relative max-w-6xl mx-auto px-4 pt-10 pb-14">
+      <div class="flex items-center gap-2 mb-3">
+        <span class="text-xs font-semibold uppercase tracking-widest text-emerald-400">Topic</span>
+        <span class="h-1 w-1 rounded-full bg-slate-600"></span>
+        <a id="attribTop" target="_blank" rel="noopener" class="text-xs text-slate-400 hover:text-slate-200"></a>
+      </div>
+      <h1 id="heroTitle" class="text-4xl sm:text-5xl font-black tracking-tight mb-6"></h1>
+
+      <div class="grid lg:grid-cols-[auto_1fr] gap-8 items-start">
+        <!-- PLAYER COLUMN -->
+        <div id="playerCol" class="flex justify-center lg:justify-start"></div>
+
+        <!-- PROFILE + CONTEXT COLUMN -->
+        <div class="flex flex-col gap-5">
+          <div id="profileCard"></div>
+          <div id="contextCard"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CAROUSEL -->
+  <section id="clips" class="max-w-6xl mx-auto px-4 py-10 border-t border-white/10">
+    <div class="flex items-end justify-between mb-5">
+      <div>
+        <h2 class="text-2xl font-bold">More clips</h2>
+        <p id="carouselSub" class="text-sm text-slate-400 mt-1"></p>
+      </div>
+      <a href="#article" class="hidden sm:inline-flex text-sm text-emerald-400 hover:text-emerald-300 font-semibold">Read the article ↓</a>
+    </div>
+    <div id="carousel" class="carousel no-scrollbar flex gap-4 overflow-x-auto pb-4 -mx-1 px-1"></div>
+  </section>
+
+  <!-- ARTICLE -->
+  <section id="article" class="border-t border-white/10 bg-slate-900/40">
+    <div class="max-w-2xl mx-auto px-4 py-12">
+      <div class="flex items-center justify-between mb-6">
+        <h2 class="text-3xl font-black">The article</h2>
+        <span class="text-xs px-2 py-1 rounded-full bg-white/5 border border-white/10 text-slate-300">Wikipedia</span>
+      </div>
+      <div id="articleAttrib" class="mb-8 text-sm text-slate-400"></div>
+      <div id="articleBody" class="reading text-slate-300 leading-relaxed"></div>
+    </div>
+  </section>
+</main>
+
+<footer class="border-t border-white/10 py-8 text-center text-sm text-slate-500">
+  <span class="text-lg font-black text-slate-300">wiki<span class="text-emerald-400">+</span></span>
+  <p class="mt-1">A curation layer over Wikipedia. Clips belong to their creators.</p>
+</footer>
+
+<!-- VARIANT BADGE -->
+<div class="fixed bottom-4 right-4 z-50 text-xs font-semibold px-3 py-1.5 rounded-full bg-emerald-500 text-slate-950 shadow-lg shadow-emerald-500/30">
+  Variant 03 · Phone Spotlight
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const W = window.WIKIPLUS;
+  const { article, clips, stats } = W;
+
+  // ---------- helpers ----------
+  const el = (tag, cls, html) => { const n = document.createElement(tag); if (cls) n.className = cls; if (html != null) n.innerHTML = html; return n; };
+
+  // accuracy / stance color mapping
+  function accuracyChip(accuracy) {
+    const a = accuracy.toLowerCase();
+    let cls = 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'; // accurate green
+    if (a.includes('simplified') || a.includes('condensed') || a.includes('definitional') || a.includes('exam')) cls = 'bg-sky-500/15 text-sky-300 border-sky-500/30';
+    else if (a.includes('opinion') || a.includes('anecdotal') || a.includes('teaching context')) cls = 'bg-amber-500/15 text-amber-300 border-amber-500/30';
+    return `<span class="inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full border ${cls}">
+      <svg class="w-3 h-3" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.7 5.3a1 1 0 010 1.4l-7.5 7.5a1 1 0 01-1.4 0L3.3 9.7a1 1 0 011.4-1.4l3 3 6.8-6.8a1 1 0 011.4 0z" clip-rule="evenodd"/></svg>
+      ${accuracy}</span>`;
+  }
+  function stanceChip(stance) {
+    const s = stance.toLowerCase();
+    let cls = 'bg-violet-500/15 text-violet-300 border-violet-500/30';
+    if (s.includes('classroom')) cls = 'bg-amber-500/15 text-amber-300 border-amber-500/30';
+    else if (s.includes('demonstration')) cls = 'bg-rose-500/15 text-rose-300 border-rose-500/30';
+    else if (s.includes('short')) cls = 'bg-lime-500/15 text-lime-300 border-lime-500/30';
+    return `<span class="inline-flex items-center text-xs font-medium px-2 py-1 rounded-full border ${cls}">${stance}</span>`;
+  }
+  const playIcon = (sz) => `<svg class="${sz}" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>`;
+
+  // thumbnail with onerror gradient fallback
+  function thumbImg(clip, extraCls='') {
+    return `<img loading="lazy" src="${clip.thumbnail}" alt="${clip.caption.replace(/"/g,'&quot;')}"
+      class="absolute inset-0 w-full h-full object-cover ${extraCls}"
+      onerror="this.style.display='none'; this.parentElement.classList.add('bg-gradient-to-br','${clip.thumbGrad.split(' ').join("','")}');">`;
+  }
+
+  // ---------- header bits ----------
+  document.getElementById('heroTitle').textContent = article.title;
+  const at = document.getElementById('attribTop');
+  at.textContent = 'From Wikipedia · ' + article.license;
+  at.href = article.url;
+  document.getElementById('navStat').textContent = stats.totalClips + ' clips · ' + stats.creatorCount + ' creators';
+
+  // ---------- PLAYER (featured) ----------
+  // default featured: top vertical clip
+  let featuredId = (clips.find(c => c.orientation === 'vertical') || clips[0]).id;
+
+  function renderPlayer(clip) {
+    const col = document.getElementById('playerCol');
+    const vertical = clip.orientation === 'vertical';
+    const isTikTok = clip.platform === 'tiktok';
+
+    if (vertical) {
+      // PHONE FRAME 9:16
+      col.innerHTML = `
+        <div class="relative">
+          <div class="relative w-[300px] sm:w-[330px] rounded-[2.5rem] bg-slate-900 border-[10px] border-slate-800 shadow-2xl shadow-emerald-900/40 overflow-hidden">
+            <!-- notch -->
+            <div class="absolute top-2 left-1/2 -translate-x-1/2 z-30 w-28 h-6 bg-slate-800 rounded-full"></div>
+            <div id="playerStage" class="relative w-full overflow-hidden rounded-[1.9rem]" style="aspect-ratio:9/16;"></div>
+          </div>
+          <span class="absolute -bottom-3 left-1/2 -translate-x-1/2 text-[10px] font-semibold px-3 py-1 rounded-full bg-emerald-500 text-slate-950 shadow">NOW PLAYING</span>
+        </div>`;
+    } else {
+      // 16:9 PLAYER (laptop-ish frame)
+      col.innerHTML = `
+        <div class="relative w-[300px] sm:w-[560px]">
+          <div class="relative rounded-2xl bg-slate-900 border border-white/10 shadow-2xl shadow-emerald-900/40 overflow-hidden p-2">
+            <div id="playerStage" class="relative w-full overflow-hidden rounded-xl" style="aspect-ratio:16/9;"></div>
+          </div>
+          <span class="absolute -bottom-3 left-1/2 -translate-x-1/2 text-[10px] font-semibold px-3 py-1 rounded-full bg-emerald-500 text-slate-950 shadow">NOW PLAYING</span>
+        </div>`;
+    }
+
+    const stage = document.getElementById('playerStage');
+    stage.innerHTML = `
+      ${thumbImg(clip)}
+      <div class="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/30"></div>
+      <span class="absolute top-3 left-3 z-20 text-[11px] font-semibold px-2 py-1 rounded-md bg-black/60 backdrop-blur text-white">${clip.platformLabel}</span>
+      <button id="playBtn" class="group absolute inset-0 z-20 flex items-center justify-center" aria-label="Play">
+        <span class="flex items-center justify-center w-16 h-16 rounded-full bg-white/90 text-slate-900 group-hover:scale-110 transition shadow-xl">
+          ${playIcon('w-8 h-8 ml-1')}
+        </span>
+      </button>
+      <div class="absolute bottom-0 inset-x-0 z-20 p-4">
+        <p class="text-sm font-semibold text-white leading-snug line-clamp-2">${clip.caption}</p>
+      </div>`;
+
+    const stageW = stage;
+    document.getElementById('playBtn').addEventListener('click', () => {
+      if (isTikTok) {
+        window.open(clip.watch_url, '_blank', 'noopener');
+        return;
+      }
+      // YouTube: swap to real iframe facade
+      stageW.innerHTML = `<iframe class="absolute inset-0 w-full h-full" src="${clip.embed_url}?autoplay=1"
+        title="${clip.caption.replace(/"/g,'&quot;')}" frameborder="0"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`;
+    });
+
+    if (isTikTok) {
+      // turn the play button into an explicit "Open on TikTok" affordance
+      const btn = document.getElementById('playBtn');
+      btn.insertAdjacentHTML('beforeend',
+        `<span class="absolute bottom-16 left-1/2 -translate-x-1/2 text-xs font-semibold px-3 py-1 rounded-full bg-black/70 text-white whitespace-nowrap">Open on TikTok ↗</span>`);
+    }
+  }
+
+  function renderProfile(clip) {
+    const c = clip.creator;
+    document.getElementById('profileCard').innerHTML = `
+      <div class="rounded-2xl bg-white/5 border border-white/10 p-5">
+        <div class="flex items-center gap-4">
+          <div class="w-16 h-16 rounded-full bg-gradient-to-br ${c.avatarGrad} flex items-center justify-center text-2xl font-black text-white shadow-lg shrink-0">
+            ${c.name.charAt(0)}
+          </div>
+          <div class="min-w-0">
+            <div class="flex items-center gap-2 flex-wrap">
+              <h3 class="text-lg font-bold truncate">${c.name}</h3>
+              <span class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">${clip.platformLabel}</span>
+            </div>
+            <a href="${c.url}" target="_blank" rel="noopener" class="text-sm text-slate-400 hover:text-slate-200">${c.handle}</a>
+            <p class="text-xs text-slate-500 mt-0.5">${(clip.upvotes*37+1200).toLocaleString()} followers · creator</p>
+          </div>
+          <button class="ml-auto shrink-0 text-sm font-semibold px-4 py-2 rounded-full bg-emerald-500 text-slate-950 hover:bg-emerald-400 transition">Follow</button>
+        </div>
+      </div>`;
+  }
+
+  function renderContext(clip) {
+    document.getElementById('contextCard').innerHTML = `
+      <div class="rounded-2xl bg-white/5 border border-white/10 p-5">
+        <div class="flex items-center gap-2 mb-3">
+          <svg class="w-4 h-4 text-emerald-400" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10A8 8 0 11 2 10a8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/></svg>
+          <span class="text-xs font-bold uppercase tracking-wider text-emerald-400">Curator's context note</span>
+        </div>
+        <div class="flex flex-wrap gap-2 mb-3">
+          ${stanceChip(clip.stance)}
+          ${accuracyChip(clip.accuracy)}
+        </div>
+        <p class="text-sm text-slate-300 leading-relaxed">${clip.context}</p>
+        <div class="flex items-center justify-between mt-4 pt-4 border-t border-white/10">
+          <a href="#${clip.sectionId}" class="inline-flex items-center gap-1 text-sm font-semibold text-emerald-400 hover:text-emerald-300">
+            → ${clip.sectionLabel}
+          </a>
+          <div class="flex items-center gap-3 text-xs text-slate-500">
+            <span class="inline-flex items-center gap-1">
+              <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor"><path d="M10 3l7 7h-4v7H7v-7H3l7-7z"/></svg>
+              ${clip.upvotes}
+            </span>
+            <span>curated by <span class="text-slate-300">${clip.curatedBy}</span> · ${clip.date}</span>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  function feature(id) {
+    const clip = clips.find(c => c.id === id);
+    if (!clip) return;
+    featuredId = id;
+    renderPlayer(clip);
+    renderProfile(clip);
+    renderContext(clip);
+    // highlight active card
+    document.querySelectorAll('[data-card]').forEach(card => {
+      card.classList.toggle('ring-2', card.dataset.card === id);
+      card.classList.toggle('ring-emerald-400', card.dataset.card === id);
+    });
+  }
+
+  // ---------- CAROUSEL ----------
+  document.getElementById('carouselSub').textContent =
+    stats.totalClips + ' clips · curated top picks (' + clips.length + ' shown)';
+
+  const carousel = document.getElementById('carousel');
+  clips.forEach(clip => {
+    const vertical = clip.orientation === 'vertical';
+    const card = el('button',
+      'group relative shrink-0 text-left rounded-2xl bg-white/5 border border-white/10 overflow-hidden hover:border-emerald-500/40 transition ' +
+      (vertical ? 'w-44' : 'w-72'));
+    card.dataset.card = clip.id;
+    card.innerHTML = `
+      <div class="relative w-full overflow-hidden" style="aspect-ratio:${vertical ? '9/16' : '16/9'};">
+        ${thumbImg(clip)}
+        <div class="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent"></div>
+        <span class="absolute top-2 left-2 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-black/60 text-white">${clip.platformLabel}</span>
+        <span class="absolute inset-0 flex items-center justify-center text-white/90 opacity-0 group-hover:opacity-100 transition">
+          <span class="w-11 h-11 rounded-full bg-white/90 text-slate-900 flex items-center justify-center">${playIcon('w-5 h-5 ml-0.5')}</span>
+        </span>
+      </div>
+      <div class="p-3">
+        <div class="flex items-center gap-2 mb-1.5">
+          <span class="w-6 h-6 rounded-full bg-gradient-to-br ${clip.creator.avatarGrad} flex items-center justify-center text-[10px] font-bold text-white shrink-0">${clip.creator.name.charAt(0)}</span>
+          <span class="text-xs font-semibold truncate">${clip.creator.name}</span>
+        </div>
+        <p class="text-xs text-slate-400 line-clamp-2 leading-snug mb-2">${clip.caption}</p>
+        <div class="flex items-center gap-1.5">
+          ${stanceChip(clip.stance)}
+        </div>
+      </div>`;
+    card.addEventListener('click', () => { feature(clip.id); document.getElementById('top').scrollIntoView({behavior:'smooth'}); });
+    carousel.appendChild(card);
+  });
+
+  // VOLUME: skeleton tail + "see all 47"
+  const remaining = stats.totalClips - clips.length;
+  for (let i = 0; i < 3; i++) {
+    const sk = el('div', 'skel shrink-0 w-44 rounded-2xl bg-white/5 border border-white/10 overflow-hidden');
+    sk.innerHTML = `
+      <div class="w-full bg-white/10" style="aspect-ratio:9/16;"></div>
+      <div class="p-3 space-y-2">
+        <div class="h-3 w-3/4 rounded bg-white/10"></div>
+        <div class="h-3 w-1/2 rounded bg-white/10"></div>
+      </div>`;
+    carousel.appendChild(sk);
+  }
+  const seeAll = el('a', 'shrink-0 w-44 rounded-2xl border-2 border-dashed border-emerald-500/40 flex flex-col items-center justify-center text-center p-4 hover:bg-emerald-500/10 transition');
+  seeAll.href = article.url;
+  seeAll.target = '_blank';
+  seeAll.innerHTML = `
+    <span class="text-3xl font-black text-emerald-400">+${remaining}</span>
+    <span class="text-sm font-semibold text-slate-200 mt-1">See all ${stats.totalClips}</span>
+    <span class="text-xs text-slate-500 mt-1">You've reached the curated top picks</span>`;
+  carousel.appendChild(seeAll);
+
+  // ---------- ARTICLE ----------
+  document.getElementById('articleAttrib').innerHTML =
+    `Source: <a href="${article.url}" target="_blank" rel="noopener" class="text-emerald-400 hover:text-emerald-300 font-medium">${article.source}</a> · From Wikipedia · ${article.license}`;
+
+  const body = document.getElementById('articleBody');
+  article.lead.forEach(p => body.appendChild(el('p', 'mb-4', p)));
+  article.sections.forEach(sec => {
+    let h;
+    if (sec.level === 2) h = el('h2', 'text-2xl font-bold text-white mt-10 mb-3 scroll-mt-20');
+    else if (sec.level === 3) h = el('h3', 'text-xl font-bold text-slate-100 mt-7 mb-2 scroll-mt-20');
+    else h = el('h4', 'text-lg font-semibold text-slate-200 mt-5 mb-2 scroll-mt-20');
+    h.id = sec.id;
+    h.textContent = sec.title;
+    body.appendChild(h);
+    sec.paras.forEach(p => body.appendChild(el('p', 'mb-4', p)));
+  });
+
+  // initial feature
+  feature(featuredId);
+});
+</script>
+</body>
+</html>

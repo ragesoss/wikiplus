@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>wiki+ · Curation Desk</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="data/content.js"></script>
+<style>
+  body { -webkit-font-smoothing: antialiased; }
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-thumb { background: #334155; border-radius: 6px; }
+  ::-webkit-scrollbar-track { background: #0f172a; }
+</style>
+</head>
+<body class="bg-slate-950 text-slate-200 min-h-screen">
+<div id="app"></div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  const W = window.WIKIPLUS;
+  const A = W.article, CLIPS = W.clips, S = W.stats;
+  const app = document.getElementById('app');
+
+  function el(tag, cls, html) {
+    const n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (html != null) n.innerHTML = html;
+    return n;
+  }
+  function esc(s) { return (s == null ? '' : String(s)).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+  function accuracyClasses(acc) {
+    const a = acc.toLowerCase();
+    if (a.includes('simplified') || a.includes('condensed') || a.includes('exam') || a.includes('definitional')) {
+      return 'bg-sky-500/15 text-sky-300 ring-1 ring-sky-500/30';
+    }
+    if (a.includes('opinion') || a.includes('anecdot') || a.includes('teaching')) {
+      return 'bg-amber-500/15 text-amber-300 ring-1 ring-amber-500/30';
+    }
+    return 'bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-500/30';
+  }
+  function accuracyDot(acc) {
+    const a = acc.toLowerCase();
+    if (a.includes('simplified') || a.includes('condensed') || a.includes('exam') || a.includes('definitional')) return 'bg-sky-400';
+    if (a.includes('opinion') || a.includes('anecdot') || a.includes('teaching')) return 'bg-amber-400';
+    return 'bg-emerald-400';
+  }
+
+  const ICON = {
+    up: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" class="w-3 h-3 inline-block align-[-1px]"><path d="M12 19V5M5 12l7-7 7 7" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    sort: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-3 h-3 inline-block opacity-50"><path d="M8 9l4-4 4 4M8 15l4 4 4-4" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    sortUp: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="w-3 h-3 inline-block text-emerald-400"><path d="M8 14l4-4 4 4" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    sortDown: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="w-3 h-3 inline-block text-emerald-400"><path d="M8 10l4 4 4-4" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    search: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-4 h-4"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4" stroke-linecap="round"/></svg>',
+    doc: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-4 h-4"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke-linejoin="round"/><path d="M14 2v6h6"/></svg>',
+    close: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-4 h-4"><path d="M18 6L6 18M6 6l12 12" stroke-linecap="round"/></svg>',
+    ext: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-3 h-3 inline-block align-[-1px]"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+  };
+
+  // ===== state =====
+  const state = {
+    search: '',
+    platform: 'all',   // all | youtube | youtube_short | tiktok
+    stance: 'all',
+    accuracy: 'all',
+    section: 'all',
+    sortKey: 'upvotes',
+    sortDir: 'desc',
+    page: 1,
+    perPage: 10
+  };
+
+  // distinct accuracy "buckets"
+  function accuracyBucket(acc) {
+    const a = acc.toLowerCase();
+    if (a.includes('simplified') || a.includes('condensed') || a.includes('exam') || a.includes('definitional')) return 'simplified';
+    if (a.includes('opinion') || a.includes('anecdot') || a.includes('teaching')) return 'opinion';
+    return 'accurate';
+  }
+
+  // ===== header =====
+  const header = el('header', 'sticky top-0 z-30 bg-slate-900/95 backdrop-blur border-b border-slate-800');
+  const hWrap = el('div', 'px-4 lg:px-6 py-3 flex flex-wrap items-center gap-x-5 gap-y-2');
+  hWrap.innerHTML =
+    '<div class="flex items-center gap-3">' +
+      '<button id="drawerToggle" class="p-1.5 rounded-md hover:bg-slate-800 text-slate-400" title="Toggle article">' + ICON.doc + '</button>' +
+      '<span class="text-lg font-bold tracking-tight text-white">wiki<span class="text-emerald-400">+</span></span>' +
+      '<span class="text-xs text-slate-500 hidden sm:inline">Curation Desk</span>' +
+    '</div>' +
+    '<div class="flex items-center gap-2 text-xs">' +
+      '<span class="font-semibold text-white">' + esc(A.title) + '</span>' +
+      '<a href="' + esc(A.url) + '" target="_blank" rel="noopener" class="text-slate-500 hover:text-emerald-400 font-mono">' + esc(A.qid) + '</a>' +
+    '</div>';
+  // stat chips
+  const stats = el('div', 'flex flex-wrap items-center gap-2 ml-auto text-xs');
+  const chipDefs = [
+    [S.totalClips, 'clips', 'text-emerald-300'],
+    [S.upvoteTotal.toLocaleString(), 'upvotes', 'text-sky-300'],
+    [S.creatorCount, 'creators', 'text-violet-300'],
+    [S.curatorCount, 'curators', 'text-amber-300'],
+    ['synced ' + S.synced, '', 'text-slate-400']
+  ];
+  stats.innerHTML = chipDefs.map(([v, l, c]) =>
+    '<span class="px-2.5 py-1 rounded-md bg-slate-800/80 ring-1 ring-slate-700"><span class="font-bold ' + c + '">' + esc(v) + '</span>' + (l ? ' <span class="text-slate-400">' + esc(l) + '</span>' : '') + '</span>'
+  ).join('');
+  hWrap.appendChild(stats);
+  header.appendChild(hWrap);
+
+  // ===== filter row =====
+  const filterRow = el('div', 'px-4 lg:px-6 py-2.5 flex flex-wrap items-center gap-2 border-t border-slate-800/70');
+
+  // platform chips
+  const platforms = [['all', 'All'], ['youtube', 'YouTube'], ['youtube_short', 'Shorts'], ['tiktok', 'TikTok']];
+  const platWrap = el('div', 'flex items-center gap-1 bg-slate-800/60 p-1 rounded-lg');
+  platforms.forEach(([val, label]) => {
+    const b = el('button', 'platBtn px-2.5 py-1 rounded-md text-xs font-medium transition-colors ' +
+      (val === 'all' ? 'bg-emerald-600 text-white' : 'text-slate-400 hover:text-white'), esc(label));
+    b.dataset.val = val;
+    b.addEventListener('click', () => {
+      state.platform = val; state.page = 1;
+      platWrap.querySelectorAll('.platBtn').forEach(x => x.className = 'platBtn px-2.5 py-1 rounded-md text-xs font-medium transition-colors ' + (x.dataset.val === val ? 'bg-emerald-600 text-white' : 'text-slate-400 hover:text-white'));
+      render();
+    });
+    platWrap.appendChild(b);
+  });
+  filterRow.appendChild(platWrap);
+
+  function buildSelect(opts, onChange, label) {
+    const sel = el('select', 'bg-slate-800/80 ring-1 ring-slate-700 rounded-md text-xs text-slate-200 px-2.5 py-1.5 focus:outline-none focus:ring-emerald-500');
+    opts.forEach(([v, t]) => { const o = el('option', '', esc(t)); o.value = v; sel.appendChild(o); });
+    sel.addEventListener('change', () => { onChange(sel.value); state.page = 1; render(); });
+    sel.title = label;
+    return sel;
+  }
+
+  // stance options (distinct first word groups)
+  const stanceVals = Array.from(new Set(CLIPS.map(c => c.stance)));
+  const stanceSel = buildSelect([['all', 'All stances']].concat(stanceVals.map(s => [s, s])), v => state.stance = v, 'Stance');
+
+  const accSel = buildSelect([['all', 'All accuracy'], ['accurate', 'Accurate (green)'], ['simplified', 'Simplified (sky)'], ['opinion', 'Teaching/opinion (amber)']], v => state.accuracy = v, 'Accuracy');
+
+  const sectionVals = [];
+  const seen = new Set();
+  CLIPS.forEach(c => { if (!seen.has(c.sectionId)) { seen.add(c.sectionId); sectionVals.push([c.sectionId, c.sectionLabel]); } });
+  const secSel = buildSelect([['all', 'All sections']].concat(sectionVals), v => state.section = v, 'Section');
+
+  filterRow.appendChild(stanceSel);
+  filterRow.appendChild(accSel);
+  filterRow.appendChild(secSel);
+
+  // search box
+  const searchWrap = el('div', 'relative ml-auto');
+  searchWrap.innerHTML = '<span class="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500">' + ICON.search + '</span>';
+  const searchInput = el('input', 'bg-slate-800/80 ring-1 ring-slate-700 rounded-md text-xs text-slate-200 pl-8 pr-3 py-1.5 w-48 focus:outline-none focus:ring-emerald-500 placeholder-slate-500');
+  searchInput.placeholder = 'Search caption, creator…';
+  searchInput.addEventListener('input', () => { state.search = searchInput.value.toLowerCase(); state.page = 1; render(); });
+  searchWrap.appendChild(searchInput);
+
+  // reset
+  const resetBtn = el('button', 'text-xs text-slate-400 hover:text-white px-2 py-1.5', 'Reset');
+  resetBtn.addEventListener('click', () => {
+    state.search = ''; state.platform = 'all'; state.stance = 'all'; state.accuracy = 'all'; state.section = 'all'; state.page = 1;
+    searchInput.value = '';
+    stanceSel.value = 'all'; accSel.value = 'all'; secSel.value = 'all';
+    platWrap.querySelectorAll('.platBtn').forEach(x => x.className = 'platBtn px-2.5 py-1 rounded-md text-xs font-medium transition-colors ' + (x.dataset.val === 'all' ? 'bg-emerald-600 text-white' : 'text-slate-400 hover:text-white'));
+    render();
+  });
+  filterRow.appendChild(searchWrap);
+  filterRow.appendChild(resetBtn);
+  header.appendChild(filterRow);
+  app.appendChild(header);
+
+  // ===== layout: table + drawer =====
+  const layout = el('div', 'relative');
+  const tableWrap = el('div', 'px-4 lg:px-6 py-4');
+  layout.appendChild(tableWrap);
+  app.appendChild(layout);
+
+  // ===== drawer (collapsible article) =====
+  const drawer = el('aside', 'fixed top-0 right-0 h-full w-full max-w-md bg-slate-900 border-l border-slate-800 z-40 transform translate-x-full transition-transform duration-300 overflow-y-auto');
+  const drawerHead = el('div', 'sticky top-0 bg-slate-900 border-b border-slate-800 px-5 py-3 flex items-center justify-between');
+  drawerHead.innerHTML = '<div><p class="text-[10px] uppercase tracking-widest text-emerald-400">Source article</p><h2 class="text-base font-bold text-white">' + esc(A.title) + '</h2></div>';
+  const closeBtn = el('button', 'p-1.5 rounded-md hover:bg-slate-800 text-slate-400');
+  closeBtn.innerHTML = ICON.close;
+  closeBtn.addEventListener('click', () => drawer.classList.add('translate-x-full'));
+  drawerHead.appendChild(closeBtn);
+  drawer.appendChild(drawerHead);
+
+  const drawerBody = el('div', 'px-5 py-4 text-sm leading-relaxed text-slate-300');
+  // lead
+  A.lead.forEach(p => drawerBody.appendChild(el('p', 'mb-3', esc(p))));
+  // sections
+  A.sections.forEach(sec => {
+    const tag = sec.level === 2 ? 'h3' : sec.level === 3 ? 'h4' : 'h5';
+    const cls = sec.level === 2 ? 'text-white font-bold text-base mt-5 mb-2' : sec.level === 3 ? 'text-slate-100 font-semibold text-sm mt-4 mb-1.5' : 'text-slate-200 font-semibold text-xs uppercase tracking-wide mt-3 mb-1';
+    const h = el(tag, cls, esc(sec.title));
+    h.id = 'art-' + sec.id;
+    drawerBody.appendChild(h);
+    (sec.paras || []).forEach(p => drawerBody.appendChild(el('p', 'mb-2.5 text-slate-400', esc(p))));
+  });
+  const attrib = el('div', 'mt-6 pt-4 border-t border-slate-800 text-xs text-slate-500');
+  attrib.innerHTML = 'From Wikipedia · <a class="text-emerald-400 hover:underline" href="' + esc(A.url) + '" target="_blank" rel="noopener">' + esc(A.title) + '</a> · ' + esc(A.license);
+  drawerBody.appendChild(attrib);
+  drawer.appendChild(drawerBody);
+  document.body.appendChild(drawer);
+
+  const backdrop = el('div', 'fixed inset-0 bg-black/50 z-30 hidden');
+  backdrop.addEventListener('click', () => { drawer.classList.add('translate-x-full'); backdrop.classList.add('hidden'); });
+  document.body.appendChild(backdrop);
+
+  document.getElementById('drawerToggle').addEventListener('click', () => {
+    const open = drawer.classList.contains('translate-x-full');
+    drawer.classList.toggle('translate-x-full', !open);
+    backdrop.classList.toggle('hidden', !open);
+  });
+
+  // ===== filtering + sorting =====
+  function getRows() {
+    let rows = CLIPS.slice();
+    if (state.platform !== 'all') rows = rows.filter(c => c.format === state.platform || c.platform === state.platform);
+    if (state.stance !== 'all') rows = rows.filter(c => c.stance === state.stance);
+    if (state.accuracy !== 'all') rows = rows.filter(c => accuracyBucket(c.accuracy) === state.accuracy);
+    if (state.section !== 'all') rows = rows.filter(c => c.sectionId === state.section);
+    if (state.search) {
+      const q = state.search;
+      rows = rows.filter(c =>
+        c.caption.toLowerCase().includes(q) ||
+        c.creator.name.toLowerCase().includes(q) ||
+        c.creator.handle.toLowerCase().includes(q) ||
+        c.context.toLowerCase().includes(q));
+    }
+    const k = state.sortKey, dir = state.sortDir === 'asc' ? 1 : -1;
+    rows.sort((a, b) => {
+      let av, bv;
+      switch (k) {
+        case 'upvotes': av = a.upvotes; bv = b.upvotes; break;
+        case 'creator': av = a.creator.name.toLowerCase(); bv = b.creator.name.toLowerCase(); break;
+        case 'caption': av = a.caption.toLowerCase(); bv = b.caption.toLowerCase(); break;
+        case 'stance': av = a.stance.toLowerCase(); bv = b.stance.toLowerCase(); break;
+        case 'accuracy': av = a.accuracy.toLowerCase(); bv = b.accuracy.toLowerCase(); break;
+        case 'section': av = a.sectionLabel.toLowerCase(); bv = b.sectionLabel.toLowerCase(); break;
+        case 'date': av = a.date; bv = b.date; break;
+        default: av = a.upvotes; bv = b.upvotes;
+      }
+      if (av < bv) return -1 * dir;
+      if (av > bv) return 1 * dir;
+      return 0;
+    });
+    return rows;
+  }
+
+  const COLS = [
+    { key: null, label: '', cls: 'w-16' },
+    { key: 'creator', label: 'Creator' },
+    { key: 'caption', label: 'Caption' },
+    { key: 'stance', label: 'Stance' },
+    { key: 'accuracy', label: 'Accuracy' },
+    { key: 'section', label: 'Section' },
+    { key: 'upvotes', label: 'Votes', cls: 'text-right' },
+    { key: 'date', label: 'Added' }
+  ];
+
+  function thumbCell(clip) {
+    const vertical = clip.orientation === 'vertical';
+    const cell = el('div', 'relative w-16 ' + (vertical ? 'h-16' : 'h-10') + ' rounded overflow-hidden bg-slate-700 shrink-0');
+    const im = el('img', 'absolute inset-0 w-full h-full object-cover');
+    im.loading = 'lazy'; im.src = clip.thumbnail; im.alt = '';
+    im.onerror = function () { this.style.display = 'none'; cell.classList.add('bg-gradient-to-br'); clip.thumbGrad.split(' ').forEach(c => cell.classList.add(c)); };
+    cell.appendChild(im);
+    const a = el('a', 'absolute inset-0'); a.href = clip.watch_url; a.target = '_blank'; a.rel = 'noopener'; a.title = 'Open ' + clip.platformLabel;
+    cell.appendChild(a);
+    return cell;
+  }
+
+  function render() {
+    const rows = getRows();
+    const total = rows.length;
+    const totalPages = Math.max(1, Math.ceil(total / state.perPage));
+    if (state.page > totalPages) state.page = totalPages;
+    const start = (state.page - 1) * state.perPage;
+    const pageRows = rows.slice(start, start + state.perPage);
+
+    tableWrap.innerHTML = '';
+
+    // result summary bar
+    const bar = el('div', 'flex flex-wrap items-center justify-between gap-3 mb-3');
+    const shownFrom = total === 0 ? 0 : start + 1;
+    const shownTo = Math.min(start + state.perPage, total);
+    bar.innerHTML =
+      '<p class="text-xs text-slate-400">Showing <span class="text-white font-semibold">' + shownFrom + '–' + shownTo + '</span> of <span class="text-white font-semibold">' + total + '</span> matching' +
+      (total !== S.totalClips ? ' <span class="text-slate-500">(' + S.totalClips + ' total in topic)</span>' : '') + '</p>';
+    const ppWrap = el('div', 'flex items-center gap-2 text-xs text-slate-400');
+    ppWrap.innerHTML = '<span>Rows per page</span>';
+    const ppSel = el('select', 'bg-slate-800 ring-1 ring-slate-700 rounded-md text-xs text-slate-200 px-2 py-1');
+    [10, 14, 25, 50].forEach(n => { const o = el('option', '', n); o.value = n; if (n === state.perPage) o.selected = true; ppSel.appendChild(o); });
+    ppSel.addEventListener('change', () => { state.perPage = parseInt(ppSel.value, 10); state.page = 1; render(); });
+    ppWrap.appendChild(ppSel);
+    bar.appendChild(ppWrap);
+    tableWrap.appendChild(bar);
+
+    // table
+    const tableScroll = el('div', 'overflow-x-auto rounded-lg ring-1 ring-slate-800');
+    const table = el('table', 'min-w-full text-sm');
+    const thead = el('thead', 'bg-slate-900 text-slate-400');
+    const trh = el('tr', '');
+    COLS.forEach(col => {
+      const th = el('th', 'px-3 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide whitespace-nowrap ' + (col.cls || '') + (col.key ? ' cursor-pointer select-none hover:text-white' : ''));
+      let arrow = '';
+      if (col.key) {
+        arrow = ' ' + (state.sortKey === col.key ? (state.sortDir === 'asc' ? ICON.sortUp : ICON.sortDown) : ICON.sort);
+      }
+      th.innerHTML = esc(col.label) + arrow;
+      if (col.key) th.addEventListener('click', () => {
+        if (state.sortKey === col.key) state.sortDir = state.sortDir === 'asc' ? 'desc' : 'asc';
+        else { state.sortKey = col.key; state.sortDir = col.key === 'creator' || col.key === 'caption' ? 'asc' : 'desc'; }
+        render();
+      });
+      trh.appendChild(th);
+    });
+    thead.appendChild(trh);
+    table.appendChild(thead);
+
+    const tbody = el('tbody', 'divide-y divide-slate-800');
+    if (pageRows.length === 0) {
+      const tr = el('tr', '');
+      tr.innerHTML = '<td colspan="8" class="px-3 py-12 text-center text-slate-500">No clips match these filters. <button id="noResReset" class="text-emerald-400 hover:underline">Reset</button></td>';
+      tbody.appendChild(tr);
+    }
+    pageRows.forEach(clip => {
+      const tr = el('tr', 'hover:bg-slate-800/40 transition-colors align-middle');
+      // thumb
+      const tdThumb = el('td', 'px-3 py-2');
+      tdThumb.appendChild(thumbCell(clip));
+      tr.appendChild(tdThumb);
+      // creator
+      const tdCreator = el('td', 'px-3 py-2 min-w-[160px]');
+      tdCreator.innerHTML =
+        '<div class="flex items-center gap-2">' +
+          '<span class="w-7 h-7 rounded-full bg-gradient-to-br ' + clip.creator.avatarGrad + ' shrink-0"></span>' +
+          '<span class="leading-tight">' +
+            '<a href="' + esc(clip.creator.url) + '" target="_blank" rel="noopener" class="block text-slate-100 font-medium hover:text-emerald-400 text-[13px]">' + esc(clip.creator.handle) + '</a>' +
+            '<span class="block text-[11px] text-slate-500">' + esc(clip.platformLabel) + '</span>' +
+          '</span>' +
+        '</div>';
+      tr.appendChild(tdCreator);
+      // caption
+      const tdCap = el('td', 'px-3 py-2 max-w-[280px]');
+      tdCap.innerHTML = '<a href="' + esc(clip.watch_url) + '" target="_blank" rel="noopener" class="text-slate-200 hover:text-emerald-400 line-clamp-2 text-[13px]" title="' + esc(clip.context) + '">' + esc(clip.caption) + '</a>';
+      tr.appendChild(tdCap);
+      // stance
+      const tdStance = el('td', 'px-3 py-2');
+      tdStance.innerHTML = '<span class="inline-block text-[11px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 ring-1 ring-slate-700 whitespace-nowrap">' + esc(clip.stance) + '</span>';
+      tr.appendChild(tdStance);
+      // accuracy
+      const tdAcc = el('td', 'px-3 py-2');
+      tdAcc.innerHTML = '<span class="inline-flex items-center gap-1.5 text-[11px] px-2 py-0.5 rounded-full whitespace-nowrap ' + accuracyClasses(clip.accuracy) + '"><span class="w-1.5 h-1.5 rounded-full ' + accuracyDot(clip.accuracy) + '"></span>' + esc(clip.accuracy) + '</span>';
+      tr.appendChild(tdAcc);
+      // section
+      const tdSec = el('td', 'px-3 py-2');
+      tdSec.innerHTML = '<a href="#art-' + esc(clip.sectionId) + '" class="text-[12px] text-sky-300 hover:underline" data-sec="' + esc(clip.sectionId) + '">' + esc(clip.sectionLabel) + '</a>';
+      tdSec.querySelector('a').addEventListener('click', (e) => {
+        // open drawer and scroll to section
+        drawer.classList.remove('translate-x-full'); backdrop.classList.remove('hidden');
+        setTimeout(() => { const t = document.getElementById('art-' + clip.sectionId); if (t) t.scrollIntoView({ behavior: 'smooth' }); }, 120);
+      });
+      tr.appendChild(tdSec);
+      // votes
+      const tdVotes = el('td', 'px-3 py-2 text-right whitespace-nowrap');
+      tdVotes.innerHTML = '<span class="text-slate-200 font-semibold text-[13px]">' + ICON.up + ' ' + clip.upvotes + '</span>';
+      tr.appendChild(tdVotes);
+      // added
+      const tdDate = el('td', 'px-3 py-2 whitespace-nowrap');
+      tdDate.innerHTML = '<span class="text-[12px] text-slate-300">' + esc(clip.date) + '</span><br><span class="text-[11px] text-slate-500">' + esc(clip.curatedBy) + '</span>';
+      tr.appendChild(tdDate);
+
+      tbody.appendChild(tr);
+    });
+    table.appendChild(tbody);
+    tableScroll.appendChild(table);
+    tableWrap.appendChild(tableScroll);
+
+    const nr = document.getElementById('noResReset');
+    if (nr) nr.addEventListener('click', () => resetBtn.click());
+
+    // pagination
+    const pag = el('div', 'flex flex-wrap items-center justify-between gap-3 mt-4');
+    pag.appendChild(el('p', 'text-xs text-slate-500', 'Page ' + state.page + ' of ' + totalPages + ' · ' + S.loaded + ' clips loaded · ' + S.totalClips + ' in full topic'));
+    const btns = el('div', 'flex items-center gap-1');
+    function pageBtn(label, target, disabled, active) {
+      const b = el('button', 'min-w-[32px] px-2.5 py-1.5 rounded-md text-xs font-medium ' +
+        (active ? 'bg-emerald-600 text-white' : disabled ? 'text-slate-600 cursor-not-allowed' : 'text-slate-300 hover:bg-slate-800'), esc(label));
+      if (!disabled && !active) b.addEventListener('click', () => { state.page = target; render(); });
+      return b;
+    }
+    btns.appendChild(pageBtn('‹ Prev', state.page - 1, state.page <= 1, false));
+    for (let p = 1; p <= totalPages; p++) {
+      if (totalPages > 7 && p > 2 && p < totalPages - 1 && Math.abs(p - state.page) > 1) {
+        if (p === 3 || p === totalPages - 2) btns.appendChild(el('span', 'px-1 text-slate-600 text-xs', '…'));
+        continue;
+      }
+      btns.appendChild(pageBtn(String(p), p, false, p === state.page));
+    }
+    btns.appendChild(pageBtn('Next ›', state.page + 1, state.page >= totalPages, false));
+    pag.appendChild(btns);
+    tableWrap.appendChild(pag);
+  }
+
+  render();
+
+  // variant badge
+  const vb = el('div', 'fixed bottom-4 right-4 z-50 text-[11px] font-semibold tracking-wide bg-emerald-600 text-white px-3 py-1.5 rounded-full shadow-lg', 'Variant 10 · Curation Desk');
+  document.body.appendChild(vb);
+});
+</script>
+</body>
+</html>

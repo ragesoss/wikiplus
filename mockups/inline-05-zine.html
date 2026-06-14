@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>wiki+ · Inline 05 · Playful Zine</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="data/content.js"></script>
+<style>
+  html { scroll-behavior: smooth; }
+  /* ---- Wikipedia article look (the "WIKI" world) ---- */
+  .wiki { background:#fff; color:#202122; }
+  .wiki .wiki-title {
+    font-family: 'Linux Libertine','Georgia','Times New Roman',serif;
+    font-weight: 400; line-height: 1.15;
+    border-bottom: 1px solid #a2a9b1; padding-bottom: .25em;
+  }
+  .wiki h2.wiki-h, .wiki h3.wiki-h, .wiki h4.wiki-h {
+    font-family: 'Linux Libertine','Georgia','Times New Roman',serif;
+    font-weight: 400; color:#000;
+    border-bottom: 1px solid #a2a9b1; padding-bottom: .2em;
+    scroll-margin-top: 5rem;
+  }
+  .wiki h2.wiki-h { font-size: 1.7rem; margin: 1.4em 0 .5em; }
+  .wiki h3.wiki-h { font-size: 1.3rem; margin: 1.2em 0 .4em; border-bottom: none; }
+  .wiki h4.wiki-h { font-size: 1.08rem; font-weight: 700; margin: 1em 0 .3em; border-bottom: none; }
+  .wiki-prose { font-size: 15px; line-height: 1.7; color:#202122; }
+  .wiki-prose p { margin: 0 0 .7em; }
+  .wiki .wl { color:#3366cc; text-decoration: none; }
+  .wiki .wl:hover { text-decoration: underline; }
+  /* right-floated wiki figure */
+  .wiki-fig {
+    float: right; clear: right; width: 250px; max-width: 45%;
+    margin: .4em 0 1em 1.4em; border: 1px solid #a2a9b1;
+    background:#f8f9fa; padding: 3px; font-size: 11.5px; line-height:1.4; color:#54595d;
+  }
+  .wiki-fig img { display:block; width:100%; height:auto; }
+  .wiki-fig figcaption { padding: 4px 2px 2px; }
+  /* zine display type */
+  .zine-display { font-family: 'Arial Black','Helvetica Neue',Arial,sans-serif; letter-spacing:-.02em; line-height:.95; }
+  ::selection { background:#fde047; color:#000; }
+  .scrollbar-thin::-webkit-scrollbar { height:8px; width:8px; }
+  .scrollbar-thin::-webkit-scrollbar-thumb { background:#d4d4d8; border-radius:99px; }
+  .carousel { scroll-snap-type: x mandatory; }
+  .carousel > * { scroll-snap-align: start; }
+  a:focus-visible, button:focus-visible {
+    outline: 3px solid #f97316; outline-offset: 2px; border-radius: 4px;
+  }
+</style>
+</head>
+<body class="bg-[#fdf6e3] text-zinc-900 antialiased">
+<div id="app"></div>
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  var W = window.WIKIPLUS;
+  var A = W.article, CLIPS = W.clips, STATS = W.stats;
+
+  var SVG = {
+    play: '<svg viewBox="0 0 24 24" fill="currentColor" class="w-7 h-7"><path d="M8 5v14l11-7z"/></svg>',
+    up:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="w-3.5 h-3.5"><path d="M12 19V5M5 12l7-7 7 7"/></svg>',
+    ext:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="w-3.5 h-3.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6M10 14L21 3"/></svg>',
+    book: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-4 h-4"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2zM22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>',
+    star: '<svg viewBox="0 0 24 24" fill="currentColor" class="w-4 h-4"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4z"/></svg>'
+  };
+
+  function esc(s){ var d=document.createElement("div"); d.textContent=(s==null?"":s); return d.innerHTML; }
+
+  // ---- accuracy / stance color logic (never color alone — always paired with text) ----
+  // green = accurate; sky/lime = accurate-with-caveat/simplified; amber = opinion/anecdotal/teaching/classroom
+  function accStyle(acc){
+    var a=(acc||"").toLowerCase();
+    if(/opinion|anecdot|teaching context|classroom/.test(a)) return {bg:"bg-amber-100",tx:"text-amber-900",rg:"ring-amber-300",dot:"bg-amber-500"};
+    if(/caveat|simplified|condensed|exam|narrow|big-picture|fast|definitional/.test(a)) return {bg:"bg-sky-100",tx:"text-sky-900",rg:"ring-sky-300",dot:"bg-sky-500"};
+    if(/footage|primary|phenomenon/.test(a)) return {bg:"bg-lime-100",tx:"text-lime-900",rg:"ring-lime-400",dot:"bg-lime-500"};
+    return {bg:"bg-emerald-100",tx:"text-emerald-900",rg:"ring-emerald-300",dot:"bg-emerald-500"};
+  }
+
+  function wordmark(extra){ return '<span class="font-black tracking-tight '+(extra||'')+'">wiki<span class="text-emerald-600">+</span></span>'; }
+
+  // group clips
+  var bySection = {}, general = [];
+  CLIPS.forEach(function(c){
+    if(c.general){ general.push(c); }
+    else { (bySection[c.sectionId]=bySection[c.sectionId]||[]).push(c); }
+  });
+  function clipById(id){ for(var i=0;i<CLIPS.length;i++) if(CLIPS[i].id===id) return CLIPS[i]; }
+
+  // ---- media frame (thumb + play; respects orientation) ----
+  function mediaFrame(c){
+    var vert = c.orientation === "vertical";
+    var ratio = vert ? "aspect-[9/16]" : "aspect-video";
+    var pid = "media-"+c.id;
+    return ''
+      + '<div id="'+pid+'" class="relative '+ratio+' w-full overflow-hidden bg-gradient-to-br '+c.thumbGrad+' group">'
+      + '<img loading="lazy" src="'+c.thumbnail+'" alt="'+esc(c.caption)+'" '
+      +   'class="absolute inset-0 w-full h-full object-cover mix-blend-luminosity opacity-90 group-hover:opacity-100 transition" '
+      +   'onerror="this.style.display=\'none\';this.parentElement.classList.add(\'bg-gradient-to-br\');">'
+      + '<button data-play="'+c.id+'" aria-label="Play: '+esc(c.caption)+'" '
+      +   'class="absolute inset-0 flex items-center justify-center bg-black/15 group-hover:bg-black/30 transition-colors">'
+      +   '<span class="flex items-center justify-center w-16 h-16 rounded-full bg-yellow-300 text-black border-4 border-black shadow-[3px_3px_0_#000] group-hover:scale-110 transition-transform">'+SVG.play+'</span>'
+      + '</button>'
+      + '<span class="absolute top-2.5 left-2.5 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide bg-black text-white">'+esc(c.platformLabel)+'</span>'
+      + (c.platform==="tiktok"
+          ? '<span class="absolute bottom-2.5 right-2.5 px-2 py-0.5 text-[10px] font-bold bg-white text-black border border-black">Open on TikTok</span>'
+          : '')
+      + '</div>';
+  }
+
+  function chip(inner, s){
+    return '<span class="inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide ring-1 '+s.bg+' '+s.tx+' '+s.rg+'">'+inner+'</span>';
+  }
+
+  // ---- one clip card (zine / editorial) ----
+  function clipCard(c){
+    var vert = c.orientation === "vertical";
+    var acc = accStyle(c.accuracy);
+    var mediaW = vert ? "sm:w-[190px]" : "sm:w-[300px]";
+    return ''
+    + '<article class="bg-white border-2 border-black shadow-[5px_5px_0_#000] overflow-hidden">'
+    +   '<div class="flex flex-col sm:flex-row">'
+    +     '<div class="'+mediaW+' shrink-0 border-b-2 sm:border-b-0 sm:border-r-2 border-black">'+mediaFrame(c)+'</div>'
+    +     '<div class="flex-1 min-w-0 p-4 sm:p-5">'
+    +       '<div class="flex items-center gap-2.5 mb-3">'
+    +         '<span class="w-9 h-9 rounded-full bg-gradient-to-br '+c.creator.avatarGrad+' border-2 border-black shrink-0" aria-hidden="true"></span>'
+    +         '<div class="min-w-0">'
+    +           '<a href="'+c.creator.url+'" target="_blank" rel="noopener" class="block text-sm font-extrabold text-black hover:text-emerald-700 truncate">'+esc(c.creator.name)+'</a>'
+    +           '<div class="text-[11px] font-medium text-zinc-500 truncate">'+esc(c.creator.handle)+'</div>'
+    +         '</div>'
+    +       '</div>'
+    +       '<h4 class="text-[15px] font-extrabold leading-snug text-zinc-900 mb-2">'+esc(c.caption)+'</h4>'
+    +       '<div class="flex flex-wrap gap-1.5 mb-3">'
+    +         chip(esc(c.stance), {bg:"bg-zinc-900",tx:"text-white",rg:"ring-black"})
+    +         + chip('<span class="w-2 h-2 rounded-full '+acc.dot+'" aria-hidden="true"></span>'+esc(c.accuracy), acc)
+    +       '</div>'
+    +       '<div class="relative bg-emerald-50 border-l-4 border-emerald-500 pl-3 pr-2 py-2 mb-3">'
+    +         '<div class="text-[10px] font-black uppercase tracking-widest text-emerald-700 mb-0.5">Curator note</div>'
+    +         '<p class="text-[13.5px] leading-relaxed text-zinc-800">'+esc(c.context)+'</p>'
+    +       '</div>'
+    +       '<div class="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[11px] text-zinc-500 font-medium">'
+    +         '<span class="inline-flex items-center gap-1 px-2 py-0.5 bg-yellow-200 text-black border border-black font-bold">'+SVG.up+c.upvotes+'</span>'
+    +         '<span>by <span class="font-bold text-zinc-700">'+esc(c.curatedBy)+'</span> · '+esc(c.date)+'</span>'
+    +       '</div>'
+    +     '</div>'
+    +   '</div>'
+    + '</article>';
+  }
+
+  // ---- General carousel ----
+  function generalCarousel(){
+    if(!general.length) return "";
+    var sorted = general.slice().sort(function(a,b){return b.upvotes-a.upvotes;});
+    var cards = sorted.map(function(c){
+      var vert = c.orientation === "vertical";
+      var w = vert ? "w-[230px]" : "w-[340px]";
+      return '<div class="'+w+' shrink-0">'+clipCard(c)+'</div>';
+    }).join("");
+    return ''
+    + '<section aria-labelledby="general-h" class="relative my-8 bg-fuchsia-600 text-white border-2 border-black shadow-[6px_6px_0_#000] p-5 sm:p-6">'
+    +   '<div class="flex items-end justify-between flex-wrap gap-3 mb-4">'
+    +     '<div>'
+    +       '<div class="text-[11px] font-black uppercase tracking-[.25em] text-yellow-300 mb-1">'+wordmark('text-white')+' · general intros</div>'
+    +       '<h2 id="general-h" class="zine-display text-3xl sm:text-4xl text-white">&#9654; Watch this first</h2>'
+    +     '</div>'
+    +     '<div class="flex items-center gap-3">'
+    +       '<span class="zine-display text-5xl sm:text-6xl text-yellow-300 leading-none">'+general.length+'</span>'
+    +       '<span class="text-xs font-bold uppercase leading-tight">whole-topic<br>videos</span>'
+    +     '</div>'
+    +   '</div>'
+    +   '<div class="carousel scrollbar-thin flex gap-4 overflow-x-auto pb-2 -mx-1 px-1">'+cards+'</div>'
+    +   '<div class="mt-3 text-right">'
+    +     '<a href="'+esc(A.url)+'" target="_blank" rel="noopener" class="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide bg-yellow-300 text-black px-3 py-1.5 border-2 border-black shadow-[2px_2px_0_#000] hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-none transition">See all '+STATS.totalClips+' clips '+SVG.ext+'</a>'
+    +   '</div>'
+    + '</section>';
+  }
+
+  // ---- inline section plus-block ----
+  function sectionBlock(sec){
+    var clips = bySection[sec.id] || [];
+    if(!clips.length) return "";
+    var sorted = clips.slice().sort(function(a,b){return b.upvotes-a.upvotes;});
+    var cards = sorted.map(function(c){ return '<div>'+clipCard(c)+'</div>'; }).join("");
+    var n = clips.length;
+    return ''
+    + '<aside aria-label="wiki+ videos for '+esc(sec.title)+'" class="my-7 bg-cyan-50 border-2 border-black shadow-[5px_5px_0_#000]">'
+    +   '<div class="flex items-center gap-3 bg-emerald-500 text-black px-5 py-3 border-b-2 border-black">'
+    +     '<span class="zine-display text-4xl sm:text-5xl leading-none">'+n+'</span>'
+    +     '<div>'
+    +       '<div class="text-[10px] font-black uppercase tracking-[.25em]">'+wordmark('')+' watch</div>'
+    +       '<div class="zine-display text-lg sm:text-2xl">&#9654; Watch this for the '+esc(sec.title)+'</div>'
+    +     '</div>'
+    +   '</div>'
+    +   '<div class="p-4 sm:p-5 space-y-4">'+cards+'</div>'
+    + '</aside>';
+  }
+
+  // ---- article body ----
+  function htag(level){ return level===2?"h2":level===3?"h3":"h4"; }
+  function figure(img){
+    if(!img) return "";
+    return '<figure class="wiki-fig">'
+      + '<img loading="lazy" src="'+esc(img.src)+'" alt="'+esc(img.alt||img.caption||"")+'">'
+      + '<figcaption>'+esc(img.caption||"")+(img.credit?' <span class="text-zinc-400">· '+esc(img.credit)+'</span>':'')+'</figcaption>'
+      + '</figure>';
+  }
+
+  var bodyHtml = "";
+  A.sections.forEach(function(s){
+    var t = htag(s.level);
+    bodyHtml += '<'+t+' id="'+s.id+'" class="wiki-h" data-toc="'+s.id+'">'+esc(s.title)+'</'+t+'>';
+    var inner = figure(s.image) + (s.html||[]).map(function(p){return '<p>'+p+'</p>';}).join("");
+    bodyHtml += '<div class="wiki-prose clearfix">'+inner+'</div>';
+    bodyHtml += sectionBlock(s);
+  });
+
+  // ---- TOC (General first, chunky count tags) ----
+  function tocBadge(n, special){
+    var cls = special ? "bg-fuchsia-600 text-white" : "bg-yellow-300 text-black";
+    return '<span class="shrink-0 inline-flex items-center justify-center min-w-[26px] h-6 px-1.5 text-[11px] font-black border-2 border-black '+cls+'">'+n+'</span>';
+  }
+  var tocItems = '<a href="#general" data-tocitem="general" class="toc-link group flex items-center justify-between gap-2 py-1.5 px-2 text-[13px] font-extrabold uppercase tracking-wide text-fuchsia-700 hover:bg-fuchsia-50 border-l-4 border-transparent transition">'
+    + '<span class="truncate">&#9654; General</span>'
+    + (general.length ? tocBadge(general.length, true) : '')
+    + '</a>';
+  A.sections.forEach(function(s){
+    var n = (bySection[s.id]||[]).length;
+    var pad = s.level===2 ? "pl-2" : (s.level===3 ? "pl-5" : "pl-8");
+    var wt = s.level===2 ? "font-bold" : "font-medium";
+    tocItems += '<a href="#'+s.id+'" data-tocitem="'+s.id+'" class="toc-link group flex items-center justify-between gap-2 py-1 '+pad+' pr-2 text-[12.5px] '+wt+' text-zinc-600 hover:bg-yellow-50 border-l-4 border-transparent transition">'
+      + '<span class="truncate">'+esc(s.title)+'</span>'
+      + (n ? tocBadge(n, false) : '')
+      + '</a>';
+  });
+
+  // ---- lead html ----
+  var leadHtml = (A.lead_html||[]).map(function(p){return '<p>'+p+'</p>';}).join("");
+
+  // ---- assemble ----
+  document.getElementById("app").innerHTML = ''
+  + '<header class="sticky top-0 z-30 bg-yellow-300 border-b-2 border-black">'
+  +   '<div class="max-w-6xl mx-auto px-5 h-14 flex items-center justify-between">'
+  +     '<div class="flex items-center gap-2">'+wordmark('text-2xl text-black')+'<span class="hidden sm:inline text-black/40">/</span><span class="hidden sm:inline text-xs font-black uppercase tracking-[.2em] text-black/70">Playful Zine</span></div>'
+  +     '<a href="'+esc(A.url)+'" target="_blank" rel="noopener" class="flex items-center gap-1.5 text-[12px] font-bold text-black/80 hover:text-black">'+SVG.book+' From Wikipedia · '+esc(A.license)+'</a>'
+  +   '</div>'
+  + '</header>'
+
+  + '<div class="max-w-6xl mx-auto px-5 grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-8 items-start">'
+
+  // ===== MAIN (wiki + plus) =====
+  + '<main class="wiki min-w-0 my-8 p-6 sm:p-9 border-2 border-black shadow-[6px_6px_0_#000]">'
+  +   '<h1 class="wiki-title text-4xl sm:text-5xl text-black mb-1">'+esc(A.title)+'</h1>'
+  +   '<p class="text-[12.5px] text-zinc-500 mb-5 mt-2">From <a class="wl" href="'+esc(A.url)+'" target="_blank" rel="noopener">Wikipedia</a> · '+esc(A.license)+'</p>'
+  +   '<div class="wiki-prose clearfix">'+figure(A.leadImage)+leadHtml+'</div>'
+  +   generalCarousel()
+  +   bodyHtml
+  +   '<footer class="mt-12 pt-5 border-t border-[#a2a9b1] text-[12px] text-zinc-500">'
+  +     'Article text from <a class="wl" href="'+esc(A.url)+'" target="_blank" rel="noopener">'+esc(A.source)+'</a>, licensed '+esc(A.license)+'. Curated video context layered by the '+wordmark('text-zinc-700')+' community.'
+  +   '</footer>'
+  + '</main>'
+
+  // ===== SIDEBAR =====
+  + '<aside class="hidden lg:block my-8">'
+  +   '<div class="sticky top-20 space-y-4">'
+
+  // +plus infobox
+  +     '<div class="bg-emerald-500 text-black border-2 border-black shadow-[5px_5px_0_#000] p-4">'
+  +       '<div class="text-[11px] font-black uppercase tracking-[.25em] mb-3">'+wordmark('text-black')+' layer</div>'
+  +       '<div class="grid grid-cols-3 gap-2 text-center">'
+  +         '<div class="bg-white border-2 border-black py-2"><div class="zine-display text-3xl">'+STATS.totalClips+'</div><div class="text-[9px] font-black uppercase tracking-wide">videos</div></div>'
+  +         '<div class="bg-white border-2 border-black py-2"><div class="zine-display text-3xl">'+STATS.creatorCount+'</div><div class="text-[9px] font-black uppercase tracking-wide">creators</div></div>'
+  +         '<div class="bg-white border-2 border-black py-2"><div class="zine-display text-3xl">'+STATS.curatorCount+'</div><div class="text-[9px] font-black uppercase tracking-wide">curators</div></div>'
+  +       '</div>'
+  +       '<div class="mt-3 flex items-center gap-1.5 text-[11px] font-bold"><span class="w-2 h-2 rounded-full bg-black animate-pulse"></span> synced '+esc(STATS.synced)+'</div>'
+  +     '</div>'
+
+  // TOC / contents
+  +     '<nav aria-label="Contents" class="bg-white border-2 border-black shadow-[5px_5px_0_#000]">'
+  +       '<div class="bg-black text-white px-3 py-2 zine-display text-xl">CONTENTS</div>'
+  +       '<div class="p-2 max-h-[60vh] overflow-y-auto scrollbar-thin">'+tocItems+'</div>'
+  +     '</nav>'
+
+  +   '</div>'
+  + '</aside>'
+
+  + '</div>'
+
+  + '<div class="fixed bottom-4 right-4 z-40 px-3 py-1.5 bg-black text-yellow-300 text-[11px] font-black uppercase tracking-wide border-2 border-yellow-300 shadow-[3px_3px_0_rgba(0,0,0,.4)]">Inline 05 · Playful Zine</div>';
+
+  // ---- interactions ----
+  document.addEventListener("click", function(e){
+    var pb = e.target.closest("[data-play]");
+    if(pb){
+      var c = clipById(pb.getAttribute("data-play"));
+      if(!c) return;
+      if(c.platform === "tiktok"){ window.open(c.watch_url, "_blank", "noopener"); return; }
+      var frame = document.getElementById("media-"+c.id);
+      frame.innerHTML = '<iframe class="absolute inset-0 w-full h-full" src="'+c.embed_url+'?autoplay=1" '
+        + 'title="'+esc(c.caption)+'" frameborder="0" '
+        + 'allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>';
+    }
+  });
+
+  // ---- scrollspy ----
+  var links = {};
+  document.querySelectorAll(".toc-link").forEach(function(a){ links[a.getAttribute("data-tocitem")] = a; });
+  function setActive(id){
+    Object.keys(links).forEach(function(k){
+      var on = (k===id);
+      links[k].classList.toggle("border-l-emerald-600", on);
+      links[k].classList.toggle("bg-emerald-50", on && k!=="general");
+      links[k].classList.toggle("bg-fuchsia-100", on && k==="general");
+    });
+  }
+  var spyTargets = [].slice.call(document.querySelectorAll("[data-toc]"));
+  // include the general carousel as a spy target
+  var genSec = document.getElementById("general-h");
+  var io = new IntersectionObserver(function(entries){
+    entries.forEach(function(en){
+      if(en.isIntersecting){
+        var id = en.target.getAttribute("data-toc") || "general";
+        setActive(id);
+      }
+    });
+  }, { rootMargin: "-80px 0px -65% 0px", threshold: 0 });
+  spyTargets.forEach(function(t){ io.observe(t); });
+  if(genSec){ genSec.setAttribute("data-toc","general"); io.observe(genSec); }
+});
+</script>
+</body>
+</html>

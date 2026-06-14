@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>wiki+ · Photosynthesis · Inline 01 Sticker Pop</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="data/content.js"></script>
+<style>
+  html { scroll-behavior: smooth; }
+  /* ---- WIKI side: make it read as real Wikipedia ---- */
+  .wiki-serif { font-family: 'Linux Libertine','Georgia','Times New Roman',serif; }
+  #article .wikititle {
+    font-family: 'Linux Libertine','Georgia',serif;
+    font-size: 1.9rem; line-height: 1.25; font-weight: 400;
+    color: #000; border-bottom: 1px solid #a2a9b1; padding-bottom: .2em; margin-bottom: .35em;
+  }
+  #article h2.wiki-h, #article h3.wiki-h, #article h4.wiki-h {
+    font-family: 'Linux Libertine','Georgia',serif; font-weight: 400; color: #000;
+    border-bottom: 1px solid #a2a9b1; padding-bottom: .18em; margin: 1.1em 0 .5em;
+  }
+  #article h2.wiki-h { font-size: 1.5rem; }
+  #article h3.wiki-h { font-size: 1.2rem; }
+  #article h4.wiki-h { font-size: 1.05rem; font-weight: 600; }
+  #article .wikibody { color: #202122; font-size: 0.95rem; line-height: 1.65; }
+  #article .wikibody p { margin: 0 0 .7em; }
+  /* blue wikilinks (real Wikipedia blue) */
+  #article a.wl { color: #3366cc; text-decoration: none; }
+  #article a.wl:hover { text-decoration: underline; }
+  /* right-floated wikipedia thumbnail figures */
+  #article figure.wikifig {
+    float: right; clear: right; width: 250px; margin: .3em 0 1em 1.4em;
+    border: 1px solid #a2a9b1; background: #f8f9fa; padding: 3px; font-size: .75rem; color: #54595d;
+  }
+  #article figure.wikifig img { display: block; width: 100%; height: auto; }
+  #article figure.wikifig figcaption { padding: 5px 4px 2px; line-height: 1.35; }
+  #article figure.wikifig .credit { color: #72777d; font-size: .68rem; margin-top: 2px; }
+  /* keyboard focus everywhere */
+  a:focus-visible, button:focus-visible, [tabindex]:focus-visible {
+    outline: 3px solid #7c3aed; outline-offset: 2px; border-radius: 6px;
+  }
+  /* hide scrollbar on carousels but keep scroll */
+  .no-sb { scrollbar-width: thin; scrollbar-color: #f0abfc transparent; }
+  .no-sb::-webkit-scrollbar { height: 9px; }
+  .no-sb::-webkit-scrollbar-thumb { background: #f0abfc; border-radius: 99px; }
+  /* sticker bounce */
+  @keyframes pop { 0%{transform:scale(.85)} 60%{transform:scale(1.06)} 100%{transform:scale(1)} }
+  .pop-in { animation: pop .28s ease-out; }
+</style>
+</head>
+<body class="bg-white text-[#202122]">
+
+<!-- top bar with wordmark -->
+<header class="sticky top-0 z-40 bg-white/90 backdrop-blur border-b border-pink-200">
+  <div class="max-w-[1180px] mx-auto px-4 py-2.5 flex items-center gap-3">
+    <span class="text-2xl font-black tracking-tight select-none">
+      <span class="wiki-serif text-[#202122]">wiki</span><span class="text-emerald-500">+</span>
+    </span>
+    <span class="hidden sm:inline text-xs font-semibold text-fuchsia-600 bg-fuchsia-100 rounded-full px-3 py-1">
+      curated short-form video, placed in context
+    </span>
+  </div>
+</header>
+
+<main id="app" class="max-w-[1180px] mx-auto px-4 py-6 grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px] gap-8"></main>
+
+<!-- fixed bottom-right badge -->
+<div class="fixed bottom-4 right-4 z-50 text-xs font-extrabold text-white px-4 py-2 rounded-full shadow-lg shadow-fuchsia-300
+            bg-gradient-to-br from-fuchsia-500 via-pink-500 to-orange-400 select-none">
+  Inline 01 · Sticker Pop
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  var W = window.WIKIPLUS, A = W.article, CLIPS = W.clips, S = W.stats;
+
+  function esc(s){ var d=document.createElement("div"); d.textContent=(s==null?"":s); return d.innerHTML; }
+  function clipsForSection(id){ return CLIPS.filter(function(c){ return !c.general && c.sectionId === id; }); }
+  function generalClips(){ return CLIPS.filter(function(c){ return c.general; }); }
+
+  // ---- accuracy/stance chip color (never color-alone: text label always present) ----
+  function accuracyClasses(acc){
+    var a = (acc||"").toLowerCase();
+    if (a.indexOf("simplified") > -1 || a.indexOf("condensed") > -1 || a.indexOf("definitional") > -1 || a.indexOf("exam") > -1)
+      return "bg-sky-100 text-sky-800 ring-sky-300";
+    if (a.indexOf("opinion") > -1 || a.indexOf("anecdot") > -1 || a.indexOf("teaching") > -1 || a.indexOf("classroom") > -1)
+      return "bg-amber-100 text-amber-900 ring-amber-300";
+    if (a.indexOf("footage") > -1 || a.indexOf("phenomenon") > -1)
+      return "bg-lime-100 text-lime-900 ring-lime-300";
+    return "bg-emerald-100 text-emerald-800 ring-emerald-300"; // accurate
+  }
+  function stanceClasses(st){
+    var s = (st||"").toLowerCase();
+    if (s.indexOf("classroom") > -1 || s.indexOf("opinion") > -1) return "bg-amber-100 text-amber-900 ring-amber-300";
+    if (s.indexOf("short") > -1) return "bg-fuchsia-100 text-fuchsia-800 ring-fuchsia-300";
+    if (s.indexOf("demonstration") > -1) return "bg-lime-100 text-lime-900 ring-lime-300";
+    return "bg-violet-100 text-violet-800 ring-violet-300"; // explainer
+  }
+  function icon(name){
+    if (name === "play") return '<svg viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5"><path d="M8 5v14l11-7z"/></svg>';
+    if (name === "up") return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" class="w-3.5 h-3.5"><path d="M12 19V5M6 11l6-6 6 6"/></svg>';
+    if (name === "ext") return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-3.5 h-3.5"><path d="M14 4h6v6M20 4l-9 9M19 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h5"/></svg>';
+    if (name === "sync") return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" class="w-4 h-4"><path d="M4 12a8 8 0 0 1 13.7-5.7L20 8M20 4v4h-4M20 12a8 8 0 0 1-13.7 5.7L4 16M4 20v-4h4"/></svg>';
+    return "";
+  }
+
+  // =================== A VIDEO CARD (sticker style) ===================
+  function clipCard(c, opts){
+    opts = opts || {};
+    var vertical = c.orientation === "vertical";
+    var ratio = vertical ? "9 / 16" : "16 / 9";
+    var maxw = vertical ? (opts.carousel ? "max-width:210px;" : "max-width:260px;") : "";
+    var frame =
+      '<div class="relative w-full overflow-hidden rounded-2xl ring-4 ring-pink-300 shadow-md bg-slate-200 group" '
+      +    'style="aspect-ratio:'+ratio+';'+maxw+'" data-thumb="1">'
+      +   '<img loading="lazy" src="'+esc(c.thumbnail)+'" alt="'+esc(c.caption)+'" '
+      +        'class="absolute inset-0 w-full h-full object-cover" '
+      +        'onerror="this.style.display=\'none\';this.parentElement.classList.add(\'bg-gradient-to-br\',\''
+      +           c.thumbGrad.split(" ").join("\',\'")+'\');">'
+      +   '<button type="button" class="play-btn absolute inset-0 flex items-center justify-center" '
+      +           'aria-label="Play video by '+esc(c.creator.name)+'" '
+      +           'data-id="'+esc(c.id)+'" data-platform="'+esc(c.platform)+'" '
+      +           'data-embed="'+esc(c.embed_url)+'" data-watch="'+esc(c.watch_url)+'">'
+      +     '<span class="flex items-center justify-center w-14 h-14 rounded-full bg-white/90 text-fuchsia-600 '
+      +            'shadow-lg shadow-fuchsia-300/60 transition group-hover:scale-110">'+icon("play")+'</span>'
+      +   '</button>'
+      +   '<span class="absolute top-2 left-2 text-[10px] font-extrabold uppercase tracking-wide text-white '
+      +          'bg-black/70 rounded-full px-2.5 py-1">'+esc(c.platformLabel)+'</span>'
+      +   (vertical ? '<span class="absolute top-2 right-2 text-[10px] font-bold text-fuchsia-700 bg-white/90 rounded-full px-2 py-0.5">9:16</span>' : '')
+      + '</div>';
+
+    var creator =
+      '<div class="flex items-center gap-2 mt-3">'
+      +  '<span class="w-8 h-8 rounded-full bg-gradient-to-br '+esc(c.creator.avatarGrad)+' ring-2 ring-white shadow shrink-0"></span>'
+      +  '<a href="'+esc(c.creator.url)+'" target="_blank" rel="noopener" class="min-w-0 leading-tight">'
+      +    '<span class="block text-sm font-bold text-slate-800 truncate">'+esc(c.creator.name)+'</span>'
+      +    '<span class="block text-xs text-fuchsia-600 font-medium truncate">'+esc(c.creator.handle)+'</span>'
+      +  '</a>'
+      + '</div>';
+
+    var chips =
+      '<div class="flex flex-wrap gap-1.5 mt-2.5">'
+      +  '<span class="text-[11px] font-bold px-2.5 py-1 rounded-full ring-1 '+stanceClasses(c.stance)+'">'+esc(c.stance)+'</span>'
+      +  '<span class="text-[11px] font-bold px-2.5 py-1 rounded-full ring-1 '+accuracyClasses(c.accuracy)+'">'+esc(c.accuracy)+'</span>'
+      + '</div>';
+
+    var note =
+      '<p class="mt-2.5 text-sm leading-snug text-slate-700 bg-white/70 rounded-xl px-3 py-2 ring-1 ring-pink-200">'
+      +   '<span class="font-extrabold text-fuchsia-600">Curator note — </span>'+esc(c.context)
+      + '</p>';
+
+    var meta =
+      '<div class="flex items-center justify-between mt-2.5 text-[11px] text-slate-500 font-medium">'
+      +  '<span class="inline-flex items-center gap-1 text-rose-500 font-bold">'+icon("up")+esc(c.upvotes)+'</span>'
+      +  '<span class="truncate">'+esc(c.curatedBy)+' · '+esc(c.date)+'</span>'
+      + '</div>';
+
+    var w = opts.carousel ? "w-[300px] shrink-0 snap-start" : "w-full";
+    return (
+      '<article class="'+w+' pop-in bg-gradient-to-br from-pink-50 to-violet-50 rounded-3xl p-3 ring-1 ring-pink-200 '
+      +        'shadow-sm hover:shadow-xl hover:-translate-y-0.5 transition" data-clip="'+esc(c.id)+'">'
+      +   frame + creator + chips + note + meta
+      + '</article>'
+    );
+  }
+
+  // =================== GENERAL CAROUSEL (bouncy) ===================
+  function generalBlock(){
+    var gc = generalClips();
+    var cards = gc.map(function(c){ return clipCard(c, {carousel:true}); }).join("");
+    return (
+      '<section id="plus-general" class="my-7 rounded-3xl p-4 sm:p-5 bg-gradient-to-br from-fuchsia-100 via-pink-100 to-amber-100 ring-2 ring-fuchsia-200 shadow-sm">'
+      +  '<div class="flex items-end justify-between gap-3 mb-3">'
+      +    '<h2 class="text-xl sm:text-2xl font-black text-fuchsia-700 flex items-center gap-2">'
+      +       '<span class="text-2xl">🎬</span> Watch — general intros'
+      +       '<span class="text-sm font-extrabold text-white bg-fuchsia-500 rounded-full px-3 py-1">'+gc.length+'</span>'
+      +    '</h2>'
+      +    '<a href="'+esc(A.url)+'" target="_blank" rel="noopener" class="text-xs font-bold text-fuchsia-600 hover:text-fuchsia-800 underline shrink-0">see all ('+S.totalClips+')</a>'
+      +  '</div>'
+      +  '<p class="text-xs text-fuchsia-700/80 font-medium mb-3">Whole-topic videos, not tied to a single section. Scroll →</p>'
+      +  '<div class="no-sb flex gap-4 overflow-x-auto pb-2 snap-x">'+cards+'</div>'
+      + '</section>'
+    );
+  }
+
+  // =================== INLINE SECTION PLUS BLOCK ===================
+  function sectionPlusBlock(clips, sectionTitle, sectionId){
+    var cards = clips.map(function(c){ return clipCard(c, {}); }).join("");
+    var grid = clips.length > 1 ? "sm:grid-cols-2" : "sm:grid-cols-1";
+    var more = S.totalClips > S.loaded
+      ? '<a href="'+esc(A.url)+'" target="_blank" rel="noopener" class="inline-block mt-1 text-xs font-bold text-violet-600 hover:text-violet-800 underline">+ more for this section</a>'
+      : '';
+    return (
+      '<div class="my-4 rounded-3xl p-4 bg-gradient-to-br from-violet-50 to-sky-50 ring-2 ring-violet-200 shadow-sm">'
+      +  '<div class="flex items-center gap-2 mb-3">'
+      +    '<span class="text-base">📺</span>'
+      +    '<h3 class="text-sm font-black uppercase tracking-wide text-violet-700">Watch · '+esc(sectionTitle)+'</h3>'
+      +    '<span class="text-xs font-extrabold text-white bg-violet-500 rounded-full px-2.5 py-0.5">'+clips.length+'</span>'
+      +  '</div>'
+      +  '<div class="grid grid-cols-1 '+grid+' gap-4">'+cards+'</div>'
+      +  more
+      + '</div>'
+    );
+  }
+
+  // =================== ARTICLE COLUMN ===================
+  function buildArticle(){
+    var html = '';
+    // title + source line
+    html += '<h1 class="wikititle wiki-serif">'+esc(A.title)+'</h1>';
+    html += '<div class="text-xs text-[#54595d] mb-4">From '
+      + '<a class="wl text-[#3366cc] hover:underline" href="'+esc(A.url)+'" target="_blank" rel="noopener">'+esc(A.source)+'</a>'
+      + ' · '+esc(A.license)+'</div>';
+
+    // lead image figure + lead html
+    html += '<div class="wikibody">';
+    var li = A.leadImage;
+    if (li){
+      html += '<figure class="wikifig"><img src="'+esc(li.src)+'" alt="'+esc(li.alt||li.caption)+'" '
+        + 'onerror="this.style.display=\'none\'">'
+        + '<figcaption>'+esc(li.caption)+'<div class="credit">'+esc(li.credit)+'</div></figcaption></figure>';
+    }
+    A.lead_html.forEach(function(frag){ html += '<p>'+frag+'</p>'; });
+    html += '</div>';
+
+    // ---- General plus block right after the lead ----
+    html += generalBlock();
+
+    // ---- sections ----
+    A.sections.forEach(function(sec){
+      var lvl = sec.level || 2;
+      var tag = lvl >= 4 ? "h4" : (lvl === 3 ? "h3" : "h2");
+      html += '<'+tag+' id="sec-'+esc(sec.id)+'" class="wiki-h" tabindex="-1">'+esc(sec.title)+'</'+tag+'>';
+      html += '<div class="wikibody">';
+      if (sec.image){
+        var im = sec.image;
+        html += '<figure class="wikifig"><img src="'+esc(im.src)+'" alt="'+esc(im.alt||im.caption)+'" '
+          + 'onerror="this.style.display=\'none\'">'
+          + '<figcaption>'+esc(im.caption)+'<div class="credit">'+esc(im.credit)+'</div></figcaption></figure>';
+      }
+      (sec.html || []).forEach(function(frag){ html += '<p>'+frag+'</p>'; });
+      html += '</div>';
+      // inline plus block
+      var sc = clipsForSection(sec.id);
+      if (sc.length) html += sectionPlusBlock(sc, sec.title, sec.id);
+    });
+
+    return '<div id="article" class="min-w-0">'+html+'</div>';
+  }
+
+  // =================== SIDEBAR ===================
+  function buildSidebar(){
+    // infobox
+    var info =
+      '<div class="rounded-3xl p-4 bg-gradient-to-br from-fuchsia-500 via-pink-500 to-orange-400 text-white shadow-lg shadow-pink-200">'
+      +  '<div class="flex items-center gap-2 mb-3">'
+      +    '<span class="text-lg font-black tracking-tight">wiki<span class="text-emerald-200">+</span> layer</span>'
+      +  '</div>'
+      +  '<div class="grid grid-cols-3 gap-2 text-center">'
+      +    statBox(S.totalClips, "videos")
+      +    statBox(S.creatorCount, "creators")
+      +    statBox(S.curatorCount, "curators")
+      +  '</div>'
+      +  '<div class="mt-3 flex items-center gap-1.5 text-xs font-semibold text-white/90 bg-white/15 rounded-full px-3 py-1.5">'
+      +     icon("sync")+'<span>synced '+esc(S.synced)+'</span>'
+      +  '</div>'
+      + '</div>';
+
+    // TOC: General first, then sections
+    var rows = '';
+    var gCount = generalClips().length;
+    rows += tocRow("plus-general", "General", gCount, 2, true);
+    A.sections.forEach(function(sec){
+      var n = clipsForSection(sec.id).length;
+      rows += tocRow("sec-"+sec.id, sec.title, n, sec.level || 2, false);
+    });
+
+    var toc =
+      '<nav aria-label="Contents" class="mt-4 rounded-3xl p-3 bg-violet-50 ring-2 ring-violet-200 shadow-sm">'
+      +  '<div class="px-2 py-1.5 text-xs font-black uppercase tracking-wide text-violet-700">Contents</div>'
+      +  '<ul class="space-y-0.5">'+rows+'</ul>'
+      + '</nav>';
+
+    return '<aside class="hidden lg:block"><div class="sticky top-[68px]">'+info+toc+'</div></aside>';
+  }
+  function statBox(n, label){
+    return '<div class="bg-white/20 rounded-2xl py-2"><div class="text-xl font-black leading-none">'+n+'</div>'
+      + '<div class="text-[10px] font-bold uppercase tracking-wide text-white/90 mt-1">'+label+'</div></div>';
+  }
+  function tocRow(target, label, count, level, special){
+    var indent = level >= 4 ? "pl-8" : (level === 3 ? "pl-5" : "pl-2");
+    var badge = count > 0
+      ? '<span class="ml-auto shrink-0 text-[10px] font-extrabold text-white rounded-full px-2 py-0.5 '
+          + (special ? 'bg-fuchsia-500' : 'bg-violet-500') + '">'+count+'</span>'
+      : '';
+    var star = special ? '<span class="mr-1">⭐</span>' : '';
+    return (
+      '<li><a href="#'+target+'" data-toc="'+target+'" '
+      +   'class="toc-link flex items-center gap-1 '+indent+' pr-2 py-1.5 rounded-xl text-[13px] font-medium '
+      +   (special ? 'text-fuchsia-700 font-bold' : 'text-slate-600')
+      +   ' hover:bg-violet-100 transition">'
+      +   star+'<span class="truncate">'+esc(label)+'</span>'+badge
+      + '</a></li>'
+    );
+  }
+
+  // =================== MOUNT ===================
+  document.getElementById("app").innerHTML = buildArticle() + buildSidebar();
+
+  // ---------- play handlers ----------
+  document.getElementById("app").addEventListener("click", function(e){
+    var btn = e.target.closest(".play-btn");
+    if (!btn) return;
+    e.preventDefault();
+    if (btn.dataset.platform === "tiktok"){
+      window.open(btn.dataset.watch, "_blank", "noopener");
+      return;
+    }
+    var frame = btn.closest("[data-thumb]");
+    if (!frame) return;
+    frame.innerHTML = '<iframe class="absolute inset-0 w-full h-full" src="'+btn.dataset.embed+'?autoplay=1" '
+      + 'title="video" frameborder="0" '
+      + 'allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" '
+      + 'allowfullscreen></iframe>';
+  });
+
+  // ---------- TikTok cards: add an explicit "Open on TikTok" affordance ----------
+  CLIPS.filter(function(c){ return c.platform === "tiktok"; }).forEach(function(c){
+    var art = document.querySelector('[data-clip="'+c.id+'"]');
+    if (!art) return;
+    var btn = art.querySelector(".play-btn");
+    if (btn) btn.setAttribute("aria-label", "Open video by "+c.creator.name+" on TikTok (new tab)");
+  });
+
+  // ---------- scrollspy ----------
+  var links = Array.prototype.slice.call(document.querySelectorAll(".toc-link"));
+  var byTarget = {};
+  links.forEach(function(l){ byTarget[l.dataset.toc] = l; });
+  var targets = links.map(function(l){ return document.getElementById(l.dataset.toc); }).filter(Boolean);
+
+  function setActive(id){
+    links.forEach(function(l){
+      var on = l.dataset.toc === id;
+      l.classList.toggle("bg-violet-200", on);
+      l.classList.toggle("ring-2", on);
+      l.classList.toggle("ring-violet-400", on);
+      if (on) l.setAttribute("aria-current","true"); else l.removeAttribute("aria-current");
+    });
+  }
+  var io = new IntersectionObserver(function(entries){
+    entries.forEach(function(en){
+      if (en.isIntersecting) setActive(en.target.id);
+    });
+  }, { rootMargin: "-72px 0px -65% 0px", threshold: 0 });
+  targets.forEach(function(t){ io.observe(t); });
+  if (targets[0]) setActive(targets[0].id);
+});
+</script>
+</body>
+</html>

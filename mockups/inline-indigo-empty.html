@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>wiki+ · Photosynthesis (Empty State)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Sans+Pro:wght@400;600;700;900&family=Open+Sans:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="data/content-empty.js"></script>
+<style>
+  :root{
+    --wl:#3366cc; --rule:#a2a9b1;
+    --indigo:#676EB4; --violet:#5248AF; --teal:#2A8270; --teal-dk:#1F6757;
+    --blue:#1F6F95; --red:#C44949;
+    --ink:#2C2C2C; --ink2:#595959; --muted:#717171;
+    --bg:#F7F7F7; --bg2:#F0F1F3; --bd:#D9D9D9;
+  }
+  html{ scroll-behavior:auto; }
+  body{ font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color:#202122; }
+  /* --- WIKI side: look like Wikipedia (unchanged) --- */
+  .serif{ font-family: Georgia, "Linux Libertine", "Times New Roman", serif; }
+  #intro h1, .art h2, .art h3, .art h4{ font-family: Georgia, "Linux Libertine", "Times New Roman", serif; font-weight:400; color:#000; }
+  #intro h1{ font-size:1.9rem; line-height:1.2; border-bottom:1px solid var(--rule); padding-bottom:.2em; margin-bottom:.5em; }
+  .art h2{ font-size:1.5rem; border-bottom:1px solid var(--rule); padding-bottom:.18em; margin:1.4em 0 .5em; }
+  .art h3{ font-size:1.2rem; margin:1.1em 0 .4em; }
+  .art h4{ font-size:1.05rem; font-weight:700; margin:1em 0 .35em; }
+  .art p, #intro p{ font-size:.95rem; line-height:1.65; margin:.7em 0; }
+  .wl{ color:var(--wl); text-decoration:none; }
+  .wl:hover{ text-decoration:underline; }
+  .wikifig{ float:right; width:300px; max-width:42%; margin:.3em 0 1em 1.4em; border:1px solid var(--rule); background:#f8f9fa; padding:4px; }
+  .wikifig img{ width:100%; display:block; }
+  .wikifig figcaption{ font-size:.78rem; line-height:1.4; color:#54595d; padding:6px 4px 2px; }
+  .wikifig .credit{ color:#72777d; font-size:.7rem; }
+  /* anchor highlight when its video is active → INDIGO */
+  .art .sec.anchored > h2, .art .sec.anchored > h3{ box-shadow:-10px 0 0 var(--indigo); background:linear-gradient(90deg,#eef0fb, transparent 60%); transition:background .25s; }
+  .art .sec.anchored{ scroll-margin-top:80px; }
+  .sec{ scroll-margin-top:80px; }
+  /* --- PLUS side: Indigo Press "zine" (light) --- */
+  .plus-disp{ font-family:'Source Sans Pro', system-ui, sans-serif; font-weight:900; letter-spacing:-.02em; line-height:.95; }
+  .plus-sans{ font-family:'Source Sans Pro', system-ui, sans-serif; }
+  .plus-body{ font-family:'Open Sans', system-ui, sans-serif; }
+  .plus{ background:var(--bg); color:var(--ink); font-family:'Open Sans', system-ui, sans-serif; }
+  .hardbox{ border:2px solid var(--ink); box-shadow:6px 6px 0 var(--ink); }
+  .hardbox-sm{ border:2px solid var(--ink); box-shadow:4px 4px 0 var(--ink); }
+  .plus-card{ background:#fff; border:2px solid var(--ink); box-shadow:4px 4px 0 var(--ink); }
+  .bignum{ font-family:'Source Sans Pro', system-ui, sans-serif; font-weight:900; line-height:.85; letter-spacing:-.03em; }
+  /* duotone indigo tint over thumbnails */
+  .duotone{ position:relative; }
+  .duotone::after{ content:""; position:absolute; inset:0; pointer-events:none;
+    background:linear-gradient(135deg, rgba(103,110,180,.45), rgba(82,72,175,.22));
+    mix-blend-mode:multiply; }
+  .plus-list::-webkit-scrollbar{ width:8px; height:10px; }
+  .plus-list::-webkit-scrollbar-thumb{ background:var(--ink); border-radius:0; }
+  .plus-list::-webkit-scrollbar-track{ background:var(--bd); }
+  /* active anchored video card → indigo emphasis */
+  .vcard.active{ border-color:var(--indigo); }
+  .vcard.active .nub{ opacity:1; }
+  .vcard.active-glow{ box-shadow:6px 6px 0 var(--indigo); }
+  .nub{ opacity:0; transition:opacity .2s; }
+  .toc a.cur{ color:var(--indigo); font-weight:700; }
+  :focus-visible{ outline:3px solid var(--indigo); outline-offset:2px; border-radius:2px; }
+  @media (prefers-reduced-motion: reduce){ html{ scroll-behavior:auto; } }
+  .gridfade{ -webkit-mask-image:linear-gradient(90deg,#000 92%,transparent); }
+
+  /* ============ EMPTY-STATE: UNVETTED candidate visual language ============ */
+  /* dashed border + NO solid offset shadow → reads as provisional vs curated */
+  .candcard{ background:#fff; border:2px dashed var(--ink); box-shadow:none; }
+  .candcard.active{ border-color:var(--indigo); border-style:dashed; }
+  .candcard.active-glow{ box-shadow:3px 3px 0 rgba(103,110,180,.45); } /* faint, not the solid curated offset */
+  /* thumbnails on candidates: muted/desaturated + faint hatch so they read as "candidate" */
+  .candthumb{ filter:saturate(.55) contrast(.95); }
+  .candthumb::before{ content:""; position:absolute; inset:0; z-index:5; pointer-events:none;
+    background-image:repeating-linear-gradient(45deg, rgba(44,44,44,.10) 0 6px, transparent 6px 12px); }
+  /* outline (not filled) SUGGESTED badge */
+  .suggested-badge{ border:2px solid var(--ink); background:#fff; color:var(--ink); }
+  .candfade{ transition:opacity .3s ease, transform .3s ease; }
+  .candfade.dismissing{ opacity:0; transform:scale(.96); }
+</style>
+</head>
+<body class="bg-white">
+
+<header class="sticky top-0 z-40 h-16 bg-white border-b-2 border-[color:var(--ink)]">
+  <div class="max-w-[1200px] mx-auto px-5 h-full grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-7 items-center">
+    <!-- "Wiki" labels the article column -->
+    <div class="flex items-baseline gap-3 min-w-0">
+      <span class="serif text-2xl font-semibold text-slate-900">Wiki</span>
+      <span class="text-[10px] uppercase tracking-[0.18em] text-slate-400 hidden sm:inline">the encyclopedia article</span>
+      <span class="ml-auto text-sm text-slate-500 serif truncate hidden md:inline">Photosynthesis</span>
+    </div>
+    <!-- "＋plus" labels the plus column → INDIGO block -->
+    <div class="hidden lg:flex items-center gap-2 px-3 py-1.5 bg-[color:var(--indigo)] hardbox-sm w-fit">
+      <span class="text-white text-2xl font-bold leading-none">＋</span>
+      <span class="plus-disp text-white text-lg leading-none">plus</span>
+      <span class="ml-1 plus-sans text-[10px] uppercase tracking-[0.18em] text-white/90 font-bold">curated video</span>
+    </div>
+  </div>
+</header>
+
+<!-- MASTHEAD: lead (Wiki) + infobox & TOC (plus) — visible from the very top -->
+<div id="masthead" class="max-w-[1200px] mx-auto px-5 pt-5 grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-7 items-start">
+  <div class="art min-w-0">
+    <h1 id="title" class="serif"></h1>
+    <div id="source" class="text-xs text-[#54595d] mb-3"></div>
+    <div id="lead"></div>
+  </div>
+  <aside class="plus sticky top-16 self-start" aria-label="wiki+ overview and contents">
+    <!-- +plus infobox as an indigo color-blocked panel: EMPTY-STATE = invite to curate -->
+    <div class="plus-card mb-3 overflow-hidden p-0">
+      <div class="bg-[color:var(--indigo)] text-white px-4 py-2.5 border-b-2 border-[color:var(--ink)] flex items-baseline gap-1">
+        <span class="plus-disp text-lg leading-none">＋plus</span>
+        <span class="plus-sans text-[11px] uppercase tracking-widest ml-1 opacity-90 font-bold">this topic</span>
+      </div>
+      <div id="infobox" class="px-4 py-4 text-center"></div>
+      <div id="cta" class="px-4 pb-4"></div>
+      <div id="synced" class="px-4 py-2 border-t-2 border-[color:var(--ink)] plus-sans text-[12px] font-bold text-[color:var(--teal-dk)] flex items-center gap-1.5"></div>
+    </div>
+    <div class="plus-card overflow-hidden p-0">
+      <div class="bg-[color:var(--ink)] text-white px-4 py-2">
+        <span class="plus-disp text-base">Contents</span>
+      </div>
+      <nav id="toc" class="toc plus-sans text-[13px] leading-6 p-2 max-h-[55vh] overflow-y-auto plus-list"></nav>
+    </div>
+  </aside>
+</div>
+
+<!-- GENERAL strip: FULL-BLEED band spanning both columns (the one crossover) -->
+<section id="general" class="plus border-y-2 border-[color:var(--ink)] bg-[color:var(--indigo)] text-white my-7 scroll-mt-20">
+  <div class="max-w-[1200px] mx-auto px-5 py-4">
+    <div class="flex items-center gap-3 mb-3 flex-wrap">
+      <div class="plus-disp text-2xl sm:text-3xl">
+        ＋ Suggested videos
+      </div>
+      <span class="plus-sans text-[11px] font-bold uppercase tracking-[0.18em] px-2 py-1 border-2 border-white text-white">uncurated</span>
+      <span class="plus-sans text-sm text-white/80 font-normal">— auto-found candidates, not yet vetted</span>
+      <span id="genCount" class="plus-sans text-[11px] font-bold uppercase tracking-wide px-2 py-1 bg-white text-[color:var(--indigo)] border-2 border-[color:var(--ink)]"></span>
+    </div>
+    <div id="genStrip" class="flex gap-3 overflow-x-auto pb-2 gridfade min-w-0 plus-list" role="list" aria-label="Suggested (uncurated) videos for this topic"></div>
+  </div>
+</section>
+
+<!-- BODY: undisrupted article (Wiki) + synced video rail (plus) -->
+<div id="reader" class="max-w-[1200px] mx-auto px-5 grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-7 items-start">
+  <main id="article" class="art min-w-0 pb-32" aria-label="Wikipedia article">
+    <div id="body"></div>
+  </main>
+  <aside id="plus" class="plus plus-list min-w-0 sticky top-16 h-[calc(100vh-4rem)] overflow-y-auto overflow-x-hidden px-3 py-3" aria-label="wiki+ suggested videos">
+    <!-- condensed TOC: reappears here once the General strip has scrolled out of view -->
+    <div id="miniWrap" class="plus-card p-2.5 mb-3 sticky top-0 z-10">
+      <button id="miniTocBtn" class="w-full flex items-center gap-2 text-left" aria-expanded="false" aria-controls="miniTocList">
+        <span class="plus-sans text-[10px] uppercase tracking-widest font-bold text-[color:var(--indigo)]">Contents</span>
+        <span id="miniCur" class="plus-sans text-[12px] font-bold text-[color:var(--ink)] truncate"></span>
+        <svg class="ml-auto w-3.5 h-3.5 text-[color:var(--ink)] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+      </button>
+      <nav id="miniTocList" class="toc hidden mt-2 max-h-[40vh] overflow-y-auto plus-list pr-1 plus-sans text-[12px] leading-6"></nav>
+    </div>
+    <div class="plus-sans text-[11px] uppercase tracking-widest font-bold text-[color:var(--violet)] px-1 mb-2">Suggested ↓ · uncurated</div>
+    <div id="videoList" class="space-y-3 pb-[60vh]"></div>
+  </aside>
+</div>
+
+<!-- player modal -->
+<div id="modal" class="fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-sm items-center justify-center p-4" role="dialog" aria-modal="true" aria-label="Video player">
+  <div class="relative w-full max-w-3xl">
+    <button id="modalClose" class="absolute -top-9 right-0 text-white/80 hover:text-white text-sm" aria-label="Close player">✕ close</button>
+    <div id="modalBody" class="overflow-hidden bg-black border-2 border-[color:var(--ink)]"></div>
+  </div>
+</div>
+
+<!-- CURATE modal (mock — entry point to a curation action) -->
+<div id="curateModal" class="fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-sm items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="curateTitle">
+  <div class="relative w-full max-w-lg plus">
+    <div class="plus-card p-0 overflow-hidden bg-white">
+      <div class="bg-[color:var(--indigo)] text-white px-4 py-3 border-b-2 border-[color:var(--ink)] flex items-center gap-2">
+        <span class="plus-disp text-lg leading-none" id="curateTitle">Curate this clip</span>
+        <button id="curateClose" class="ml-auto text-white/90 hover:text-white plus-sans text-sm font-bold" aria-label="Cancel curation">✕</button>
+      </div>
+      <div class="px-4 py-4 space-y-3 plus-sans text-[13px] text-[color:var(--ink)]">
+        <div id="curateClip" class="text-[12px] text-[color:var(--ink2)] border-l-4 border-[color:var(--indigo)] bg-[color:var(--bg2)] pl-3 py-2"></div>
+        <label class="block">
+          <span class="block text-[11px] font-bold uppercase tracking-wide text-[color:var(--violet)] mb-1">Context note</span>
+          <textarea id="curateNote" rows="3" class="w-full border-2 border-[color:var(--ink)] p-2 plus-body text-[13px]" placeholder="What's useful or off about this clip? Separate fact from the creator's opinion…"></textarea>
+        </label>
+        <div class="grid grid-cols-2 gap-3">
+          <label class="block">
+            <span class="block text-[11px] font-bold uppercase tracking-wide text-[color:var(--violet)] mb-1">Stance</span>
+            <select id="curateStance" class="w-full border-2 border-[color:var(--ink)] p-2 plus-body text-[13px] bg-white">
+              <option>Explainer</option><option>Short</option><option>Opinion</option>
+              <option>Demonstration</option><option>Classroom</option><option>Documentary</option>
+            </select>
+          </label>
+          <label class="block">
+            <span class="block text-[11px] font-bold uppercase tracking-wide text-[color:var(--violet)] mb-1">Accuracy</span>
+            <select id="curateAccuracy" class="w-full border-2 border-[color:var(--ink)] p-2 plus-body text-[13px] bg-white">
+              <option>Accurate</option><option>Accurate with caveat</option>
+              <option>Opinion</option><option>Anecdotal</option>
+            </select>
+          </label>
+        </div>
+        <label class="block">
+          <span class="block text-[11px] font-bold uppercase tracking-wide text-[color:var(--violet)] mb-1">Section</span>
+          <input id="curateSection" type="text" class="w-full border-2 border-[color:var(--ink)] p-2 plus-body text-[13px]" />
+        </label>
+        <div class="flex items-center gap-2 pt-1">
+          <button id="curatePublish" class="plus-sans text-[13px] font-bold px-4 py-2 bg-[color:var(--indigo)] text-white border-2 border-[color:var(--ink)] hardbox-sm hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0_var(--ink)] transition">✓ Publish curation</button>
+          <button id="curateCancel" class="plus-sans text-[13px] font-bold px-4 py-2 bg-white text-[color:var(--ink)] border-2 border-[color:var(--ink)]">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="fixed bottom-3 right-3 z-40 plus-sans text-[11px] font-bold px-2.5 py-1 bg-[color:var(--ink)] text-white border-2 border-[color:var(--ink)]">Topic · Empty State</div>
+
+<script>
+(function(){
+  const W = window.WIKIPLUS; if(!W){ document.body.innerHTML="<p style='padding:2rem'>content-empty.js not loaded.</p>"; return; }
+  const A = W.article, CLIPS = W.clips, S = W.stats;
+  const $ = (s,r=document)=>r.querySelector(s);
+  const E = (t,c,h)=>{ const e=document.createElement(t); if(c)e.className=c; if(h!=null)e.innerHTML=h; return e; };
+  const esc = s => (s==null?"":String(s)).replace(/[&<>"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]));
+
+  // ---------- intro ----------
+  $("#title").textContent = A.title;
+  $("#source").innerHTML = `From <a class="wl" href="${A.url}">Wikipedia</a> · ${A.license} · Wikidata ${A.qid}`;
+  const lead = $("#lead");
+  if(A.leadImage){ const f=E("figure","wikifig"); f.innerHTML=`<img src="${A.leadImage.src}" alt="${esc(A.leadImage.alt)}"><figcaption>${esc(A.leadImage.caption)} <span class="credit">— ${esc(A.leadImage.credit)}</span></figcaption>`; lead.appendChild(f); }
+  (A.lead_html||A.lead||[]).forEach(p=>lead.appendChild(E("p",null,p)));
+
+  // ---------- helpers: platform tag, thumbnails ----------
+  window.__fb = function(img, grad){ img.style.display='none'; const host=img.parentElement; host.classList.add('is-gradient','bg-gradient-to-br', ...grad.split(/\s+/)); };
+  function platTag(c){ const m={"TikTok":"#ec4899","YouTube":"#ef4444","YouTube Shorts":"#f43f5e"}; return `<span class="plus-sans text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 text-white border border-white" style="background:${m[c.platformLabel]||'#666'}">${esc(c.platformLabel)}</span>`; }
+  const PLAY = `<svg viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5"><path d="M8 5v14l11-7z"/></svg>`;
+  // auto-suggest icon (magnifying glass) for the match-reason line
+  const AUTOICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-3.5 h-3.5 shrink-0" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>`;
+  // candidate thumbnail: keeps real <img>, onerror gradient, play/open behavior; muted + hatch overlay
+  function thumb(c, ratioClass){
+    const wrap = E("button", `relative block w-full ${ratioClass} overflow-hidden border-2 border-[color:var(--ink)] duotone candthumb group focus:outline-none`);
+    wrap.setAttribute("aria-label", (c.platform==='tiktok'?'Open on TikTok: ':'Play: ')+c.caption);
+    wrap.innerHTML = `<img src="${c.thumbnail}" loading="lazy" alt="${esc(c.caption)}" class="absolute inset-0 w-full h-full object-cover" onerror="window.__fb(this,'${c.thumbGrad}')">
+      <span class="absolute left-2 top-2 z-10">${platTag(c)}</span>
+      <span class="absolute inset-0 z-10 flex items-center justify-center"><span class="w-12 h-12 rounded-full bg-[color:var(--indigo)] border-2 border-[color:var(--ink)] flex items-center justify-center text-white shadow-[3px_3px_0_var(--ink)] transition-transform group-hover:scale-110">${PLAY}</span></span>`;
+    wrap.addEventListener("click", ()=>openClip(c));
+    return wrap;
+  }
+  function openClip(c){
+    if(c.platform==='youtube'){
+      $("#modalBody").innerHTML = `<div class="${c.orientation==='vertical'?'aspect-[9/16] max-h-[80vh] mx-auto w-auto':'aspect-video w-full'}"><iframe class="w-full h-full" src="${c.embed_url}?autoplay=1" title="${esc(c.caption)}" allow="autoplay; encrypted-media" allowfullscreen></iframe></div>`;
+      const m=$("#modal"); m.classList.remove("hidden"); m.classList.add("flex");
+    } else { window.open(c.watch_url, "_blank", "noopener"); }
+  }
+  $("#modalClose").addEventListener("click", closeModal);
+  $("#modal").addEventListener("click", e=>{ if(e.target===$("#modal")) closeModal(); });
+  document.addEventListener("keydown", e=>{ if(e.key==="Escape"){ closeModal(); closeCurate(); } });
+  function closeModal(){ const m=$("#modal"); m.classList.add("hidden"); m.classList.remove("flex"); $("#modalBody").innerHTML=""; }
+
+  // ---------- live suggestion counts (decrement on dismiss) ----------
+  let suggestionCount = (S.suggestions!=null ? S.suggestions : CLIPS.length);
+
+  // ---------- counts ----------
+  const generalClips = CLIPS.filter(c=>c.general);
+  const bySection = {}; CLIPS.filter(c=>!c.general).forEach(c=>{ (bySection[c.sectionId] ||= []).push(c); });
+  const clipSectionIds = []; // document order
+  A.sections.forEach(s=>{ if(bySection[s.id]) clipSectionIds.push(s.id); });
+
+  // remaining (not-dismissed) candidate count per section, for TOC badges
+  const sectionRemaining = {}; clipSectionIds.forEach(sid=> sectionRemaining[sid]=bySection[sid].length );
+  let generalRemaining = generalClips.length;
+
+  function updateSuggestionUI(){
+    $("#genCount").textContent = generalRemaining + " candidates";
+    if(ctaSub) ctaSub.textContent = `${suggestionCount} auto-suggestion${suggestionCount===1?"":"s"} from ${S.sources}`;
+    // refresh dashed/outline TOC badges
+    document.querySelectorAll('.toc a[data-target]').forEach(a=>{
+      const id=a.dataset.target;
+      const n = id==="__general" ? generalRemaining : (sectionRemaining[id]||0);
+      const badge = a.querySelector('.toc-badge');
+      if(badge){ if(n>0){ badge.textContent = "~"+n; badge.style.display=""; } else { badge.style.display="none"; } }
+    });
+  }
+
+  // ---------- shared candidate UI bits ----------
+  function suggestedBadge(){ return `<span class="suggested-badge plus-sans text-[9px] font-bold uppercase tracking-[0.14em] px-1.5 py-0.5">Suggested</span>`; }
+  function reasonLine(c){
+    return `<div class="mt-1.5 border-l-4 border-dashed border-[color:var(--indigo)] bg-[color:var(--bg2)] pl-3 pr-2 py-2">
+        <span class="flex items-center gap-1.5 plus-sans text-[10px] font-bold uppercase tracking-wider text-[color:var(--violet)] mb-1">${AUTOICON}<span>Auto-suggested</span></span>
+        <p class="plus-sans text-[12px] leading-snug text-[color:var(--ink2)]">${esc(c.source)} · ${esc(c.matchReason)}</p>
+        <p class="plus-sans text-[11px] italic text-[color:var(--muted)] mt-1">No context yet — a human hasn't reviewed this.</p>
+      </div>`;
+  }
+  function curateButtons(c){
+    const wrap=E("div","mt-2 flex items-center gap-2");
+    const promote=E("button","candidate-promote plus-sans text-[12px] font-bold px-3 py-1.5 bg-[color:var(--indigo)] text-white border-2 border-[color:var(--ink)] hover:shadow-[2px_2px_0_var(--ink)] transition","✓ Promote");
+    promote.setAttribute("aria-label","Promote and curate: "+c.caption);
+    promote.addEventListener("click",()=>openCurate(c));
+    const dismiss=E("button","candidate-dismiss plus-sans text-[12px] font-bold px-3 py-1.5 bg-white text-[color:var(--ink)] border-2 border-[color:var(--ink)]","✕ Not relevant");
+    dismiss.setAttribute("aria-label","Dismiss as not relevant: "+c.caption);
+    wrap.appendChild(promote); wrap.appendChild(dismiss);
+    return {wrap, dismiss};
+  }
+
+  // ---------- general strip (uncurated candidates) ----------
+  const strip = $("#genStrip");
+  generalClips.forEach(c=>{
+    const tile = E("div","candfade shrink-0 w-44 candcard p-2"); tile.setAttribute("role","listitem"); tile.dataset.clip=c.id;
+    const top=E("div","flex items-center justify-between mb-1.5");
+    top.innerHTML = suggestedBadge();
+    tile.appendChild(top);
+    tile.appendChild(thumb(c, "h-24"));
+    tile.appendChild(E("div","mt-1.5 plus-sans text-[12px] font-bold leading-snug text-[color:var(--ink)] line-clamp-2", esc(c.caption)));
+    tile.appendChild(E("div","mt-0.5 plus-sans text-[11px] text-[color:var(--muted)]", esc(c.creator.handle)+" · "+esc(c.platformLabel)));
+    tile.appendChild(E("div","mt-1 plus-sans text-[10px] text-[color:var(--ink2)] line-clamp-2 flex items-start gap-1", `${AUTOICON}<span>${esc(c.matchReason)}</span>`));
+    const {wrap, dismiss}=curateButtons(c);
+    dismiss.addEventListener("click",()=>dismissCard(tile, c, ()=>{ generalRemaining--; }));
+    tile.appendChild(wrap);
+    strip.appendChild(tile);
+  });
+
+  // ---------- article body ----------
+  const body = $("#body");
+  A.sections.forEach(s=>{
+    const sec = E("section","sec"); sec.id = "sec-"+s.id; sec.dataset.sid=s.id;
+    const h = E("h"+s.level, null, esc(s.title)); h.id="h-"+s.id;
+    sec.appendChild(h);
+    if(s.image){ const f=E("figure","wikifig"); f.innerHTML=`<img src="${s.image.src}" alt="${esc(s.image.alt)}"><figcaption>${esc(s.image.caption)} <span class="credit">— ${esc(s.image.credit)}</span></figcaption>`; sec.appendChild(f); }
+    (s.html||s.paras||[]).forEach(p=>sec.appendChild(E("p",null,p)));
+
+    // INLINE SECTION CANDIDATE: one suggestion block after the section's text (undisrupted article above)
+    if(bySection[s.id]){
+      const c = bySection[s.id][0];
+      const block = E("aside",`candfade candcard p-3 my-4 clear-both`); block.dataset.clip=c.id; block.dataset.inline=s.id;
+      block.setAttribute("aria-label","Suggested video for "+s.title);
+      const head=E("div","flex items-center gap-2 mb-2");
+      head.innerHTML = `${suggestedBadge()}<span class="plus-sans text-[11px] font-bold text-[color:var(--violet)]">Suggested for this section</span>`;
+      block.appendChild(head);
+      const grid=E("div","plus flex gap-3 items-start");
+      const ratio = c.orientation==='vertical' ? 'aspect-[9/16] max-h-44 w-28' : 'aspect-video w-44';
+      const thumbHost=E("div", `relative ${ratio} shrink-0 overflow-hidden`);
+      thumbHost.appendChild(thumb(c,"h-full"));
+      grid.appendChild(thumbHost);
+      const meta=E("div","min-w-0 flex-1");
+      meta.innerHTML = `<div class="plus-sans text-[13px] font-bold leading-snug text-[color:var(--ink)]">${esc(c.caption)}</div>
+        <div class="plus-sans text-[11px] text-[color:var(--muted)] mt-0.5">${esc(c.creator.name)} · ${esc(c.creator.handle)} · ${esc(c.platformLabel)}</div>`;
+      grid.appendChild(meta);
+      block.appendChild(grid);
+      block.insertAdjacentHTML("beforeend", reasonLine(c));
+      const {wrap, dismiss}=curateButtons(c);
+      dismiss.addEventListener("click",()=>dismissCard(block, c, ()=>{}));
+      block.appendChild(wrap);
+      sec.appendChild(block);
+    }
+    body.appendChild(sec);
+  });
+
+  // ---------- infobox + CTA + synced (EMPTY STATE) ----------
+  const ib=$("#infobox");
+  ib.innerHTML = `<div class="bignum text-[64px] text-[color:var(--indigo)]">0</div>
+    <div class="plus-sans text-[11px] font-bold uppercase tracking-wide text-[color:var(--ink2)] mt-1">videos curated</div>`;
+  const ctaHost=$("#cta");
+  const ctaSubEl = E("p","plus-sans text-[12px] text-[color:var(--ink2)] mb-2 text-center", `${suggestionCount} auto-suggestions from ${esc(S.sources)}`);
+  const ctaSub = ctaSubEl; // referenced by updateSuggestionUI
+  ctaHost.appendChild(ctaSubEl);
+  const ctaBtn = E("button","w-full plus-sans text-[14px] font-bold px-4 py-2.5 bg-[color:var(--indigo)] text-white border-2 border-[color:var(--ink)] hardbox-sm hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0_var(--ink)] transition","✦ Be the first to curate");
+  ctaBtn.setAttribute("aria-label","Be the first to curate this topic");
+  ctaBtn.addEventListener("click",()=>{ const first=generalClips[0]; if(first) openCurate(first); else document.getElementById("general").scrollIntoView({behavior:"smooth"}); });
+  ctaHost.appendChild(ctaBtn);
+  $("#synced").innerHTML = `<span class="w-2 h-2 rounded-full bg-[color:var(--teal)] inline-block"></span> suggestions synced ${esc(S.synced)}`;
+
+  // ---------- TOC (full in masthead + condensed in body rail) — DASHED/outline suggestion badges ----------
+  function tocRow(label, id, count, indent){
+    const a=E("a", "flex items-center gap-2 py-0.5 plus-sans font-semibold text-[color:var(--ink)] hover:text-[color:var(--indigo)]"); a.href="#"; a.dataset.target=id;
+    a.style.paddingLeft=(indent*12)+"px";
+    const badge = count ? `<span class="toc-badge ml-auto plus-sans text-[10px] font-bold px-1.5 bg-white text-[color:var(--violet)] border-2 border-dashed border-[color:var(--violet)]" title="${count} unvetted suggestion${count===1?"":"s"}">~${count}</span>` : "";
+    a.innerHTML = `<span class="truncate">${esc(label)}</span>` + badge;
+    a.addEventListener("click",e=>{ e.preventDefault(); goTo(id);
+      const ml=document.getElementById("miniTocList"); if(ml && ml.contains(a)){ ml.classList.add("hidden"); document.getElementById("miniTocBtn").setAttribute("aria-expanded","false"); } });
+    return a;
+  }
+  function buildToc(nav){
+    nav.appendChild(tocRow("＋ Suggested","__general", generalClips.length, 0));
+    A.sections.forEach(s=> nav.appendChild(tocRow(s.title, s.id, (bySection[s.id]||[]).length, s.level-2)) );
+  }
+  buildToc($("#toc")); buildToc($("#miniTocList"));
+  const miniWrap=$("#miniWrap"), miniCur=$("#miniCur");
+  $("#miniTocBtn").addEventListener("click", ()=>{ const hiddenNow=$("#miniTocList").classList.toggle("hidden"); $("#miniTocBtn").setAttribute("aria-expanded", (!hiddenNow).toString()); });
+
+  // ---------- anchored candidate cards (right rail) ----------
+  const vlist=$("#videoList"); const cardBySection={};
+  clipSectionIds.forEach(sid=>{
+    bySection[sid].forEach((c,i)=>{
+      const card=E("article","candfade vcard candcard relative p-2.5"); card.dataset.sid=sid; card.dataset.clip=c.id;
+      if(i===0) cardBySection[sid]=card;
+      const ratio = c.orientation==='vertical' ? 'aspect-[9/16] max-h-72 mx-auto w-44' : 'aspect-video';
+      const thumbHost=E("div", `relative ${ratio} overflow-hidden`);
+      thumbHost.appendChild(thumb(c, "h-full"));
+      card.innerHTML = `<span class="nub absolute -left-2.5 top-6 w-0 h-0 border-y-8 border-y-transparent border-r-8" style="border-right-color:var(--indigo)"></span>
+        <div class="flex items-center gap-2 mb-1">
+          <button class="seclink plus-sans text-[11px] font-bold text-[color:var(--blue)] hover:underline">↳ ${esc(c.sectionLabel)}</button>
+          <span class="ml-auto">${suggestedBadge()}</span>
+        </div>`;
+      card.appendChild(thumbHost);
+      const meta=E("div","mt-2");
+      meta.innerHTML = `
+        <div class="flex items-center gap-2">
+          <span class="w-7 h-7 rounded-full bg-gradient-to-br ${c.creator.avatarGrad} border-2 border-[color:var(--ink)] shrink-0"></span>
+          <div class="min-w-0"><div class="plus-sans text-[12px] font-bold text-[color:var(--ink)] truncate">${esc(c.creator.name)}</div>
+          <div class="plus-sans text-[11px] text-[color:var(--muted)] truncate">${esc(c.creator.handle)} · ${esc(c.platformLabel)}</div></div>
+        </div>
+        ${reasonLine(c)}`;
+      card.appendChild(meta);
+      const {wrap, dismiss}=curateButtons(c);
+      dismiss.addEventListener("click",()=>dismissCard(card, c, ()=>{ sectionRemaining[sid]=Math.max(0,sectionRemaining[sid]-1); }));
+      card.appendChild(wrap);
+      card.querySelector(".seclink").addEventListener("click", ()=>goTo(sid));
+      vlist.appendChild(card);
+    });
+  });
+
+  // ---------- dismiss ("✕ Not relevant"): fade/remove + decrement counts everywhere ----------
+  const dismissedIds = new Set();
+  function dismissCard(el, c, sideEffect){
+    el.classList.add("dismissing");
+    if(!dismissedIds.has(c.id)){ dismissedIds.add(c.id); suggestionCount=Math.max(0,suggestionCount-1); if(sideEffect) sideEffect(); }
+    // also remove the SAME clip rendered elsewhere (rail vs inline vs strip)
+    document.querySelectorAll(`[data-clip="${c.id}"]`).forEach(other=>{ if(other!==el) other.classList.add("dismissing"); });
+    setTimeout(()=>{ document.querySelectorAll(`[data-clip="${c.id}"]`).forEach(n=>n.remove()); updateSuggestionUI(); }, 320);
+  }
+
+  // ---------- curate modal (mock) ----------
+  const cm=$("#curateModal");
+  function openCurate(c){
+    $("#curateClip").innerHTML = `<strong>${esc(c.caption)}</strong><br><span class="text-[color:var(--muted)]">${esc(c.creator.name)} · ${esc(c.platformLabel)} — auto-suggested, not yet curated</span>`;
+    $("#curateNote").value="";
+    $("#curateSection").value = c.sectionLabel || "General";
+    cm.classList.remove("hidden"); cm.classList.add("flex");
+    setTimeout(()=>$("#curateNote").focus(),0);
+  }
+  function closeCurate(){ cm.classList.add("hidden"); cm.classList.remove("flex"); }
+  $("#curateClose").addEventListener("click", closeCurate);
+  $("#curateCancel").addEventListener("click", closeCurate);
+  $("#curatePublish").addEventListener("click", closeCurate); // mock: no persistence
+  cm.addEventListener("click", e=>{ if(e.target===cm) closeCurate(); });
+
+  updateSuggestionUI();
+
+  // ---------- scroll sync (unchanged behavior) ----------
+  const HEAD=64, READ=120;
+  const aside=$("#plus");
+  let artLock=false, plusLock=false, lastActive=null;
+  const lock = (which)=>{ if(which==='art'){artLock=true; clearTimeout(artLock._t); artLock._t=setTimeout(()=>artLock=false,180);} else {plusLock=true; clearTimeout(plusLock._t); plusLock._t=setTimeout(()=>plusLock=false,180);} };
+
+  function highlight(sid){
+    document.querySelectorAll(".sec.anchored").forEach(s=>s.classList.remove("anchored"));
+    document.querySelectorAll(".vcard.active").forEach(c=>c.classList.remove("active","active-glow"));
+    if(!sid) return;
+    const sec=document.getElementById("sec-"+sid); if(sec) sec.classList.add("anchored");
+    const card=cardBySection[sid]; if(card){ card.classList.add("active","active-glow"); }
+  }
+  function spyCurrent(){
+    let cur=null;
+    for(const s of A.sections){ const h=document.getElementById("h-"+s.id); if(!h) continue;
+      if(h.getBoundingClientRect().top <= HEAD+READ) cur=s.id; else break; }
+    document.querySelectorAll(".toc a.cur").forEach(a=>a.classList.remove("cur"));
+    if(cur){ document.querySelectorAll(`.toc a[data-target="${cur}"]`).forEach(a=>a.classList.add("cur"));
+      const t=A.sections.find(s=>s.id===cur); if(miniCur) miniCur.textContent = t ? t.title : "Contents"; }
+    else if(miniCur){ miniCur.textContent = "Top of article"; }
+  }
+  function activeClipSection(){
+    let active=null;
+    for(const sid of clipSectionIds){ const h=document.getElementById("h-"+sid); if(!h) continue;
+      if(h.getBoundingClientRect().top <= HEAD+READ) active=sid; else break; }
+    return active;
+  }
+  function onWinScroll(){
+    if(artLock) return;
+    spyCurrent();
+    const sid=activeClipSection();
+    if(sid!==lastActive){
+      lastActive=sid; highlight(sid);
+      if(sid){ const card=cardBySection[sid]; if(card){ lock('plus'); const off=(miniWrap?miniWrap.offsetHeight:0)+8; aside.scrollTo({top:Math.max(0,card.offsetTop-off), behavior:'auto'}); } }
+      else { lock('plus'); aside.scrollTo({top:0, behavior:'auto'}); }
+    }
+  }
+  function onAsideScroll(){
+    if(plusLock) return;
+    const mid = aside.scrollTop + aside.clientHeight/2;
+    let best=null, bestD=1e9;
+    for(const sid of clipSectionIds){ const c=cardBySection[sid]; if(!c) continue;
+      const cc=c.offsetTop + c.offsetHeight/2; const d=Math.abs(cc-mid); if(d<bestD){bestD=d; best=sid;} }
+    if(best && best!==lastActive){
+      lastActive=best; highlight(best);
+      const h=document.getElementById("h-"+best);
+      if(h){ lock('art'); const y=h.getBoundingClientRect().top + window.scrollY - HEAD - 16; window.scrollTo({top:y, behavior:'auto'}); }
+    }
+  }
+  function goTo(id){
+    if(id==="__general"){ document.getElementById("general").scrollIntoView({behavior:"smooth"}); return; }
+    const h=document.getElementById("h-"+id) || document.getElementById("sec-"+id);
+    if(h){ const y=h.getBoundingClientRect().top + window.scrollY - HEAD - 12; window.scrollTo({top:y, behavior:"smooth"}); }
+    if(bySection[id]){ lastActive=id; highlight(id); const card=cardBySection[id]; if(card){ lock('plus'); const off=(miniWrap?miniWrap.offsetHeight:0)+8; aside.scrollTo({top:Math.max(0,card.offsetTop-off), behavior:"smooth"}); } }
+  }
+
+  let raf1=false, raf2=false;
+  window.addEventListener("scroll", ()=>{ if(raf1) return; raf1=true; requestAnimationFrame(()=>{ raf1=false; onWinScroll(); }); }, {passive:true});
+  aside.addEventListener("scroll", ()=>{ if(raf2) return; raf2=true; requestAnimationFrame(()=>{ raf2=false; onAsideScroll(); }); }, {passive:true});
+  onWinScroll();
+})();
+</script>
+</body>
+</html>

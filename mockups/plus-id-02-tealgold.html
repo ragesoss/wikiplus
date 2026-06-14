@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>wiki+ · Plus ID 02 · Teal &amp; Gold</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,400;0,600;0,700;1,400&family=Source+Sans+Pro:wght@400;600;700;900&display=swap" rel="stylesheet">
+<script src="data/content.js"></script>
+<style>
+  html { scroll-behavior: smooth; }
+
+  /* ---- Wikipedia article look (the "WIKI" world) — faithful, unchanged ---- */
+  .wiki { background:#fff; color:#202122; }
+  .wiki .wiki-title {
+    font-family: 'Linux Libertine','Georgia','Times New Roman',serif;
+    font-weight: 400; line-height: 1.15;
+    border-bottom: 1px solid #a2a9b1; padding-bottom: .25em;
+  }
+  .wiki h2.wiki-h, .wiki h3.wiki-h, .wiki h4.wiki-h {
+    font-family: 'Linux Libertine','Georgia','Times New Roman',serif;
+    font-weight: 400; color:#000;
+    border-bottom: 1px solid #a2a9b1; padding-bottom: .2em;
+    scroll-margin-top: 5rem;
+  }
+  .wiki h2.wiki-h { font-size: 1.7rem; margin: 1.4em 0 .5em; }
+  .wiki h3.wiki-h { font-size: 1.3rem; margin: 1.2em 0 .4em; border-bottom: none; }
+  .wiki h4.wiki-h { font-size: 1.08rem; font-weight: 700; margin: 1em 0 .3em; border-bottom: none; }
+  .wiki-prose { font-size: 15px; line-height: 1.7; color:#202122;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
+  .wiki-prose p { margin: 0 0 .7em; }
+  .wiki .wl { color:#3366cc; text-decoration: none; }
+  .wiki .wl:hover { text-decoration: underline; }
+  .wiki-fig {
+    float: right; clear: right; width: 250px; max-width: 45%;
+    margin: .4em 0 1em 1.4em; border: 1px solid #a2a9b1;
+    background:#f8f9fa; padding: 3px; font-size: 11.5px; line-height:1.4; color:#54595d;
+  }
+  .wiki-fig img { display:block; width:100%; height:auto; }
+  .wiki-fig figcaption { padding: 4px 2px 2px; }
+
+  /* ---- PLUS identity — Zine language recolored with the Dashboard "Teal & Gold" palette ---- */
+  body, .plus-sans { font-family: 'Open Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+  .plus-display {
+    font-family: 'Source Sans Pro', 'Arial Black', 'Helvetica Neue', Arial, sans-serif;
+    font-weight: 900; letter-spacing: -.02em; line-height: .95;
+  }
+  .plus-num { font-family: 'Source Sans Pro', 'Arial Black', Arial, sans-serif; font-weight: 900; }
+
+  /* duotone tint over thumbnails: brand teal multiply */
+  .duotone img { mix-blend-mode: luminosity; opacity: .9; }
+  .duotone:hover img { opacity: 1; }
+
+  ::selection { background:#E5AB28; color:#2C2C2C; }
+  .scrollbar-thin::-webkit-scrollbar { height:8px; width:8px; }
+  .scrollbar-thin::-webkit-scrollbar-thumb { background:#D9D9D9; border-radius:99px; }
+  .carousel { scroll-snap-type: x mandatory; }
+  .carousel > * { scroll-snap-align: start; }
+  a:focus-visible, button:focus-visible {
+    outline: 3px solid #1F6F95; outline-offset: 2px; border-radius: 4px;
+  }
+</style>
+</head>
+<body class="bg-[#F0F1F3] text-[#2C2C2C] antialiased">
+<div id="app"></div>
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  var W = window.WIKIPLUS;
+  var A = W.article, CLIPS = W.clips, STATS = W.stats;
+
+  // ---- Dashboard "Teal & Gold" palette ----
+  var C = {
+    indigo:"#676EB4", violet:"#5248AF",
+    teal:"#2A8270", tealDark:"#1F6757",
+    blue:"#1F6F95", gold:"#E5AB28", red:"#C44949",
+    ink:"#2C2C2C", ink2:"#595959", muted:"#717171",
+    bg:"#F7F7F7", bg2:"#F0F1F3", border:"#D9D9D9", border2:"#979797"
+  };
+
+  var SVG = {
+    play: '<svg viewBox="0 0 24 24" fill="currentColor" class="w-7 h-7"><path d="M8 5v14l11-7z"/></svg>',
+    up:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="w-3.5 h-3.5"><path d="M12 19V5M5 12l7-7 7 7"/></svg>',
+    ext:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="w-3.5 h-3.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6M10 14L21 3"/></svg>',
+    book: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-4 h-4"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2zM22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>'
+  };
+
+  function esc(s){ var d=document.createElement("div"); d.textContent=(s==null?"":s); return d.innerHTML; }
+
+  // ---- accuracy color logic (never color alone — always paired with text label) ----
+  // accurate -> teal; simplified/caveat/condensed/exam/definitional/big-picture/fast-paced/conceptual -> action blue;
+  // opinion/anecdotal/teaching/classroom -> gold
+  function accStyle(acc){
+    var a=(acc||"").toLowerCase();
+    if(/opinion|anecdot|teaching|classroom/.test(a)) return {bg:"#FBF1D6", tx:"#7A5A05", bd:C.gold, dot:C.gold};
+    if(/simplif|caveat|condens|exam|definition|big-picture|fast|conceptual/.test(a)) return {bg:"#E1EEF4", tx:"#134B66", bd:C.blue, dot:C.blue};
+    return {bg:"#DDEEE9", tx:"#1A5547", bd:C.teal, dot:C.teal}; // accurate / real footage / phenomenon
+  }
+
+  function wordmark(extra, plusColor){
+    return '<span class="plus-display '+(extra||'')+'">wiki<span style="color:'+(plusColor||C.gold)+'">+</span></span>';
+  }
+
+  // group clips
+  var bySection = {}, general = [];
+  CLIPS.forEach(function(c){
+    if(c.general){ general.push(c); }
+    else { (bySection[c.sectionId]=bySection[c.sectionId]||[]).push(c); }
+  });
+  function clipById(id){ for(var i=0;i<CLIPS.length;i++) if(CLIPS[i].id===id) return CLIPS[i]; }
+
+  // ---- media frame (thumb + play; respects orientation; teal duotone tint) ----
+  function mediaFrame(c){
+    var vert = c.orientation === "vertical";
+    var ratio = vert ? "aspect-[9/16]" : "aspect-video";
+    var pid = "media-"+c.id;
+    return ''
+      + '<div id="'+pid+'" class="duotone relative '+ratio+' w-full overflow-hidden bg-gradient-to-br '+c.thumbGrad+' group" style="background-color:'+C.teal+'">'
+      + '<img loading="lazy" src="'+c.thumbnail+'" alt="'+esc(c.caption)+'" '
+      +   'class="absolute inset-0 w-full h-full object-cover transition" '
+      +   'onerror="this.style.display=\'none\';this.parentElement.classList.add(\'bg-gradient-to-br\');">'
+      + '<button data-play="'+c.id+'" aria-label="Play: '+esc(c.caption)+'" '
+      +   'class="absolute inset-0 flex items-center justify-center bg-black/15 group-hover:bg-black/30 transition-colors">'
+      +   '<span class="flex items-center justify-center w-16 h-16 rounded-full text-[#2C2C2C] border-4 border-[#2C2C2C] group-hover:scale-110 transition-transform" style="background:'+C.gold+';box-shadow:3px 3px 0 '+C.tealDark+'">'+SVG.play+'</span>'
+      + '</button>'
+      + '<span class="absolute top-2.5 left-2.5 px-2 py-0.5 text-[10px] plus-display uppercase tracking-wide text-white" style="background:'+C.ink+'">'+esc(c.platformLabel)+'</span>'
+      + (c.platform==="tiktok"
+          ? '<span class="absolute bottom-2.5 right-2.5 px-2 py-0.5 text-[10px] font-bold bg-white text-[#2C2C2C] border-2 border-[#2C2C2C]">Open on TikTok</span>'
+          : '')
+      + '</div>';
+  }
+
+  function chipSolid(text, bg, tx, bd){
+    return '<span class="inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide border-2" '
+      + 'style="background:'+bg+';color:'+tx+';border-color:'+bd+'">'+text+'</span>';
+  }
+
+  // ---- one clip card (zine / editorial, recolored) ----
+  function clipCard(c){
+    var vert = c.orientation === "vertical";
+    var acc = accStyle(c.accuracy);
+    var mediaW = vert ? "sm:w-[190px]" : "sm:w-[300px]";
+    return ''
+    + '<article class="bg-white overflow-hidden border-2" style="border-color:'+C.ink+';box-shadow:5px 5px 0 '+C.tealDark+'">'
+    +   '<div class="flex flex-col sm:flex-row">'
+    +     '<div class="'+mediaW+' shrink-0 border-b-2 sm:border-b-0 sm:border-r-2" style="border-color:'+C.ink+'">'+mediaFrame(c)+'</div>'
+    +     '<div class="flex-1 min-w-0 p-4 sm:p-5">'
+    +       '<div class="flex items-center gap-2.5 mb-3">'
+    +         '<span class="w-9 h-9 rounded-full bg-gradient-to-br '+c.creator.avatarGrad+' border-2 shrink-0" style="border-color:'+C.ink+'" aria-hidden="true"></span>'
+    +         '<div class="min-w-0">'
+    +           '<a href="'+c.creator.url+'" target="_blank" rel="noopener" class="block text-sm font-bold text-[#2C2C2C] hover:text-[#2A8270] truncate">'+esc(c.creator.name)+'</a>'
+    +           '<div class="text-[11px] font-semibold truncate" style="color:'+C.muted+'">'+esc(c.creator.handle)+'</div>'
+    +         '</div>'
+    +       '</div>'
+    +       '<h4 class="text-[15px] font-bold leading-snug text-[#2C2C2C] mb-2">'+esc(c.caption)+'</h4>'
+    +       '<div class="flex flex-wrap gap-1.5 mb-3">'
+    +         chipSolid(esc(c.stance), C.indigo, "#ffffff", C.violet)
+    +         + chipSolid('<span class="w-2 h-2 rounded-full" style="background:'+acc.dot+'" aria-hidden="true"></span>'+esc(c.accuracy), acc.bg, acc.tx, acc.bd)
+    +       '</div>'
+    +       '<div class="relative pl-3 pr-2 py-2 mb-3" style="background:'+C.bg+';border-left:4px solid '+C.teal+'">'
+    +         '<div class="text-[10px] plus-display uppercase tracking-widest mb-0.5" style="color:'+C.tealDark+'">Curator note</div>'
+    +         '<p class="text-[13.5px] leading-relaxed text-[#2C2C2C]">'+esc(c.context)+'</p>'
+    +       '</div>'
+    +       '<div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 text-[11px] font-semibold" style="color:'+C.muted+'">'
+    +         '<div class="flex items-center gap-2">'
+    +           '<span class="inline-flex items-center gap-1 px-2 py-0.5 border-2 font-bold text-[#2C2C2C]" style="background:'+C.gold+';border-color:'+C.ink+'">'+SVG.up+c.upvotes+'</span>'
+    +           '<span class="inline-flex items-center gap-1" style="color:'+C.blue+'">&#8594; '+esc(c.sectionLabel)+'</span>'
+    +         '</div>'
+    +         '<span>by <span class="font-bold" style="color:'+C.ink2+'">'+esc(c.curatedBy)+'</span> · '+esc(c.date)+'</span>'
+    +       '</div>'
+    +     '</div>'
+    +   '</div>'
+    + '</article>';
+  }
+
+  // ---- General carousel (teal panel, gold numerals) ----
+  function generalCarousel(){
+    if(!general.length) return "";
+    var sorted = general.slice().sort(function(a,b){return b.upvotes-a.upvotes;});
+    var cards = sorted.map(function(c){
+      var vert = c.orientation === "vertical";
+      var w = vert ? "w-[230px]" : "w-[340px]";
+      return '<div class="'+w+' shrink-0">'+clipCard(c)+'</div>';
+    }).join("");
+    return ''
+    + '<section aria-labelledby="general-h" class="relative my-8 text-white border-2 p-5 sm:p-6" style="background:'+C.teal+';border-color:'+C.ink+';box-shadow:6px 6px 0 '+C.gold+'">'
+    +   '<div class="flex items-end justify-between flex-wrap gap-3 mb-4">'
+    +     '<div>'
+    +       '<div class="text-[11px] plus-display uppercase tracking-[.25em] mb-1" style="color:'+C.gold+'">'+wordmark('text-white', C.gold)+' · general intros</div>'
+    +       '<h2 id="general-h" class="plus-display text-3xl sm:text-4xl text-white">&#9654; Watch this first</h2>'
+    +     '</div>'
+    +     '<div class="flex items-center gap-3">'
+    +       '<span class="plus-num text-5xl sm:text-6xl leading-none" style="color:'+C.gold+'">'+general.length+'</span>'
+    +       '<span class="text-xs font-bold uppercase leading-tight">whole-topic<br>videos</span>'
+    +     '</div>'
+    +   '</div>'
+    +   '<div class="carousel scrollbar-thin flex gap-4 overflow-x-auto pb-2 -mx-1 px-1">'+cards+'</div>'
+    +   '<div class="mt-3 text-right">'
+    +     '<a href="'+esc(A.url)+'" target="_blank" rel="noopener" class="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-[#2C2C2C] px-3 py-1.5 border-2 hover:translate-x-0.5 hover:translate-y-0.5 transition" style="background:'+C.gold+';border-color:'+C.ink+';box-shadow:2px 2px 0 '+C.tealDark+'">See all '+STATS.totalClips+' clips '+SVG.ext+'</a>'
+    +   '</div>'
+    + '</section>';
+  }
+
+  // ---- inline section plus-block (oversized display heading, hard border + offset shadow) ----
+  function sectionBlock(sec){
+    var clips = bySection[sec.id] || [];
+    if(!clips.length) return "";
+    var sorted = clips.slice().sort(function(a,b){return b.upvotes-a.upvotes;});
+    var cards = sorted.map(function(c){ return '<div>'+clipCard(c)+'</div>'; }).join("");
+    var n = clips.length;
+    return ''
+    + '<aside aria-label="wiki+ videos for '+esc(sec.title)+'" class="my-7 border-2" style="background:'+C.bg+';border-color:'+C.ink+';box-shadow:5px 5px 0 '+C.tealDark+'">'
+    +   '<div class="flex items-center gap-3 px-5 py-3 border-b-2 text-white" style="background:'+C.teal+';border-color:'+C.ink+'">'
+    +     '<span class="plus-num text-4xl sm:text-5xl leading-none" style="color:'+C.gold+'">'+n+'</span>'
+    +     '<div>'
+    +       '<div class="text-[10px] plus-display uppercase tracking-[.25em]">'+wordmark('text-white', C.gold)+' watch</div>'
+    +       '<div class="plus-display text-lg sm:text-2xl text-white">&#9654; Watch this for the '+esc(sec.title)+'</div>'
+    +     '</div>'
+    +   '</div>'
+    +   '<div class="p-4 sm:p-5 space-y-4">'+cards+'</div>'
+    + '</aside>';
+  }
+
+  // ---- article body (faithful wiki) ----
+  function htag(level){ return level===2?"h2":level===3?"h3":"h4"; }
+  function figure(img){
+    if(!img) return "";
+    return '<figure class="wiki-fig">'
+      + '<img loading="lazy" src="'+esc(img.src)+'" alt="'+esc(img.alt||img.caption||"")+'">'
+      + '<figcaption>'+esc(img.caption||"")+(img.credit?' <span style="color:#a2a9b1">· '+esc(img.credit)+'</span>':'')+'</figcaption>'
+      + '</figure>';
+  }
+
+  var bodyHtml = "";
+  A.sections.forEach(function(s){
+    var t = htag(s.level);
+    bodyHtml += '<'+t+' id="'+s.id+'" class="wiki-h" data-toc="'+s.id+'">'+esc(s.title)+'</'+t+'>';
+    var inner = figure(s.image) + (s.html||[]).map(function(p){return '<p>'+p+'</p>';}).join("");
+    bodyHtml += '<div class="wiki-prose clearfix">'+inner+'</div>';
+    bodyHtml += sectionBlock(s);
+  });
+
+  // ---- TOC (General first, chunky count tags) ----
+  function tocBadge(n, special){
+    var style = special
+      ? 'background:'+C.teal+';color:#fff;border-color:'+C.ink
+      : 'background:'+C.gold+';color:'+C.ink+';border-color:'+C.ink;
+    return '<span class="shrink-0 inline-flex items-center justify-center min-w-[26px] h-6 px-1.5 text-[11px] plus-display border-2" style="'+style+'">'+n+'</span>';
+  }
+  var tocItems = '<a href="#general" data-tocitem="general" class="toc-link group flex items-center justify-between gap-2 py-1.5 px-2 text-[13px] font-bold uppercase tracking-wide hover:bg-[#DDEEE9] border-l-4 border-transparent transition" style="color:'+C.tealDark+'">'
+    + '<span class="truncate">&#9654; General</span>'
+    + (general.length ? tocBadge(general.length, true) : '')
+    + '</a>';
+  A.sections.forEach(function(s){
+    var n = (bySection[s.id]||[]).length;
+    var pad = s.level===2 ? "pl-2" : (s.level===3 ? "pl-5" : "pl-8");
+    var wt = s.level===2 ? "font-bold" : "font-medium";
+    tocItems += '<a href="#'+s.id+'" data-tocitem="'+s.id+'" class="toc-link group flex items-center justify-between gap-2 py-1 '+pad+' pr-2 text-[12.5px] '+wt+' hover:bg-[#FBF1D6] border-l-4 border-transparent transition" style="color:'+C.ink2+'">'
+      + '<span class="truncate">'+esc(s.title)+'</span>'
+      + (n ? tocBadge(n, false) : '')
+      + '</a>';
+  });
+
+  // ---- lead html ----
+  var leadHtml = (A.lead_html||[]).map(function(p){return '<p>'+p+'</p>';}).join("");
+
+  // ---- assemble ----
+  document.getElementById("app").innerHTML = ''
+  + '<header class="sticky top-0 z-30 border-b-2" style="background:'+C.teal+';border-color:'+C.ink+'">'
+  +   '<div class="max-w-6xl mx-auto px-5 h-14 flex items-center justify-between">'
+  +     '<div class="flex items-center gap-2">'+wordmark('text-2xl text-white', C.gold)+'<span class="hidden sm:inline text-white/40">/</span><span class="hidden sm:inline text-xs plus-display uppercase tracking-[.2em] text-white/80">Teal &amp; Gold</span></div>'
+  +     '<a href="'+esc(A.url)+'" target="_blank" rel="noopener" class="flex items-center gap-1.5 text-[12px] font-bold text-white/90 hover:text-white">'+SVG.book+' From Wikipedia · '+esc(A.license)+'</a>'
+  +   '</div>'
+  + '</header>'
+
+  + '<div class="max-w-6xl mx-auto px-5 grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-8 items-start">'
+
+  // ===== MAIN (wiki + plus) =====
+  + '<main class="wiki min-w-0 my-8 p-6 sm:p-9 border-2" style="border-color:'+C.ink+';box-shadow:6px 6px 0 '+C.tealDark+'">'
+  +   '<h1 class="wiki-title text-4xl sm:text-5xl text-black mb-1">'+esc(A.title)+'</h1>'
+  +   '<p class="text-[12.5px] mb-5 mt-2" style="color:'+C.muted+'">From <a class="wl" href="'+esc(A.url)+'" target="_blank" rel="noopener">Wikipedia</a> · '+esc(A.license)+'</p>'
+  +   '<div class="wiki-prose clearfix">'+figure(A.leadImage)+leadHtml+'</div>'
+  +   generalCarousel()
+  +   bodyHtml
+  +   '<footer class="mt-12 pt-5 text-[12px]" style="border-top:1px solid #a2a9b1;color:'+C.muted+'">'
+  +     'Article text from <a class="wl" href="'+esc(A.url)+'" target="_blank" rel="noopener">'+esc(A.source)+'</a>, licensed '+esc(A.license)+'. Curated video context layered by the '+wordmark('', C.teal)+' community.'
+  +   '</footer>'
+  + '</main>'
+
+  // ===== SIDEBAR =====
+  + '<aside class="hidden lg:block my-8">'
+  +   '<div class="sticky top-20 space-y-4">'
+
+  // +plus infobox (teal panel, gold big numerals)
+  +     '<div class="text-white border-2 p-4" style="background:'+C.teal+';border-color:'+C.ink+';box-shadow:5px 5px 0 '+C.gold+'">'
+  +       '<div class="text-[11px] plus-display uppercase tracking-[.25em] mb-3 text-white">'+wordmark('text-white', C.gold)+' layer</div>'
+  +       '<div class="grid grid-cols-3 gap-2 text-center">'
+  +         '<div class="bg-white border-2 py-2" style="border-color:'+C.ink+'"><div class="plus-num text-3xl" style="color:'+C.tealDark+'">'+STATS.totalClips+'</div><div class="text-[9px] plus-display uppercase tracking-wide" style="color:'+C.ink2+'">videos</div></div>'
+  +         '<div class="bg-white border-2 py-2" style="border-color:'+C.ink+'"><div class="plus-num text-3xl" style="color:'+C.tealDark+'">'+STATS.creatorCount+'</div><div class="text-[9px] plus-display uppercase tracking-wide" style="color:'+C.ink2+'">creators</div></div>'
+  +         '<div class="bg-white border-2 py-2" style="border-color:'+C.ink+'"><div class="plus-num text-3xl" style="color:'+C.tealDark+'">'+STATS.curatorCount+'</div><div class="text-[9px] plus-display uppercase tracking-wide" style="color:'+C.ink2+'">curators</div></div>'
+  +       '</div>'
+  +       '<div class="mt-3 flex items-center gap-1.5 text-[11px] font-bold text-white"><span class="w-2 h-2 rounded-full animate-pulse" style="background:'+C.gold+'"></span> synced '+esc(STATS.synced)+'</div>'
+  +     '</div>'
+
+  // TOC / contents
+  +     '<nav aria-label="Contents" class="bg-white border-2" style="border-color:'+C.ink+';box-shadow:5px 5px 0 '+C.tealDark+'">'
+  +       '<div class="px-3 py-2 plus-display text-xl text-white" style="background:'+C.ink+'">CONTENTS</div>'
+  +       '<div class="p-2 max-h-[60vh] overflow-y-auto scrollbar-thin">'+tocItems+'</div>'
+  +     '</nav>'
+
+  +   '</div>'
+  + '</aside>'
+
+  + '</div>'
+
+  + '<div class="fixed bottom-4 right-4 z-40 px-3 py-1.5 plus-display uppercase tracking-wide text-[11px] border-2" style="background:'+C.ink+';color:'+C.gold+';border-color:'+C.gold+';box-shadow:3px 3px 0 rgba(31,103,87,.6)">Plus ID 02 · Teal &amp; Gold</div>';
+
+  // ---- interactions: play ----
+  document.addEventListener("click", function(e){
+    var pb = e.target.closest("[data-play]");
+    if(pb){
+      var c = clipById(pb.getAttribute("data-play"));
+      if(!c) return;
+      if(c.platform === "tiktok"){ window.open(c.watch_url, "_blank", "noopener"); return; }
+      var frame = document.getElementById("media-"+c.id);
+      frame.innerHTML = '<iframe class="absolute inset-0 w-full h-full" src="'+c.embed_url+'?autoplay=1" '
+        + 'title="'+esc(c.caption)+'" frameborder="0" '
+        + 'allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>';
+    }
+  });
+
+  // ---- scrollspy + active TOC ----
+  var links = {};
+  document.querySelectorAll(".toc-link").forEach(function(a){ links[a.getAttribute("data-tocitem")] = a; });
+  function setActive(id){
+    Object.keys(links).forEach(function(k){
+      var on = (k===id);
+      var el = links[k];
+      el.style.borderLeftColor = on ? C.gold : "transparent";
+      el.style.background = on ? (k==="general" ? "#DDEEE9" : "#FBF1D6") : "";
+    });
+  }
+  var spyTargets = [].slice.call(document.querySelectorAll("[data-toc]"));
+  var genSec = document.getElementById("general-h");
+  var io = new IntersectionObserver(function(entries){
+    entries.forEach(function(en){
+      if(en.isIntersecting){
+        var id = en.target.getAttribute("data-toc") || "general";
+        setActive(id);
+      }
+    });
+  }, { rootMargin: "-80px 0px -65% 0px", threshold: 0 });
+  spyTargets.forEach(function(t){ io.observe(t); });
+  if(genSec){ genSec.setAttribute("data-toc","general"); io.observe(genSec); }
+});
+</script>
+</body>
+</html>

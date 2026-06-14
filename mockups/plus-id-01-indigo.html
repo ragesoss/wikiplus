@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>wiki+ · Plus ID 01 · Indigo Press</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Sans+Pro:wght@400;600;700;900&family=Open+Sans:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="data/content.js"></script>
+<style>
+  :root{
+    --indigo:#676EB4; --violet:#5248AF; --teal:#2A8270; --teal-dk:#1F6757;
+    --blue:#1F6F95; --gold:#E5AB28; --red:#C44949;
+    --ink:#2C2C2C; --ink2:#595959; --muted:#717171;
+    --bg:#F7F7F7; --bg2:#F0F1F3; --bd:#D9D9D9; --bd2:#979797;
+    --wiki-rule:#a2a9b1; --wiki-body:#202122; --wl:#3366cc;
+  }
+  html{scroll-behavior:smooth;}
+  body{background:var(--bg); color:var(--ink); font-family:'Open Sans',system-ui,sans-serif;}
+  /* ---- Wikipedia (Wiki side) ---- */
+  .wiki-serif{font-family:Georgia,'Times New Roman',serif;}
+  .wiki-title{font-family:Georgia,'Times New Roman',serif; color:var(--wiki-body);
+    border-bottom:1px solid var(--wiki-rule); padding-bottom:.15em; line-height:1.15;}
+  .wiki-h2{font-family:Georgia,'Times New Roman',serif; color:var(--wiki-body);
+    border-bottom:1px solid var(--wiki-rule); padding-bottom:.12em; line-height:1.2;}
+  .wiki-h3,.wiki-h4{font-family:Georgia,'Times New Roman',serif; color:var(--wiki-body);}
+  .wiki-body p{color:var(--wiki-body); line-height:1.65;}
+  .wl{color:var(--wl); text-decoration:none;}
+  .wl:hover{text-decoration:underline;}
+  .wiki-fig{border:1px solid var(--wiki-rule); background:#fff;}
+  .wiki-fig figcaption{color:var(--ink2);}
+  /* ---- Plus (zine) identity ---- */
+  .plus-disp{font-family:'Source Sans Pro',system-ui,sans-serif; font-weight:900; letter-spacing:-.02em; line-height:.95;}
+  .plus-sans{font-family:'Source Sans Pro',system-ui,sans-serif;}
+  .hardbox{border:2px solid var(--ink); box-shadow:6px 6px 0 var(--ink);}
+  .hardbox-sm{border:2px solid var(--ink); box-shadow:4px 4px 0 var(--ink);}
+  .hardbox-gold{border:2px solid var(--ink); box-shadow:6px 6px 0 var(--gold);}
+  .bignum{font-family:'Source Sans Pro',system-ui,sans-serif; font-weight:900; line-height:.85; letter-spacing:-.03em;}
+  /* duotone tint over thumbnails */
+  .duotone{position:relative;}
+  .duotone::after{content:""; position:absolute; inset:0; pointer-events:none;
+    background:linear-gradient(135deg, rgba(103,110,180,.55), rgba(82,72,175,.30));
+    mix-blend-mode:multiply;}
+  .duotone.is-gradient::after{display:none;}
+  a:focus-visible,button:focus-visible,[tabindex]:focus-visible{
+    outline:3px solid var(--gold); outline-offset:2px; border-radius:2px;}
+  .toc-link.active{background:var(--indigo); color:#fff; border-color:var(--ink);}
+  .toc-link.active .toc-count{background:var(--gold); color:var(--ink);}
+  /* carousel */
+  .carousel{scroll-snap-type:x mandatory;}
+  .carousel>*{scroll-snap-align:start;}
+  .carousel::-webkit-scrollbar{height:10px;}
+  .carousel::-webkit-scrollbar-thumb{background:var(--ink); border-radius:0;}
+  .carousel::-webkit-scrollbar-track{background:var(--bd);}
+</style>
+</head>
+<body>
+<a href="#main" class="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:top-2 focus:left-2 focus:bg-white focus:px-3 focus:py-2 focus:hardbox-sm plus-sans font-bold">Skip to content</a>
+
+<!-- Top bar / wordmark -->
+<header class="sticky top-0 z-40 border-b-2 border-[color:var(--ink)] bg-white">
+  <div class="max-w-[1320px] mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
+    <div class="flex items-baseline gap-1">
+      <span class="plus-disp text-2xl sm:text-3xl text-[color:var(--wiki-body)]">wiki</span>
+      <span class="plus-disp text-2xl sm:text-3xl text-white bg-[color:var(--indigo)] px-2 hardbox-sm" aria-hidden="true">+</span>
+      <span class="sr-only">wiki plus</span>
+      <span class="ml-3 hidden sm:inline plus-sans text-xs uppercase tracking-[.18em] text-[color:var(--muted)]">a curation layer over Wikipedia</span>
+    </div>
+    <div class="flex items-center gap-3">
+      <span id="syncPill" class="plus-sans text-[11px] font-bold uppercase tracking-wider text-[color:var(--teal-dk)] hidden sm:inline"></span>
+      <a id="srcLink" class="plus-sans text-xs font-bold text-[color:var(--blue)] hover:underline" href="#" target="_blank" rel="noopener">View on Wikipedia →</a>
+    </div>
+  </div>
+</header>
+
+<main id="main" class="max-w-[1320px] mx-auto px-4 sm:px-6 py-8 grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px] gap-10">
+  <!-- Article column -->
+  <article id="article" class="min-w-0 wiki-body"></article>
+  <!-- Plus sidebar -->
+  <aside id="sidebar" class="hidden lg:block"></aside>
+</main>
+
+<!-- Badge -->
+<div class="fixed bottom-3 right-3 z-50 plus-sans text-[11px] font-bold text-white bg-[color:var(--ink)] px-3 py-2 hardbox-gold select-none">
+  Plus ID 01 · Indigo Press
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var W = window.WIKIPLUS;
+  if(!W){ document.getElementById('article').textContent='No data loaded.'; return; }
+  var A = W.article, CLIPS = W.clips || [], S = W.stats || {};
+  var el = function(t,c,txt){ var e=document.createElement(t); if(c)e.className=c; if(txt!=null)e.textContent=txt; return e; };
+
+  // ---- top bar links ----
+  var src = document.getElementById('srcLink');
+  src.href = A.url || '#'; src.textContent = 'View on ' + (A.source||'Wikipedia') + ' →';
+  if(S.synced){ var sp=document.getElementById('syncPill'); sp.textContent='● synced '+S.synced; }
+
+  // ---------- ACCURACY / STANCE chip semantics ----------
+  function accuracyColor(txt){
+    var t=(txt||'').toLowerCase();
+    if(/\baccurate\b/.test(t)) return 'var(--teal)';
+    if(/(simplified|caveat|condensed|exam|definitional|big-picture|fast-paced|conceptual|beginner|narrow|revision|overview)/.test(t)) return 'var(--blue)';
+    if(/(opinion|anecdotal|teaching|classroom)/.test(t)) return 'var(--gold)';
+    return 'var(--blue)';
+  }
+  function chip(label, prefix, bg, dark){
+    var c = el('span','plus-sans inline-flex items-center gap-1 px-2 py-[3px] text-[11px] font-bold uppercase tracking-wide border-2 border-[color:var(--ink)]');
+    c.style.background = bg; c.style.color = dark ? 'var(--ink)' : '#fff';
+    var lab = prefix ? prefix+' ' : '';
+    c.textContent = lab + label;
+    return c;
+  }
+
+  // ---------- CLIP CARD ----------
+  function clipCard(clip){
+    var vertical = clip.orientation === 'vertical';
+    var card = el('div','flex-shrink-0 bg-white hardbox p-3 flex flex-col gap-3');
+    card.style.width = vertical ? '230px' : '320px';
+
+    // thumb
+    var ratio = vertical ? 'aspect-[9/16]' : 'aspect-video';
+    var thumbWrap = el('div','relative '+ratio+' w-full overflow-hidden border-2 border-[color:var(--ink)] duotone');
+    var img = el('img','w-full h-full object-cover');
+    img.loading='lazy'; img.alt = clip.caption || (clip.creator&&clip.creator.name)||'video thumbnail';
+    img.src = clip.thumbnail || '';
+    img.addEventListener('error', function(){
+      img.style.display='none';
+      thumbWrap.classList.add('is-gradient');
+      thumbWrap.classList.add('bg-gradient-to-br');
+      (clip.thumbGrad||'from-indigo-400 to-violet-700').split(/\s+/).forEach(function(c){ if(c) thumbWrap.classList.add(c); });
+    });
+    thumbWrap.appendChild(img);
+
+    // play button
+    var play = el('button','absolute inset-0 z-10 flex items-center justify-center group');
+    play.setAttribute('aria-label','Play '+(clip.caption||'video'));
+    var pdisc = el('span','w-14 h-14 rounded-full bg-[color:var(--gold)] border-2 border-[color:var(--ink)] flex items-center justify-center text-[color:var(--ink)] text-2xl shadow-[3px_3px_0_var(--ink)] transition-transform group-hover:scale-110');
+    pdisc.textContent='▶'; pdisc.setAttribute('aria-hidden','true');
+    play.appendChild(pdisc);
+    play.addEventListener('click', function(){
+      if(clip.platform==='youtube' && clip.embed_url){
+        var ifr=document.createElement('iframe');
+        ifr.className='absolute inset-0 w-full h-full z-20';
+        ifr.src = clip.embed_url + (clip.embed_url.indexOf('?')>=0?'&':'?') + 'autoplay=1';
+        ifr.title = clip.caption||'video';
+        ifr.allow='accelerometer; autoplay; encrypted-media; picture-in-picture';
+        ifr.setAttribute('allowfullscreen','');
+        thumbWrap.appendChild(ifr);
+        play.remove();
+      } else {
+        window.open(clip.watch_url||clip.embed_url||'#','_blank','noopener');
+      }
+    });
+    thumbWrap.appendChild(play);
+
+    // platform badge
+    var pb = el('span','absolute top-2 left-2 z-10 plus-sans text-[10px] font-bold uppercase tracking-wider px-2 py-[2px] bg-[color:var(--ink)] text-white border border-white');
+    pb.textContent = clip.platformLabel || clip.platform || 'Video';
+    thumbWrap.appendChild(pb);
+    card.appendChild(thumbWrap);
+
+    // caption
+    if(clip.caption){
+      var cap = el('p','plus-sans font-bold text-[15px] leading-snug text-[color:var(--ink)]', clip.caption);
+      card.appendChild(cap);
+    }
+
+    // creator row
+    var cr = clip.creator||{};
+    var crRow = el('a','flex items-center gap-2 no-underline');
+    crRow.href = cr.url || '#'; crRow.target='_blank'; crRow.rel='noopener';
+    var av = el('span','w-8 h-8 rounded-full border-2 border-[color:var(--ink)] flex-shrink-0 bg-gradient-to-br');
+    (cr.avatarGrad||'from-indigo-400 to-violet-600').split(/\s+/).forEach(function(c){ if(c) av.classList.add(c); });
+    crRow.appendChild(av);
+    var crTxt = el('span','leading-tight');
+    crTxt.appendChild(el('span','block plus-sans font-bold text-[12px] text-[color:var(--ink)]', cr.name||''));
+    crTxt.appendChild(el('span','block plus-sans text-[11px] text-[color:var(--muted)]', cr.handle||''));
+    crRow.appendChild(crTxt);
+    card.appendChild(crRow);
+
+    // chips
+    var chips = el('div','flex flex-wrap gap-1.5');
+    if(clip.stance) chips.appendChild(chip(clip.stance,'STANCE:','var(--indigo)',false));
+    if(clip.accuracy) chips.appendChild(chip(clip.accuracy,'ACCURACY:',accuracyColor(clip.accuracy), accuracyColor(clip.accuracy)==='var(--gold)'));
+    card.appendChild(chips);
+
+    // curator context note (verbatim)
+    if(clip.context){
+      var note = el('div','border-l-4 border-[color:var(--indigo)] bg-[color:var(--bg2)] pl-3 pr-2 py-2');
+      var lab = el('span','block plus-sans text-[10px] font-bold uppercase tracking-wider text-[color:var(--violet)] mb-1','Curator note');
+      var body = el('p','plus-sans text-[12.5px] leading-snug text-[color:var(--ink2)]', clip.context);
+      note.appendChild(lab); note.appendChild(body);
+      card.appendChild(note);
+    }
+
+    // footer meta
+    var foot = el('div','mt-auto pt-1 flex items-center justify-between gap-2 flex-wrap');
+    if(clip.sectionLabel){
+      var sl = el('a','plus-sans text-[11px] font-bold text-[color:var(--blue)] hover:underline','→ '+clip.sectionLabel);
+      sl.href = '#'+(clip.general ? 'plus-general' : (clip.sectionId||''));
+      foot.appendChild(sl);
+    }
+    var meta = el('span','plus-sans text-[11px] text-[color:var(--muted)]');
+    meta.textContent = '▲ '+(clip.upvotes!=null?clip.upvotes:0);
+    foot.appendChild(meta);
+    card.appendChild(foot);
+
+    var byline = el('p','plus-sans text-[10.5px] text-[color:var(--muted)]');
+    byline.textContent = 'curated by '+(clip.curatedBy||'—')+(clip.date?' · '+clip.date:'');
+    card.appendChild(byline);
+
+    return card;
+  }
+
+  // ---------- FIGURE (wiki side) ----------
+  function figure(im){
+    if(!im) return null;
+    var fig = el('figure','wiki-fig float-right ml-5 mb-4 p-2 w-[min(300px,42%)]');
+    var img = el('img','w-full h-auto block');
+    img.loading='lazy'; img.src=im.src||''; img.alt=im.alt||im.caption||'';
+    if(im.w) img.width=im.w; if(im.h) img.height=im.h;
+    fig.appendChild(img);
+    var cap = el('figcaption','mt-1 text-[12px] leading-snug wiki-serif');
+    cap.style.fontFamily="'Open Sans',sans-serif";
+    cap.appendChild(document.createTextNode(im.caption||''));
+    if(im.credit){ var cr=el('span','block text-[10.5px] text-[color:var(--muted)] mt-0.5','— '+im.credit); cap.appendChild(cr); }
+    fig.appendChild(cap);
+    return fig;
+  }
+
+  // ---------- PLUS BLOCK (display heading + carousel of cards) ----------
+  function plusBlock(heading, clips, opts){
+    opts = opts||{};
+    var wrap = el('section','my-8');
+    if(opts.id) wrap.id = opts.id;
+    // color-blocked accent header panel
+    var band = el('div','bg-[color:var(--indigo)] text-white border-2 border-[color:var(--ink)] shadow-[6px_6px_0_var(--ink)] px-5 py-4 mb-5 flex items-center justify-between gap-4 flex-wrap');
+    var h = el('h3','plus-disp text-2xl sm:text-3xl');
+    h.textContent = heading;
+    band.appendChild(h);
+    var tag = el('span','plus-sans text-[11px] font-bold uppercase tracking-[.15em] bg-white text-[color:var(--indigo)] px-2 py-1 border-2 border-[color:var(--ink)]');
+    tag.textContent = clips.length + (clips.length===1?' clip':' clips');
+    band.appendChild(tag);
+    wrap.appendChild(band);
+
+    var row = el('div','carousel flex gap-4 overflow-x-auto pb-4 -mx-1 px-1');
+    clips.forEach(function(c){ row.appendChild(clipCard(c)); });
+    wrap.appendChild(row);
+    return wrap;
+  }
+
+  // ============ RENDER ARTICLE ============
+  var art = document.getElementById('article');
+
+  // license / source kicker
+  var kicker = el('div','plus-sans text-[11px] uppercase tracking-[.18em] text-[color:var(--muted)] mb-2');
+  kicker.textContent = (A.source||'Wikipedia') + (A.license ? ' · '+A.license : '');
+  art.appendChild(kicker);
+
+  // title
+  var h1 = el('h1','wiki-title text-4xl sm:text-5xl mb-5', A.title||'');
+  art.appendChild(h1);
+
+  // lead figure
+  var lf = figure(A.leadImage);
+  if(lf) art.appendChild(lf);
+
+  // lead paragraphs (lead_html preferred)
+  var leadHtml = (A.lead_html && A.lead_html.length) ? A.lead_html : A.lead;
+  (leadHtml||[]).forEach(function(p){
+    var para = el('p','mb-4 text-[16px]');
+    if(A.lead_html && A.lead_html.length){ para.innerHTML = p; } else { para.textContent = p; }
+    art.appendChild(para);
+  });
+
+  // GENERAL carousel after the lead
+  var generalClips = CLIPS.filter(function(c){ return c.general; });
+  if(generalClips.length){
+    art.appendChild(plusBlock('▶ Start here — General picks', generalClips, {id:'plus-general'}));
+  }
+
+  // sections
+  (A.sections||[]).forEach(function(sec){
+    var lvl = sec.level || 2;
+    var hTag = lvl>=4 ? 'h4' : (lvl===3 ? 'h3' : 'h2');
+    var cls = lvl>=4 ? 'wiki-h4 text-lg mt-7 mb-2'
+            : lvl===3 ? 'wiki-h3 text-xl mt-8 mb-2'
+            : 'wiki-h2 text-2xl mt-10 mb-3';
+    var head = el(hTag, cls, sec.title||'');
+    head.id = sec.id || '';
+    art.appendChild(head);
+
+    var fig = figure(sec.image);
+    if(fig) art.appendChild(fig);
+
+    var html = (sec.html && sec.html.length) ? sec.html : sec.paras;
+    (html||[]).forEach(function(p){
+      var para = el('p','mb-4 text-[16px]');
+      if(sec.html && sec.html.length){ para.innerHTML = p; } else { para.textContent = p; }
+      art.appendChild(para);
+    });
+
+    // anchored clips for this section
+    var secClips = CLIPS.filter(function(c){ return !c.general && c.sectionId === sec.id; });
+    if(secClips.length){
+      art.appendChild(plusBlock('▶ Watch this for '+(sec.title||'this topic'), secClips));
+    }
+  });
+
+  // ============ RENDER SIDEBAR ============
+  var side = document.getElementById('sidebar');
+  var stick = el('div','sticky top-20 flex flex-col gap-6');
+
+  // +plus infobox
+  var box = el('div','bg-white hardbox p-0 overflow-hidden');
+  var bhead = el('div','bg-[color:var(--indigo)] text-white px-4 py-3 flex items-baseline gap-1 border-b-2 border-[color:var(--ink)]');
+  bhead.appendChild(el('span','plus-disp text-xl','+plus'));
+  bhead.appendChild(el('span','plus-sans text-[11px] uppercase tracking-widest ml-1 opacity-90','infobox'));
+  box.appendChild(bhead);
+
+  var grid = el('div','grid grid-cols-3 divide-x-2 divide-[color:var(--ink)] border-b-2 border-[color:var(--ink)]');
+  function stat(num, label){
+    var cell = el('div','px-2 py-3 text-center');
+    var n = el('div','bignum text-3xl text-[color:var(--gold)]'); n.textContent = num;
+    n.style.textShadow='1.5px 1.5px 0 var(--ink)';
+    var l = el('div','plus-sans text-[10px] font-bold uppercase tracking-wide text-[color:var(--ink2)] mt-1', label);
+    cell.appendChild(n); cell.appendChild(l); return cell;
+  }
+  grid.appendChild(stat(S.totalClips!=null?S.totalClips:CLIPS.length,'videos'));
+  grid.appendChild(stat(S.creatorCount!=null?S.creatorCount:'—','creators'));
+  grid.appendChild(stat(S.curatorCount!=null?S.curatorCount:'—','curators'));
+  box.appendChild(grid);
+
+  var syncRow = el('div','px-4 py-2 flex items-center justify-between');
+  syncRow.appendChild(el('span','plus-sans text-[11px] font-bold uppercase tracking-wide text-[color:var(--muted)]','Synced'));
+  syncRow.appendChild(el('span','plus-sans text-[12px] font-bold text-[color:var(--teal-dk)]', (S.synced||'—')));
+  box.appendChild(syncRow);
+  stick.appendChild(box);
+
+  // TOC
+  var toc = el('nav','bg-white hardbox p-0 overflow-hidden');
+  toc.setAttribute('aria-label','Contents');
+  var thead = el('div','bg-[color:var(--ink)] text-white px-4 py-2');
+  thead.appendChild(el('span','plus-disp text-base','Contents'));
+  toc.appendChild(thead);
+  var tlist = el('ul','p-2 flex flex-col gap-1 max-h-[60vh] overflow-y-auto');
+
+  function tocItem(id, label, count, indent){
+    var li = el('li');
+    var a = el('a','toc-link flex items-center justify-between gap-2 px-2 py-1.5 border-2 border-transparent plus-sans text-[13px] font-semibold text-[color:var(--ink)] hover:border-[color:var(--ink)] rounded-none transition-colors');
+    a.href='#'+id; a.dataset.target=id;
+    if(indent) a.style.paddingLeft=(8 + indent*12)+'px';
+    a.appendChild(el('span','truncate', label));
+    if(count>0){
+      var b = el('span','toc-count flex-shrink-0 plus-sans text-[11px] font-bold bg-[color:var(--gold)] text-[color:var(--ink)] border-2 border-[color:var(--ink)] px-1.5 leading-tight');
+      b.textContent = count;
+      a.appendChild(b);
+    }
+    li.appendChild(a); return li;
+  }
+  // General first
+  tlist.appendChild(tocItem('plus-general','General', generalClips.length, 0));
+  (A.sections||[]).forEach(function(sec){
+    var count = CLIPS.filter(function(c){ return !c.general && c.sectionId===sec.id; }).length;
+    var indent = (sec.level||2) - 2;
+    tlist.appendChild(tocItem(sec.id, sec.title, count, indent));
+  });
+  toc.appendChild(tlist);
+  stick.appendChild(toc);
+  side.appendChild(stick);
+
+  // ---------- SCROLLSPY ----------
+  var links = Array.prototype.slice.call(tlist.querySelectorAll('.toc-link'));
+  var byId = {};
+  links.forEach(function(l){ byId[l.dataset.target]=l; });
+  var targets = links.map(function(l){ return document.getElementById(l.dataset.target); }).filter(Boolean);
+  function setActive(id){
+    links.forEach(function(l){ l.classList.toggle('active', l.dataset.target===id); });
+    var a = byId[id];
+    if(a && a.scrollIntoView) a.scrollIntoView({block:'nearest'});
+  }
+  if('IntersectionObserver' in window){
+    var visible = {};
+    var obs = new IntersectionObserver(function(entries){
+      entries.forEach(function(e){
+        if(e.isIntersecting) visible[e.target.id]=e.boundingClientRect.top;
+        else delete visible[e.target.id];
+      });
+      var ids = Object.keys(visible);
+      if(ids.length){
+        ids.sort(function(a,b){ return visible[a]-visible[b]; });
+        setActive(ids[0]);
+      }
+    }, {rootMargin:'-72px 0px -65% 0px', threshold:0});
+    targets.forEach(function(t){ obs.observe(t); });
+  }
+  links.forEach(function(l){
+    l.addEventListener('click', function(){ setActive(l.dataset.target); });
+  });
+  if(targets.length) setActive(targets[0].id);
+});
+</script>
+</body>
+</html>

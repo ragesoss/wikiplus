@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Photosynthesis — wiki+ · Inline 02 Neon Night</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="data/content.js"></script>
+<style>
+  /* --- The WIKI side: scholarly, light, Wikipedia-like --- */
+  .wiki-serif { font-family: 'Linux Libertine', Georgia, 'Times New Roman', serif; }
+  .wiki-body  { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; }
+  .art-title  { font-family: 'Linux Libertine', Georgia, serif; font-weight: 400; }
+  .art-h2, .art-h3, .art-h4 { font-family: 'Linux Libertine', Georgia, serif; font-weight: 400; border-bottom: 1px solid #a2a9b1; }
+  .art-body { color:#202122; font-size:0.94rem; line-height:1.65; }
+  .art-body p { margin: 0 0 0.75rem 0; }
+  .wl { color:#3366cc; text-decoration:none; }
+  .wl:hover { text-decoration:underline; }
+  .wiki-fig { border:1px solid #a2a9b1; background:#f8f9fa; }
+  /* --- scrollbars for neon carousels --- */
+  .neon-scroll::-webkit-scrollbar { height:8px; }
+  .neon-scroll::-webkit-scrollbar-track { background:rgba(255,255,255,.06); border-radius:99px; }
+  .neon-scroll::-webkit-scrollbar-thumb { background:linear-gradient(90deg,#22d3ee,#a855f7,#ec4899); border-radius:99px; }
+  /* neon gradient border using a wrapper */
+  .neon-frame { position:relative; border-radius:1rem; padding:1.5px;
+    background:linear-gradient(135deg,#22d3ee,#a855f7 45%,#ec4899 80%,#f472b6); }
+  .neon-frame > .neon-inner { background:#0a0a12; border-radius:calc(1rem - 1.5px); }
+  .neon-glow { box-shadow:0 0 0 1px rgba(168,85,247,.25), 0 8px 30px -8px rgba(168,85,247,.45), 0 0 24px -6px rgba(34,211,238,.35); }
+  /* focus visibility on dark modules */
+  .neon-focus:focus-visible { outline:3px solid #5eead4; outline-offset:2px; }
+  html { scroll-behavior:smooth; scroll-padding-top:72px; }
+  .toc-active { color:#0a0a12 !important; background:linear-gradient(90deg,#67e8f9,#f0abfc); }
+  @media (prefers-reduced-motion: reduce){ html{scroll-behavior:auto;} }
+</style>
+</head>
+<body class="wiki-body bg-white text-[#202122]">
+
+<!-- TOP BAR -->
+<header class="sticky top-0 z-40 bg-[#0a0a12] border-b border-purple-900/60">
+  <div class="max-w-[1180px] mx-auto px-4 py-2.5 flex items-center justify-between">
+    <div class="flex items-baseline gap-0.5 text-2xl tracking-tight">
+      <span class="text-white wiki-serif">wiki</span><span class="font-black text-emerald-400" style="text-shadow:0 0 12px rgba(52,211,153,.7)">+</span>
+    </div>
+    <div class="text-[11px] uppercase tracking-[0.2em] text-cyan-300/80 font-semibold">Curated video over Wikipedia</div>
+  </div>
+</header>
+
+<main id="app" class="max-w-[1180px] mx-auto px-4 py-8"></main>
+
+<!-- FIXED BADGE -->
+<div class="fixed bottom-4 right-4 z-50 neon-frame neon-glow text-xs">
+  <div class="neon-inner px-3 py-1.5 rounded-2xl font-semibold text-cyan-200">Inline 02 · Neon Night</div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const W = window.WIKIPLUS;
+  const { article, clips, stats } = W;
+  const $ = (t, c, h) => { const e=document.createElement(t); if(c)e.className=c; if(h!=null)e.innerHTML=h; return e; };
+  const esc = s => (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+
+  const generalClips = clips.filter(c => c.general);
+  const clipsForSection = id => clips.filter(c => !c.general && c.sectionId === id);
+  const countGeneral = generalClips.length;
+
+  // accuracy/stance -> chip color (never color alone; label always present)
+  function accColor(s){
+    const t=(s||'').toLowerCase();
+    if(/simplified|caveat|condensed|big-picture|footage/.test(t)) return 'lime';
+    if(/opinion|anecdotal|teaching|classroom|exam/.test(t)) return 'amber';
+    if(/accurate/.test(t)) return 'emerald';
+    return 'sky';
+  }
+  const CHIP = {
+    emerald:'bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-400/40',
+    lime:'bg-lime-500/15 text-lime-300 ring-1 ring-lime-400/40',
+    amber:'bg-amber-500/15 text-amber-300 ring-1 ring-amber-400/40',
+    sky:'bg-sky-500/15 text-sky-300 ring-1 ring-sky-400/40',
+  };
+
+  // ---------- ICONS ----------
+  const icPlay = '<svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>';
+  const icUp = '<svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor" aria-hidden="true"><path d="M12 4l8 9h-5v7H9v-7H4z"/></svg>';
+  const icExt = '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 5h5v5M19 5l-8 8M11 5H6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-5"/></svg>';
+  const icVid = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="2" y="6" width="14" height="12" rx="2"/><path d="M16 10l6-3v10l-6-3z"/></svg>';
+
+  // ---------- VIDEO CARD ----------
+  function videoCard(clip){
+    const vertical = clip.orientation === 'vertical';
+    const ratio = vertical ? '9/16' : '16/9';
+    const c = clip.creator || {};
+    const accCls = CHIP[accColor(clip.accuracy)];
+
+    const card = $('article','neon-frame neon-glow shrink-0 '+(vertical?'w-[230px]':'w-[330px]'));
+    const inner = $('div','neon-inner rounded-[15px] overflow-hidden h-full flex flex-col');
+    card.appendChild(inner);
+
+    // --- media ---
+    const media = $('div','relative bg-gradient-to-br '+clip.thumbGrad+' group');
+    media.style.aspectRatio = ratio;
+    const img = $('img','absolute inset-0 w-full h-full object-cover');
+    img.loading='lazy'; img.src=clip.thumbnail; img.alt=esc(clip.caption);
+    img.setAttribute('onerror', "this.style.display='none'");
+    media.appendChild(img);
+
+    // platform badge
+    media.appendChild($('span','absolute top-2 left-2 z-10 text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-md bg-black/70 text-white ring-1 ring-white/20', esc(clip.platformLabel)));
+    if(vertical) media.appendChild($('span','absolute top-2 right-2 z-10 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-pink-500/80 text-white','9:16'));
+
+    // play button
+    const playBtn = $('button','neon-focus absolute inset-0 z-10 flex items-center justify-center text-white');
+    playBtn.setAttribute('aria-label','Play '+esc(clip.caption));
+    playBtn.innerHTML = '<span class="flex items-center justify-center w-14 h-14 rounded-full bg-black/55 ring-2 ring-cyan-300/80 group-hover:bg-black/70 group-hover:scale-105 transition" style="box-shadow:0 0 22px rgba(34,211,238,.6)">'+icPlay+'</span>';
+    media.appendChild(playBtn);
+
+    playBtn.addEventListener('click', () => {
+      if(clip.platform === 'youtube' && clip.embed_url){
+        const f = $('iframe','absolute inset-0 w-full h-full z-20');
+        f.src = clip.embed_url + '?autoplay=1';
+        f.title = esc(clip.caption);
+        f.allow = 'autoplay; encrypted-media; picture-in-picture';
+        f.setAttribute('allowfullscreen','');
+        media.appendChild(f);
+      } else if(clip.watch_url){
+        window.open(clip.watch_url,'_blank','noopener');
+      }
+    });
+    inner.appendChild(media);
+
+    // --- body ---
+    const body = $('div','p-3 flex flex-col gap-2 grow');
+
+    // caption
+    body.appendChild($('h4','text-[13px] font-semibold leading-snug text-cyan-50', esc(clip.caption)));
+
+    // creator row
+    const cr = $('div','flex items-center gap-2');
+    cr.appendChild($('span','w-7 h-7 rounded-full bg-gradient-to-br '+(c.avatarGrad||'from-cyan-400 to-purple-600')+' ring-1 ring-white/20 shrink-0'));
+    cr.appendChild($('div','min-w-0','<div class="text-[12px] font-medium text-white truncate">'+esc(c.name)+'</div><div class="text-[11px] text-purple-300/80 truncate">'+esc(c.handle)+'</div>'));
+    body.appendChild(cr);
+
+    // context note (the core value)
+    const note = $('div','rounded-lg bg-white/[0.04] ring-1 ring-white/10 px-2.5 py-2');
+    note.innerHTML = '<div class="text-[9px] uppercase tracking-wider text-fuchsia-300/80 font-bold mb-0.5">Curator note</div><p class="text-[12px] leading-relaxed text-slate-200">'+esc(clip.context)+'</p>';
+    body.appendChild(note);
+
+    // chips: stance + accuracy
+    const chips = $('div','flex flex-wrap gap-1.5');
+    chips.appendChild($('span','text-[10px] font-semibold px-2 py-0.5 rounded-full bg-purple-500/15 text-purple-200 ring-1 ring-purple-400/40', esc(clip.stance)));
+    chips.appendChild($('span','text-[10px] font-semibold px-2 py-0.5 rounded-full '+accCls, esc(clip.accuracy)));
+    body.appendChild(chips);
+
+    // footer meta
+    const foot = $('div','mt-auto pt-1.5 flex items-center justify-between text-[11px] text-slate-400 border-t border-white/10');
+    foot.appendChild($('span','inline-flex items-center gap-1 text-cyan-300 font-semibold', icUp+' '+clip.upvotes));
+    if(clip.platform==='tiktok'){
+      const a=$('a','inline-flex items-center gap-1 text-pink-300 hover:text-pink-200 neon-focus font-medium', 'Open on TikTok '+icExt);
+      a.href=clip.watch_url; a.target='_blank'; a.rel='noopener';
+      foot.appendChild(a);
+    } else {
+      foot.appendChild($('span','text-slate-500', esc(clip.curatedBy)+' · '+esc(clip.date)));
+    }
+    body.appendChild(foot);
+
+    inner.appendChild(body);
+    return card;
+  }
+
+  // ---------- PLUS BLOCK (carousel container) ----------
+  function plusBlock(opts){
+    // opts: {title, count, clips, kind:'general'|'section', seeAll, sectionTotal}
+    const frame = $('div','neon-frame neon-glow my-6');
+    const inner = $('section','neon-inner rounded-[15px] p-4');
+    inner.setAttribute('aria-label', opts.aria || opts.title);
+    frame.appendChild(inner);
+
+    const head = $('div','flex items-center justify-between gap-3 mb-3 flex-wrap');
+    const left = $('div','flex items-center gap-2 text-cyan-200');
+    left.innerHTML = '<span class="text-emerald-400">'+icVid+'</span>'+
+      '<h3 class="text-sm font-bold tracking-wide text-white">'+esc(opts.title)+'</h3>'+
+      '<span class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-gradient-to-r from-cyan-400 to-fuchsia-500 text-black">'+opts.count+'</span>';
+    head.appendChild(left);
+    if(opts.seeAll){
+      const a=$('a','text-[12px] font-semibold text-cyan-300 hover:text-cyan-100 neon-focus', opts.seeAll);
+      a.href='#'; a.addEventListener('click',e=>e.preventDefault());
+      head.appendChild(a);
+    }
+    inner.appendChild(head);
+
+    const track = $('div','neon-scroll flex gap-3 overflow-x-auto pb-2 snap-x');
+    track.setAttribute('role','list');
+    opts.clips.forEach(c=>{ const card=videoCard(c); card.classList.add('snap-start'); card.setAttribute('role','listitem'); track.appendChild(card); });
+
+    // +N more for section
+    if(opts.sectionTotal && opts.sectionTotal > opts.clips.length){
+      const more = $('div','shrink-0 self-stretch w-[150px] flex items-center justify-center');
+      more.innerHTML = '<a href="#" class="text-center text-[12px] font-semibold text-purple-300 hover:text-purple-100 neon-focus px-3">+'+(opts.sectionTotal-opts.clips.length)+' more<br>for this section</a>';
+      more.querySelector('a').addEventListener('click',e=>e.preventDefault());
+      track.appendChild(more);
+    }
+    inner.appendChild(track);
+    return frame;
+  }
+
+  // ====================================================
+  //  LAYOUT: article column + sticky right sidebar
+  // ====================================================
+  const app = document.getElementById('app');
+  const grid = $('div','flex flex-col lg:flex-row gap-8 items-start');
+  const col = $('div','min-w-0 lg:flex-1');           // article
+  const side = $('aside','w-full lg:w-[300px] lg:shrink-0 lg:sticky lg:top-[64px] order-first lg:order-last');
+  grid.appendChild(col); grid.appendChild(side);
+  app.appendChild(grid);
+
+  // ---------- ARTICLE HEADER ----------
+  col.appendChild($('h1','art-title text-4xl pb-1 mb-1 border-b border-[#a2a9b1]', esc(article.title)));
+  const fromLine=$('div','text-[12px] text-[#54595d] mb-4');
+  fromLine.innerHTML='From <a class="wl" href="'+esc(article.url)+'">Wikipedia</a> · '+esc(article.license);
+  col.appendChild(fromLine);
+
+  // lead image figure (right float)
+  const leadWrap=$('div','art-body');
+  if(article.leadImage){
+    const fig=$('figure','wiki-fig float-right ml-4 mb-3 p-1 w-[260px]');
+    fig.innerHTML='<img src="'+esc(article.leadImage.src)+'" alt="'+esc(article.leadImage.alt)+'" class="w-full h-auto block">'+
+      '<figcaption class="text-[11px] text-[#54595d] px-1 pt-1 leading-snug">'+esc(article.leadImage.caption)+'<span class="block text-[10px] text-[#72777d]">'+esc(article.leadImage.credit)+'</span></figcaption>';
+    leadWrap.appendChild(fig);
+  }
+  (article.lead_html||[]).forEach(h=>{ const p=$('p'); p.innerHTML=h; leadWrap.appendChild(p); });
+  col.appendChild(leadWrap);
+
+  // ---------- GENERAL PLUS BLOCK (after lead) ----------
+  col.appendChild(plusBlock({
+    title:'Watch — general intros',
+    aria:'General videos about '+article.title,
+    count:countGeneral,
+    clips:generalClips,
+    seeAll:'see all ('+stats.totalClips+') →'
+  }));
+
+  // ---------- SECTIONS ----------
+  const headingTag = lvl => lvl===2?'h2':lvl===3?'h3':'h4';
+  const headingCls = lvl => lvl===2?'art-h2 text-2xl mt-6 mb-3 pb-1':lvl===3?'art-h3 text-xl mt-5 mb-2 pb-1':'art-h4 text-lg mt-4 mb-2 pb-1';
+
+  article.sections.forEach(sec => {
+    const h=$(headingTag(sec.level), headingCls(sec.level), esc(sec.title));
+    h.id = sec.id;
+    h.setAttribute('data-toc', sec.id);
+    col.appendChild(h);
+
+    const bodyWrap=$('div','art-body');
+    if(sec.image){
+      const fig=$('figure','wiki-fig float-right ml-4 mb-3 p-1 w-[240px]');
+      fig.innerHTML='<img src="'+esc(sec.image.src)+'" alt="'+esc(sec.image.alt)+'" class="w-full h-auto block">'+
+        '<figcaption class="text-[11px] text-[#54595d] px-1 pt-1 leading-snug">'+esc(sec.image.caption)+'<span class="block text-[10px] text-[#72777d]">'+esc(sec.image.credit)+'</span></figcaption>';
+      bodyWrap.appendChild(fig);
+    }
+    (sec.html||[]).forEach(h2=>{ const p=$('p'); p.innerHTML=h2; bodyWrap.appendChild(p); });
+    col.appendChild(bodyWrap);
+
+    // inline plus block for this section's anchored clips
+    const sc = clipsForSection(sec.id);
+    if(sc.length){
+      col.appendChild($('div','clear-both'));
+      col.appendChild(plusBlock({
+        title:'Watch — '+sec.title,
+        aria:'Videos for section '+sec.title,
+        count:sc.length,
+        clips:sc,
+        sectionTotal: sc.length // (no inflated totals known per-section; show all loaded)
+      }));
+    }
+  });
+
+  // ====================================================
+  //  SIDEBAR: +plus infobox + TOC
+  // ====================================================
+
+  // ---- infobox ----
+  const ibFrame=$('div','neon-frame neon-glow mb-4');
+  const ib=$('div','neon-inner rounded-[15px] p-4');
+  ib.innerHTML =
+    '<div class="flex items-center gap-1 text-lg font-black mb-3"><span class="text-white wiki-serif">wiki</span><span class="text-emerald-400" style="text-shadow:0 0 10px rgba(52,211,153,.7)">+</span><span class="text-[11px] font-normal text-purple-300 ml-1 uppercase tracking-wider">layer</span></div>'+
+    '<dl class="grid grid-cols-3 gap-2 text-center">'+
+      statBox(stats.totalClips,'videos','from-cyan-400 to-blue-500')+
+      statBox(stats.creatorCount,'creators','from-fuchsia-400 to-purple-500')+
+      statBox(stats.curatorCount,'curators','from-emerald-400 to-teal-500')+
+    '</dl>'+
+    '<div class="mt-3 flex items-center gap-1.5 text-[11px] text-emerald-300"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>synced '+esc(stats.synced)+'</div>';
+  ibFrame.appendChild(ib);
+  side.appendChild(ibFrame);
+
+  function statBox(n,label,grad){
+    return '<div><div class="text-2xl font-black bg-gradient-to-br '+grad+' bg-clip-text text-transparent">'+n+'</div>'+
+      '<div class="text-[10px] uppercase tracking-wide text-slate-400">'+label+'</div></div>';
+  }
+
+  // ---- TOC ----
+  const tocFrame=$('div','neon-frame neon-glow');
+  const toc=$('nav','neon-inner rounded-[15px] p-3 max-h-[70vh] overflow-y-auto neon-scroll');
+  toc.setAttribute('aria-label','Contents');
+  toc.appendChild($('div','text-[10px] uppercase tracking-[0.2em] text-cyan-300/80 font-bold px-2 mb-2','Contents'));
+  const list=$('ul','space-y-0.5 text-[13px]');
+
+  function tocItem(label, href, count, indent, special){
+    const li=$('li');
+    const a=$('a','neon-focus flex items-center justify-between gap-2 rounded-md px-2 py-1 transition '+
+      (special?'text-emerald-200 font-bold':'text-slate-300 hover:text-white hover:bg-white/5')+' '+indent);
+    a.href='#'+href;
+    a.dataset.target=href;
+    a.innerHTML = '<span class="truncate">'+(special?'<span class="text-emerald-400">＋ </span>':'')+esc(label)+'</span>';
+    if(count>0){
+      a.innerHTML += '<span class="shrink-0 inline-flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-gradient-to-r from-cyan-400 to-fuchsia-500 text-black">'+count+'</span>';
+    }
+    li.appendChild(a);
+    list.appendChild(li);
+    return a;
+  }
+
+  // General first (special) — scrolls to general carousel
+  const genItem = tocItem('General','__general__', countGeneral, '', true);
+
+  // sections
+  article.sections.forEach(sec=>{
+    const indent = sec.level===3?'pl-5':sec.level===4?'pl-8':'';
+    tocItem(sec.title, sec.id, clipsForSection(sec.id).length, indent, false);
+  });
+
+  toc.appendChild(list);
+  tocFrame.appendChild(toc);
+  side.appendChild(tocFrame);
+
+  // give general carousel an anchor id so the General TOC entry works
+  // (first plusBlock added is the general one — tag it)
+  const firstPlus = col.querySelector('.neon-frame'); // first neon module in article col is general block
+  if(firstPlus) firstPlus.id='__general__';
+
+  // ---------- scrollspy ----------
+  const tocLinks = [...list.querySelectorAll('a')];
+  const targets = tocLinks.map(a=>document.getElementById(a.dataset.target)).filter(Boolean);
+  function setActive(id){
+    tocLinks.forEach(a=>a.classList.toggle('toc-active', a.dataset.target===id));
+  }
+  const io = new IntersectionObserver((entries)=>{
+    entries.forEach(en=>{
+      if(en.isIntersecting) setActive(en.target.id);
+    });
+  }, { rootMargin:'-64px 0px -70% 0px', threshold:0 });
+  targets.forEach(t=>io.observe(t));
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>wiki+ · Creator Gallery</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="data/content.js"></script>
+<style>
+  /* CSS columns masonry */
+  .masonry{column-gap:1rem}
+  @media(min-width:640px){.masonry{column-count:2}}
+  @media(min-width:1024px){.masonry{column-count:3}}
+  @media(min-width:1536px){.masonry{column-count:4}}
+  .masonry > *{break-inside:avoid;margin-bottom:1rem}
+  .clamp{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+  .clamp.open{-webkit-line-clamp:unset;display:block}
+  @keyframes shimmer{0%{background-position:-468px 0}100%{background-position:468px 0}}
+  .skel{background:#e5e7eb;background-image:linear-gradient(90deg,#e5e7eb 0px,#f3f4f6 40px,#e5e7eb 80px);background-size:600px;animation:shimmer 1.4s infinite linear}
+</style>
+</head>
+<body class="bg-gradient-to-b from-emerald-50/60 via-white to-white text-slate-800 antialiased">
+
+<!-- fixed variant badge -->
+<div class="fixed bottom-3 right-3 z-50 select-none rounded-full bg-slate-900/90 px-3 py-1.5 text-xs font-medium text-white shadow-lg backdrop-blur">
+  Variant 05 · Creator Gallery
+</div>
+
+<div id="app" class="mx-auto max-w-7xl px-4 pb-24 pt-6 sm:px-6"></div>
+
+<script>
+const W = window.WIKIPLUS;
+const esc = s => (s==null?'':String(s)).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const el = (tag, cls, html) => { const e=document.createElement(tag); if(cls)e.className=cls; if(html!=null)e.innerHTML=html; return e; };
+
+function accuracyChip(accuracy){
+  const a=(accuracy||'').toLowerCase();
+  let cls='bg-emerald-100 text-emerald-800 ring-emerald-200';
+  if(/simplified|caveat|condensed|exam|definitional|big-picture|ultra/.test(a)) cls='bg-sky-100 text-sky-800 ring-sky-200';
+  if(/teaching|anecdot|opinion|classroom/.test(a)) cls='bg-amber-100 text-amber-800 ring-amber-200';
+  return `<span class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ring-inset ${cls}">${dotSvg()} ${esc(accuracy)}</span>`;
+}
+function stanceChip(stance){
+  return `<span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600 ring-1 ring-inset ring-slate-200">${esc(stance)}</span>`;
+}
+const dotSvg=()=>`<svg viewBox="0 0 8 8" class="h-1.5 w-1.5 fill-current"><circle cx="4" cy="4" r="4"/></svg>`;
+const upSvg=()=>`<svg viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></svg>`;
+const playSvg=()=>`<svg viewBox="0 0 24 24" class="h-6 w-6 translate-x-0.5 fill-white"><path d="M8 5v14l11-7z"/></svg>`;
+const extSvg=()=>`<svg viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="M10 14 21 3"/></svg>`;
+const tagSvg=()=>`<svg viewBox="0 0 24 24" class="h-3 w-3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2H2v10l9.29 9.29c.94.94 2.48.94 3.42 0l6.58-6.58c.94-.94.94-2.48 0-3.42L12 2Z"/><path d="M7 7h.01"/></svg>`;
+const chevSvg=()=>`<svg viewBox="0 0 24 24" class="h-4 w-4 transition-transform" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>`;
+const platIcon=(p)=>{
+  if(p==='tiktok') return `<svg viewBox="0 0 24 24" class="h-3.5 w-3.5 fill-current"><path d="M16.6 5.82a4.28 4.28 0 0 1-1.06-2.82h-3.2v12.86a2.4 2.4 0 1 1-2.4-2.4c.13 0 .26.01.39.03V10.2a5.6 5.6 0 1 0 5.2 5.58V9.3a7.13 7.13 0 0 0 4.07 1.27V7.37a4.28 4.28 0 0 1-3-1.55z"/></svg>`;
+  return `<svg viewBox="0 0 24 24" class="h-3.5 w-3.5 fill-current"><path d="M23 7.5a3 3 0 0 0-2.1-2.1C19 5 12 5 12 5s-7 0-8.9.4A3 3 0 0 0 1 7.5 31 31 0 0 0 .6 12 31 31 0 0 0 1 16.5a3 3 0 0 0 2.1 2.1C5 19 12 19 12 19s7 0 8.9-.4a3 3 0 0 0 2.1-2.1A31 31 0 0 0 23.4 12 31 31 0 0 0 23 7.5zM9.75 15.5v-7l6 3.5z"/></svg>`;
+};
+const wordmark=()=>`<span class="text-2xl font-extrabold tracking-tight text-slate-900">wiki<span class="text-emerald-500">+</span></span>`;
+
+/* format -> filter key */
+function fmtKey(c){
+  if(c.platform==='tiktok') return 'tiktok';
+  if(c.format==='youtube_short') return 'shorts';
+  return 'youtube';
+}
+
+/* ---------- card ---------- */
+function buildCard(clip){
+  const vertical = clip.orientation==='vertical';
+  const card = el('article','group overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:shadow-lg');
+  card.dataset.fmt = fmtKey(clip);
+
+  // media at true ratio
+  const frame = el('div','relative w-full overflow-hidden bg-slate-800 ' + (vertical?'aspect-[9/16]':'aspect-video'));
+  const img = el('img','absolute inset-0 h-full w-full object-cover');
+  img.loading='lazy'; img.src=clip.thumbnail; img.alt=esc(clip.caption);
+  img.setAttribute('onerror', `this.style.display='none'; this.parentElement.classList.add('bg-gradient-to-br'); ${clip.thumbGrad.split(' ').map(g=>`this.parentElement.classList.add('${g}')`).join(';')}`);
+  frame.appendChild(img);
+  frame.appendChild(el('div','absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-black/10 pointer-events-none'));
+
+  const badge = el('div','absolute left-2.5 top-2.5 inline-flex items-center gap-1 rounded-full bg-black/65 px-2 py-1 text-[10px] font-semibold text-white backdrop-blur');
+  badge.innerHTML = `${platIcon(clip.platform)} ${esc(clip.platformLabel)}`;
+  frame.appendChild(badge);
+
+  const overlay = el('button','absolute inset-0 flex items-center justify-center');
+  overlay.setAttribute('aria-label', clip.platform==='tiktok'?'Open on TikTok':'Play');
+  overlay.innerHTML = `<span class="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500/90 shadow-xl transition group-hover:scale-110 group-hover:bg-emerald-500">${playSvg()}</span>`;
+  if(clip.platform==='tiktok'){
+    overlay.innerHTML += `<span class="absolute bottom-3 inline-flex items-center gap-1 rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-semibold text-slate-800">${extSvg()} Open on TikTok</span>`;
+    overlay.addEventListener('click', ()=>window.open(clip.watch_url,'_blank','noopener'));
+  } else {
+    overlay.addEventListener('click', ()=>{
+      const iframe=el('iframe','absolute inset-0 h-full w-full');
+      iframe.src=clip.embed_url+'?autoplay=1';
+      iframe.allow='accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture';
+      iframe.allowFullscreen=true; iframe.setAttribute('frameborder','0');
+      frame.querySelectorAll('img,button,div').forEach(n=>n.remove());
+      frame.appendChild(iframe);
+    });
+  }
+  frame.appendChild(overlay);
+  card.appendChild(frame);
+
+  // body
+  const body = el('div','p-4');
+  // creator row
+  const cr = el('div','flex items-center gap-2.5');
+  cr.innerHTML = `
+    <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br ${clip.creator.avatarGrad} text-xs font-bold text-white">${esc(clip.creator.name[0])}</span>
+    <div class="min-w-0 flex-1">
+      <a href="${esc(clip.creator.url)}" target="_blank" rel="noopener" class="block truncate text-sm font-semibold text-slate-900 hover:text-emerald-600">${esc(clip.creator.name)}</a>
+      <div class="truncate text-[11px] text-slate-500">${esc(clip.creator.handle)} · ${esc(clip.platformLabel)}</div>
+    </div>
+    <span class="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700">${upSvg()} ${clip.upvotes}</span>`;
+  body.appendChild(cr);
+
+  body.appendChild(el('p','mt-2.5 text-sm font-medium leading-snug text-slate-800','“'+esc(clip.caption)+'”'));
+
+  const chips=el('div','mt-2 flex flex-wrap gap-1.5');
+  chips.innerHTML = stanceChip(clip.stance)+accuracyChip(clip.accuracy);
+  body.appendChild(chips);
+
+  // context note line-clamped + more
+  const ctxWrap = el('div','mt-3 rounded-lg border-l-4 border-emerald-300 bg-emerald-50/60 p-2.5');
+  ctxWrap.innerHTML = `<div class="mb-1 text-[9px] font-bold uppercase tracking-wider text-emerald-700">Curator context note</div>`;
+  const ctxP = el('p','clamp text-[12.5px] leading-5 text-slate-700', esc(clip.context));
+  ctxWrap.appendChild(ctxP);
+  const more = el('button','mt-1 text-[11px] font-semibold text-emerald-600 hover:underline','more');
+  more.addEventListener('click',()=>{
+    const open = ctxP.classList.toggle('open');
+    more.textContent = open?'less':'more';
+  });
+  ctxWrap.appendChild(more);
+  body.appendChild(ctxWrap);
+
+  // footer: section chip + curatedBy
+  const foot = el('div','mt-3 flex items-center justify-between gap-2 border-t border-slate-100 pt-2.5');
+  foot.innerHTML = `
+    <a href="#sec-${esc(clip.sectionId)}" class="inline-flex max-w-[62%] items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-700 transition hover:bg-emerald-100 hover:text-emerald-700">${tagSvg()} <span class="truncate">${esc(clip.sectionLabel)}</span></a>
+    <span class="shrink-0 text-[10px] text-slate-400">by ${esc(clip.curatedBy)}</span>`;
+  body.appendChild(foot);
+
+  card.appendChild(body);
+  return card;
+}
+
+function buildSkeleton(){
+  const card=el('article','overflow-hidden rounded-2xl border border-slate-200 bg-white');
+  card.dataset.skel='1';
+  const tall = Math.random()>0.5;
+  card.innerHTML = `
+    <div class="skel w-full ${tall?'aspect-[9/16]':'aspect-video'}"></div>
+    <div class="p-4">
+      <div class="flex items-center gap-2.5"><div class="skel h-9 w-9 rounded-full"></div><div class="flex-1 space-y-1.5"><div class="skel h-3 w-2/3 rounded"></div><div class="skel h-2 w-1/3 rounded"></div></div></div>
+      <div class="mt-3 space-y-2"><div class="skel h-3 w-full rounded"></div><div class="skel h-3 w-4/5 rounded"></div></div>
+    </div>`;
+  return card;
+}
+
+/* ---------- accordion (sections) ---------- */
+function buildAccordion(){
+  const a=W.article;
+  const wrap=el('section','mt-14');
+  wrap.innerHTML = `<h2 class="mb-1 text-lg font-bold text-slate-900">The Wikipedia article</h2>
+    <p class="mb-4 text-xs text-slate-500">Curated clips above point into these sections. Source: <a class="font-medium text-emerald-700 hover:underline" target="_blank" rel="noopener" href="${esc(a.url)}">${esc(a.source)}</a> · ${esc(a.license)}.</p>`;
+
+  // lead always-open
+  const leadBox = el('div','rounded-2xl border border-slate-200 bg-white p-5 shadow-sm');
+  leadBox.innerHTML = `<h3 class="text-base font-bold text-slate-900">${esc(a.title)} — overview</h3>`;
+  a.lead.forEach((p,i)=>leadBox.appendChild(el('p', i===0?'mt-2 text-sm leading-6 text-slate-700':'mt-2 text-sm leading-6 text-slate-600', esc(p))));
+  wrap.appendChild(leadBox);
+
+  const list = el('div','mt-3 divide-y divide-slate-200 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm');
+  a.sections.forEach(s=>{
+    const item=el('div','');
+    item.id='sec-'+s.id;
+    item.classList.add('scroll-mt-4');
+    const indent = s.level===3 ? 'pl-8' : (s.level===4 ? 'pl-12' : 'pl-5');
+    const btn=el('button',`flex w-full items-center justify-between gap-3 ${indent} pr-5 py-3 text-left hover:bg-slate-50`);
+    const lvlBadge = s.level===2?'bg-emerald-100 text-emerald-700':(s.level===3?'bg-sky-100 text-sky-700':'bg-slate-100 text-slate-500');
+    btn.innerHTML = `<span class="flex items-center gap-2"><span class="rounded px-1.5 py-0.5 text-[9px] font-bold ${lvlBadge}">H${s.level}</span><span class="text-sm font-semibold text-slate-800">${esc(s.title)}</span></span>`;
+    const chev = el('span','text-slate-400'); chev.innerHTML=chevSvg();
+    btn.appendChild(chev);
+    const panel=el('div','hidden px-5 pb-4 pt-0');
+    if(!s.paras||!s.paras.length){
+      panel.appendChild(el('p','text-sm italic text-slate-400','(See full article for this section.)'));
+    } else {
+      s.paras.forEach(p=>panel.appendChild(el('p','mt-2 text-sm leading-6 text-slate-600', esc(p))));
+    }
+    btn.addEventListener('click',()=>{
+      const open=panel.classList.toggle('hidden');
+      chev.firstChild.style.transform = open?'':'rotate(180deg)';
+    });
+    item.appendChild(btn); item.appendChild(panel);
+    list.appendChild(item);
+  });
+  wrap.appendChild(list);
+  return wrap;
+}
+
+/* ---------- header ---------- */
+function buildHeader(){
+  const a=W.article, st=W.stats;
+  const head=el('header','');
+  head.innerHTML = `
+    <div class="flex items-center justify-between">
+      <div class="flex items-center gap-2">${wordmark()}<span class="rounded bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-500">Creator Gallery</span></div>
+    </div>
+    <div class="mt-4 rounded-3xl border border-emerald-100 bg-white/70 p-6 shadow-sm backdrop-blur">
+      <h1 class="text-3xl font-extrabold tracking-tight text-slate-900">${esc(a.title)}</h1>
+      <a href="${esc(a.url)}" target="_blank" rel="noopener" class="mt-1 inline-flex items-center gap-1 text-xs text-slate-500 hover:text-emerald-600">From Wikipedia · ${esc(a.license)} ${extSvg()}</a>
+      <p class="mt-3 max-w-3xl text-[15px] leading-7 text-slate-600">${esc(a.lead[0])}</p>
+      <div class="mt-4 flex flex-wrap gap-2">
+        <span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-800">${st.totalClips} clips curated</span>
+        <span class="inline-flex items-center gap-1.5 rounded-full bg-sky-100 px-3 py-1 text-xs font-semibold text-sky-800">${st.creatorCount} creators</span>
+        <span class="inline-flex items-center gap-1.5 rounded-full bg-violet-100 px-3 py-1 text-xs font-semibold text-violet-800">${st.curatorCount} curators</span>
+        <span class="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800">${upSvg()} ${st.upvoteTotal.toLocaleString()} upvotes</span>
+        <span class="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">synced ${esc(st.synced)}</span>
+      </div>
+    </div>`;
+  return head;
+}
+
+/* ---------- assemble ---------- */
+document.addEventListener('DOMContentLoaded',()=>{
+  const app=document.getElementById('app');
+  app.appendChild(buildHeader());
+
+  // overview line + filters
+  const bar=el('div','mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between');
+  const overview=el('p','text-sm font-medium text-slate-600');
+  bar.appendChild(overview);
+  const filters=el('div','flex flex-wrap gap-2');
+  const defs=[['all','All'],['youtube','YouTube'],['shorts','Shorts'],['tiktok','TikTok']];
+  let active='all';
+  const filterBtns={};
+  defs.forEach(([k,label])=>{
+    const b=el('button','rounded-full border px-3.5 py-1.5 text-xs font-semibold transition');
+    b.textContent=label; b.dataset.k=k;
+    filterBtns[k]=b;
+    b.addEventListener('click',()=>{ active=k; applyFilter(); });
+    filters.appendChild(b);
+  });
+  bar.appendChild(filters);
+  app.appendChild(bar);
+
+  // masonry grid
+  const grid=el('div','masonry mt-5');
+  app.appendChild(grid);
+
+  // load more / message zone
+  const zone=el('div','mt-2 flex flex-col items-center');
+  app.appendChild(zone);
+
+  const accordion=buildAccordion();
+  app.appendChild(accordion);
+
+  /* state */
+  const all = W.clips.slice();
+  const PAGE = 8;            // initial visible from the 14
+  let shown = Math.min(PAGE, all.length);
+
+  function visibleClips(){ return all.slice(0,shown); }
+
+  function render(){
+    grid.innerHTML='';
+    visibleClips().forEach(c=>grid.appendChild(buildCard(c)));
+    applyFilterDom();
+    renderZone();
+    updateOverview();
+  }
+
+  function updateOverview(){
+    const shownNow = [...grid.children].filter(c=>!c.classList.contains('hidden')).length;
+    if(active==='all'){
+      overview.innerHTML = `Showing <span class="font-bold text-slate-900">${shown}</span> of <span class="font-bold text-slate-900">${W.stats.totalClips}</span> curated clips`;
+    } else {
+      overview.innerHTML = `Showing <span class="font-bold text-slate-900">${shownNow}</span> ${filterBtns[active].textContent} clips (of ${shown} loaded · ${W.stats.totalClips} total)`;
+    }
+  }
+
+  function applyFilterDom(){
+    [...grid.children].forEach(c=>{
+      if(c.dataset.skel) return;
+      c.classList.toggle('hidden', !(active==='all' || c.dataset.fmt===active));
+    });
+    defs.forEach(([k])=>{
+      const on = k===active;
+      filterBtns[k].className = 'rounded-full border px-3.5 py-1.5 text-xs font-semibold transition ' +
+        (on?'border-emerald-500 bg-emerald-500 text-white shadow':'border-slate-200 bg-white text-slate-600 hover:border-emerald-300 hover:text-emerald-700');
+    });
+  }
+  function applyFilter(){ applyFilterDom(); updateOverview(); }
+
+  function renderZone(){
+    zone.innerHTML='';
+    if(shown < all.length){
+      const remaining = all.length - shown;
+      const n = Math.min(12, remaining);
+      const btn=el('button','mt-6 inline-flex items-center gap-2 rounded-full bg-slate-900 px-6 py-3 text-sm font-semibold text-white shadow-lg transition hover:bg-emerald-600');
+      btn.innerHTML = `Load ${n} more <span class="rounded-full bg-white/20 px-2 py-0.5 text-xs">${remaining} left in page</span>`;
+      btn.addEventListener('click',()=>{ shown=Math.min(shown+12, all.length); render(); });
+      zone.appendChild(btn);
+    } else {
+      // exhausted the 14 -> skeletons then browse-all message
+      const btn=el('button','mt-6 inline-flex items-center gap-2 rounded-full bg-slate-900 px-6 py-3 text-sm font-semibold text-white shadow-lg transition hover:bg-emerald-600');
+      btn.innerHTML = `Load 12 more`;
+      btn.addEventListener('click',()=>{
+        btn.disabled=true; btn.classList.add('opacity-60');
+        // inject skeletons into grid to demonstrate scaling beyond shown
+        const skels=[];
+        for(let i=0;i<4;i++){ const s=buildSkeleton(); grid.appendChild(s); skels.push(s); }
+        setTimeout(()=>{
+          skels.forEach(s=>s.remove());
+          zone.innerHTML='';
+          const msg=el('div','mt-6 w-full max-w-xl rounded-2xl border border-dashed border-emerald-300 bg-emerald-50/60 px-6 py-7 text-center');
+          msg.innerHTML = `
+            <div class="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+              <svg viewBox="0 0 24 24" class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+            </div>
+            <p class="text-sm font-semibold text-slate-800">That's the curated top ${W.stats.loaded} for this topic</p>
+            <p class="mt-1 text-xs text-slate-500">There are ${W.stats.totalClips} clips in total across all sections and formats.</p>
+            <button class="mt-4 inline-flex items-center gap-1.5 rounded-full bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow hover:bg-emerald-700">Browse all ${W.stats.totalClips} clips</button>`;
+          zone.appendChild(msg);
+        }, 1100);
+      });
+      zone.appendChild(btn);
+    }
+  }
+
+  render();
+});
+</script>
+</body>
+</html>

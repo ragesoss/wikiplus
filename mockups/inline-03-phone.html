@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>wiki+ · Inline 03 · Pocket Player</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="data/content.js"></script>
+<style>
+  html { scroll-behavior: smooth; }
+  /* ---- Wikipedia look (WIKI side) ---- */
+  .wiki-serif { font-family: 'Linux Libertine', Georgia, 'Times New Roman', serif; }
+  .wiki-body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; color: #202122; }
+  .wiki-title { font-family: 'Linux Libertine', Georgia, serif; border-bottom: 1px solid #a2a9b1; padding-bottom: .2em; }
+  .wiki-h2 { font-family: 'Linux Libertine', Georgia, serif; border-bottom: 1px solid #a2a9b1; padding-bottom: .25em; }
+  .wiki-h3, .wiki-h4 { font-family: 'Linux Libertine', Georgia, serif; }
+  .wp-prose p { margin-bottom: .65rem; line-height: 1.65; font-size: 15px; color: #202122; }
+  .wp-prose a.wl, a.wl { color: #3366cc; text-decoration: none; }
+  .wp-prose a.wl:hover, a.wl:hover { text-decoration: underline; }
+  figure.wiki-fig { border: 1px solid #a2a9b1; background: #f8f9fa; }
+  figure.wiki-fig figcaption { color: #54595d; }
+  /* ---- Pocket Player chrome (PLUS side) ---- */
+  .pp-scroll { scrollbar-width: thin; scrollbar-color: #f0abfc transparent; }
+  .pp-scroll::-webkit-scrollbar { height: 8px; }
+  .pp-scroll::-webkit-scrollbar-thumb { background: #e879f9; border-radius: 9999px; }
+  @keyframes ppmove { from { width: 8%; } to { width: 86%; } }
+  .pp-progress > span { animation: ppmove 9s linear infinite; }
+  :focus-visible { outline: 3px solid #d946ef; outline-offset: 2px; border-radius: 6px; }
+  ::selection { background: #f5d0fe; }
+</style>
+</head>
+<body class="bg-white text-[#202122] wiki-body antialiased">
+<div id="app"></div>
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  var W = window.WIKIPLUS;
+  var A = W.article, CLIPS = W.clips, STATS = W.stats;
+
+  var SVG = {
+    play:'<svg viewBox="0 0 24 24" fill="currentColor" class="w-6 h-6"><path d="M8 5v14l11-7z"/></svg>',
+    heart:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-5 h-5"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z"/></svg>',
+    comment:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-5 h-5"><path d="M21 11.5a8.4 8.4 0 0 1-8.5 8.5 8.5 8.5 0 0 1-3.8-.9L3 21l1.9-5.7A8.4 8.4 0 0 1 4 11.5 8.5 8.5 0 0 1 12.5 3 8.4 8.4 0 0 1 21 11.5z"/></svg>',
+    share:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-5 h-5"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><path d="M16 6l-4-4-4 4"/><path d="M12 2v14"/></svg>',
+    save:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-5 h-5"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>',
+    up:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-3.5 h-3.5"><path d="M12 19V5M5 12l7-7 7 7"/></svg>',
+    ext:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-3.5 h-3.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6M10 14L21 3"/></svg>',
+    arrow:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="w-3.5 h-3.5"><path d="M5 12h14M13 6l6 6-6 6"/></svg>',
+    book:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-4 h-4"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2zM22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>',
+    bolt:'<svg viewBox="0 0 24 24" fill="currentColor" class="w-4 h-4"><path d="M13 2L3 14h7l-1 8 10-12h-7z"/></svg>'
+  };
+
+  function esc(s){ var d=document.createElement("div"); d.textContent=s==null?"":s; return d.innerHTML; }
+
+  // ---- accuracy / stance label coloring (text label always present; never color-only) ----
+  function accClass(acc){
+    var a=(acc||"").toLowerCase();
+    if(/opinion|anecdot|teaching context|classroom/.test(a)) return "bg-amber-100 text-amber-800 ring-amber-300";
+    if(/caveat|simplified|condensed|exam|narrow|big-picture|fast/.test(a)) return "bg-sky-100 text-sky-800 ring-sky-300";
+    return "bg-emerald-100 text-emerald-800 ring-emerald-300";
+  }
+
+  // group clips
+  var bySection = {};
+  CLIPS.forEach(function(c){ (bySection[c.sectionId] = bySection[c.sectionId] || []).push(c); });
+  var generalClips = CLIPS.filter(function(c){ return c.general; });
+
+  function wordmark(extra){ return '<span class="font-extrabold tracking-tight '+(extra||'')+'">wiki<span class="text-emerald-500">+</span></span>'; }
+
+  function chip(label, cls){
+    return '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold ring-1 '+cls+'">'+label+'</span>';
+  }
+
+  // ---- the phone screen (thumbnail + short-form chrome) ----
+  // variant: "vertical" => 9:16 full phone ; "horizontal" => 16:9 mini-player
+  function phone(c){
+    var vert = c.orientation === "vertical";
+    var ratio = vert ? "aspect-[9/16]" : "aspect-video";
+    var pid = "media-"+c.id;
+    // device gradient frame
+    var frame = vert
+      ? '<div class="rounded-[26px] p-1.5 bg-gradient-to-br '+c.creator.avatarGrad+' shadow-xl shadow-fuchsia-500/10">'
+      : '<div class="rounded-[18px] p-1.5 bg-gradient-to-br '+c.creator.avatarGrad+' shadow-xl shadow-fuchsia-500/10">';
+    var screenRound = vert ? "rounded-[20px]" : "rounded-[12px]";
+
+    var actions = ''
+      + '<div class="absolute right-1.5 bottom-12 z-20 flex flex-col items-center gap-3 text-white drop-shadow">'
+      +   actionBtn(SVG.heart, c.upvotes, "like")
+      +   actionBtn(SVG.comment, '', "comment")
+      +   actionBtn(SVG.share, '', "share")
+      +   actionBtn(SVG.save, '', "save")
+      + '</div>';
+
+    var handle = ''
+      + '<div class="absolute left-2.5 bottom-6 z-20 max-w-[68%]">'
+      +   '<div class="flex items-center gap-1.5 text-white drop-shadow">'
+      +     '<span class="w-6 h-6 rounded-full bg-gradient-to-br '+c.creator.avatarGrad+' ring-2 ring-white/80 shrink-0"></span>'
+      +     '<span class="text-[12px] font-bold truncate">'+esc(c.creator.handle)+'</span>'
+      +   '</div>'
+      + '</div>';
+
+    var progress = '<div class="pp-progress absolute left-2 right-2 bottom-2.5 z-20 h-[3px] rounded-full bg-white/30 overflow-hidden"><span class="block h-full rounded-full bg-white/90"></span></div>';
+
+    var platTag = '<span class="absolute top-2 left-2 z-20 px-2 py-0.5 rounded-md text-[10px] font-bold bg-black/70 text-white backdrop-blur">'+esc(c.platformLabel)+'</span>';
+
+    return frame
+      + '<div id="'+pid+'" class="relative '+ratio+' '+screenRound+' overflow-hidden bg-gradient-to-br '+c.thumbGrad+'">'
+      +   '<img loading="lazy" src="'+c.thumbnail+'" alt="'+esc(c.caption)+'" class="absolute inset-0 w-full h-full object-cover" '
+      +     'onerror="this.style.display=\'none\';this.parentElement.classList.add(\'bg-gradient-to-br\');">'
+      +   '<div class="absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-black/20"></div>'
+      +   platTag
+      +   '<button data-play="'+c.id+'" aria-label="Play '+esc(c.caption)+'" class="absolute inset-0 z-10 flex items-center justify-center group">'
+      +     '<span class="flex items-center justify-center w-14 h-14 rounded-full bg-white/85 text-fuchsia-700 shadow-lg group-hover:scale-110 group-hover:bg-white transition-transform">'+SVG.play+'</span>'
+      +   '</button>'
+      +   actions
+      +   handle
+      +   progress
+      + '</div>'
+      + '</div>'
+      + (c.platform==="tiktok"
+          ? '<div class="mt-1.5 text-center text-[10px] font-semibold text-fuchsia-600">'+SVG_inline()+'Opens on TikTok</div>'
+          : '');
+  }
+  function SVG_inline(){ return '<span class="inline-flex align-[-2px] mr-1">'+SVG.ext+'</span>'; }
+
+  function actionBtn(icon, count, label){
+    return '<button data-noop aria-label="'+label+'" class="flex flex-col items-center gap-0.5 hover:scale-110 transition-transform">'
+      + '<span class="flex items-center justify-center w-8 h-8 rounded-full bg-black/35 backdrop-blur">'+icon+'</span>'
+      + (count!=='' ? '<span class="text-[10px] font-bold">'+count+'</span>' : '')
+      + '</button>';
+  }
+
+  // ---- context panel that sits beside/under the phone ----
+  function contextPanel(c){
+    return ''
+    + '<div class="flex-1 min-w-0">'
+    +   '<div class="flex items-center gap-2 mb-2">'
+    +     '<a href="'+c.creator.url+'" target="_blank" rel="noopener" class="text-sm font-bold text-[#202122] hover:text-fuchsia-700 truncate">'+esc(c.creator.name)+'</a>'
+    +     '<span class="text-[11px] text-stone-400 truncate">'+esc(c.creator.handle)+'</span>'
+    +   '</div>'
+    +   '<div class="flex flex-wrap gap-1.5 mb-2.5">'
+    +     chip('Stance: '+esc(c.stance), 'bg-fuchsia-100 text-fuchsia-800 ring-fuchsia-300')
+    +     + chip(esc(c.accuracy), accClass(c.accuracy))
+    +   '</div>'
+    +   '<div class="rounded-xl bg-white ring-1 ring-fuchsia-100 p-3 shadow-sm">'
+    +     '<div class="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-fuchsia-600 mb-1">'+SVG.bolt+'Curator note</div>'
+    +     '<p class="text-[13.5px] leading-relaxed text-stone-700">'+esc(c.context)+'</p>'
+    +   '</div>'
+    +   '<div class="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2.5 text-[11px] text-stone-500">'
+    +     '<a href="#'+c.sectionId+'" class="inline-flex items-center gap-1 font-semibold text-fuchsia-700 hover:underline">'+SVG.arrow+esc(c.sectionLabel)+'</a>'
+    +     '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-fuchsia-50 text-fuchsia-700 font-semibold ring-1 ring-fuchsia-100">'+SVG.up+c.upvotes+'</span>'
+    +     '<span>added by <span class="font-semibold text-stone-600">'+esc(c.curatedBy)+'</span> · '+esc(c.date)+'</span>'
+    +   '</div>'
+    + '</div>';
+  }
+
+  // ---- inline section block: phone + panel rows ----
+  function inlineClipRow(c){
+    var vert = c.orientation === "vertical";
+    var phoneW = vert ? 'w-[180px] shrink-0' : 'w-full sm:w-[300px] shrink-0';
+    return '<div class="flex flex-col sm:flex-row gap-4 items-start">'
+      + '<div class="'+phoneW+' mx-auto sm:mx-0">'+phone(c)+'</div>'
+      + contextPanel(c)
+      + '</div>';
+  }
+
+  function sectionBlock(secId){
+    var clips = bySection[secId] || [];
+    if(!clips.length) return "";
+    var sorted = clips.slice().sort(function(a,b){return b.upvotes-a.upvotes;});
+    var rows = sorted.map(inlineClipRow).join('<div class="my-5 border-t border-dashed border-fuchsia-100"></div>');
+    return ''
+      + '<aside class="my-7 rounded-2xl bg-gradient-to-br from-fuchsia-50 via-pink-50 to-violet-50 ring-1 ring-fuchsia-200 overflow-hidden">'
+      +   '<div class="flex items-center justify-between px-5 py-3 bg-white/60 border-b border-fuchsia-100">'
+      +     '<div class="flex items-center gap-2 text-fuchsia-800 text-sm font-bold">'+SVG.bolt+wordmark('text-sm')+'<span> · watch this section</span></div>'
+      +     '<span class="text-[11px] font-bold text-white bg-gradient-to-r from-fuchsia-500 to-violet-500 px-2.5 py-0.5 rounded-full">'+clips.length+' clip'+(clips.length>1?'s':'')+'</span>'
+      +   '</div>'
+      +   '<div class="px-5 py-5">'+rows+'</div>'
+      + '</aside>';
+  }
+
+  // ---- general carousel: a scrolling row of phone screens ----
+  function generalCarousel(){
+    if(!generalClips.length) return "";
+    var sorted = generalClips.slice().sort(function(a,b){return b.upvotes-a.upvotes;});
+    var cards = sorted.map(function(c){
+      var vert = c.orientation === "vertical";
+      var cardW = vert ? 'w-[190px]' : 'w-[300px]';
+      return '<div class="'+cardW+' shrink-0 snap-start">'
+        + '<div class="'+(vert?'w-[170px] mx-auto':'')+'">'+phone(c)+'</div>'
+        + '<div class="mt-2">'
+        +   '<div class="flex flex-wrap gap-1 mb-1.5">'
+        +     chip(esc(c.accuracy), accClass(c.accuracy))
+        +   '</div>'
+        +   '<p class="text-[12px] leading-snug text-stone-700 line-clamp-3"><span class="font-bold text-fuchsia-700">Note. </span>'+esc(c.context)+'</p>'
+        +   '<div class="mt-1.5 text-[10px] text-stone-400">'+esc(c.curatedBy)+' · '+esc(c.date)+'</div>'
+        + '</div>'
+        + '</div>';
+    }).join("");
+
+    return ''
+      + '<section id="general" class="my-8 scroll-mt-24 rounded-3xl bg-gradient-to-br from-violet-600 via-fuchsia-600 to-pink-500 p-px shadow-lg shadow-fuchsia-500/20">'
+      +   '<div class="rounded-3xl bg-white/95 backdrop-blur p-5">'
+      +     '<div class="flex items-end justify-between mb-4 flex-wrap gap-2">'
+      +       '<div>'
+      +         '<div class="flex items-center gap-2 text-fuchsia-700 text-[11px] font-bold uppercase tracking-wide">'+SVG.bolt+'Pocket Player</div>'
+      +         '<h2 class="text-xl font-extrabold text-[#202122]">Watch — general intros <span class="text-fuchsia-600">'+generalClips.length+'</span></h2>'
+      +         '<p class="text-[12px] text-stone-500">Whole-topic clips not tied to one section. Swipe sideways.</p>'
+      +       '</div>'
+      +       '<a href="'+A.url+'" target="_blank" rel="noopener" class="inline-flex items-center gap-1 text-[12px] font-bold text-fuchsia-700 bg-fuchsia-50 hover:bg-fuchsia-100 ring-1 ring-fuchsia-200 px-3 py-1.5 rounded-full">see all ('+STATS.totalClips+')'+SVG.arrow+'</a>'
+      +     '</div>'
+      +     '<div class="pp-scroll flex gap-5 overflow-x-auto snap-x pb-3 -mx-1 px-1">'+cards+'</div>'
+      +   '</div>'
+      + '</section>';
+  }
+
+  // ---- WIKI side: lead, figures, sections ----
+  function figure(img, extra){
+    if(!img) return "";
+    return '<figure class="wiki-fig float-right ml-4 mb-3 p-1.5 w-[220px] max-w-[45%] '+(extra||'')+'">'
+      + '<img loading="lazy" src="'+img.src+'" alt="'+esc(img.alt||img.caption)+'" class="w-full h-auto">'
+      + '<figcaption class="text-[11px] leading-snug px-1 pt-1.5">'+esc(img.caption)+'<span class="block text-[10px] text-stone-400 mt-0.5">'+esc(img.credit)+'</span></figcaption>'
+      + '</figure>';
+  }
+
+  function headingTag(level){ return level===2?"h2":level===3?"h3":"h4"; }
+  function headingCls(level){
+    if(level===2) return "wiki-h2 text-2xl text-[#000] mt-9 mb-3 scroll-mt-24";
+    if(level===3) return "wiki-h3 text-xl text-[#000] mt-6 mb-2 scroll-mt-24";
+    return "wiki-h4 text-lg font-semibold text-[#000] mt-5 mb-2 scroll-mt-24";
+  }
+
+  var leadHtml = A.lead_html.map(function(p){return '<p>'+p+'</p>';}).join("");
+
+  var bodyHtml = "";
+  A.sections.forEach(function(s){
+    var t = headingTag(s.level);
+    bodyHtml += '<'+t+' id="'+s.id+'" class="'+headingCls(s.level)+'">'+esc(s.title)+'</'+t+'>';
+    bodyHtml += '<div class="wp-prose clearfix overflow-hidden">'
+      + figure(s.image)
+      + (s.html||s.paras.map(function(p){return p;})).map(function(p){return '<p>'+p+'</p>';}).join("")
+      + '</div>';
+    bodyHtml += sectionBlock(s.id);
+  });
+
+  // ---- TOC (General first, then sections; count chips) ----
+  function tocItem(href, label, count, pad){
+    return '<a href="'+href+'" data-toc="'+href+'" class="toc-link group flex items-center justify-between gap-2 py-1.5 '+pad+' text-[12.5px] text-stone-500 hover:text-fuchsia-700 rounded-md border-l-2 border-transparent transition">'
+      + '<span class="truncate">'+esc(label)+'</span>'
+      + (count ? '<span class="shrink-0 inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-[10px] font-bold bg-fuchsia-100 text-fuchsia-700 group-hover:bg-fuchsia-500 group-hover:text-white transition">'+count+'</span>' : '')
+      + '</a>';
+  }
+  var tocHtml = tocItem('#general', 'General', generalClips.length, 'pl-2 font-semibold text-fuchsia-700');
+  A.sections.forEach(function(s){
+    var n = (bySection[s.id]||[]).length;
+    var pad = s.level===2?'pl-2':(s.level===3?'pl-5':'pl-8');
+    tocHtml += tocItem('#'+s.id, s.title, n, pad);
+  });
+
+  // ---- assemble ----
+  document.getElementById("app").innerHTML = ''
+  + '<header class="sticky top-0 z-30 bg-white/90 backdrop-blur border-b border-[#a2a9b1]">'
+  +   '<div class="max-w-6xl mx-auto px-5 h-14 flex items-center justify-between">'
+  +     '<div class="flex items-center gap-2">'+wordmark('text-xl text-[#202122]')+'<span class="hidden sm:inline text-stone-300">/</span><span class="hidden sm:inline text-sm text-stone-500">Pocket Player</span></div>'
+  +     '<a href="'+A.url+'" target="_blank" rel="noopener" class="flex items-center gap-1.5 text-[12px] text-stone-500 hover:text-fuchsia-700">'+SVG.book+'From Wikipedia · '+esc(A.license)+'</a>'
+  +   '</div>'
+  + '</header>'
+
+  + '<div class="max-w-6xl mx-auto px-5 grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-8">'
+
+  // MAIN
+  + '<main class="min-w-0 py-8">'
+  +   '<h1 class="wiki-title wiki-serif text-4xl text-[#000] mb-1">'+esc(A.title)+'</h1>'
+  +   '<div class="text-[12.5px] text-stone-500 mb-5">From <a class="wl" href="'+A.url+'" target="_blank" rel="noopener">Wikipedia</a> · '+esc(A.license)+'</div>'
+  +   '<div class="wp-prose clearfix overflow-hidden">'+figure(A.leadImage)+leadHtml+'</div>'
+  +   generalCarousel()
+  +   bodyHtml
+  +   '<footer class="mt-12 pt-6 border-t border-[#a2a9b1] text-[12px] text-stone-400">'
+  +     'Article text from <a class="wl" href="'+A.url+'" target="_blank" rel="noopener">'+esc(A.source)+'</a>, licensed '+esc(A.license)+'. Video context layered by the wiki+ community.'
+  +   '</footer>'
+  + '</main>'
+
+  // SIDEBAR
+  + '<aside class="hidden lg:block py-8">'
+  +   '<div class="sticky top-20 space-y-4">'
+        // +plus infobox
+  +     '<div class="rounded-2xl bg-gradient-to-br from-violet-600 via-fuchsia-600 to-pink-500 p-px shadow-lg shadow-fuchsia-500/20">'
+  +       '<div class="rounded-2xl bg-white p-4">'
+  +         '<div class="flex items-center gap-1.5 text-sm font-extrabold mb-3">'+wordmark('text-base text-[#202122]')+'<span class="text-stone-400 font-medium">layer</span></div>'
+  +         '<div class="grid grid-cols-3 gap-2 text-center mb-3">'
+  +           statCell(STATS.totalClips, 'videos')
+  +           + statCell(STATS.creatorCount, 'creators')
+  +           + statCell(STATS.curatorCount, 'curators')
+  +         '</div>'
+  +         '<div class="flex items-center gap-1.5 text-[11px] text-stone-500 bg-fuchsia-50 rounded-lg px-2.5 py-1.5"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>synced '+esc(STATS.synced)+'</div>'
+  +       '</div>'
+  +     '</div>'
+        // TOC
+  +     '<div class="rounded-2xl border border-stone-200 bg-white p-3 shadow-sm">'
+  +       '<div class="text-[11px] font-bold uppercase tracking-wide text-stone-400 px-2 pt-1 pb-2">Contents</div>'
+  +       '<nav aria-label="Table of contents" class="max-h-[60vh] overflow-y-auto pr-1">'+tocHtml+'</nav>'
+  +     '</div>'
+  +   '</div>'
+  + '</aside>'
+
+  + '</div>'
+
+  + '<div class="fixed bottom-4 right-4 z-40 px-3 py-1.5 rounded-full bg-gradient-to-r from-fuchsia-600 to-violet-600 text-white text-[11px] font-bold shadow-lg ring-1 ring-white/20">Inline 03 · Pocket Player</div>';
+
+  function statCell(n, label){
+    return '<div class="rounded-xl bg-fuchsia-50 py-2"><div class="text-lg font-extrabold text-fuchsia-700 leading-none">'+n+'</div><div class="text-[10px] text-stone-500 mt-0.5">'+label+'</div></div>';
+  }
+
+  // ---- interactions ----
+  function clipById(id){ for(var i=0;i<CLIPS.length;i++) if(CLIPS[i].id===id) return CLIPS[i]; }
+
+  document.addEventListener("click", function(e){
+    var pb = e.target.closest("[data-play]");
+    if(pb){
+      var c = clipById(pb.getAttribute("data-play"));
+      if(c.platform === "tiktok"){ window.open(c.watch_url, "_blank", "noopener"); return; }
+      var frame = document.getElementById("media-"+c.id);
+      // keep the device frame rounding; swap inner content for iframe
+      frame.innerHTML = '<iframe class="absolute inset-0 w-full h-full" src="'+c.embed_url+'?autoplay=1" '
+        + 'title="'+esc(c.caption)+'" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>';
+      return;
+    }
+    var nb = e.target.closest("[data-noop]");
+    if(nb){ e.preventDefault(); }
+  });
+
+  // ---- scrollspy ----
+  var spyIds = ['general'].concat(A.sections.map(function(s){return s.id;}));
+  var links = {};
+  document.querySelectorAll('.toc-link').forEach(function(a){ links[a.getAttribute('data-toc')] = a; });
+  function clearSpy(){
+    Object.keys(links).forEach(function(k){
+      links[k].classList.remove('text-fuchsia-700','border-fuchsia-500','bg-fuchsia-50','font-semibold');
+    });
+  }
+  var spyObs = new IntersectionObserver(function(entries){
+    entries.forEach(function(en){
+      if(en.isIntersecting){
+        clearSpy();
+        var a = links['#'+en.target.id];
+        if(a) a.classList.add('text-fuchsia-700','border-fuchsia-500','bg-fuchsia-50','font-semibold');
+      }
+    });
+  }, { rootMargin: '-20% 0px -70% 0px', threshold: 0 });
+  spyIds.forEach(function(id){ var el=document.getElementById(id); if(el) spyObs.observe(el); });
+});
+</script>
+</body>
+</html>

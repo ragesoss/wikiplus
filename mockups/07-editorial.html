@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>wiki+ · Editorial</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="data/content.js"></script>
+<style>
+  .font-serif-display { font-family: Georgia, 'Times New Roman', Times, serif; }
+  body { -webkit-font-smoothing: antialiased; }
+  .drop-cap::first-letter {
+    float: left; font-family: Georgia, serif; font-size: 4.2rem; line-height: 0.78;
+    padding-right: .55rem; padding-top: .35rem; font-weight: 700; color: #047857;
+  }
+  .prose-col p { margin-bottom: 1.15rem; }
+</style>
+</head>
+<body class="bg-[#fbfaf7] text-stone-800">
+<div id="app"></div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  const W = window.WIKIPLUS;
+  const A = W.article, CLIPS = W.clips, S = W.stats;
+  const app = document.getElementById('app');
+
+  // ---------- helpers ----------
+  function el(tag, cls, html) {
+    const n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (html != null) n.innerHTML = html;
+    return n;
+  }
+  function esc(s) { return (s == null ? '' : String(s)).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+  // accuracy color logic (consistent across variants)
+  function accuracyClasses(acc) {
+    const a = acc.toLowerCase();
+    if (a.includes('simplified') || a.includes('condensed') || a.includes('exam') || a.includes('definitional')) {
+      return 'bg-sky-50 text-sky-700 ring-1 ring-sky-200';
+    }
+    if (a.includes('opinion') || a.includes('anecdot') || a.includes('teaching')) {
+      return 'bg-amber-50 text-amber-700 ring-1 ring-amber-200';
+    }
+    return 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200';
+  }
+  function stanceClasses() {
+    return 'bg-stone-100 text-stone-600 ring-1 ring-stone-200';
+  }
+
+  const ICON = {
+    up: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-3.5 h-3.5 inline-block align-[-2px]"><path d="M12 19V5M5 12l7-7 7 7" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    play: '<svg viewBox="0 0 24 24" fill="currentColor" class="w-7 h-7"><path d="M8 5v14l11-7z"/></svg>',
+    arrow: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-3.5 h-3.5 inline-block align-[-2px]"><path d="M5 12h14M13 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    ext: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-3.5 h-3.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+  };
+
+  // build a thumbnail/player frame; mode 'feature' allows iframe swap
+  function buildPlayer(clip, mode) {
+    const vertical = clip.orientation === 'vertical';
+    const wrap = el('div', 'relative overflow-hidden rounded-lg bg-stone-200 ' +
+      (vertical ? 'aspect-[9/16]' : 'aspect-video'));
+    wrap.classList.add('group');
+
+    const img = el('img', 'absolute inset-0 w-full h-full object-cover');
+    img.loading = 'lazy';
+    img.src = clip.thumbnail;
+    img.alt = esc(clip.caption);
+    img.onerror = function () {
+      this.style.display = 'none';
+      wrap.classList.add('bg-gradient-to-br');
+      clip.thumbGrad.split(' ').forEach(c => wrap.classList.add(c));
+    };
+    wrap.appendChild(img);
+
+    // platform badge
+    const badge = el('span',
+      'absolute top-3 left-3 z-20 text-[10px] font-semibold tracking-wide uppercase px-2 py-1 rounded-full bg-black/65 text-white backdrop-blur',
+      esc(clip.platformLabel));
+    wrap.appendChild(badge);
+
+    // play overlay
+    const overlay = el('button',
+      'absolute inset-0 z-10 flex items-center justify-center cursor-pointer focus:outline-none');
+    overlay.innerHTML =
+      '<span class="absolute inset-0 bg-black/15 group-hover:bg-black/30 transition-colors"></span>' +
+      '<span class="relative flex items-center justify-center w-16 h-16 rounded-full bg-white/90 text-emerald-700 shadow-lg group-hover:scale-105 transition-transform">' + ICON.play + '</span>';
+
+    const isYouTube = clip.platform === 'youtube';
+    if (isYouTube) {
+      overlay.addEventListener('click', function () {
+        const iframe = el('iframe', 'absolute inset-0 w-full h-full z-30');
+        iframe.src = clip.embed_url + '?autoplay=1';
+        iframe.allow = 'autoplay; encrypted-media; picture-in-picture';
+        iframe.allowFullscreen = true;
+        iframe.setAttribute('frameborder', '0');
+        wrap.appendChild(iframe);
+        overlay.remove();
+      });
+    } else {
+      // TikTok: link out
+      const a = el('a', 'absolute inset-0 z-10 flex items-center justify-center');
+      a.href = clip.watch_url; a.target = '_blank'; a.rel = 'noopener';
+      a.innerHTML = overlay.innerHTML +
+        '<span class="absolute bottom-3 right-3 text-[11px] font-medium text-white bg-black/65 px-2 py-1 rounded-full backdrop-blur">Open on TikTok</span>';
+      wrap.appendChild(a);
+      return wrap;
+    }
+    wrap.appendChild(overlay);
+    return wrap;
+  }
+
+  function chip(text, cls) {
+    return '<span class="inline-block text-[11px] font-medium px-2.5 py-1 rounded-full ' + cls + '">' + esc(text) + '</span>';
+  }
+
+  function creatorLine(clip) {
+    const c = clip.creator;
+    return '<div class="flex items-center gap-2.5">' +
+      '<span class="w-8 h-8 rounded-full bg-gradient-to-br ' + c.avatarGrad + ' shrink-0"></span>' +
+      '<span class="leading-tight">' +
+        '<a href="' + esc(c.url) + '" target="_blank" rel="noopener" class="block text-sm font-semibold text-stone-900 hover:text-emerald-700">' + esc(c.name) + '</a>' +
+        '<span class="block text-xs text-stone-500">' + esc(c.handle) + ' · ' + esc(clip.platformLabel) + '</span>' +
+      '</span></div>';
+  }
+
+  function sectionLink(clip) {
+    return '<a href="#' + esc(clip.sectionId) + '" class="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 hover:text-emerald-900 hover:underline">' +
+      ICON.arrow + ' ' + esc(clip.sectionLabel) + '</a>';
+  }
+
+  // ---------- masthead ----------
+  const head = el('header', 'max-w-3xl mx-auto px-6 pt-16 pb-8');
+  head.innerHTML =
+    '<div class="flex items-center justify-between mb-10">' +
+      '<span class="text-xl font-bold tracking-tight text-stone-900">wiki<span class="text-emerald-600">+</span></span>' +
+      '<span class="text-[11px] uppercase tracking-[0.25em] text-stone-400">Perspectives</span>' +
+    '</div>' +
+    '<p class="text-xs font-semibold uppercase tracking-[0.3em] text-emerald-700 mb-4">Topic Essay · Biology</p>' +
+    '<h1 class="font-serif-display text-5xl md:text-6xl font-bold leading-[1.05] text-stone-900 mb-6">' + esc(A.title) + '</h1>';
+  // standfirst from first lead sentence(s)
+  const standfirst = A.lead[0].split('. ').slice(0, 2).join('. ') + '.';
+  head.appendChild(el('p', 'font-serif-display text-xl md:text-2xl leading-relaxed text-stone-600 italic', esc(standfirst)));
+
+  // byline / source line
+  const byline = el('div', 'mt-8 pt-5 border-t border-stone-200 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-stone-500');
+  byline.innerHTML =
+    '<span>Article from <a class="font-semibold text-stone-700 hover:text-emerald-700 underline decoration-stone-300" href="' + esc(A.url) + '" target="_blank" rel="noopener">' + esc(A.source) + '</a> · ' + esc(A.license) + '</span>' +
+    '<span class="text-stone-300">|</span>' +
+    '<span>' + S.totalClips + ' curated clips · ' + S.creatorCount + ' creators · ' + S.curatorCount + ' curators</span>';
+  head.appendChild(byline);
+  app.appendChild(head);
+
+  // ---------- editor's pick (top-upvoted) ----------
+  const featured = CLIPS.slice().sort((a, b) => b.upvotes - a.upvotes)[0];
+  const fig = el('figure', 'max-w-4xl mx-auto px-6 my-14');
+  const inner = el('div', 'mx-auto ' + (featured.orientation === 'vertical' ? 'max-w-sm' : 'max-w-3xl'));
+  const pickHead = el('div', 'flex items-center gap-3 mb-4');
+  pickHead.innerHTML = '<span class="text-[11px] font-bold uppercase tracking-[0.2em] text-white bg-emerald-700 px-3 py-1 rounded-full">Editor’s Pick</span>' +
+    '<span class="text-xs text-stone-500">Most upvoted of ' + S.totalClips + ' clips</span>';
+  inner.appendChild(pickHead);
+  inner.appendChild(buildPlayer(featured, 'feature'));
+
+  const cap = el('figcaption', 'mt-5');
+  cap.innerHTML =
+    '<div class="flex items-start justify-between gap-4 mb-3">' +
+      creatorLine(featured) +
+      '<span class="text-sm font-semibold text-stone-700 whitespace-nowrap">' + ICON.up + ' ' + featured.upvotes + '</span>' +
+    '</div>' +
+    '<p class="font-serif-display text-lg font-semibold text-stone-900 mb-2">' + esc(featured.caption) + '</p>' +
+    '<div class="flex flex-wrap gap-2 mb-3">' + chip(featured.stance, stanceClasses()) + chip(featured.accuracy, accuracyClasses(featured.accuracy)) + '</div>';
+  // accuracy callout / context note
+  const callout = el('div', 'border-l-4 border-emerald-600 bg-emerald-50/50 pl-4 py-3 my-3');
+  callout.innerHTML =
+    '<p class="text-[11px] font-bold uppercase tracking-wide text-emerald-700 mb-1">Curator’s context note</p>' +
+    '<p class="text-stone-700 leading-relaxed text-[15px]">' + esc(featured.context) + '</p>';
+  cap.appendChild(callout);
+  cap.appendChild(el('div', 'flex items-center justify-between flex-wrap gap-2 mt-3 text-xs text-stone-500',
+    sectionLink(featured) + '<span>Curated by <span class="font-medium text-stone-700">' + esc(featured.curatedBy) + '</span> · ' + esc(featured.date) + '</span>'));
+  inner.appendChild(cap);
+  fig.appendChild(inner);
+  app.appendChild(fig);
+
+  // ---------- flowing article with woven figures ----------
+  // weave the remaining clips next to sections that match by sectionId, falling back to round-robin
+  const used = new Set([featured.id]);
+  const woven = CLIPS.filter(c => c.id !== featured.id);
+
+  // pull quotes to dramatize
+  const pullQuotes = [
+    'Accurate, but deliberately simplified for kids — a gentle on-ramp, not a study source.',
+    'A genuine primary source: oxygen bubbles you can actually watch stream off the leaf.'
+  ];
+
+  const main = el('main', 'max-w-3xl mx-auto px-6 pb-16');
+
+  // map a few clips to sections so figures land near relevant prose
+  let clipQueue = woven.slice();
+  let pqIndex = 0;
+  let secCount = 0;
+
+  A.sections.forEach(function (sec) {
+    const tag = sec.level === 2 ? 'h2' : sec.level === 3 ? 'h3' : 'h4';
+    const sizes = { h2: 'font-serif-display text-3xl font-bold text-stone-900 mt-12 mb-4',
+                    h3: 'font-serif-display text-2xl font-semibold text-stone-900 mt-9 mb-3',
+                    h4: 'font-serif-display text-xl font-semibold text-stone-800 mt-7 mb-2' };
+    const h = el(tag, sizes[tag] + ' scroll-mt-6', esc(sec.title));
+    h.id = sec.id;
+    main.appendChild(h);
+
+    // attach matching clips for this section as inset figures
+    const matches = clipQueue.filter(c => c.sectionId === sec.id);
+    matches.forEach(c => { used.add(c.id); });
+    clipQueue = clipQueue.filter(c => !used.has(c.id));
+
+    (sec.paras || []).forEach(function (p, i) {
+      const para = el('p', 'prose-col text-[17px] leading-[1.8] text-stone-800' + (secCount === 0 && i === 0 ? ' drop-cap' : ''));
+      para.innerHTML = esc(p);
+      main.appendChild(para);
+
+      // after first paragraph of a section, drop one matching figure if present
+      if (i === 0 && matches.length) {
+        const c = matches.shift();
+        main.appendChild(buildInsetFigure(c));
+      }
+    });
+    // any leftover matches for this section, append after the section prose
+    matches.forEach(c => main.appendChild(buildInsetFigure(c)));
+
+    // sprinkle pull-quotes after some h2 sections
+    if (sec.level === 2 && (sec.id === 'light-dependent-reactions') && pqIndex < pullQuotes.length) {
+      main.appendChild(makePullQuote(pullQuotes[pqIndex++]));
+    }
+    if (sec.level === 2 && sec.id === 'efficiency' && pqIndex < pullQuotes.length) {
+      main.appendChild(makePullQuote(pullQuotes[pqIndex++]));
+    }
+    secCount++;
+  });
+
+  function makePullQuote(text) {
+    const pq = el('blockquote', 'my-10 border-y border-stone-200 py-6');
+    pq.innerHTML = '<p class="font-serif-display text-2xl md:text-3xl leading-snug text-emerald-800 italic">“' + esc(text) + '”</p>';
+    return pq;
+  }
+
+  function buildInsetFigure(clip) {
+    const f = el('figure', 'my-8 p-4 bg-white rounded-xl ring-1 ring-stone-200 shadow-sm');
+    const grid = el('div', 'flex flex-col sm:flex-row gap-4');
+    const media = el('div', clip.orientation === 'vertical' ? 'sm:w-40 shrink-0' : 'sm:w-1/2 shrink-0');
+    media.appendChild(buildPlayer(clip, 'inline'));
+    grid.appendChild(media);
+
+    const body = el('figcaption', 'flex-1 min-w-0');
+    body.innerHTML =
+      '<div class="flex items-start justify-between gap-3 mb-2">' +
+        creatorLine(clip) +
+        '<span class="text-xs font-semibold text-stone-600 whitespace-nowrap">' + ICON.up + ' ' + clip.upvotes + '</span>' +
+      '</div>' +
+      '<p class="text-sm font-semibold text-stone-900 mb-1.5">' + esc(clip.caption) + '</p>' +
+      '<div class="flex flex-wrap gap-1.5 mb-2">' + chip(clip.stance, stanceClasses()) + chip(clip.accuracy, accuracyClasses(clip.accuracy)) + '</div>' +
+      '<p class="text-[13.5px] leading-relaxed text-stone-600 mb-3">' + esc(clip.context) + '</p>' +
+      '<div class="flex items-center justify-between flex-wrap gap-2 text-[11px] text-stone-500 pt-2 border-t border-stone-100">' +
+        sectionLink(clip) +
+        '<span>' + esc(clip.curatedBy) + ' · ' + esc(clip.date) + '</span>' +
+      '</div>';
+    grid.appendChild(body);
+    f.appendChild(grid);
+    return f;
+  }
+
+  app.appendChild(main);
+
+  // ---------- VOLUME: browse all clips ----------
+  const browse = el('section', 'bg-stone-900 text-stone-100 py-16');
+  const bWrap = el('div', 'max-w-5xl mx-auto px-6');
+  bWrap.innerHTML =
+    '<div class="flex items-end justify-between flex-wrap gap-4 mb-8">' +
+      '<div>' +
+        '<p class="text-[11px] font-bold uppercase tracking-[0.3em] text-emerald-400 mb-2">The Full Collection</p>' +
+        '<h2 class="font-serif-display text-3xl font-bold">Browse all ' + S.totalClips + ' curated clips</h2>' +
+        '<p class="text-stone-400 text-sm mt-2">Showing ' + S.loaded + ' on this page — ' + (S.totalClips - S.loaded) + ' more across ' + S.creatorCount + ' creators.</p>' +
+      '</div>' +
+      '<a href="#" class="inline-flex items-center gap-2 text-sm font-semibold bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-2.5 rounded-full transition-colors">See all ' + S.totalClips + ' clips ' + ICON.arrow + '</a>' +
+    '</div>';
+  const grid = el('div', 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3');
+  // preview tiles: remaining + a few placeholders for the "47" feel
+  CLIPS.slice(0, 12).forEach(function (clip) {
+    const t = el('a', 'group block');
+    t.href = clip.watch_url; t.target = '_blank'; t.rel = 'noopener';
+    const fr = el('div', 'relative overflow-hidden rounded-md bg-stone-700 ' + (clip.orientation === 'vertical' ? 'aspect-[9/16]' : 'aspect-video'));
+    const im = el('img', 'absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform');
+    im.loading = 'lazy'; im.src = clip.thumbnail; im.alt = esc(clip.caption);
+    im.onerror = function () { this.style.display = 'none'; fr.classList.add('bg-gradient-to-br'); clip.thumbGrad.split(' ').forEach(c => fr.classList.add(c)); };
+    fr.appendChild(im);
+    fr.appendChild(el('span', 'absolute bottom-1.5 left-1.5 text-[9px] font-semibold px-1.5 py-0.5 rounded bg-black/65 text-white', esc(clip.platformLabel)));
+    t.appendChild(fr);
+    t.appendChild(el('p', 'mt-1.5 text-[11px] text-stone-400 truncate', esc(clip.creator.name)));
+    grid.appendChild(t);
+  });
+  // "+N more" tile
+  const more = el('div', 'flex items-center justify-center rounded-md bg-stone-800 ring-1 ring-stone-700 aspect-video text-center');
+  more.innerHTML = '<span class="text-stone-300 text-sm font-semibold">+' + (S.totalClips - 12) + '<br><span class="text-[11px] font-normal text-stone-500">more clips</span></span>';
+  grid.appendChild(more);
+  bWrap.appendChild(grid);
+  browse.appendChild(bWrap);
+  app.appendChild(browse);
+
+  // ---------- footer attribution ----------
+  const foot = el('footer', 'max-w-3xl mx-auto px-6 py-10 text-center');
+  foot.innerHTML =
+    '<p class="text-sm text-stone-500">From Wikipedia · <a class="font-semibold text-emerald-700 hover:underline" href="' + esc(A.url) + '" target="_blank" rel="noopener">' + esc(A.title) + '</a> · ' + esc(A.license) + '</p>' +
+    '<p class="text-xs text-stone-400 mt-2">Curated context by wiki<span class="text-emerald-600 font-bold">+</span> editors · last synced ' + esc(S.synced) + '</p>';
+  app.appendChild(foot);
+
+  // ---------- fixed variant badge ----------
+  const vb = el('div', 'fixed bottom-4 right-4 z-50 text-[11px] font-semibold tracking-wide bg-stone-900 text-white px-3 py-1.5 rounded-full shadow-lg', 'Variant 07 · Editorial');
+  document.body.appendChild(vb);
+});
+</script>
+</body>
+</html>

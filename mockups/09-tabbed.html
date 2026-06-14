@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>wiki+ · Tabbed</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="data/content.js"></script>
+<style>
+  html { scroll-behavior: smooth; }
+  @keyframes pulseSkel { 0%,100%{opacity:.45} 50%{opacity:.85} }
+  .skel { animation: pulseSkel 1.4s ease-in-out infinite; }
+  .reading p { margin-bottom: 1rem; line-height: 1.7; }
+</style>
+</head>
+<body class="bg-slate-50 text-slate-900 antialiased">
+
+<div class="max-w-3xl mx-auto px-4 pb-24">
+
+  <!-- TOPIC HEADER -->
+  <header class="pt-8 pb-4">
+    <a href="#" class="text-2xl font-black tracking-tight text-slate-900">wiki<span class="text-emerald-600">+</span></a>
+    <h1 id="title" class="text-3xl sm:text-4xl font-black tracking-tight mt-4 mb-3"></h1>
+    <p id="lead0" class="text-slate-600 leading-relaxed"></p>
+    <p id="attrib" class="mt-3 text-sm text-slate-500"></p>
+    <div id="statChips" class="flex flex-wrap gap-2 mt-4"></div>
+  </header>
+
+  <!-- TAB BAR -->
+  <div class="sticky top-0 z-30 bg-slate-50/90 backdrop-blur border-b border-slate-200 -mx-4 px-4">
+    <div id="tabBar" class="flex gap-1" role="tablist"></div>
+  </div>
+
+  <!-- PANELS -->
+  <div id="panel-article" class="tabpanel hidden pt-6"></div>
+  <div id="panel-clips"   class="tabpanel hidden pt-6"></div>
+  <div id="panel-perspectives" class="tabpanel hidden pt-6"></div>
+
+</div>
+
+<!-- VARIANT BADGE -->
+<div class="fixed bottom-4 right-4 z-50 text-xs font-semibold px-3 py-1.5 rounded-full bg-emerald-600 text-white shadow-lg shadow-emerald-600/30">
+  Variant 09 · Tabbed
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const W = window.WIKIPLUS;
+  const { article, clips, stats } = W;
+  const el = (tag, cls, html) => { const n = document.createElement(tag); if (cls) n.className = cls; if (html != null) n.innerHTML = html; return n; };
+
+  function accuracyChip(accuracy) {
+    const a = accuracy.toLowerCase();
+    let cls = 'bg-emerald-100 text-emerald-700 border-emerald-200';
+    if (a.includes('simplified') || a.includes('condensed') || a.includes('definitional') || a.includes('exam')) cls = 'bg-sky-100 text-sky-700 border-sky-200';
+    else if (a.includes('opinion') || a.includes('anecdotal') || a.includes('teaching context')) cls = 'bg-amber-100 text-amber-700 border-amber-200';
+    return `<span class="inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full border ${cls}">
+      <svg class="w-3 h-3" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.7 5.3a1 1 0 010 1.4l-7.5 7.5a1 1 0 01-1.4 0L3.3 9.7a1 1 0 011.4-1.4l3 3 6.8-6.8a1 1 0 011.4 0z" clip-rule="evenodd"/></svg>${accuracy}</span>`;
+  }
+  function stanceChip(stance) {
+    const s = stance.toLowerCase();
+    let cls = 'bg-violet-100 text-violet-700 border-violet-200';
+    if (s.includes('classroom')) cls = 'bg-amber-100 text-amber-700 border-amber-200';
+    else if (s.includes('demonstration')) cls = 'bg-rose-100 text-rose-700 border-rose-200';
+    else if (s.includes('short')) cls = 'bg-lime-100 text-lime-700 border-lime-200';
+    return `<span class="inline-flex items-center text-xs font-medium px-2 py-1 rounded-full border ${cls}">${stance}</span>`;
+  }
+  const playIcon = (sz) => `<svg class="${sz}" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>`;
+
+  function thumbImg(clip) {
+    return `<img loading="lazy" src="${clip.thumbnail}" alt="${clip.caption.replace(/"/g,'&quot;')}"
+      class="absolute inset-0 w-full h-full object-cover"
+      onerror="this.style.display='none'; this.parentElement.classList.add('bg-gradient-to-br','${clip.thumbGrad.split(' ').join("','")}');">`;
+  }
+
+  // ---------- HEADER ----------
+  document.getElementById('title').textContent = article.title;
+  document.getElementById('lead0').textContent = article.lead[0];
+  document.getElementById('attrib').innerHTML =
+    `From <a href="${article.url}" target="_blank" rel="noopener" class="text-emerald-600 hover:underline font-medium">Wikipedia</a> · ${article.license} · ${article.source}`;
+
+  const chips = [
+    ['Clips', stats.totalClips],
+    ['Creators', stats.creatorCount],
+    ['Curators', stats.curatorCount],
+    ['Upvotes', stats.upvoteTotal.toLocaleString()],
+    ['Synced', stats.synced]
+  ];
+  const sc = document.getElementById('statChips');
+  chips.forEach(([k,v]) => sc.appendChild(el('span', 'text-xs px-3 py-1.5 rounded-full bg-white border border-slate-200 shadow-sm',
+    `<span class="font-bold text-slate-900">${v}</span> <span class="text-slate-500">${k}</span>`)));
+
+  // ---------- CLIP CARD (grid) ----------
+  function clipCard(clip) {
+    const vertical = clip.orientation === 'vertical';
+    const isTikTok = clip.platform === 'tiktok';
+    const card = el('div', 'rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden flex flex-col');
+    card.innerHTML = `
+      <div class="relative w-full overflow-hidden bg-slate-100" style="aspect-ratio:${vertical ? '9/16' : '16/9'};">
+        ${thumbImg(clip)}
+        <div class="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"></div>
+        <span class="absolute top-2 left-2 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-black/60 text-white">${clip.platformLabel}</span>
+        <button data-play class="group absolute inset-0 flex items-center justify-center" aria-label="Play">
+          <span class="w-12 h-12 rounded-full bg-white/90 text-slate-900 flex items-center justify-center group-hover:scale-110 transition shadow-lg">${playIcon('w-6 h-6 ml-0.5')}</span>
+        </button>
+        ${isTikTok ? `<span class="absolute bottom-2 left-1/2 -translate-x-1/2 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-black/70 text-white">Open on TikTok ↗</span>` : ''}
+      </div>
+      <div class="p-4 flex flex-col gap-3 flex-1">
+        <div class="flex items-center gap-2.5">
+          <span class="w-8 h-8 rounded-full bg-gradient-to-br ${clip.creator.avatarGrad} flex items-center justify-center text-xs font-bold text-white shrink-0">${clip.creator.name.charAt(0)}</span>
+          <div class="min-w-0">
+            <div class="text-sm font-semibold truncate">${clip.creator.name}</div>
+            <a href="${clip.creator.url}" target="_blank" rel="noopener" class="text-xs text-slate-500 hover:text-slate-700">${clip.creator.handle} · ${clip.platformLabel}</a>
+          </div>
+        </div>
+        <p class="text-sm font-medium text-slate-800 leading-snug">${clip.caption}</p>
+        <div class="flex flex-wrap gap-2">${stanceChip(clip.stance)}${accuracyChip(clip.accuracy)}</div>
+        <div class="rounded-lg bg-slate-50 border border-slate-100 p-3">
+          <div class="text-[10px] font-bold uppercase tracking-wider text-emerald-600 mb-1">Curator's context note</div>
+          <p class="text-xs text-slate-600 leading-relaxed">${clip.context}</p>
+        </div>
+        <div class="mt-auto flex items-center justify-between pt-1">
+          <a href="#${clip.sectionId}" data-section class="text-xs font-semibold text-emerald-600 hover:text-emerald-700">→ ${clip.sectionLabel}</a>
+          <div class="flex items-center gap-3 text-xs text-slate-400">
+            <span class="inline-flex items-center gap-1"><svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor"><path d="M10 3l7 7h-4v7H7v-7H3l7-7z"/></svg>${clip.upvotes}</span>
+          </div>
+        </div>
+        <div class="text-[11px] text-slate-400">curated by <span class="text-slate-600 font-medium">${clip.curatedBy}</span> · ${clip.date}</div>
+      </div>`;
+
+    // play behavior
+    const playBtn = card.querySelector('[data-play]');
+    const stage = card.querySelector('[style*="aspect-ratio"]');
+    playBtn.addEventListener('click', () => {
+      if (isTikTok) { window.open(clip.watch_url, '_blank', 'noopener'); return; }
+      stage.innerHTML = `<iframe class="absolute inset-0 w-full h-full" src="${clip.embed_url}?autoplay=1"
+        title="${clip.caption.replace(/"/g,'&quot;')}" frameborder="0"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`;
+    });
+    // section link jumps to article tab
+    card.querySelector('[data-section]').addEventListener('click', (e) => {
+      e.preventDefault();
+      activate('article');
+      setTimeout(() => { const t = document.getElementById(clip.sectionId); if (t) t.scrollIntoView({behavior:'smooth'}); }, 60);
+    });
+    return card;
+  }
+
+  function skeletonCard() {
+    const sk = el('div', 'skel rounded-2xl bg-white border border-slate-200 overflow-hidden');
+    sk.innerHTML = `
+      <div class="w-full bg-slate-200" style="aspect-ratio:9/16;"></div>
+      <div class="p-4 space-y-2">
+        <div class="h-3 w-2/3 rounded bg-slate-200"></div>
+        <div class="h-3 w-full rounded bg-slate-200"></div>
+        <div class="h-3 w-1/2 rounded bg-slate-200"></div>
+      </div>`;
+    return sk;
+  }
+
+  // ---------- ARTICLE PANEL ----------
+  function buildArticle() {
+    const p = document.getElementById('panel-article');
+    const body = el('div', 'reading text-slate-700');
+    article.lead.forEach(t => body.appendChild(el('p', null, t)));
+    article.sections.forEach(sec => {
+      let h;
+      if (sec.level === 2) h = el('h2', 'text-2xl font-bold text-slate-900 mt-10 mb-3 scroll-mt-16');
+      else if (sec.level === 3) h = el('h3', 'text-xl font-bold text-slate-800 mt-7 mb-2 scroll-mt-16');
+      else h = el('h4', 'text-lg font-semibold text-slate-700 mt-5 mb-2 scroll-mt-16');
+      h.id = sec.id; h.textContent = sec.title;
+      body.appendChild(h);
+      sec.paras.forEach(t => body.appendChild(el('p', null, t)));
+    });
+    p.appendChild(body);
+    p.appendChild(el('div', 'mt-10 pt-6 border-t border-slate-200 text-sm text-slate-500',
+      `From <a href="${article.url}" target="_blank" rel="noopener" class="text-emerald-600 hover:underline font-medium">Wikipedia</a> · ${article.license}`));
+  }
+
+  // ---------- CLIPS PANEL (volume: Load more) ----------
+  function buildClips() {
+    const p = document.getElementById('panel-clips');
+    const head = el('div', 'flex items-center justify-between mb-4');
+    const counter = el('p', 'text-sm font-semibold text-slate-700', `Showing <span id="shownCount">${clips.length}</span> of ${stats.totalClips}`);
+    head.appendChild(counter);
+    head.appendChild(el('p', 'text-xs text-slate-500', 'curated top picks first'));
+    p.appendChild(head);
+
+    const grid = el('div', 'grid grid-cols-1 sm:grid-cols-2 gap-4');
+    p.appendChild(grid);
+
+    // reveal in two batches to demonstrate "load more"
+    const BATCH = 8;
+    let shown = 0;
+    function renderUpTo(n) {
+      while (shown < n && shown < clips.length) { grid.appendChild(clipCard(clips[shown])); shown++; }
+      document.getElementById('shownCount').textContent = shown;
+    }
+    renderUpTo(BATCH);
+
+    const footer = el('div', 'mt-6 text-center');
+    const btn = el('button', 'inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-500 transition shadow-sm');
+    btn.innerHTML = `Load more`;
+    footer.appendChild(btn);
+    p.appendChild(footer);
+
+    btn.addEventListener('click', () => {
+      if (shown < clips.length) {
+        renderUpTo(clips.length);
+        btn.textContent = 'Load more from all ' + stats.totalClips;
+        return;
+      }
+      // exhausted the 14 → skeletons + message, disable
+      for (let i = 0; i < 4; i++) grid.appendChild(skeletonCard());
+      footer.innerHTML = `<p class="text-sm text-slate-500">You've reached the curated top picks — <a href="${article.url}" target="_blank" rel="noopener" class="text-emerald-600 font-semibold hover:underline">browse all ${stats.totalClips} clips</a></p>`;
+    });
+  }
+
+  // ---------- PERSPECTIVES PANEL (group by stance family) ----------
+  function stanceFamily(stance) {
+    const s = stance.toLowerCase();
+    if (s.includes('classroom')) return 'Classroom';
+    if (s.includes('demonstration')) return 'Demonstration';
+    if (s.includes('short')) return 'Short';
+    return 'Explainer';
+  }
+  const familyMeta = {
+    'Explainer':    { color: 'violet', blurb: 'Full walk-throughs of the process — pair them with the article for the biochemical detail.' },
+    'Short':        { color: 'lime',   blurb: 'Sub-minute hooks and recaps. Great for a first taste; by design they skip the mechanism.' },
+    'Demonstration':{ color: 'rose',   blurb: 'Primary-source footage of the phenomenon itself — what you can actually observe.' },
+    'Classroom':    { color: 'amber',  blurb: 'Teaching and memory angles — about how the topic is taught, not just the content.' }
+  };
+
+  function buildPerspectives() {
+    const p = document.getElementById('panel-perspectives');
+    p.appendChild(el('p', 'text-sm text-slate-600 mb-5',
+      'Same topic, different lenses. Grouping clips by what they\'re <span class="font-semibold text-slate-800">for</span> keeps facts, framing, and teaching context separate — the heart of wiki+ contextualization.'));
+
+    const groups = {};
+    clips.forEach(c => { const f = stanceFamily(c.stance); (groups[f] = groups[f] || []).push(c); });
+    const order = ['Explainer','Short','Demonstration','Classroom'];
+
+    order.filter(f => groups[f]).forEach(fam => {
+      const meta = familyMeta[fam];
+      const wrap = el('section', 'mb-8');
+      wrap.innerHTML = `
+        <div class="flex items-center gap-2 mb-1">
+          <span class="w-2.5 h-2.5 rounded-full bg-${meta.color}-500"></span>
+          <h3 class="text-lg font-bold text-slate-900">${fam}</h3>
+          <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-${meta.color}-100 text-${meta.color}-700">${groups[fam].length}</span>
+        </div>
+        <p class="text-sm text-slate-500 mb-3 ml-4">${meta.blurb}</p>`;
+      const list = el('div', 'flex flex-col gap-2 ml-4');
+      groups[fam].forEach(clip => {
+        const row = el('button', 'group flex items-center gap-3 text-left w-full rounded-xl bg-white border border-slate-200 p-2.5 hover:border-emerald-300 hover:shadow-sm transition');
+        row.innerHTML = `
+          <div class="relative w-14 h-14 rounded-lg overflow-hidden bg-slate-100 shrink-0">
+            ${thumbImg(clip)}
+            <span class="absolute inset-0 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition bg-black/30">${playIcon('w-5 h-5')}</span>
+          </div>
+          <div class="min-w-0 flex-1">
+            <div class="text-sm font-semibold text-slate-800 truncate">${clip.creator.name} <span class="font-normal text-slate-400">· ${clip.platformLabel}</span></div>
+            <p class="text-xs text-slate-500 truncate">${clip.caption}</p>
+            <div class="mt-1">${accuracyChip(clip.accuracy)}</div>
+          </div>
+          <span class="text-xs text-emerald-600 font-semibold shrink-0">→ ${clip.sectionLabel.split('·').pop().trim()}</span>`;
+        row.addEventListener('click', () => {
+          if (clip.platform === 'tiktok') { window.open(clip.watch_url, '_blank', 'noopener'); }
+          else { window.open(clip.watch_url, '_blank', 'noopener'); }
+        });
+        list.appendChild(row);
+      });
+      wrap.appendChild(list);
+      p.appendChild(wrap);
+    });
+
+    p.appendChild(el('div', 'mt-2 rounded-xl border border-dashed border-slate-300 p-4 text-center text-sm text-slate-500',
+      `These are the ${clips.length} curated top clips across ${order.filter(f=>groups[f]).length} perspectives — <a href="${article.url}" target="_blank" rel="noopener" class="text-emerald-600 font-semibold hover:underline">browse all ${stats.totalClips}</a>.`));
+  }
+
+  // ---------- TABS ----------
+  const tabs = [
+    { id: 'article',      label: 'Article',      count: null },
+    { id: 'clips',        label: 'Clips',        count: stats.totalClips },
+    { id: 'perspectives', label: 'Perspectives', count: null }
+  ];
+  const tabBar = document.getElementById('tabBar');
+  tabs.forEach(t => {
+    const b = el('button',
+      'tab relative px-4 py-3 text-sm font-semibold text-slate-500 hover:text-slate-800 transition border-b-2 border-transparent',
+      `${t.label}${t.count != null ? ` <span class="ml-1 text-xs px-1.5 py-0.5 rounded-full bg-slate-200 text-slate-600">${t.count}</span>` : ''}`);
+    b.dataset.tab = t.id;
+    b.addEventListener('click', () => activate(t.id));
+    tabBar.appendChild(b);
+  });
+
+  function activate(id) {
+    document.querySelectorAll('.tabpanel').forEach(p => p.classList.add('hidden'));
+    document.getElementById('panel-' + id).classList.remove('hidden');
+    document.querySelectorAll('.tab').forEach(b => {
+      const on = b.dataset.tab === id;
+      b.classList.toggle('text-emerald-600', on);
+      b.classList.toggle('border-emerald-600', on);
+      b.classList.toggle('text-slate-500', !on);
+    });
+  }
+
+  buildArticle();
+  buildClips();
+  buildPerspectives();
+  activate('clips'); // default to Clips
+});
+</script>
+</body>
+</html>
