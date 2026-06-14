@@ -1,0 +1,37 @@
+@import "tailwindcss";
+
+/* Indigo Press identity (gold #E5AB28 deliberately unused). */
+@theme {
+  --color-brand: #676eb4;
+  --color-sprout: #2a8270;
+  --color-action: #1f6f95;
+  --color-ink: #2c2c2c;
+}
+
+body {
+  @apply bg-white text-ink antialiased;
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    Helvetica, Arial, sans-serif;
+}
+
+/* Sanitized Wikipedia lead HTML (kept faithful to a Wikipedia look). */
+.article-html p {
+  margin-bottom: 0.75rem;
+  line-height: 1.65;
+}
+.article-html a {
+  color: var(--color-action);
+  text-decoration: underline;
+}
+.article-html strong,
+.article-html b {
+  font-weight: 600;
+}
+
+/* Form fields. */
+.input {
+  @apply w-full rounded-lg border border-ink/20 px-3 py-2 text-sm;
+}
+.input:focus {
+  @apply outline-none ring-2 ring-action;
+}

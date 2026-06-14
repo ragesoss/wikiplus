@@ -280,3 +280,26 @@ Design points:
 - The license chosen for wiki+ context notes.
 - Whether `stance`/`accuracy_flag` are free-form or a fixed controlled vocabulary (affects
   filtering, consistency, and any future AI-assisted drafting).
+
+## Prototype phase (current — client-side, GitHub Pages)
+
+Before provisioning a server, wiki+ is built as a **client-side SPA** shipped to **GitHub
+Pages**, with `localStorage` standing in for the production database. This exercises the read +
+curate UX and the data model (and doubles as a public demo) without infra. It does **not** yet
+exercise the production read-path (ISR/Redis/Server Actions) and is **single-user** (per-browser).
+
+- **Build:** Next.js static export (`output: 'export'`); `basePath` set to `/<repo>` by the Pages
+  workflow. Deployed by `.github/workflows/deploy.yml` on push to `main` — the cloud,
+  mobile-drivable prompt→staging loop, no server to operate.
+- **Data:** all access goes through the `DataStore` interface (`lib/data/store.ts`); the prototype
+  uses `LocalStorageDataStore`. The swap point is the single line in `lib/data/index.ts`.
+- **Wikipedia:** article fetch + DOMPurify sanitize run client-side (as in production); Wikidata
+  resolves QID→title. oEmbed is avoided — we store `platform`+`videoId` and build the click-to-load
+  facade ourselves.
+- **Auth:** stubbed (reading is anonymous); real Wikimedia OAuth arrives with the server.
+- **Vocabularies:** `stance`/`accuracy_flag` in `lib/data/types.ts` are **provisional placeholders**
+  pending the Curation / Editorial standard.
+
+**Path to production:** add the Drizzle `DataStore` + Server Actions, restore per-QID path-based
+Topic pages with ISR + the Redis `cacheHandler`, and turn off `output: 'export'`. The components,
+data model, design system, and article pipeline carry forward.
