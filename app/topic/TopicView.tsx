@@ -15,6 +15,7 @@ import { ClipCard } from "@/components/topic/ClipCard";
 import { CurateModal } from "@/components/topic/CurateModal";
 import { GeneralStrip } from "@/components/topic/GeneralStrip";
 import { Infobox } from "@/components/topic/Infobox";
+import { PinnedPlayer, type PinnedClip } from "@/components/topic/PinnedPlayer";
 import { PlayerModal } from "@/components/topic/PlayerModal";
 import { Toc, type TocEntry } from "@/components/topic/Toc";
 import { TopicHeader } from "@/components/topic/TopicHeader";
@@ -69,7 +70,11 @@ export function TopicView() {
   const [candidatesLoading, setCandidatesLoading] = useState(false);
   const [candidateAnnounce, setCandidateAnnounce] = useState("");
 
+  // Curated clips keep the blocking PlayerModal (Decision 4 — kept, not unified;
+  // see the candidate `onPlay` note below). Candidates play in the NON-MODAL,
+  // single-instance PinnedPlayer driven by its own single state value (§3, AC4).
   const [player, setPlayer] = useState<Clip | null>(null);
+  const [pinned, setPinned] = useState<PinnedClip | null>(null);
   const [curateFor, setCurateFor] = useState<Candidate | null>(null);
   const [curateOpen, setCurateOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
@@ -404,19 +409,57 @@ export function TopicView() {
     [router]
   );
 
+  // Send focus to the General band heading (design §8) — the shared "move focus
+  // sensibly off a removed node" anchor, reused by both candidate dismissal and the
+  // PinnedPlayer keyboard dismiss (AC11).
+  const focusBandHeading = useCallback(() => {
+    if (typeof document === "undefined") return;
+    const heading = document.querySelector<HTMLElement>("#general-band h2");
+    heading?.setAttribute("tabindex", "-1");
+    heading?.focus();
+  }, []);
+
   // ── Candidate actions. Dismissal is now STICKY (spec AC9; design §6.3): persist
   // (topicQid, platform, videoId) to localStorage so the candidate does not resurface
   // on reload/re-fetch, and hide it immediately (count decrements via liveCandidates).
-  const dismiss = useCallback((c: Candidate) => {
-    recordDismissal(c);
-    setDismissed((prev) => new Set(prev).add(c.id));
-    // Move focus sensibly off the removed node (design §8): to the band heading.
-    if (typeof document !== "undefined") {
-      const heading = document.querySelector<HTMLElement>("#general-band h2");
-      heading?.setAttribute("tabindex", "-1");
-      heading?.focus();
-    }
+  const dismiss = useCallback(
+    (c: Candidate) => {
+      recordDismissal(c);
+      setDismissed((prev) => new Set(prev).add(c.id));
+      focusBandHeading();
+    },
+    [focusBandHeading]
+  );
+
+  // ── Candidate play (issue #10, design §3/§9). Open the NON-MODAL PinnedPlayer for
+  // a YouTube candidate WITH an embedUrl (AC1). A YouTube candidate without an
+  // embedUrl, and every non-YouTube candidate, never reach here: VideoThumb only
+  // calls onPlay for `platform === "youtube"`, and we only PASS onPlay when an
+  // embedUrl exists — so the no-embed YouTube and non-YouTube paths both fall through
+  // to VideoThumb's existing window.open(watchUrl) (design §9 State F/G; AC7/AC8). No
+  // src-less iframe is ever rendered. Setting `pinned` to candidate B while A plays
+  // SWAPS in place — the same dock element stays mounted, only its payload (and thus
+  // the iframe src/caption/credit) changes (AC4/AC5, single instance, no second dock).
+  const playCandidate = useCallback((c: Candidate) => {
+    if (!c.embedUrl) return; // defensive — only wired when embedUrl is present
+    setPinned({
+      embedUrl: c.embedUrl,
+      caption: c.caption,
+      orientation: c.orientation,
+      creator: { handle: c.creator.handle },
+      platformLabel: c.platformLabel,
+    });
   }, []);
+
+  // Dismiss the PinnedPlayer (AC6): drop the state so the dock + iframe unmount
+  // (playback stops; no hidden iframe). On a keyboard dismiss the Close button is the
+  // activeElement inside the dock, so we move focus to the band heading rather than
+  // dropping it to <body> (AC11/§8). When the dock was clicked away with the mouse we
+  // still anchor focus there — harmless and keeps behavior uniform.
+  const dismissPinned = useCallback(() => {
+    setPinned(null);
+    focusBandHeading();
+  }, [focusBandHeading]);
   const promote = useCallback((c: Candidate) => {
     setCurateFor(c);
     setCurateOpen(true);
@@ -514,6 +557,7 @@ export function TopicView() {
           loading={candidatesLoading}
           prefersReduced={prefersReduced.current}
           onPlay={setPlayer}
+          onPlayCandidate={playCandidate}
           onPromote={promote}
           onDismiss={dismiss}
           onAdd={() => setAddOpen(true)}
@@ -536,6 +580,7 @@ export function TopicView() {
                 mode={mode}
                 topicTitle={topicTitle}
                 inlineCandidates={inlineCandidates}
+                onPlay={playCandidate}
                 onPromote={promote}
                 onDismiss={dismiss}
                 sectionRef={setSectionRef}
@@ -571,6 +616,7 @@ export function TopicView() {
                     key={c.id}
                     candidate={c}
                     active={activeSlug === c.sectionSlug}
+                    onPlay={playCandidate}
                     onPromote={promote}
                     onDismiss={dismiss}
                     cardRef={(el) => {
@@ -602,6 +648,28 @@ export function TopicView() {
           </aside>
         </div>
       </div>
+
+      {/* Mobile-only bottom spacer (design §6.2, AC3): while the full-width pinned
+          bar is open it reserves scroll space at the page BOTTOM so the last
+          candidate's Promote / Not-relevant row can be scrolled clear of the bar.
+          Additive at the bottom only — never shifts content the reader is viewing.
+          Desktop needs none (the dock sits in the empty lower-left). Removed on
+          dismiss (pinned → null) so the page reflows to full height (§9 State H). */}
+      {pinned && (
+        <div aria-hidden className="h-[min(60vh,500px)] lg:hidden" />
+      )}
+
+      {/* Non-modal, single-instance candidate player (issue #10). Mounts on play,
+          unmounts on dismiss — iframe created/torn down with it (embed-never-host).
+          Sibling of the modals; if a modal opens it correctly covers this (z-40 <
+          z-50). Reuses TopicView's existing prefersReduced signal (AC12). */}
+      {pinned && (
+        <PinnedPlayer
+          clip={pinned}
+          onClose={dismissPinned}
+          prefersReduced={prefersReduced.current}
+        />
+      )}
 
       {player && (
         <PlayerModal clip={player} onClose={() => setPlayer(null)} />

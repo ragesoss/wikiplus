@@ -9,11 +9,15 @@ import { VideoThumb } from "./VideoThumb";
 export function InlineCandidate({
   candidate,
   topicTitle,
+  onPlay,
   onPromote,
   onDismiss,
 }: {
   candidate: Candidate;
   topicTitle: string;
+  /** YouTube-candidate play → non-modal PinnedPlayer (issue #10, AC1). Optional:
+      without it (or for a non-embeddable clip) the thumb keeps its link-out. */
+  onPlay?: (c: Candidate) => void;
   onPromote: (c: Candidate) => void;
   onDismiss: (c: Candidate) => void;
 }) {
@@ -33,7 +37,16 @@ export function InlineCandidate({
       </div>
       <div className="flex gap-3">
         <div className="shrink-0">
-          <VideoThumb video={candidate} variant="inline" candidate />
+          <VideoThumb
+            video={candidate}
+            variant="inline"
+            candidate
+            onPlay={
+              onPlay && candidate.platform === "youtube" && candidate.embedUrl
+                ? () => onPlay(candidate)
+                : undefined
+            }
+          />
         </div>
         <div className="min-w-0 flex-1">
           <p className="text-[13px] font-bold text-ink">{candidate.caption}</p>

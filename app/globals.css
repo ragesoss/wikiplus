@@ -198,6 +198,24 @@ figure.wikifig .credit {
   animation: wikiplus-shimmer 1.4s ease-in-out infinite;
 }
 
+/* Pinned candidate player dock-in (design §8 / AC12): a short, subtle appear
+   (opacity + small upward translate). Non-essential — fully suppressed under
+   reduced motion (applied as a motion-gated class by PinnedPlayer + the media
+   query below, matching the skeleton-shimmer precedent). */
+@keyframes wikiplus-dock-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.pinned-dock-in {
+  animation: wikiplus-dock-in 0.18s ease-out;
+}
+
 /* ── Reduced motion (design §10.4, binding). ── */
 @media (prefers-reduced-motion: reduce) {
   .sec.active > :is(h2, h3, h4) {
@@ -208,6 +226,9 @@ figure.wikifig .credit {
   }
   .candcard.dismissing {
     transition: none;
+  }
+  .pinned-dock-in {
+    animation: none;
   }
   * {
     scroll-behavior: auto !important;
