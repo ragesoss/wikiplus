@@ -137,6 +137,44 @@ candidates** plus prominent paths to curate. Reference mockup: **`mockups/inline
   curated clip) and **Not relevant** (rules it out). Browsing is anonymous; **promoting or adding a
   video requires login**.
 
+## The pinned candidate player (in-app preview)
+
+Curated clips play in a **blocking, focus-trapping modal** (`PlayerModal` / `ModalShell`). That is
+wrong for *evaluating* auto-suggested candidates, which is a triage loop: watch, compare against the
+article, promote or dismiss, then watch the next. So **candidate** videos use a different surface — a
+**persistent, non-modal pinned player** that keeps playing while the reader keeps reading and lets a
+second click swap what's playing. (Full spec: `docs/design/pinned-player.md`; issue #10.)
+
+- **Candidates only, this run.** Only **YouTube** candidates (with an `embedUrl`) open the pinned
+  player. Curated clips keep the blocking modal; **non-YouTube** candidates and YouTube candidates
+  **with no `embedUrl`** keep the existing **new-tab** behavior (`window.open(watchUrl)`). The
+  curated-modal / candidate-pinned split is a **recorded inconsistency / follow-up** (whether the
+  pinned model should later replace the modal everywhere), not a defect.
+- **Standard position + size.** **Desktop (`lg`+):** a fixed dock in the **bottom-left** corner
+  (`bottom/left: 1rem`), width capped at `min(380px, calc(100vw − 2rem))`; vertical 9:16 Shorts are
+  height-capped (`min(60vh, 460px)`) and the dock narrows to that frame. Bottom-**left** is deliberate
+  — the sticky plus rail and every candidate's **Promote / Not relevant** controls live on the right,
+  so docking left keeps them visible and operable while the player is open (no overlap, no layout
+  shift). **Mobile (< `lg`, vertical-first):** a **full-width bottom bar / sheet** flush to the bottom
+  edge (with `env(safe-area-inset-bottom)`), 16:9 full-width and 9:16 height-capped + centered; while
+  open it reserves bottom padding on the page so the last candidate's controls scroll clear of the bar.
+- **Persistent + single instance.** `position: fixed`, survives scroll (iframe never re-mounts), one
+  player and one iframe at a time; a second candidate click **swaps the iframe `src` in place** rather
+  than stacking. The iframe is **created on explicit play and torn down on dismiss** (embed-never-host;
+  autoplay only because the user clicked).
+- **Dismiss affordance.** A real, keyboard-operable **"✕ Close"** button (glyph **and** word) in the
+  title bar; activating it removes the dock and its iframe from the DOM (playback stops).
+- **Metadata alongside.** Minimal — the **caption** plus **creator credit** (`handle · platformLabel`,
+  the CC BY-SA attribution), reusing the strip/card footer pattern. No match reason, no Promote/Dismiss
+  inside the dock (those stay on the candidate card).
+- **Accessibility model (non-modal).** The dock is a **labeled landmark** (`<section
+  aria-label="Video preview">`), **not** a dialog: no `aria-modal`, **no focus trap**, no backdrop. It
+  **does not steal focus on open** (no autofocus) and does not block the page. Dismiss is keyboard
+  reachable with the project's visible focus ring; on keyboard dismiss focus returns sensibly (reuse
+  the General-band-heading focus pattern), never dropped to `<body>`. Any dock-in motion is gated by
+  the existing `prefers-reduced-motion` signal. All chrome is **white-on-`ink`** (AA, no gold) and the
+  Close control is signaled by its **word**, never color alone.
+
 ## Data implications (already reflected in the clip model)
 
 These map onto the `clip` entity in [`ARCHITECTURE.md`](ARCHITECTURE.md):
