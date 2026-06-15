@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { store, seedIfEmpty } from "@/lib/data";
 import type { Topic } from "@/lib/data/types";
 import { topicHref } from "@/lib/wiki/topicRoute";
+import { TopicSearch } from "@/components/search/TopicSearch";
 
 export default function HomePage() {
   const [topics, setTopics] = useState<Topic[] | null>(null);
@@ -18,13 +19,18 @@ export default function HomePage() {
 
   return (
     <main className="mx-auto max-w-5xl space-y-6 px-4 py-8">
-      <header className="flex items-center justify-between border-b border-ink/10 pb-3">
-        <Link href="/" className="text-lg font-semibold text-brand">
-          wiki<span className="text-sprout">+</span>
-        </Link>
-        <Link href="/contribute" className="text-sm text-action hover:underline">
-          Contribute
-        </Link>
+      <header className="space-y-4 border-b border-ink/10 pb-4">
+        <div className="flex items-center justify-between">
+          <Link href="/" className="text-lg font-semibold text-brand">
+            wiki<span className="text-sprout">+</span>
+          </Link>
+          <Link href="/contribute" className="text-sm text-action hover:underline">
+            Contribute
+          </Link>
+        </div>
+        {/* Always-visible, full-width topic search — the primary entry (#12, design
+            §Placement Host 1: the must-ship floor; never collapses to an icon on home). */}
+        <TopicSearch variant="home" />
       </header>
       <section className="space-y-2">
         <h1 className="text-2xl font-semibold text-ink">Topics</h1>

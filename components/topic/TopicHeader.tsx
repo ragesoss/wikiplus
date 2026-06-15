@@ -1,3 +1,5 @@
+import { TopicSearch } from "@/components/search/TopicSearch";
+
 // Sticky two-world header with the split Wiki / ＋plus wordmark (design §5.1, AC1).
 // The grid mirrors the page grid so each half sits over its column. The ＋plus
 // block (and, in the empty state, the signed-in user chip) is hidden < lg.
@@ -12,17 +14,29 @@ export function TopicHeader({
   return (
     <header className="sticky top-0 z-40 border-b-2 border-ink bg-white">
       <div className="mx-auto grid max-w-[1200px] grid-cols-1 items-stretch gap-7 px-5 lg:grid-cols-[1fr_360px]">
-        {/* Wiki half */}
-        <div className="flex h-16 items-center justify-between">
-          <div className="flex items-baseline gap-2">
+        {/* Wiki half — wordmark (left), topic search (center), article title (right).
+            Search is quiet plus-side UI living on the Wiki side at every breakpoint
+            (#12, design §Placement Host 2). ≥ md: inline compact field. < md: a labeled
+            magnifier icon-disclosure (the sanctioned Decision-1 degrade) so the tight
+            header is never crowded and the article column is not intruded upon. */}
+        <div className="flex h-16 items-center gap-3">
+          <div className="flex shrink-0 items-baseline gap-2">
             <span className="font-serif text-2xl font-semibold text-[#1b1b1b]">
               Wiki
             </span>
-            <span className="hidden text-[10px] uppercase tracking-[0.18em] text-slate-400 sm:inline">
+            <span className="hidden text-[10px] uppercase tracking-[0.18em] text-slate-400 lg:inline">
               the encyclopedia article
             </span>
           </div>
-          <span className="hidden truncate font-serif text-slate-500 md:inline">
+          {/* Inline compact search ≥ md. */}
+          <div className="hidden min-w-0 flex-1 justify-center md:flex">
+            <TopicSearch variant="topic-inline" />
+          </div>
+          {/* Icon-disclosure < md (degradable surface). */}
+          <div className="ml-auto flex md:hidden">
+            <TopicSearch variant="topic-disclosure" />
+          </div>
+          <span className="hidden shrink truncate font-serif text-slate-500 md:inline">
             {articleTitle}
           </span>
         </div>

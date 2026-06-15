@@ -341,21 +341,29 @@ describe("TopicView — live candidate flow (F5: AC2/AC9/AC11 through the view)"
     expect(
       await screen.findByText("A cellular respiration overview")
     ).toBeInTheDocument();
-    // The polite live region announces the resolved count (design §5.4 / §8).
+    // The polite live region announces the resolved count (design §5.4 / §8). The page
+    // now hosts more than one role=status region (the navbar TopicSearch adds its own
+    // suggestion live region, #12), so assert that SOME status region carries the count.
     await waitFor(() =>
-      expect(screen.getByRole("status")).toHaveTextContent(
-        /Found \d+ suggested videos\./
-      )
+      expect(
+        screen
+          .getAllByRole("status")
+          .some((el) => /Found \d+ suggested videos\./.test(el.textContent || ""))
+      ).toBe(true)
     );
   });
 
   it("(a) a zero-result live search announces 'No suggested videos found.' (AC2 zero)", async () => {
     mockYtSearch([]); // obscure topic → nothing after normalize
     render(<TopicView />);
+    // More than one role=status region exists now (#12 navbar search); assert the
+    // zero-result line is announced by SOME status region.
     await waitFor(() =>
-      expect(screen.getByRole("status")).toHaveTextContent(
-        "No suggested videos found."
-      )
+      expect(
+        screen
+          .getAllByRole("status")
+          .some((el) => (el.textContent || "").includes("No suggested videos found."))
+      ).toBe(true)
     );
     // The honest zero line shows (design §5.2), not an empty tile row.
     expect(

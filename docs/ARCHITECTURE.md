@@ -171,6 +171,26 @@ query to a Wikipedia article (MediaWiki `opensearch`/search API) → wiki+ topic
 created on visit); internal wikilinks (above) are the other main path. This is what makes the
 empty state matter — most arrivals land on an uncurated topic and are invited to curate it.
 
+*Prototype decision (#12, navbar topic search — `components/search/TopicSearch.tsx` +
+`lib/wiki/suggest.ts`):* typeahead suggestions come from Wikipedia's REST title-completion
+endpoint **`/w/rest.php/v1/search/title?q=&limit=`** (namespace 0, articles) — Wikipedia's own
+as-you-type engine, which returns ranked title completions plus an optional short description the
+UI may show. It is fetched **client-side, key-free, anonymous CORS GET** with the same descriptive
+`Api-User-Agent` as `lib/wiki/article.ts` — **no server, no secret, no quota** (unlike the YouTube
+key). The `opensearch` action endpoint is an equivalent proven fallback (same shape); the REST
+endpoint was chosen for better completions + descriptions. Etiquette is binding: the input is
+**debounced (~200 ms)**, the prior in-flight request is **aborted** on query change, and the fetch
+**degrades silently to `[]`** on any error/timeout/abort (never an error UI). Selecting a suggestion
+or submitting raw text is a **pure navigation** — `router.push(topicHref(<raw title>))` (reusing the
+#11 `titleToSlug` encoding) — with **no write, no `/contribute` coupling, and no QID in the URL**;
+`TopicView` resolves title→QID under the hood and renders the curated **or** empty state (the
+create-on-demand behavior that already existed for typed/pasted `/topic/<Title>/` URLs). One
+reusable component is placed on both the home header (always-visible full-width) and the Topic
+header (inline compact on the Wiki side ≥ md; a labeled magnifier icon-disclosure < md, so the
+tight two-world header is not crowded). Accessibility follows the WAI-ARIA APG **editable combobox +
+listbox** pattern (`aria-activedescendant`); the no-results hint is a non-`option` row so it never
+blocks submit.
+
 ## Video handling — embed, never host
 
 We **never store or stream video.** For each clip we resolve the URL via **oEmbed** (or the
