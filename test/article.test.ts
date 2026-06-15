@@ -57,14 +57,20 @@ describe("fetchFullArticle — section structure (AC3)", () => {
     expect(a.sections.map((s) => s.slug)).toEqual(["history", "history-2"]);
   });
 
-  it("drops navigational/meta sections (References, See also, etc.)", async () => {
+  it("KEEPS navigational/tail sections as real sections (article-fidelity #27 D1)", async () => {
+    // Flipped from the v1 deferral: References / See also / etc. now come through the
+    // section walk as ordinary entries (slug + heading + TOC row). See article-fidelity.test.ts.
     mockArticleHtml(`
       <section><h2>Overview</h2><p>Keep me.</p></section>
-      <section><h2>References</h2><p>Drop me.</p></section>
-      <section><h2>See also</h2><p>Drop me too.</p></section>
+      <section><h2>References</h2><p>Now kept.</p></section>
+      <section><h2>See also</h2><p>Also kept.</p></section>
     `);
     const a = await fetchFullArticle("X");
-    expect(a.sections.map((s) => s.title)).toEqual(["Overview"]);
+    expect(a.sections.map((s) => s.title)).toEqual([
+      "Overview",
+      "References",
+      "See also",
+    ]);
   });
 
   it("builds the canonical en.wikipedia source URL (AC4 attribution target)", async () => {
@@ -126,11 +132,17 @@ describe("wikilink rewriting (AC5)", () => {
     expect(a.lead.leadHtml).toContain('target="_blank"');
   });
 
-  it("de-links in-page anchors (cite/note refs) to plain text", async () => {
-    mockArticleHtml(`<section><p>text<a href="#cite_note-1">[1]</a></p></section>`);
+  it("KEEPS cite/backref in-page anchors functional (article-fidelity #24 A4/A6)", async () => {
+    // Flipped: the marker↔reference round-trip is the whole point — `#cite_note-*` /
+    // `#cite_ref-*` anchors are no longer de-linked. (Other bare `#` anchors still are.)
+    mockArticleHtml(
+      `<section><p>text<sup class="reference"><a href="./X#cite_note-1">[1]</a></sup>` +
+        ` <a href="#section-jump">jump</a></p></section>`
+    );
     const a = await fetchFullArticle("X");
-    expect(a.lead.leadHtml).not.toContain("#cite_note-1");
+    expect(a.lead.leadHtml).toContain('href="#cite_note-1"'); // normalized + kept
     expect(a.lead.leadHtml).toContain("[1]");
+    expect(a.lead.leadHtml).not.toContain("#section-jump"); // non-cite anchor de-linked
   });
 });
 

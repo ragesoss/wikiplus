@@ -11,6 +11,7 @@ import {
 } from "@/components/topic/ArticleBody";
 import { AddModal } from "@/components/topic/AddModal";
 import { CandidateCard } from "@/components/topic/CandidateBits";
+import { CitationLayer } from "@/components/topic/CitationLayer";
 import { ClipCard } from "@/components/topic/ClipCard";
 import { CurateModal } from "@/components/topic/CurateModal";
 import { GeneralStrip } from "@/components/topic/GeneralStrip";
@@ -390,6 +391,30 @@ export function TopicView() {
     }
   }, [railItems, activeSlug]);
 
+  // ── Wide-table overflow flag (article-fidelity #25, design §4.2). ──
+  // After the article renders, mark each `.wiki-tablewrap` whose table is wider than
+  // its wrapper with `data-overflow` so the CSS "Scroll table →" hint appears ONLY
+  // when scrolling is actually needed. Re-measures on resize. Inert when no tables.
+  useEffect(() => {
+    if (fetchState !== "ready") return;
+    const measure = () => {
+      for (const wrap of Array.from(
+        document.querySelectorAll<HTMLElement>(".wiki-tablewrap")
+      )) {
+        const overflowing = wrap.scrollWidth > wrap.clientWidth + 1;
+        if (overflowing) wrap.setAttribute("data-overflow", "");
+        else wrap.removeAttribute("data-overflow");
+      }
+    };
+    // Measure after layout settles (next frame), then on resize.
+    const raf = requestAnimationFrame(measure);
+    window.addEventListener("resize", measure, { passive: true });
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener("resize", measure);
+    };
+  }, [fetchState, article]);
+
   // ── Wikilink click interception (AC5). ──
   // Rewritten article-namespace links carry `data-topic-title` + an `/topic/<Title>/`
   // href. Intercept ordinary left-clicks and route them through the Next client router
@@ -670,6 +695,12 @@ export function TopicView() {
           prefersReduced={prefersReduced.current}
         />
       )}
+
+      {/* Citation popover layer (article-fidelity #24, design §3.3). Document-scoped
+          (markers in the lead point at reference entries in the section block), so it
+          wires every inline `[n]` marker once the article is ready. Non-modal; does
+          not touch scroll-sync. Inert until the article's `[data-cite-marker]`s exist. */}
+      {fetchState === "ready" && article && <CitationLayer />}
 
       {player && (
         <PlayerModal clip={player} onClose={() => setPlayer(null)} />
