@@ -98,6 +98,86 @@ describe("CitationLayer (article-fidelity #24, §3.3)", () => {
     );
   });
 
+  // DEF-1 (a11y, design §3.3 "Esc returns focus to the marker", A7/U7). Radix can't
+  // auto-return focus to a trigger that doesn't exist (the marker lives in
+  // dangerouslySetInnerHTML, the anchor is a virtualRef), so the layer focuses the
+  // marker EXPLICITLY in onCloseAutoFocus. Without the fix, focus reset to <body>.
+  it("A7/DEF-1 returns focus to the triggering marker on Escape", async () => {
+    render(<Harness />);
+    const user = userEvent.setup();
+    const marker = screen.getByLabelText("Citation 12");
+    await user.click(marker);
+    await waitFor(() => expect(screen.getByRole("dialog")).toBeInTheDocument());
+    await user.keyboard("{Escape}");
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+    );
+    // Focus lands back on the marker — NOT on <body> (the pre-fix behavior).
+    await waitFor(() => expect(marker).toHaveFocus());
+  });
+
+  // DEF-1, sibling path: the explicit close-focus must also fire for the in-popover
+  // Close (×) button, not only Esc — same onCloseAutoFocus path.
+  it("DEF-1 returns focus to the marker when the Close button is used", async () => {
+    render(<Harness />);
+    const user = userEvent.setup();
+    const marker = screen.getByLabelText("Citation 12");
+    await user.click(marker);
+    await waitFor(() => expect(screen.getByRole("dialog")).toBeInTheDocument());
+    await user.click(screen.getByRole("button", { name: /Close citation/ }));
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+    );
+    await waitFor(() => expect(marker).toHaveFocus());
+  });
+
+  // DEF-2 (a11y, design §3.3 "jumps to AND focuses the matching entry", A4). The
+  // <li> focus is recorded and applied in onCloseAutoFocus (after Radix's close-focus
+  // settles); a synchronous li.focus() before setOpen(null) was clobbered to <body>.
+  it("A4/DEF-2 moves focus to the reference entry on 'View in References'", async () => {
+    render(<Harness />);
+    const user = userEvent.setup();
+    await user.click(screen.getByLabelText("Citation 12"));
+    await waitFor(() => expect(screen.getByRole("dialog")).toBeInTheDocument());
+    await user.click(screen.getByRole("button", { name: /View in References/ }));
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+    );
+    // Focus lands on the reference list entry <li id="cite_note-12">, made focusable
+    // via tabindex="-1" — NOT on <body>.
+    const li = document.getElementById("cite_note-12")!;
+    expect(li).toHaveAttribute("tabindex", "-1");
+    await waitFor(() => expect(li).toHaveFocus());
+  });
+
+  // A2 regression guard: the close-focus fix must NOT make the popover modal. While
+  // open, the page is not focus-trapped — a non-popover element outside it is still
+  // focusable (no page-level focus trap, no aria-modal).
+  it("A2 stays non-modal with the close-focus fix (no page focus trap)", async () => {
+    render(<Harness />);
+    // The marker link (role=link); the open dialog ALSO carries aria-label
+    // "Citation 12", so query the link role specifically once it's open.
+    const marker = screen.getByRole("link", { name: "Citation 12" });
+    await userEvent.click(marker);
+    const dialog = await waitFor(() => screen.getByRole("dialog"));
+    expect(dialog).not.toHaveAttribute("aria-modal", "true");
+    // An element outside the popover can still take focus (no trap on the page).
+    marker.focus();
+    expect(marker).toHaveFocus();
+  });
+
+  // A2 regression guard: the View-in-References close-focus path scrolls the <li> into
+  // view (its own scroll), but must not trigger window.scrollTo on OPEN. Opening the
+  // popover (which now wires onCloseAutoFocus) still does not scroll the page.
+  it("A2/DEF guard: opening the popover still does not scroll the page", async () => {
+    const scrollSpy = vi.spyOn(window, "scrollTo");
+    render(<Harness />);
+    await userEvent.click(screen.getByLabelText("Citation 12"));
+    await waitFor(() => expect(screen.getByRole("dialog")).toBeInTheDocument());
+    expect(scrollSpy).not.toHaveBeenCalled();
+    scrollSpy.mockRestore();
+  });
+
   it("closes on a scroll gesture (the anchored marker scrolls away, §3.3)", async () => {
     render(<Harness />);
     await userEvent.click(screen.getByLabelText("Citation 12"));

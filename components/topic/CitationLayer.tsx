@@ -17,9 +17,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 // It is an overlay anchored to the marker; the scroll-sync highlight is untouched.
 // A scroll gesture CLOSES it (the marker is scrolling away), then sync proceeds
 // normally. It is NOT a modal: `modal={false}` → no focus trap on the page, no
-// backdrop, no scroll-lock. Focus moves into the content on open and returns to the
-// marker on close (Radix). "View in References ↓" uses the ordinary in-page anchor
-// path (a hash jump to the reference list entry), exactly like a marker click.
+// backdrop, no scroll-lock. Focus moves into the content on open and, on close,
+// returns to the triggering marker — handled EXPLICITLY here (`onCloseAutoFocus`),
+// not by Radix: there is no `Popover.Trigger` in the DOM for Radix to return focus
+// to (markers live in dangerouslySetInnerHTML, the anchor is a virtualRef), so its
+// default return lands on <body>. "View in References ↓" uses the ordinary in-page
+// anchor path (a hash jump to the reference list entry) and routes its focus through
+// the same explicit close-focus path so focus lands on the reference entry.
 
 const VIEW_IN_REFS = "View in References";
 
@@ -49,6 +53,16 @@ export function CitationLayer({
   const [open, setOpen] = useState<OpenState | null>(null);
   // Radix anchors to a "virtual element" — we point it at the live marker node.
   const anchorRef = useRef<HTMLElement | null>(null);
+  // Where focus must land when the popover closes. Radix CANNOT auto-return focus
+  // to a trigger that doesn't exist (the markers live in dangerouslySetInnerHTML and
+  // the anchor is a virtualRef — there is no `Popover.Trigger` in the DOM), so we
+  // own close-focus explicitly via `onCloseAutoFocus`. By default (Esc / outside /
+  // Close button) focus returns to the triggering marker (DEF-1, §3.3 "Esc returns
+  // focus to the marker"); "View in References" overrides it to the reference <li>
+  // (DEF-2, §3.3 "jumps to and focuses the matching entry"). Either way the explicit
+  // focus runs INSIDE onCloseAutoFocus, after Radix's own close-focus settles, so it
+  // is never clobbered.
+  const closeFocusRef = useRef<HTMLElement | null>(null);
   const scope = useCallback(
     (): HTMLElement | null =>
       containerRef?.current ??
@@ -124,16 +138,33 @@ export function CitationLayer({
   // "View in References ↓": jump to the reference list entry exactly like a normal
   // in-page anchor, then move focus to it (keyboard parity). Reuses the section
   // anchor path — no special scroll code, so scroll-sync highlights References (§3.3).
+  //
+  // DEF-2: we DON'T focus the <li> synchronously here — Radix's close-focus management
+  // (triggered by setOpen(null)) would clobber it, resetting focus to <body>. Instead
+  // we record the <li> as the close-focus target; the shared onCloseAutoFocus handler
+  // focuses it AFTER the close-focus settles, so focus lands on the reference entry.
   const viewInReferences = useCallback(() => {
     if (!open) return;
     const container = scope();
     const li = container?.querySelector<HTMLElement>(`#${cssEscape(open.noteId)}`);
+    if (li) {
+      li.setAttribute("tabindex", "-1");
+      li.scrollIntoView({ block: "center" });
+      closeFocusRef.current = li; // focused in onCloseAutoFocus, not now
+    }
     setOpen(null);
-    if (!li) return;
-    li.setAttribute("tabindex", "-1");
-    li.scrollIntoView({ block: "center" });
-    li.focus();
-  }, [open, containerRef]);
+  }, [open, scope]);
+
+  // The single explicit close-focus path (DEF-1 + DEF-2). Radix fires this when the
+  // popover content unmounts; we suppress its built-in focus return (which would land
+  // on <body>, since there is no trigger element) and focus our recorded target:
+  // the reference <li> if "View in References" was used, otherwise the marker.
+  const onCloseAutoFocus = useCallback((e: Event) => {
+    e.preventDefault();
+    const target = closeFocusRef.current ?? anchorRef.current;
+    closeFocusRef.current = null;
+    target?.focus();
+  }, []);
 
   return (
     <Popover.Root
@@ -160,6 +191,10 @@ export function CitationLayer({
               e.preventDefault();
               (e.currentTarget as HTMLElement)?.focus?.();
             }}
+            // Own the close-focus return explicitly (DEF-1/DEF-2): Radix can't return
+            // focus to a non-existent trigger, so we focus the marker (or the
+            // reference <li> for "View in References") here, after its reset settles.
+            onCloseAutoFocus={onCloseAutoFocus}
             className="wiki-cite-popover"
           >
             <div
