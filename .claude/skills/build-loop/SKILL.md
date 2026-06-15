@@ -56,9 +56,12 @@ There are **no** Server Actions, Auth.js, Redis, Drizzle, or migrations yet — 
 `docs/ARCHITECTURE.md` apply to the **production read-path, not this static export**. Do not let a role
 wire server infra into the SPA, or block on "no migration written," in the prototype phase.
 
-The build/verify commands that actually exist: **`yarn build`** and **`yarn typecheck`**. There is
-**no `lint` script** (eslint is ignored during builds) and **no test runner yet** — Phase 4 stands one
-up.
+The build/verify commands that actually exist: **`yarn build`**, **`yarn typecheck`**, and **`yarn
+test`** (Vitest + React Testing Library, with Playwright for the core-loop e2e — config in
+`vitest.config.ts`, specs under `test/` and `e2e/`). There is **no `lint` script** (eslint is ignored
+during builds). The test harness is already committed; deps install with `yarn install
+--frozen-lockfile` (as CI does). New work adds `test/*.test.ts` files to the existing suite — do **not**
+re-scaffold a runner.
 
 ## The pipeline
 
@@ -117,9 +120,9 @@ Spawn **both** in parallel — fresh, non-author eyes:
   security review **scoped to the surface that actually exists in this change** — for the prototype
   that's the **DOMPurify allowlist on Wikipedia HTML (XSS)** and the **oEmbed click-to-load facade**;
   Server-Action / Auth.js / rate-limit review applies only once those land, and "surface not present"
-  is **not** a defect. **If no test runner exists yet, standing one up is the first QA deliverable**
-  (Vitest + React Testing Library; Playwright for the core-loop e2e — commit the config + devDeps and
-  record the choice in `docs/ARCHITECTURE.md`). The report must map **each acceptance-criterion ID to
+  is **not** a defect. The Vitest + Playwright harness is **already committed** (`vitest.config.ts`,
+  `test/`, `e2e/`, `yarn test`); QA runs and extends it — adding the acceptance-criterion tests as
+  `test/*.test.ts` — rather than standing one up. The report must map **each acceptance-criterion ID to
   pass/fail with a test reference**; an unmapped criterion = fail. "No tests written" = fail, not pass.
 - **`ux-designer`** (Opus): evaluate the built UI against the design spec + user stories — fidelity,
   interaction, usability, accessibility-in-practice.
