@@ -80,7 +80,16 @@ beforeEach(async () => {
   pathname = "/topic/"; // back-compat ?qid= entry unless a test overrides
   await seedIfEmpty(); // seed the curated Photosynthesis + uncurated topics
 });
-afterEach(() => vi.clearAllMocks());
+afterEach(() => {
+  // Full hygiene so the live-flow suite's stubs (a `vi.spyOn(fetch)` spy +
+  // `vi.stubEnv`/`vi.stubGlobal`) cannot bleed into sibling tests run in this file
+  // alone. `beforeEach` re-arms the module-level `vi.fn()` mocks and re-seeds the
+  // store, so restoring spies/env/globals here is safe. (issue #5 / AC1)
+  vi.clearAllMocks();
+  vi.restoreAllMocks();
+  vi.unstubAllEnvs();
+  vi.unstubAllGlobals();
+});
 
 describe("TopicView — curated state (AC1, AC2, AC3, AC4, AC7, AC20)", () => {
   beforeEach(() => {
@@ -224,13 +233,29 @@ describe("TopicView — canonical title route (D1, AC5, AC23)", () => {
   it("intercepts a wikilink click and routes in-SPA (no full reload) — AC5", async () => {
     const { fireEvent } = await import("@testing-library/react");
     render(<TopicView />);
-    const link = await screen.findByText("process");
+    await screen.findByText("process");
+    // The lead is injected via `dangerouslySetInnerHTML`, so the wikilink is raw DOM whose
+    // only handler is the container `<div onClick={onArticleClick}>` (delegated). After
+    // first mount, TopicView fires several post-mount state updates (canonicalization,
+    // storeReady, candidate load) that re-commit the lead — which DETACHES the node RTL
+    // captured on the first `findByText`. Clicking that stale, orphaned node never bubbles
+    // to the container, so the handler never runs and jsdom attempts a real <a> navigation
+    // (the #5 race). Fix: wait until a LIVE "process" node is connected under the onClick
+    // container, then re-query and click that node.
+    await waitFor(() => {
+      const a = screen.getByText("process").closest("a");
+      expect(a?.isConnected).toBe(true);
+      expect(a?.closest("div.min-w-0")).not.toBeNull();
+    });
+    const link = screen.getByText("process");
     // fireEvent (not userEvent): a raw bubbling click is what the delegated handler sees;
     // userEvent.click on an <a href> drives jsdom's unimplemented navigation instead.
     fireEvent.click(link);
     // Routed via the Next client router to the canonical title URL (no QID, no reload).
+    await waitFor(() =>
+      expect(routerPush).toHaveBeenCalledWith("/topic/Process/")
+    );
     expect(routerReplace).not.toHaveBeenCalled(); // title route needs no canonicalization
-    expect(routerPush).toHaveBeenCalledWith("/topic/Process/");
   });
 });
 
