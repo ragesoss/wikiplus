@@ -300,6 +300,21 @@ Design points:
   wikilink ever produces a broken `/topic/` route. The legacy `/topic?qid=Q…` URL still works as a
   back-compat entry but is **canonicalized away**: `TopicView` resolves QID→title and `router.replace`s
   to the title URL.
+  *Title ⇄ URL-slug encoding (#11, the canonical title-encoding seam):* the title path segment
+  mirrors Wikipedia's `/wiki/<Title>`, where **a space renders as `_`** — `San Francisco` →
+  `/topic/San_Francisco/`, not `%20`. Two helpers in `lib/wiki/topicRoute.ts` are the **single source
+  of truth**: `titleToSlug(title)` = `encodeURIComponent(title).replace(/%20/g, "_")` (encode first so
+  reserved chars `&`,`?`,`#`,`/`,`+` stay percent-encoded and an underscore is never double-encoded),
+  and `slugToTitle(slug)` = `slug.replace(/_/g, " ")` then `decodeURIComponent` (so both `_` and a
+  legacy `%20` decode to a space). `topicHref` builds via `titleToSlug`; `titleFromPathname` parses via
+  `slugToTitle` and returns the clean **space-form** title that keys the store/QID lookup;
+  `staticTopicParams()` (`lib/data/seed.ts`) emits slugs via the **same** `titleToSlug`, so a seeded
+  topic's pre-built static path and its runtime href are byte-for-byte identical. The wikilink rewrite
+  (`rewriteLinks`) decodes Wikipedia's underscore hrefs via `slugToTitle` so **`data-topic-title`
+  carries the space-form title** (screen-reader announces "San Francisco", not "San_Francisco").
+  Only space↔underscore is special-cased; underscore and space are interchangeable in titles
+  (Wikipedia parity — an accepted collision, not a defect). Issues #12 (navbar search) and #13
+  (bare-path redirect) reuse these helpers.
 - What scopes/claims we request from Wikimedia (e.g. username, edit count — also a moderation signal).
 - YouTube search credentials: keep the **referrer-restricted client key** (prototype) or move search
   behind a **server proxy** in the production read-path — so the key isn't browser-exposed and the

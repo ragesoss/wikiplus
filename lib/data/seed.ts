@@ -1,3 +1,4 @@
+import { titleToSlug } from "../wiki/topicRoute";
 import type { Candidate, Clip } from "./types";
 
 // Seed data for the prototype (spec A3/A4). Two demo topics exercise both states:
@@ -17,10 +18,13 @@ export const UNCURATED_DEMO_QID = "Q189603"; // Cellular respiration
 // `_`, paralleling Wikipedia). Used by the catch-all `generateStaticParams` so a hard
 // navigation / refresh to a seeded topic resolves from a pre-built HTML file (the rest
 // fall through to the GitHub Pages 404.html SPA fallback). Keep in sync with seedIfEmpty.
-const SEEDED_TITLES = ["Photosynthesis", "Cellular respiration", "Cat"];
+export const SEEDED_TITLES = ["Photosynthesis", "Cellular respiration", "Cat"];
 
 export function staticTopicParams(): { slug: string[] }[] {
-  return SEEDED_TITLES.map((t) => ({ slug: [t.replace(/ /g, "_")] }));
+  // Route through the SAME `titleToSlug` the runtime `topicHref` uses, so the
+  // pre-built static path and the runtime href are byte-for-byte identical for
+  // every seeded title (#11 AC5) and can't drift.
+  return SEEDED_TITLES.map((t) => ({ slug: [titleToSlug(t)] }));
 }
 
 const ago = (days: number) =>

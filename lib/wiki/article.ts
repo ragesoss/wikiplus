@@ -7,7 +7,7 @@
 // list with stable slugs, and split the body into per-section fragments.
 
 import type { ArticleSection } from "@/lib/data/types";
-import { topicHref } from "./topicRoute";
+import { slugToTitle, topicHref } from "./topicRoute";
 
 const REST = "https://en.wikipedia.org/api/rest_v1";
 // Wikimedia etiquette: a descriptive Api-User-Agent identifying wiki+ + a contact
@@ -252,8 +252,12 @@ function rewriteLinks(root: HTMLElement, _title: string) {
     }
 
     if (m && !m[1].includes(":")) {
-      // Ordinary article link → canonical title-based topic route.
-      const title = decodeURIComponent(m[1]);
+      // Ordinary article link → canonical title-based topic route. Wikipedia hrefs
+      // use the underscore form (`/wiki/Calvin_cycle`); slugToTitle maps `_`→space
+      // AND percent-decodes, so `title` is the clean SPACE-form title — what
+      // `data-topic-title` must carry for screen readers (design a11y; #11 AC8) and
+      // what flows to the store/QID lookup. topicHref re-encodes it for the href.
+      const title = slugToTitle(m[1]);
       const isRed = a.classList.contains("new") || a.classList.contains("mw-redlink");
       if (isRed) {
         externalize(a, href);

@@ -86,8 +86,11 @@ export function TopicView() {
     (async () => {
       await seedIfEmpty();
       if (routeTitle) {
+        // `routeTitle` is already the clean space-form title (titleFromPathname
+        // maps underscores → spaces), so it flows straight into the store lookup
+        // and the Wikipedia QID resolution — no further underscore handling (#11 AC4).
         const known = await store.getTopicByTitle(routeTitle);
-        const title = known?.title ?? routeTitle.replace(/_/g, " ");
+        const title = known?.title ?? routeTitle;
         const qid = known?.qid ?? (await titleToQid(routeTitle));
         if (!alive) return;
         setResolved({ qid, title });
