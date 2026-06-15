@@ -55,6 +55,7 @@ export function ArticleSections({
   mode,
   topicTitle,
   inlineCandidates,
+  onPlay,
   onPromote,
   onDismiss,
   sectionRef,
@@ -64,6 +65,8 @@ export function ArticleSections({
   mode: "curated" | "empty";
   topicTitle: string;
   inlineCandidates: Map<string, Candidate>;
+  /** YouTube-candidate play → non-modal PinnedPlayer (issue #10, AC1). */
+  onPlay?: (c: Candidate) => void;
   onPromote: (c: Candidate) => void;
   onDismiss: (c: Candidate) => void;
   sectionRef?: (slug: string, el: HTMLElement | null) => void;
@@ -92,6 +95,7 @@ export function ArticleSections({
               <InlineCandidate
                 candidate={cand}
                 topicTitle={topicTitle}
+                onPlay={onPlay}
                 onPromote={onPromote}
                 onDismiss={onDismiss}
               />

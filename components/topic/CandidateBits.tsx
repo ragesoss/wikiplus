@@ -69,6 +69,7 @@ export function CandidateActions({
 export function CandidateCard({
   candidate,
   active = false,
+  onPlay,
   onPromote,
   onDismiss,
   cardRef,
@@ -76,6 +77,9 @@ export function CandidateCard({
   candidate: Candidate;
   /** Scroll-sync highlight — mirrors ClipCard's active pairing (design §6.5, D2). */
   active?: boolean;
+  /** YouTube-candidate play → non-modal PinnedPlayer (issue #10, AC1). Optional:
+      without it (or for a non-embeddable clip) the thumb keeps its link-out. */
+  onPlay?: (c: Candidate) => void;
   onPromote: (c: Candidate) => void;
   onDismiss: (c: Candidate) => void;
   cardRef?: (el: HTMLElement | null) => void;
@@ -92,7 +96,15 @@ export function CandidateCard({
           {candidate.general ? "General" : candidate.sectionLabel ?? "Section"}
         </span>
       </div>
-      <VideoThumb video={candidate} candidate />
+      <VideoThumb
+        video={candidate}
+        candidate
+        onPlay={
+          onPlay && candidate.platform === "youtube" && candidate.embedUrl
+            ? () => onPlay(candidate)
+            : undefined
+        }
+      />
       <a
         href={candidate.creator.url}
         target="_blank"

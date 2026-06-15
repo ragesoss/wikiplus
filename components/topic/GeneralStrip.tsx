@@ -17,6 +17,7 @@ export function GeneralStrip({
   loading = false,
   prefersReduced = false,
   onPlay,
+  onPlayCandidate,
   onPromote,
   onDismiss,
   onAdd,
@@ -31,7 +32,11 @@ export function GeneralStrip({
   loading?: boolean;
   /** Reduced-motion: skeletons render static (no shimmer) (design §5.4 / §8). */
   prefersReduced?: boolean;
+  /** Curated tiles → blocking PlayerModal (unchanged). */
   onPlay: (clip: Clip) => void;
+  /** Candidate tiles → non-modal PinnedPlayer (issue #10, AC1). Optional so the
+      component still renders without a play wiring (then candidate thumbs link out). */
+  onPlayCandidate?: (c: Candidate) => void;
   onPromote: (c: Candidate) => void;
   onDismiss: (c: Candidate) => void;
   onAdd: () => void;
@@ -168,7 +173,16 @@ export function GeneralStrip({
               ))
             : generalCandidates.map((c) => (
                 <li key={c.id} role="listitem" className="w-44 shrink-0">
-                  <VideoThumb video={c} variant="strip" candidate />
+                  <VideoThumb
+                    video={c}
+                    variant="strip"
+                    candidate
+                    onPlay={
+                      onPlayCandidate && c.platform === "youtube" && c.embedUrl
+                        ? () => onPlayCandidate(c)
+                        : undefined
+                    }
+                  />
                   <div className="mt-1 flex items-center gap-1.5">
                     <SuggestedBadge />
                   </div>
