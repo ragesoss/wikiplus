@@ -397,15 +397,41 @@ exercise the production read-path (ISR/Redis/Server Actions) and is **single-use
   is an **optional catch-all** `app/topic/[[...slug]]/page.tsx`: `generateStaticParams` pre-renders the
   **seeded titles** (`Photosynthesis`, `Cellular_respiration`, `Cat`) plus the bare `/topic` shell
   (`slug: []`) that serves the `?qid=` back-compat entry. `dynamicParams = false` — arbitrary titles
-  are **not** generated, so under `output: 'export'` GitHub Pages serves **`404.html`** for them; the
-  deploy step (`deploy.yml`) makes `404.html` a **copy of the Topic SPA shell** (`out/topic/index.html`),
-  the standard GitHub-Pages SPA fallback. Because the export uses an absolute basePath `assetPrefix`,
-  that shell boots from any path; `TopicView` then reads the title from `location.pathname`
-  (`titleFromPathname`) and renders — no redirect, **no QID in the URL**, title preserved. In-app
-  navigation uses the Next client router (`<Link>` + a delegated wikilink click handler), so it never
-  triggers a full reload. Helpers live in `lib/wiki/topicRoute.ts` (`topicHref`, `titleFromPathname`).
+  are **not** generated, so under `output: 'export'` GitHub Pages serves **`404.html`** for them.
+  As of issue #13, **`404.html` is `app/not-found.tsx`** (the export emits it as the default
+  `404.html`) — `deploy.yml` **no longer** copies `out/topic/index.html` over it. `not-found.tsx` is a
+  **superset** of the old Topic-shell-as-404: for an unmatched `/topic/<Title>/` (or any non-redirect
+  path) it renders `TopicView`, which reads the title from `location.pathname` (`titleFromPathname`) and
+  renders — no redirect, **no QID in the URL**, title preserved (the same behavior as before; `next dev`
+  renders the same component for unmatched paths, giving static-export ⇄ local-dev parity). Because the
+  export uses an absolute basePath `assetPrefix`, that shell boots from any path. In-app navigation uses
+  the Next client router (`<Link>` + a delegated wikilink click handler), so it never triggers a full
+  reload. Helpers live in `lib/wiki/topicRoute.ts` (`topicHref`, `titleFromPathname`).
+
+- **Routing — bare-path fallback redirect (`/<Title>` → `/topic/<Title>/`, issue #13).** A **bare
+  single-segment path** (e.g. `/San_Francisco`) is the natural shorthand a reader types/pastes; it is
+  redirected to the canonical `/topic/<Title>/` rather than dead-ending. The rule lives in
+  **`app/not-found.tsx`** (the SPA-shell/not-found boot, covering both `404.html` on Pages and `next
+  dev`): on mount it computes a redirect target from `location.{pathname,search,hash}` and, if non-null,
+  `router.replace`s to it while rendering a **neutral Topic loading state** (`ArticleSkeleton`) plus a
+  polite `role="status"` "Loading topic…" announcement — so a real topic lands directly in *loading*,
+  never the "Topic not found." flash, and a screen reader hears the hop (`router.replace` skips the
+  native page-change announcement, and `TopicView`'s existing live region is `mode === "empty"`-gated).
+  The **reserved-prefix allowlist** — the single source of truth — lives in
+  **`lib/routing/reserved.ts`** (`barePathRedirectTarget`, `bareTitleSegment`, `isReservedSegment`,
+  `RESERVED_SEGMENTS`), with a comment pointing back to `docs/specs/bare-path-redirect.md`. Redirect
+  **iff** the path is a single non-empty segment, not reserved, and not under `/topic`; reserved =
+  `/` (home), the enumerated top-level routes (`topic`, `contribute`, `_next`), any segment with a `.`
+  (asset) or a `:` (namespace). The segment is normalized through #11's `slugToTitle` → `titleToSlug`
+  (so `/Multi Word` and `/Multi_Word` both → `/topic/Multi_Word/`); query + hash are preserved. The
+  loop guard is structural: the destination is under the reserved `/topic` prefix, so the rule is a
+  no-op on it. **Future-proofing policy:** every new top-level `app/<section>/` route MUST be added to
+  `RESERVED_SEGMENTS` in the same change — enforced by an AC8 unit test that asserts each current
+  top-level route is reserved.
+
   *Production* drops `output: 'export'` and restores per-title path-based pages with ISR + the Redis
-  `cacheHandler` (no 404.html trick needed once a server renders unknown titles on demand).
+  `cacheHandler` (no 404.html trick needed once a server renders unknown titles on demand; the bare-path
+  case becomes a real server-side HTTP redirect at that point).
 
 **Path to production:** add the Drizzle `DataStore` + Server Actions, restore path-based Topic pages
 with ISR + the Redis `cacheHandler`, and turn off `output: 'export'`. The components, data model,

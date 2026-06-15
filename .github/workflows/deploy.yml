@@ -35,12 +35,14 @@ jobs:
           # bundle-visible is by design. Repo secret; unset in local/cloud builds → search must no-op then.
           NEXT_PUBLIC_YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
       - run: touch out/.nojekyll
-      # SPA fallback for arbitrary title routes (/topic/<Title>): the canonical
-      # Topic URL is title-based (no QID in the bar), so most titles have no
-      # pre-built page in the static export. GitHub Pages serves 404.html for those;
-      # making it a copy of the Topic SPA shell lets the client router read the title
-      # from location.pathname and render — no QID, no redirect (ARCHITECTURE routing).
-      - run: cp out/topic/index.html out/404.html
+      # SPA fallback: GitHub Pages serves out/404.html for any path with no pre-built
+      # page. As of issue #13 the export's own `app/not-found.tsx` IS that fallback —
+      # a superset of the old Topic-shell copy: it runs the bare-path → /topic/<Title>/
+      # redirect AND, for every other unmatched path (notably unseeded /topic/<Title>/
+      # title routes), renders TopicView, which reads the title from location.pathname
+      # and renders. No redirect, no QID in the bar (ARCHITECTURE "Prototype phase →
+      # routing"). We therefore NO LONGER overwrite out/404.html with out/topic/index.html;
+      # `next build` already emits the correct out/404.html from app/not-found.tsx.
       - uses: actions/upload-pages-artifact@v5
         with:
           path: out
