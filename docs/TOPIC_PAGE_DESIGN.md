@@ -36,8 +36,8 @@ Dashboard** brand palette so wiki+ reads as part of that brand world. Defining t
 - **Light, editorial cards** — white/very-light panels with **2px ink (`#2C2C2C`) borders and
   solid offset drop-shadows**, big numerals for counts, chunky count tags, color-blocked panels,
   and bold oversized display headings on plus blocks.
-- **Indigo-dominant**, no gold. The ＋plus header label, the infobox, and the General band are
-  **indigo `#676EB4`** color-blocks; count numerals/tags are indigo.
+- **Indigo-dominant**, no gold. The ＋plus header label, the **wiki+ panel** (see *Two infoboxes*),
+  and the General band are **indigo `#676EB4`** color-blocks; count numerals/tags are indigo.
 - **Brand fonts**: headings **Source Sans Pro**, body **Open Sans** (the dashboard's fonts).
   The Wiki side keeps its serif Wikipedia look — the two type systems reinforce the two worlds.
 
@@ -72,10 +72,33 @@ Each clip's accuracy/stance is shown as a **text-labeled chip** (never color alo
 A two-column layout from the top (article ~1fr, plus rail ~360px):
 
 - **Left (article):** title + attribution ("From Wikipedia · CC BY-SA 4.0"), the lead, then the
-  article body sections with their real headings, wikilinks, and figures.
-- **Right (plus rail, sticky):** a **+plus infobox** (video / creator / curator counts + synced
+  article body sections with their real headings, wikilinks, figures, and (per the
+  article-fidelity feature) the **Wikipedia infobox** float-right at the top — see *Two infoboxes*
+  below.
+- **Right (plus rail, sticky):** the **wiki+ panel** (video / creator / curator counts + synced
   status), then the **Table of Contents**, then the curated **section videos**. The rail is
   present and pinned from the very top.
+
+### Two infoboxes — a naming disambiguation (do not conflate)
+
+The Topic page has **two distinct "infobox" objects**; they live in different columns, in different
+visual languages, and the docs name them distinctly (resolving the article-fidelity collision,
+`docs/design/article-fidelity.md` §4.3, spec B8):
+
+- **Wikipedia infobox** — the encyclopedia's *own* summary box (taxonomy, key facts, lead image),
+  restored by the article-fidelity feature. It lives in the **left article column**, float-right at
+  the top of the lead, and keeps **Wikipedia's visual language** (grey header rows, hairline
+  borders) — it is part of "the Wiki world," never restyled into Indigo Press.
+- **wiki+ panel** (formerly called "the +plus infobox") — wiki+'s *own* element in the **right
+  rail**: the videos / creators / curators counts + synced status (curated), or the "0 videos
+  curated" + "Be the first to curate" CTA (empty). It is **Indigo Press** (indigo header block,
+  hardbox border + offset shadow). Implemented in `components/topic/Infobox.tsx` (the filename is
+  retained; its doc-facing name is **the wiki+ panel**).
+
+They **cannot collide**: at `lg+` they are in separate grid columns (the Wikipedia infobox floats
+*within* the article column, the wiki+ panel is the right rail beyond the grid gap); below `lg` the
+Wikipedia infobox stacks full-width in the article flow and the wiki+ panel sits in the collapsed
+rail below it.
 
 ### The General strip — the one crossover
 
@@ -183,7 +206,8 @@ These map onto the `clip` entity in [`ARCHITECTURE.md`](ARCHITECTURE.md):
   the TOC counts.
 - `creator` (handle, name, platform, followers/avatar), `context` note, `stance`, `accuracy`,
   `orientation` (vertical/horizontal), `thumbnail`, `embed_url`, `watch_url` — drive the cards.
-- Topic-level counts (videos / creators / curators) feed the +plus infobox.
+- Topic-level counts (videos / creators / curators) feed the wiki+ panel (the right-rail
+  counts/sync element; see *Two infoboxes*).
 
 ## Open refinements (deferred to implementation)
 
