@@ -338,20 +338,22 @@ export function TopicSearch({ variant = "home" }: TopicSearchProps) {
             onFocus={onFocus}
             className={`min-w-0 flex-1 bg-transparent pl-3 pr-2 ${inputSize} text-ink placeholder:text-muted focus:outline-none`}
           />
-          {/* S2 decorative busy affordance — never an error; aria-hidden. */}
-          {busy && (
-            <span
-              aria-hidden="true"
-              data-testid="topic-search-busy"
-              className="flex items-center pr-1 text-muted"
-            >
-              <span className="inline-flex gap-0.5">
+          {/* S2 decorative busy affordance — never an error; aria-hidden. The slot is
+              ALWAYS rendered at a fixed width (the dots toggle INSIDE it), so the dots
+              appearing/disappearing never reflows the flex-1 input — no width jitter
+              while results load. */}
+          <span
+            aria-hidden="true"
+            className="flex w-5 shrink-0 items-center justify-center text-muted"
+          >
+            {busy && (
+              <span data-testid="topic-search-busy" className="inline-flex gap-0.5">
                 <span className="h-1 w-1 animate-pulse rounded-full bg-muted" />
                 <span className="h-1 w-1 animate-pulse rounded-full bg-muted [animation-delay:150ms]" />
                 <span className="h-1 w-1 animate-pulse rounded-full bg-muted [animation-delay:300ms]" />
               </span>
-            </span>
-          )}
+            )}
+          </span>
           <button
             type="submit"
             aria-label={SUBMIT_NAME}
