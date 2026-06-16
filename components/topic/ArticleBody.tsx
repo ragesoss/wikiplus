@@ -27,6 +27,11 @@ export function ArticleLeadBlock({
       <h1 className="wiki-title border-b border-wikirule pb-1 text-[1.9rem] font-bold leading-tight">
         {title}
       </h1>
+      {/* Wikidata short description — page metadata lifted out of the article body
+          (article.ts), shown as a subtitle here rather than leaking into the lead. */}
+      {lead.description && (
+        <p className="mt-1 text-sm text-[#54595D]">{lead.description}</p>
+      )}
       {/* CC BY-SA + QID attribution (design §5.2, AC4 / CURATION §5.1) */}
       <p className="mt-1 text-xs text-[#54595D]">
         From{" "}

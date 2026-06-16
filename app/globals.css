@@ -88,24 +88,36 @@ body {
 .wiki-body p {
   margin: 0 0 0.8em;
 }
+/* Article headings — faithful Wikipedia (serif + hairline rule). These rules must
+   cover BOTH headings inside injected body HTML (`.wiki-body hN`) AND the section
+   headings the React layer renders as direct children of `.sec` (ArticleBody.tsx) —
+   those live OUTSIDE `.wiki-body`, so without `.sec hN` here they only got the
+   scroll-offset + active-pairing highlight and fell back to the sans body font with
+   no size bump and no underline. */
 .wiki-body h2,
 .wiki-body h3,
 .wiki-body h4,
+.sec h2,
+.sec h3,
+.sec h4,
 .wiki-title {
   font-family: Georgia, "Times New Roman", serif;
   color: #1b1b1b;
 }
-.wiki-body h2 {
+.wiki-body h2,
+.sec h2 {
   font-size: 1.5rem;
   margin: 1.4em 0 0.5em;
   border-bottom: 1px solid var(--color-wikirule);
   padding-bottom: 0.2em;
 }
-.wiki-body h3 {
+.wiki-body h3,
+.sec h3 {
   font-size: 1.2rem;
   margin: 1.1em 0 0.4em;
 }
-.wiki-body h4 {
+.wiki-body h4,
+.sec h4 {
   font-size: 1.05rem;
   font-weight: 700;
   margin: 1em 0 0.3em;
