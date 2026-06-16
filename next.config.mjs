@@ -31,7 +31,18 @@ const nextConfig = {
   //                             distinct assetPrefix is unneeded. (A future CDN/edge host
   //                             can reintroduce it in A.2 if it serves assets off-origin.)
   basePath,
+  // Standalone server output (issue A.2 / #42). `next build` emits a self-contained
+  // `.next/standalone/` tree — `server.js` plus only the `node_modules` actually traced as
+  // used — so the runtime Docker image copies that (+ `.next/static` + `public`) and runs
+  // `node server.js` WITHOUT a full `node_modules` or the Next CLI. This is what keeps the
+  // runtime image tiny and lets the 1GB Nanode *run* the server while never *building* it
+  // (the build happens in CI; the box only `docker compose pull`s — see deploy/ + the
+  // rewritten .github/workflows/deploy.yml). Tracing relies on `outputFileTracingRoot`
+  // (below) being correct. No behavior change for `yarn dev`/`yarn start`.
+  output: "standalone",
   // Pin the workspace root (a stray lockfile in $HOME otherwise confuses inference). KEPT.
+  // Doubly load-bearing now: `output:'standalone'` traces the dependency closure relative to
+  // this root, so it must point at the app dir (set to import.meta.dirname).
   outputFileTracingRoot: import.meta.dirname,
   images: { unoptimized: true },
   trailingSlash: true,

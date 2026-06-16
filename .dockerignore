@@ -1,0 +1,50 @@
+# Keep the Docker build context small + reproducible (issue A.2 / #42).
+# The build stage runs `yarn install` + `yarn build` fresh inside the image, so none of the
+# host's installed/built artifacts should be shipped into the context.
+
+# deps + build output (regenerated in-image)
+node_modules
+.next
+out
+build
+dist
+*.tsbuildinfo
+next-env.d.ts
+
+# env & secrets — NEVER bake into an image layer (the YouTube key arrives as a --build-arg)
+.env
+.env*.local
+.env.production
+*.pem
+
+# vcs / CI / deploy config (not needed to build the app)
+.git
+.github
+deploy
+Dockerfile
+.dockerignore
+
+# tests / coverage / reports (not part of the runtime image)
+test
+test-results
+playwright-report
+coverage
+e2e
+
+# docs, mockups, agent config — not part of the app build
+docs
+mockups
+.claude
+
+# os / editor
+.DS_Store
+Thumbs.db
+.idea
+.vscode
+*.swp
+
+# logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*

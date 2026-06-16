@@ -1,0 +1,36 @@
+# wiki+ prototype — Caddy reverse proxy + automatic TLS (issue A.2 / #42).
+#
+# Caddy terminates TLS directly (Let's Encrypt, HTTP-01 by default) and reverse-proxies to
+# the app container over the compose network. Cloudflare EDGE CACHE is deferred to the
+# production-MVP (issue #35) — for the prototype Caddy is the public-facing TLS endpoint.
+#
+# !! DNS / Cloudflare CHECK (do NOT assume) — wikiplus.wikiedu.org is a subdomain of the
+#    wikiedu.org zone, which may already be managed in Cloudflare. If the A/AAAA record for
+#    wikiplus.wikiedu.org is created PROXIED (orange cloud) in Cloudflare, two things bite:
+#      1. Caddy's HTTP-01 / TLS-ALPN challenge can fail or loop unless Cloudflare's SSL/TLS
+#         mode for the zone is "Full" (or "Full (strict)" once Caddy holds a real cert) —
+#         "Flexible" causes a redirect loop, and the edge intercepts :80/:443.
+#      2. The simplest robust fix is to create the record as DNS-only (grey cloud) so Caddy
+#         reaches Let's Encrypt directly; OR switch Caddy to a DNS-01 challenge using a
+#         Cloudflare API token (needs the caddy-dns/cloudflare plugin — a custom Caddy build,
+#         documented in the runbook as the fallback).
+#    Confirm the zone's proxy status + SSL mode with the owner BEFORE first bring-up; the
+#    config below assumes a directly-reachable origin (DNS-only record, or HTTP-01 works).
+
+{
+	# Operator contact for Let's Encrypt / ACME (expiry + policy notices).
+	email sage@wikiedu.org
+}
+
+wikiplus.wikiedu.org {
+	# Reverse-proxy to the app container (compose service name : container port).
+	reverse_proxy app:3000
+
+	encode zstd gzip
+
+	# Access logs to stdout (captured by `docker compose logs caddy`), JSON for easy parsing.
+	log {
+		output stdout
+		format json
+	}
+}

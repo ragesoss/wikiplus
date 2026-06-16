@@ -1,0 +1,4 @@
+# Keeps the `public/` dir in git so it always exists in the Docker build context.
+# Next.js serves static assets (favicon, robots.txt, etc.) from here, and the runtime
+# image (Dockerfile) copies `public/` into the standalone server — that COPY fails if the
+# directory is absent. No static assets are committed yet; add them here as needed.

@@ -1,0 +1,62 @@
+# wiki+ prototype stack (issue A.2 / #42) — runs ON the Linode Nanode at /opt/wikiplus.
+#
+# Scope NOW: app (the Next.js Node SSR server, pulled from GHCR) + caddy (TLS + reverse
+# proxy). Postgres/Redis are deferred to issue B — the `# postgres:` block below is left
+# ready to uncomment so the DB slots in cleanly without restructuring this file.
+#
+# The box NEVER builds: `app.image` is the prebuilt GHCR image that CI pushes. Deploy is
+# `docker compose pull && docker compose up -d` (run by the SSH deploy job, or by hand from
+# the runbook). See ../Dockerfile and ../.github/workflows/deploy.yml.
+
+services:
+  app:
+    image: ghcr.io/ragesoss/wikiplus:latest
+    restart: unless-stopped
+    # No published ports: the app is internal-only, reachable from caddy over the default
+    # compose network as `app:3000`. Only caddy is exposed to the internet (80/443).
+    expose:
+      - "3000"
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      HOSTNAME: "0.0.0.0"
+      # NOTE: NEXT_PUBLIC_YOUTUBE_API_KEY is baked into the client bundle at BUILD time
+      # (in CI, as a --build-arg), so it is intentionally NOT set here at runtime. When the
+      # production read-path moves YouTube search server-side, the key becomes a runtime
+      # secret and would be wired in here (or via Docker secrets). See ARCHITECTURE.
+    # depends_on: [postgres]   # uncomment when the postgres block below is enabled (issue B)
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"   # HTTP/3 (QUIC)
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data       # ACME account + issued certs (PERSIST — see runbook backup note)
+      - caddy_config:/config   # Caddy's autosave config
+    depends_on:
+      - app
+
+  # --- Issue B (the DB): uncomment to add Postgres. Nothing uses a DB yet (still the -------
+  #     localStorage DataStore), so it is omitted now to keep the 1GB box lean. ------------
+  # postgres:
+  #   image: postgres:16
+  #   restart: unless-stopped
+  #   environment:
+  #     POSTGRES_DB: wikiplus
+  #     POSTGRES_USER: wikiplus
+  #     # Provide via an env file / Docker secret, never inline here:
+  #     POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+  #   volumes:
+  #     - pgdata:/var/lib/postgresql/data
+  #   # Internal-only; the app reaches it as `postgres:5432`. No published ports.
+  #   expose:
+  #     - "5432"
+
+volumes:
+  caddy_data:
+  caddy_config:
+  # pgdata:   # uncomment with the postgres service (issue B)
