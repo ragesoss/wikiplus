@@ -8,7 +8,9 @@
   Existing code: the `Candidate` type (`lib/data/types.ts`), the DataStore seam
   (`lib/data/store.ts`, `lib/data/local-store.ts`, `lib/data/index.ts`), the seeded mock
   candidates (`lib/data/seed.ts`), and the empty-state UI that already consumes candidates
-  (`components/topic/InlineCandidate.tsx`, `CandidateBits.tsx`, `GeneralStrip.tsx`).
+  (the rail's `CandidateCard`, `CandidateBits.tsx`, `GeneralStrip.tsx`). *(`InlineCandidate.tsx`
+  was retired in issue #21, `docs/specs/wiki-column-no-plus.md`; section-matched candidates render
+  in the plus rail, not inline in the article body.)*
 - **Hand-off:** UX (any flows/microcopy for the live/empty/no-key states named below), then
   Development. QA & Review verifies against the Acceptance criteria.
 
@@ -54,12 +56,15 @@ In scope:
    and turn the top results into `general: true` candidates for the General/Suggested band
    (`GeneralStrip.tsx`).
 
-3. **Inline section candidates by metadata matching.** Match candidate metadata
+3. **Section-anchored rail candidates by metadata matching.** Match candidate metadata
    (title / description / tags) against the **article section titles/keywords** (the section list
    the Topic page already derives — `ArticleSection[]`), and surface the **best single match per
    section** as a `general: false` candidate anchored by `sectionSlug`/`sectionLabel`, with a
-   populated `matchReason` (ARCHITECTURE §"Candidate suggestion"; the inline-candidate UI is
-   `InlineCandidate.tsx`). A weak match must not surface (Decision 2's threshold).
+   populated `matchReason` (ARCHITECTURE §"Candidate suggestion"). The match **anchors the candidate
+   to its section in the plus rail** (rendered there by `CandidateCard`) and increments that
+   section's TOC suggestion count — it is **not** rendered inline in the article body (issue #21,
+   `docs/specs/wiki-column-no-plus.md`, retired the former `InlineCandidate.tsx` article-body
+   placement; the component was deleted). A weak match must not surface (Decision 2's threshold).
 
 4. **Correct `Candidate` shape.** Every produced candidate carries `vetted: false`,
    `source: "YouTube"`, `platform: "youtube"`, `platformLabel: "YouTube"`, a human-readable
@@ -123,9 +128,9 @@ candidate's searchable text:
   Concretely: require **≥1 keyword overlap where that keyword is not also a token of the topic
   title** (so "respiration" matching the "Cellular respiration" topic does not, by itself, qualify
   a section — that's just the topic, not the section). Single-word generic sections (e.g. "History",
-  "Overview", "See also") **do not** get an inline candidate.
+  "Overview", "See also") **do not** get a section-anchored rail candidate.
 - **Best single match per section:** for each section, take the highest-scoring candidate; **only
-  one** inline candidate per section (ARCHITECTURE: "best single match per section").
+  one** section-anchored rail candidate per section (ARCHITECTURE: "best single match per section").
 - **Tie-breaking** (deterministic, in order): (1) higher title-hit count, (2) higher total score,
   (3) earlier position in the YouTube result order (YouTube's own relevance ranking), (4)
   `videoId` lexical order as a final stable tiebreak.
@@ -214,19 +219,22 @@ mandatory.
    state.)
 2. **Live search when keyed.** With the key **set**, visiting an uncurated topic triggers a single
    YouTube Data API v3 `search` call for that topic, and the returned results populate the
-   General/Suggested band and (where matched) inline section candidates. (Verified with the live
-   path mocked — the network call is intercepted in tests, as the article fetch already is.)
+   General/Suggested band and (where matched) section-anchored rail candidates. (Verified with the
+   live path mocked — the network call is intercepted in tests, as the article fetch already is.)
 3. **General-bar count.** A keyed topic surfaces **at most 5** `general: true` candidates in
    `GeneralStrip`, derived from **one** search call (no per-section API calls).
 4. **Candidate carries no stance/accuracy/note (critical, CURATION §6).** Every candidate produced
    by the live source has `vetted: false`, `source: "YouTube"`, `platform: "youtube"`, a non-empty
    `matchReason`, and **no** `stance`, `accuracyFlag`, or `contextNote` field set. (Enforced by the
    `Candidate` type and asserted in tests.)
-5. **Section matching surfaces the best single match.** For a topic whose article has sections, an
-   inline section candidate appears **only** for a section that clears the Decision-2 threshold
-   (≥1 distinct non-topic-generic keyword overlap); **at most one** inline candidate per section;
-   the chosen candidate is the highest-scoring per the Decision-2 tie-break order. Weak/generic
-   sections (e.g. "History", "See also") get **no** inline candidate.
+5. **Section matching surfaces the best single match.** For a topic whose article has sections, a
+   section-anchored rail candidate appears **only** for a section that clears the Decision-2
+   threshold (≥1 distinct non-topic-generic keyword overlap); **at most one** section-anchored rail
+   candidate per section; the chosen candidate is the highest-scoring per the Decision-2 tie-break
+   order. Weak/generic sections (e.g. "History", "See also") get **no** section-anchored candidate.
+   The match anchors the candidate to its section in the plus rail and increments the TOC suggestion
+   count; it is **not** rendered inline in the article body (issue #21,
+   `docs/specs/wiki-column-no-plus.md`).
 6. **`matchReason` is populated and honest.** General candidates show a reason naming the source +
    the topic search (e.g. *"Top result · YouTube search 'cellular respiration'"*); section
    candidates name the matched keyword/section (e.g. *"Mentions 'glycolysis' · matched to a section
@@ -245,9 +253,11 @@ mandatory.
     cached candidate set with **no** additional YouTube API call; a visit after the TTL re-runs the
     search (key permitting). The cache key is per-QID.
 12. **Seam unchanged downstream.** The change lives behind `DataStore.listCandidates`; the
-    empty-state components (`GeneralStrip`, `InlineCandidate`, `CandidateBits`) and the `Candidate`
-    type are **not** modified to accommodate the source (they already consume `Candidate[]`).
-    `lib/data/index.ts` remains the single store-wiring point.
+    empty-state components (`GeneralStrip`, the rail's `CandidateCard`, `CandidateBits`) and the
+    `Candidate` type are **not** modified to accommodate the source (they already consume
+    `Candidate[]`). (`InlineCandidate.tsx` was retired in issue #21,
+    `docs/specs/wiki-column-no-plus.md`; section-matched candidates render in the plus rail, not
+    inline in the article body.) `lib/data/index.ts` remains the single store-wiring point.
 13. **Pluggable source.** YouTube search is implemented behind a **source interface** (returns
     `Candidate[]` for a topic) such that adding another platform source is additive, not a rewrite;
     YouTube is the only source registered this round.
@@ -264,9 +274,10 @@ mandatory.
 ## Out of scope (explicit)
 
 - **TikTok auto-suggestion.** No live TikTok pull this round (no practical official search API —
-  ARCHITECTURE). The existing manual **"Search TikTok"** deep-link in `GeneralStrip` /
-  `InlineCandidate` stays as-is. The source interface (AC13) must *accommodate* a future TikTok
-  source, but none is built.
+  ARCHITECTURE). The existing manual **"Search TikTok"** deep-link in `GeneralStrip` (and the rail's
+  candidate cards) stays as-is. (`InlineCandidate.tsx` was retired in issue #21,
+  `docs/specs/wiki-column-no-plus.md`.) The source interface (AC13) must *accommodate* a future
+  TikTok source, but none is built.
 - **The production server-side search move.** No Server Actions, Redis, or Postgres this round.
   Note the seam (search moves server-side, key becomes a server secret, the cached set moves to
   Redis — ARCHITECTURE §"Prototype phase" / §"Open questions"), but do **not** build the backend.
@@ -296,8 +307,8 @@ defined here for when instrumentation lands.)
 - **Promote rate from live candidates** — of surfaced live candidates, the fraction promoted to a
   curated clip. This is the flywheel signal: candidates good enough to curate. (A high *dismiss*
   rate flags the matching heuristic as too loose — feeds tuning of Decision 2's threshold.)
-- **Section-match yield** — average number of sections that receive a relevant inline candidate per
-  topic (too low ⇒ threshold too strict; near-every-section ⇒ too loose).
+- **Section-match yield** — average number of sections that receive a relevant rail-anchored
+  candidate per topic (too low ⇒ threshold too strict; near-every-section ⇒ too loose).
 - **Quota efficiency** — API calls per topic-view should trend toward **≪ 1** as the 24h cache
   absorbs revisits (AC11); a value near 1 means the cache isn't working.
 

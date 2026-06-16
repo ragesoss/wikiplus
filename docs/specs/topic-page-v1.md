@@ -75,8 +75,11 @@ In scope:
    "Be the first to curate" CTA; the General band becomes "Suggested videos · uncurated"; candidates
    are unmistakably distinct from curated clips (dashed borders, no solid offset shadow,
    desaturated/hatched thumbnail, outline "SUGGESTED" badge, an **auto-suggest reason** in place of
-   a context note, no stance/accuracy chips); inline single candidates appear under matching
-   sections; TOC badges show suggestion counts in dashed/outline style. The manual-source actions
+   a context note, no stance/accuracy chips); where a candidate matches a section, that match
+   **anchors the candidate to its section in the plus rail** and increments that section's TOC
+   suggestion count — it is **not** rendered inline in the article body (issue #21,
+   `docs/specs/wiki-column-no-plus.md`); TOC badges show suggestion counts in dashed/outline style.
+   The manual-source actions
    render: **Search TikTok** and **Search YouTube** deep-link out in a new tab; **Add video** and
    the per-candidate **Promote** / **Not relevant** entry points are **present** (gated — see
    Out-of-scope). "Not relevant" dismisses a candidate from the current view.
@@ -198,10 +201,17 @@ state" = a topic with ≥1 curated clip in the store; "empty state" = a topic wi
     a curator context note — an auto-suggest reason with a "no context yet" hint. No stance/accuracy
     chips appear on candidates.
 
-16. **AC16 — Empty-state General band + inline section candidates.** In the empty state, the
+16. **AC16 — Empty-state General band + section-anchored candidates.** In the empty state, the
     General band reads as "Suggested videos · uncurated" with a candidate count, and where a
-    candidate matches a section it appears as a single inline candidate block under that section
-    (rendered after the section's article text, not interrupting it).
+    candidate matches a section that match **anchors the candidate to its section in the plus rail**
+    and **increments that section's TOC suggestion count** — it is **not** rendered as an inline
+    block in the Wikipedia article body (the General strip is the only crossover; issue #21,
+    `docs/specs/wiki-column-no-plus.md`).
+    - *Note (issue #21 — `docs/specs/wiki-column-no-plus.md`):* AC16 and the §"Scope" item 7
+      empty-state text formerly described a section-matched candidate appearing as a **single inline
+      candidate block under that section** in the article body. That contradicted the "one
+      crossover" principle and was retired; section **matching** is unchanged — only the inline
+      *placement* it once implied is gone, replaced by rail anchoring + the TOC suggestion count.
 
 17. **AC17 — Empty-state TOC badges are distinct.** In the empty state, TOC count badges render in a
     dashed/outline style (visually distinct from the solid curated-count badges) reflecting
