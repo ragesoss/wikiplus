@@ -422,6 +422,20 @@ figure.wikifig .credit {
   outline-offset: 2px;
 }
 
+/* The navbar search field shows ONE focus ring around the whole field box (border +
+   input + submit button), not the inner <input> — whose offset ring otherwise clips
+   through the field border / a leading control. Unlayered so it beats Tailwind v4's
+   layered `focus:outline-none` on the input; scoped to `input:focus-visible` so the
+   submit button keeps its own independent ring when tabbed to. */
+.search-field:has(input:focus-visible) {
+  outline: 3px solid var(--color-brand);
+  outline-offset: 2px;
+}
+.search-field input:focus,
+.search-field input:focus-visible {
+  outline: none;
+}
+
 /* Shimmer skeleton for the loading state (design §7.1). */
 @keyframes wikiplus-shimmer {
   0% {

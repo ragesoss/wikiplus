@@ -314,13 +314,7 @@ export function TopicSearch({ variant = "home" }: TopicSearchProps) {
       )}
 
       <div className="relative">
-        <div className="flex items-stretch border-2 border-ink bg-white">
-          <span
-            aria-hidden="true"
-            className="flex items-center pl-2.5 text-action"
-          >
-            <MagnifierIcon />
-          </span>
+        <div className="search-field flex items-stretch border-2 border-ink bg-white">
           <input
             ref={inputRef}
             id={inputId}
@@ -342,7 +336,7 @@ export function TopicSearch({ variant = "home" }: TopicSearchProps) {
             }}
             onKeyDown={onKeyDown}
             onFocus={onFocus}
-            className={`min-w-0 flex-1 bg-transparent px-2 ${inputSize} text-ink placeholder:text-muted focus:outline-none`}
+            className={`min-w-0 flex-1 bg-transparent pl-3 pr-2 ${inputSize} text-ink placeholder:text-muted focus:outline-none`}
           />
           {/* S2 decorative busy affordance — never an error; aria-hidden. */}
           {busy && (
