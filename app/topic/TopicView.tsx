@@ -10,7 +10,7 @@ import {
   ArticleSkeleton,
 } from "@/components/topic/ArticleBody";
 import { AddModal } from "@/components/topic/AddModal";
-import { CandidateCard } from "@/components/topic/CandidateBits";
+import { CandidateCard, CandidateSetHeader } from "@/components/topic/CandidateBits";
 import { CitationLayer } from "@/components/topic/CitationLayer";
 import { ClipCard } from "@/components/topic/ClipCard";
 import { CurateModal } from "@/components/topic/CurateModal";
@@ -666,6 +666,14 @@ export function TopicView() {
             }
             className="space-y-4 lg:sticky lg:top-16 lg:max-h-[calc(100vh-4rem)] lg:overflow-y-auto"
           >
+            {/* #14 AC5: the one-time "unvetted set" header introduces the rail
+                candidate list ONCE — replacing v2's per-card "auto-suggested / no
+                context yet" repetition. Names the sources from data; carries no count
+                (the volume lives once in the ＋plus panel — AC7). Shown when there are
+                rail candidates to introduce. */}
+            {mode === "empty" && sectionCandidates.length > 0 && (
+              <CandidateSetHeader sources={sources} />
+            )}
             {mode === "curated"
               ? sectionClips.map((clip) => (
                   <ClipCard

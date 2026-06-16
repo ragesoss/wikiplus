@@ -161,13 +161,26 @@ candidates** plus prominent paths to curate. Reference mockup: **`mockups/inline
 - **"Add video" (logged-in only).** Paste a **YouTube or TikTok share link** for a clip that
   auto-suggestion missed; we resolve its embed/metadata and start a curation.
 - **Unvetted treatment.** Candidates are unmistakably distinct from curated clips: dashed (not
-  solid) borders, no solid offset shadow, a desaturated/hatched thumbnail, an outline "SUGGESTED"
-  badge, and — in place of a curator context note — an **auto-suggest reason** (source + why it
-  matched) with a "no context yet" hint. No stance/accuracy chips yet. TOC badges show suggestion
-  counts in a dashed/outline style, distinct from curated counts.
-- **Curation entry points.** Every candidate carries **Promote** (opens "Curate this clip" — write
+  solid) borders, no solid offset shadow, a desaturated/hatched thumbnail. No stance/accuracy chips
+  yet. TOC badges show suggestion counts in a dashed/outline style, distinct from curated counts.
+  - *The unvetted / auto-suggested signal reads **once per context**, never once per card (issue
+    #14 declutter).* It lives in exactly three places: the **wiki+ panel** ("N auto-suggestions
+    from {sources}"), the **General band header** ("Suggested videos · uncurated — auto-found
+    candidates, not yet vetted"), and a **one-time "unvetted set" header** atop the rail candidate
+    list ("Suggested · uncurated. Auto-found from {sources}. No context notes yet — a human hasn't
+    reviewed these. Curate one to vouch for it."). There is **no per-card "SUGGESTED" badge** and
+    **no repeated "Auto-suggested" / "no context yet" block** — the dashed container plus the
+    once-per-context headers already carry the signal.
+  - *Per-card, a candidate keeps only genuine per-clip **information**:* a **compact single-line
+    match reason** (why *this* clip matched, e.g. *Mentions "light-dependent reactions" in
+    description*) and a small **text-labeled source pill** (e.g. `YOUTUBE`) reading the candidate's
+    own source — the multi-source hook so a mixed YouTube/TikTok set reads correctly without a
+    redesign.
+  - *The General band states the kind of content once and **defers the volume count** — no "N
+    candidates" label; the topic-wide count lives once, in the wiki+ panel.*
+- **Curation entry points.** Every candidate carries **Curate** (opens "Curate this clip" — write
   the context note, set stance + accuracy, confirm the section; publishing turns it into a vetted
-  curated clip) and **Not relevant** (rules it out). Browsing is anonymous; **promoting or adding a
+  curated clip) and **Not relevant** (rules it out). Browsing is anonymous; **curating or adding a
   video requires login**.
 
 ## The pinned candidate player (in-app preview)

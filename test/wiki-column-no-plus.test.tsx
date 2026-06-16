@@ -139,10 +139,15 @@ describe("Wiki column free of plus content — empty state (issue #21, AC1/AC2)"
     );
     const glyCard = within(rail).getByText("Glycolysis Explained in 2 minutes");
     expect(glyCard).toBeInTheDocument();
-    // It carries its section anchor (data-clip-section) + the SUGGESTED badge.
+    // It carries its section anchor (data-clip-section) + the per-card source pill
+    // (the #14 decluttered replacement for the removed "SUGGESTED" badge).
     const card = glyCard.closest("article.candcard")!;
     expect(card.getAttribute("data-clip-section")).toBe("glycolysis");
-    expect(within(card as HTMLElement).getByText("Suggested")).toBeInTheDocument();
+    expect(
+      within(card as HTMLElement).getByTitle(/^Auto-suggested from /)
+    ).toBeInTheDocument();
+    // No per-card "SUGGESTED" badge anymore (#14 AC1).
+    expect(within(card as HTMLElement).queryByText("Suggested")).toBeNull();
     // The section label links the card to its section ("Glycolysis").
     expect(within(card as HTMLElement).getByText("Glycolysis")).toBeInTheDocument();
   });

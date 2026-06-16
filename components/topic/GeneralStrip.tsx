@@ -2,7 +2,7 @@
 
 import type { Candidate, Clip } from "@/lib/data/types";
 import { pluralize } from "@/lib/format";
-import { CandidateActions, MatchReason, SuggestedBadge } from "./CandidateBits";
+import { CandidateActions, MatchReason } from "./CandidateBits";
 import { VideoThumb } from "./VideoThumb";
 
 // Full-bleed indigo band after the lead — the one crossover (design §5.5 / §6.3).
@@ -74,11 +74,15 @@ export function GeneralStrip({
               ? "— quick visual overview across both columns"
               : "— auto-found candidates, not yet vetted"}
           </span>
-          <span className="border-2 border-ink bg-white px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-brand">
-            {showLoading
-              ? "Finding videos…"
-              : pluralize(totalGeneral, mode === "curated" ? "video" : "candidate")}
-          </span>
+          {/* #14 AC6/D2-v3.1: the General band no longer renders a candidate count
+              — it states the KIND of content once and defers the volume to the ＋plus
+              panel ("N auto-suggestions from {sources}"). Curated keeps its "N video"
+              count; empty keeps only the transient "Finding videos…" loading tag. */}
+          {(mode === "curated" || showLoading) && (
+            <span className="border-2 border-ink bg-white px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-brand">
+              {showLoading ? "Finding videos…" : pluralize(totalGeneral, "video")}
+            </span>
+          )}
         </div>
 
         {mode === "empty" && (
@@ -172,7 +176,14 @@ export function GeneralStrip({
                 </li>
               ))
             : generalCandidates.map((c) => (
-                <li key={c.id} role="listitem" className="w-44 shrink-0">
+                // #14: candidate tile on a candcard surface (dashed/unvetted retained,
+                // AC8). No per-tile "SUGGESTED" badge (AC1); the compact match line
+                // sits on a white panel so its ink text clears AA on the indigo band.
+                <li
+                  key={c.id}
+                  role="listitem"
+                  className="candcard w-44 shrink-0 p-2"
+                >
                   <VideoThumb
                     video={c}
                     variant="strip"
@@ -183,18 +194,13 @@ export function GeneralStrip({
                         : undefined
                     }
                   />
-                  <div className="mt-1 flex items-center gap-1.5">
-                    <SuggestedBadge />
-                  </div>
-                  <p className="mt-1 line-clamp-2 text-[12px] font-bold leading-snug text-white">
+                  <p className="mt-1.5 line-clamp-2 text-[12px] font-bold leading-snug text-ink">
                     {c.caption}
                   </p>
-                  <p className="truncate text-[11px] text-white/70">
+                  <p className="truncate text-[11px] text-muted">
                     {c.creator.handle} · {c.platformLabel}
                   </p>
-                  <div className="mt-1 rounded bg-white p-1.5 text-ink">
-                    <MatchReason candidate={c} />
-                  </div>
+                  <MatchReason candidate={c} />
                   <CandidateActions
                     candidate={c}
                     onPromote={onPromote}

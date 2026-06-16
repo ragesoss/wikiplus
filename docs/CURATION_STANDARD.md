@@ -277,13 +277,17 @@ standard:
 - A candidate carries **no stance chip and no accuracy chip** — those signals are *earned by
   curation* and asserting them on un-reviewed content would be a trust violation.
 - A candidate carries **no context note**. In its place it shows an **auto-suggest reason**
-  (`match_reason`): the source + why it matched (e.g. *"Mentions 'light-dependent reactions' in
-  description"*, *"YouTube search 'photosynthesis explained'"*), with a **"no context yet"**
-  hint making the absence explicit and inviting curation.
+  (`match_reason`): why it matched (e.g. *"Mentions 'light-dependent reactions' in
+  description"*, *"YouTube search 'photosynthesis explained'"*). The "no context yet — a human
+  hasn't reviewed this" message that makes the absence explicit and invites curation is asserted
+  **once per context** (in the set header / band / panel), not repeated on every card (issue #14
+  declutter); the candidate's own source is shown as a small text-labeled pill.
 - A candidate is **visually unmistakable** from a curated clip: dashed (not solid) border, no
-  solid offset shadow, desaturated/hatched thumbnail, an outline **"SUGGESTED"** badge (AC15).
-  The visual distinction is UX/Dev's to render; the **rule that the distinction must exist, and
-  that chips/notes must be absent on candidates, is the standard**.
+  solid offset shadow, desaturated/hatched thumbnail (AC15). The visual distinction is UX/Dev's
+  to render; the **rule that the distinction must exist, and that chips/notes must be absent on
+  candidates, is the standard**. (The per-card "SUGGESTED" badge that earlier renderings used was
+  removed in #14 — the dashed container plus the once-per-context "Suggested · uncurated" headers
+  carry the signal — but the *requirement that candidates read as un-vouched-for* is unchanged.)
 - A candidate becomes a curated clip only by **promotion**: a human writes the context note
   and sets stance + accuracy to this standard (then it earns its chips). Until then it is a
   suggestion, not an endorsement.
@@ -297,7 +301,7 @@ persistence and is **Operations'/Development's to build**; this section sets the
 those mechanisms enforce. (ARCHITECTURE open question "Abuse/spam handling," addressed at the
 policy level here.)
 
-- **Contribution is gated by login; reading is anonymous.** Promote / Add-video / write-a-note
+- **Contribution is gated by login; reading is anonymous.** Curate / Add-video / write-a-note
   require a logged-in (OAuth/Wikimedia) identity (VISION non-goals; ARCHITECTURE §Auth). Login
   gating buys us **accountability** (an action ties to an identity), a **moderation signal**
   (e.g. account age / edit count), and a natural **rate-limit subject**. (In the current

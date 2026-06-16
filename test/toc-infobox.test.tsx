@@ -101,6 +101,36 @@ describe("Infobox (AC7 curated / AC14 empty)", () => {
     ).toBeInTheDocument();
   });
 
+  // #14 AC10: the ＋plus panel header no longer carries the "this topic" filler label.
+  it("renders the ＋plus header WITHOUT the 'this topic' label (#14 AC10)", () => {
+    render(
+      <Infobox
+        mode="empty"
+        stats={{ videos: 0, creators: 0, curators: 0 }}
+        suggestionCount={5}
+        sources="YouTube"
+        syncedLabel="now"
+        onCurateFirst={vi.fn()}
+      />
+    );
+    expect(screen.getByText("＋plus")).toBeInTheDocument();
+    expect(screen.queryByText("this topic")).toBeNull();
+  });
+
+  it("keeps the ＋plus header clean of 'this topic' in the curated state too (#14 AC10)", () => {
+    render(
+      <Infobox
+        mode="curated"
+        stats={stats}
+        suggestionCount={0}
+        sources="YouTube"
+        syncedLabel="now"
+        onCurateFirst={vi.fn()}
+      />
+    );
+    expect(screen.queryByText("this topic")).toBeNull();
+  });
+
   it("fires onCurateFirst when the CTA is activated (AC14)", async () => {
     const onCurateFirst = vi.fn();
     render(

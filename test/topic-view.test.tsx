@@ -180,11 +180,16 @@ describe("TopicView — empty state (AC14, AC16, AC20)", () => {
     ).toBeInTheDocument();
   });
 
-  it("shows the 'Suggested videos · uncurated' band with candidate treatment (AC16/AC15)", async () => {
+  it("shows the 'Suggested videos · uncurated' band with the decluttered candidate treatment (#14 AC1/AC5)", async () => {
     render(<TopicView />);
     expect(await screen.findByText("＋ Suggested videos")).toBeInTheDocument();
     expect(screen.getByText("uncurated")).toBeInTheDocument();
-    expect(screen.getAllByText("Suggested").length).toBeGreaterThan(0);
+    // #14 AC1: no per-card "SUGGESTED" badge anywhere on the page.
+    expect(screen.queryByText("Suggested")).toBeNull();
+    // #14 AC5: the one-time "unvetted set" header introduces the rail list exactly
+    // once (it carries the "Suggested · uncurated" eyebrow + the once-only framing).
+    const setHeaders = screen.getAllByText("Suggested · uncurated");
+    expect(setHeaders).toHaveLength(1);
   });
 });
 
