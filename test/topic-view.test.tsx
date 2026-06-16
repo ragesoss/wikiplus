@@ -8,6 +8,7 @@ import type { FullArticle } from "@/lib/wiki/article";
 
 const article: FullArticle = {
   title: "Photosynthesis",
+  displayTitle: "Photosynthesis",
   url: "https://en.wikipedia.org/wiki/Photosynthesis",
   lead: {
     title: "Photosynthesis",
@@ -33,15 +34,29 @@ const routerReplace = vi.fn();
 const routerPush = vi.fn();
 const fetchFullArticle = vi.fn();
 
+// A STABLE router object — the real next/navigation useRouter returns a referentially
+// stable instance, so the resolution effect (which depends on `router`) fires once per
+// genuine input change rather than re-firing on every re-render (#23 added `pathname`
+// to that effect's deps; an unstable router would re-trigger it on each post-mount
+// state commit and loop).
+const router = { replace: routerReplace, push: routerPush };
 vi.mock("next/navigation", () => ({
   useSearchParams: () =>
     new URLSearchParams(qid ? `qid=${qid}` : ""),
   usePathname: () => pathname,
-  useRouter: () => ({ replace: routerReplace, push: routerPush }),
+  useRouter: () => router,
 }));
 vi.mock("@/lib/wiki/article", () => ({
   qidToTitle: vi.fn(async () => "Photosynthesis"),
   titleToQid: vi.fn(async () => "Q11982"),
+  // #23: TopicView's title route resolves via resolvePage (canonical + display + QID
+  // in one call). Mocked to the canonical seeded title so the title-route test's
+  // already-canonical arrival fires no router.replace (AC5 parity).
+  resolvePage: vi.fn(async (title: string) => ({
+    canonicalTitle: title,
+    displayTitle: title,
+    qid: "Q11982",
+  })),
   fetchFullArticle: (...a: unknown[]) => fetchFullArticle(...a),
 }));
 
@@ -146,6 +161,7 @@ describe("TopicView — empty state (AC14, AC16, AC20)", () => {
     fetchFullArticle.mockResolvedValue({
       ...article,
       title: "Cellular respiration",
+      displayTitle: "Cellular respiration",
       url: "https://en.wikipedia.org/wiki/Cellular_respiration",
       lead: { title: "Cellular respiration", url: "https://en.wikipedia.org/wiki/Cellular_respiration", leadHtml: "<p>Lead.</p>" },
       sections: [
@@ -218,9 +234,10 @@ describe("TopicView — canonical title route (D1, AC5, AC23)", () => {
     // …and the store lookup keyed by the resolved QID surfaces the seeded clips (curated).
     const videosBlock = screen.getByText("Videos").closest("div")!;
     expect(within(videosBlock).getByText("13")).toBeInTheDocument();
-    // The article fetch was driven by the TITLE, never a QID.
-    expect(fetchFullArticle).toHaveBeenCalledWith("Photosynthesis");
-    // No URL rewrite back to a ?qid= form — the title URL is already canonical.
+    // The article fetch was driven by the canonical TITLE (+ the resolved display
+    // title, #23), never a QID.
+    expect(fetchFullArticle).toHaveBeenCalledWith("Photosynthesis", "Photosynthesis");
+    // No URL rewrite — the title slug already equals titleToSlug(canonicalTitle) (AC5).
     expect(routerReplace).not.toHaveBeenCalled();
   });
 
@@ -282,6 +299,7 @@ describe("TopicView — candidate dismiss (AC19)", () => {
     fetchFullArticle.mockResolvedValue({
       ...article,
       title: "Cellular respiration",
+      displayTitle: "Cellular respiration",
       sections: [{ slug: "glycolysis", title: "Glycolysis", level: 2, html: "<p>G.</p>" }],
     });
   });
@@ -310,6 +328,7 @@ describe("TopicView — live candidate flow (F5: AC2/AC9/AC11 through the view)"
   const liveArticle: FullArticle = {
     ...article,
     title: "Cellular respiration",
+    displayTitle: "Cellular respiration",
     url: "https://en.wikipedia.org/wiki/Cellular_respiration",
     lead: {
       title: "Cellular respiration",

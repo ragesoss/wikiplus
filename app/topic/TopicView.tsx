@@ -27,10 +27,15 @@ import type { Candidate, Clip, Topic } from "@/lib/data/types";
 import {
   fetchFullArticle,
   qidToTitle,
-  titleToQid,
+  resolvePage,
   type FullArticle,
 } from "@/lib/wiki/article";
-import { titleFromPathname, topicHref } from "@/lib/wiki/topicRoute";
+import {
+  currentTopicSlug,
+  titleFromPathname,
+  titleToSlug,
+  topicHref,
+} from "@/lib/wiki/topicRoute";
 
 const HEAD = 64;
 const READ = 120;
@@ -51,11 +56,14 @@ export function TopicView() {
     [pathname]
   );
 
-  // Resolved identity for this page: { qid, title }. `qid` keys the store; `title`
-  // drives the article fetch + display. Either the path title or the ?qid= resolves it.
+  // Resolved identity for this page (#23 canonical/display split). `qid` keys the
+  // store; `canonicalTitle` keys the URL/slug, the article fetch, and the "From
+  // Wikipedia" link; `displayTitle` (plain-text Wikipedia `displaytitle`) drives the
+  // human heading ONLY. Either the path title or the ?qid= resolves it.
   const [resolved, setResolved] = useState<{
     qid: string | null;
-    title: string;
+    canonicalTitle: string;
+    displayTitle: string;
   } | null>(null);
   const [resolveError, setResolveError] = useState(false);
 
@@ -94,12 +102,44 @@ export function TopicView() {
       if (routeTitle) {
         // `routeTitle` is already the clean space-form title (titleFromPathname
         // maps underscores → spaces), so it flows straight into the store lookup
-        // and the Wikipedia QID resolution — no further underscore handling (#11 AC4).
-        const known = await store.getTopicByTitle(routeTitle);
-        const title = known?.title ?? routeTitle;
-        const qid = known?.qid ?? (await titleToQid(routeTitle));
+        // and the Wikipedia resolution — no further underscore handling (#11 AC4).
+        //
+        // #23: resolve the canonical title + plain-text display title + QID in ONE
+        // action-API call (`resolvePage`); `redirects=1` follows aliases (jfk →
+        // John F. Kennedy). The LIVE canonical title wins over a differing seeded
+        // store title (keeps URL + store key + heading mutually consistent — spec
+        // Open question); the store is the fallback when the API resolves nothing
+        // (e.g. offline / a seeded topic the API didn't return).
+        const [known, page] = await Promise.all([
+          store.getTopicByTitle(routeTitle),
+          resolvePage(routeTitle),
+        ]);
         if (!alive) return;
-        setResolved({ qid, title });
+        const canonicalTitle = page.canonicalTitle ?? known?.title ?? null;
+        // Unresolved (no canonical title AND no QID AND no seeded topic) → reach the
+        // existing not-found / resolve-error path (#19). Never canonicalize to an
+        // empty/typed slug (AC6).
+        if (!canonicalTitle && !page.qid && !known) {
+          setResolveError(true);
+          return;
+        }
+        const finalCanonical = canonicalTitle ?? routeTitle;
+        const qid = page.qid ?? known?.qid ?? null;
+        const displayTitle = page.displayTitle ?? finalCanonical;
+        setResolved({ qid, canonicalTitle: finalCanonical, displayTitle });
+        // Canonicalize the address bar: replace ONLY when we resolved a live
+        // canonical title AND the slug a reader arrived on differs from
+        // titleToSlug(canonicalTitle) (AC1–AC4). Already-canonical arrivals replace
+        // ZERO times (AC5); `replace` (never `push`) so Back doesn't bounce through
+        // the typed/typo URL (AC7). Built via topicHref → trailing slash + basePath
+        // under static export. Guarded on `page.canonicalTitle` so an unresolved
+        // title is never canonicalized to a guessed slug (AC6).
+        if (
+          page.canonicalTitle &&
+          currentTopicSlug(pathname ?? "") !== titleToSlug(page.canonicalTitle)
+        ) {
+          router.replace(topicHref(page.canonicalTitle));
+        }
         return;
       }
       if (qidParam) {
@@ -107,9 +147,11 @@ export function TopicView() {
         const title = t?.title ?? (await qidToTitle(qidParam));
         if (!alive) return;
         if (title) {
-          // Canonicalize: swap ?qid= for the title-based URL (QID drops out of the bar).
+          // Canonicalize: swap ?qid= for the title-based URL (QID drops out of the
+          // bar). The ?qid= entry has no separate display title (out of scope #23) —
+          // the heading uses the title until the article fetch refines it.
           router.replace(topicHref(title));
-          setResolved({ qid: qidParam, title });
+          setResolved({ qid: qidParam, canonicalTitle: title, displayTitle: title });
         } else {
           setResolveError(true);
         }
@@ -120,10 +162,11 @@ export function TopicView() {
     return () => {
       alive = false;
     };
-  }, [routeTitle, qidParam, router]);
+  }, [routeTitle, qidParam, router, pathname]);
 
   const qid = resolved?.qid ?? null;
-  const resolvedTitle = resolved?.title ?? null;
+  const resolvedTitle = resolved?.canonicalTitle ?? null;
+  const resolvedDisplayTitle = resolved?.displayTitle ?? null;
 
   // Load store data (keyed by the resolved QID; doesn't gate on the article fetch).
   useEffect(() => {
@@ -150,10 +193,16 @@ export function TopicView() {
     if (!resolvedTitle) return;
     setFetchState("loading");
     try {
-      const full = await fetchFullArticle(resolvedTitle);
+      // Fetch by the CANONICAL title (keys the article body + source URL); pass the
+      // resolved plain-text display title so the heading paints as the display title
+      // on the FIRST ready render — no interim canonical-then-display swap (#23,
+      // design §States→loading).
+      const full = await fetchFullArticle(resolvedTitle, resolvedDisplayTitle);
       setArticle(full);
       setFetchState("ready");
-      // Keep the store's title in sync with the live article (no-op for seeded topics).
+      // Keep the store's CANONICAL title in sync with the live article (no-op for
+      // seeded topics whose title already matches). The store keys off canonical, not
+      // the display title.
       if (qid && (!topic || topic.title !== full.title)) {
         await store.upsertTopic({ qid, title: full.title });
       }
@@ -162,7 +211,7 @@ export function TopicView() {
     }
     // `topic` intentionally excluded: it's a sync-target, not an input that should re-fetch.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [resolvedTitle, qid]);
+  }, [resolvedTitle, resolvedDisplayTitle, qid]);
 
   useEffect(() => {
     void loadArticle();
@@ -217,8 +266,18 @@ export function TopicView() {
   }, [qid, storeReady, fetchState, article]);
 
   const mode: "curated" | "empty" = clips.length > 0 ? "curated" : "empty";
-  const topicTitle =
+
+  // #23: split the formerly-overloaded `topicTitle` into canonical vs display.
+  //   - `canonicalTitle` (space-form) keys the "From Wikipedia"/ArticleError URL, the
+  //     store/QID context, and the General strip / sections context labels.
+  //   - `displayTitle` (plain-text Wikipedia `displaytitle`) drives the human HEADING
+  //     ONLY — the masthead <h1> and the compact TopicHeader echo. The two legitimately
+  //     differ (e.g. canonical `Bell hooks` / display `bell hooks`); neither leaks into
+  //     the other's surface (AC4).
+  const canonicalTitle =
     article?.title ?? topic?.title ?? resolvedTitle ?? qid ?? "";
+  const displayTitle =
+    article?.displayTitle ?? resolvedDisplayTitle ?? canonicalTitle;
 
   // Displayed candidates exclude both the in-memory dismissals (this session) AND any
   // persisted dismissal (AC9; design §6.3). The persisted check makes a dismissal sticky
@@ -523,7 +582,7 @@ export function TopicView() {
   return (
     <>
       <TopicHeader
-        articleTitle={topicTitle}
+        articleTitle={displayTitle}
         identityHandle={mode === "empty" ? IDENTITY : undefined}
       />
 
@@ -534,13 +593,13 @@ export function TopicView() {
             {fetchState === "loading" && <ArticleSkeleton />}
             {fetchState === "error" && (
               <ArticleError
-                url={`https://en.wikipedia.org/wiki/${encodeURIComponent(topicTitle)}`}
+                url={`https://en.wikipedia.org/wiki/${encodeURIComponent(canonicalTitle)}`}
                 onRetry={loadArticle}
               />
             )}
             {fetchState === "ready" && article && (
               <ArticleLeadBlock
-                title={article.title}
+                title={article.displayTitle}
                 url={article.url}
                 qid={qid}
                 lead={article.lead}
@@ -573,7 +632,7 @@ export function TopicView() {
       {storeReady && (
         <GeneralStrip
           mode={mode}
-          topicTitle={topicTitle}
+          topicTitle={canonicalTitle}
           generalClips={generalClips}
           generalCandidates={generalCandidates}
           totalGeneral={
@@ -603,7 +662,7 @@ export function TopicView() {
                 sections={article.sections}
                 activeSlug={activeSlug}
                 mode={mode}
-                topicTitle={topicTitle}
+                topicTitle={canonicalTitle}
                 inlineCandidates={inlineCandidates}
                 onPlay={playCandidate}
                 onPromote={promote}

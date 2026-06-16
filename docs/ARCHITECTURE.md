@@ -318,9 +318,13 @@ Design points:
   slash to match `trailingSlash: true`, basePath-prefixed for the raw `<a href>` so a hard navigation
   resolves under the Pages subpath). The decoded title is also stashed in **`data-topic-title`** so a
   delegated click handler in `TopicView` routes ordinary left-clicks through the Next client router
-  (no full reload); modified clicks fall through to the href. On arrival the **QID is resolved under
-  the hood** (`titleToQid` via the Wikipedia `pageprops`/`wikibase_item` API, or the seeded store) and
-  is **never shown in the address bar**. **Red links** (`.new`/`.mw-redlink`) and **namespaced links**
+  (no full reload); modified clicks fall through to the href. On arrival the title is resolved via
+  **`resolvePage`** (the seeded store first, else the Wikipedia action API) to its **canonical title +
+  plain-text display title + QID** in one call; the **QID is never shown in the address bar**, and the
+  **title route canonicalizes BOTH the URL and the heading** (follows redirects/aliases; heading uses
+  the plain-text `displaytitle`) — see *Routing — canonical title-based Topic URLs under static export*
+  (issue #23). The typed title is **not** preserved on the title route: a messy/alias arrival snaps to
+  the canonical `/topic/<Canonical_Title>/`. **Red links** (`.new`/`.mw-redlink`) and **namespaced links**
   (`File:`/`Help:`/`Category:` — any href with a `:`) keep an **absolute Wikipedia URL** opening in a
   new tab (`rel=noopener`); in-page anchors (cite/note refs) are **de-linked** to plain text. No
   wikilink ever produces a broken `/topic/` route. The legacy `/topic?qid=Q…` URL still works as a
@@ -428,11 +432,33 @@ exercise the production read-path (ISR/Redis/Server Actions) and is **single-use
   `404.html`) — `deploy.yml` **no longer** copies `out/topic/index.html` over it. `not-found.tsx` is a
   **superset** of the old Topic-shell-as-404: for an unmatched `/topic/<Title>/` (or any non-redirect
   path) it renders `TopicView`, which reads the title from `location.pathname` (`titleFromPathname`) and
-  renders — no redirect, **no QID in the URL**, title preserved (the same behavior as before; `next dev`
-  renders the same component for unmatched paths, giving static-export ⇄ local-dev parity). Because the
-  export uses an absolute basePath `assetPrefix`, that shell boots from any path. In-app navigation uses
-  the Next client router (`<Link>` + a delegated wikilink click handler), so it never triggers a full
-  reload. Helpers live in `lib/wiki/topicRoute.ts` (`topicHref`, `titleFromPathname`).
+  renders — **no QID in the URL** (`next dev` renders the same component for unmatched paths, giving
+  static-export ⇄ local-dev parity). Because the export uses an absolute basePath `assetPrefix`, that
+  shell boots from any path. In-app navigation uses the Next client router (`<Link>` + a delegated
+  wikilink click handler), so it never triggers a full reload. Helpers live in
+  `lib/wiki/topicRoute.ts` (`topicHref`, `titleFromPathname`, `titleToSlug`, `currentTopicSlug`).
+  - **Title-route arrival CANONICALIZES both the URL and the heading (issue #23 — supersedes the
+    earlier "no redirect… title preserved" note).** On arrival at a typed/pasted `/topic/<typed>/`,
+    `TopicView` resolves the title via **`resolvePage` (`lib/wiki/article.ts`)** — a SINGLE action-API
+    request `action=query&prop=info|pageprops&inprop=displaytitle&ppprop=wikibase_item&redirects=1&
+    titles=…` that returns `pages[].title` (**canonical** title — no longer discarded),
+    `pages[].displaytitle` (**rendered** title), and the QID, with **no extra round-trip** vs. the prior
+    QID-only call (`titleToQid` is now a thin wrapper over `resolvePage`). `redirects=1` **follows
+    Wikipedia redirects / aliases** (`jfk` → `John F. Kennedy`). The canonical/display values then
+    **split**: the **canonical title** keys the URL/slug, the store lookup, the QID lookup, the article
+    fetch, and the **"From Wikipedia"** attribution link / `ArticleError` URL; the **plain-text
+    `displaytitle`** (HTML stripped — rich-formatted headings are deferred) drives **only** the human
+    heading (the masthead `<h1>` + the compact `TopicHeader` echo), so the URL and heading legitimately
+    differ for author-stylized titles (canonical `Bell_hooks` ⇄ heading `bell hooks`). When the slug a
+    reader arrived on (`currentTopicSlug(pathname)`) differs from `titleToSlug(canonicalTitle)`,
+    `TopicView` **`router.replace`s** (never `push`, so **Back** doesn't bounce through the typo) to the
+    canonical `/topic/<Canonical_Title>/` (underscore form, trailing slash + basePath via `topicHref`);
+    an already-canonical arrival fires **zero** replaces (no loop, no history churn). An **unresolved**
+    title (no canonical title / no QID, and no seeded-store hit) is **not** canonicalized — no replace to
+    an empty/partial slug — and reaches the existing not-found / resolve-error path (issue #19). The
+    **live canonical title wins over a differing seeded-store title** (keeps URL + store key + heading
+    consistent); the store is only the fallback when the API resolves nothing. The legacy `?qid=` entry
+    is unchanged (resolves QID→title, `router.replace`s to the title URL).
 
 - **Routing — bare-path fallback redirect (`/<Title>` → `/topic/<Title>/`, issue #13).** A **bare
   single-segment path** (e.g. `/San_Francisco`) is the natural shorthand a reader types/pastes; it is

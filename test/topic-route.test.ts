@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  currentTopicSlug,
   slugToTitle,
   titleFromPathname,
   titleToSlug,
@@ -137,6 +138,47 @@ describe("titleFromPathname — SPA fallback path parsing", () => {
     expect(titleFromPathname("/topic/")).toBeNull();
     expect(titleFromPathname("/")).toBeNull();
     expect(titleFromPathname("/contribute/")).toBeNull();
+  });
+});
+
+describe("currentTopicSlug — RAW arrival slug for #23 canonicalization", () => {
+  // The #23 title-route canonicalization compares the RAW slug a reader arrived on
+  // (undecoded — unlike titleFromPathname) against titleToSlug(canonicalTitle) to decide
+  // whether to router.replace. This pins that comparison mechanism directly (the AC2/AC5
+  // hinge): a literal-space and a lowercase arrival both DIFFER from the canonical slug
+  // and must canonicalize; an already-canonical arrival MATCHES and must not.
+  it("returns the raw, UNDECODED slug segment (not the space-form title)", () => {
+    // Underscore form is returned as-is — NOT mapped back to a space (that's the point:
+    // it is compared against titleToSlug output, which is also underscore form).
+    expect(currentTopicSlug("/topic/Calvin_cycle/")).toBe("Calvin_cycle");
+    expect(currentTopicSlug("/topic/Photosynthesis/")).toBe("Photosynthesis");
+    // A literal space in the typed path is returned verbatim (undecoded).
+    expect(currentTopicSlug("/topic/Calvin cycle/")).toBe("Calvin cycle");
+    // A lowercase typed form is returned verbatim.
+    expect(currentTopicSlug("/topic/calvin_cycle/")).toBe("calvin_cycle");
+  });
+
+  it("AC5 mechanism: already-canonical slug EQUALS titleToSlug(canonicalTitle) → no replace", () => {
+    expect(currentTopicSlug("/topic/Calvin_cycle/")).toBe(titleToSlug("Calvin cycle"));
+    expect(currentTopicSlug("/topic/Photosynthesis/")).toBe(
+      titleToSlug("Photosynthesis")
+    );
+  });
+
+  it("AC1/AC2 mechanism: messy arrivals DIFFER from titleToSlug(canonicalTitle) → replace", () => {
+    // Lowercase (AC1) and literal-space (AC2) both differ from the canonical slug.
+    expect(currentTopicSlug("/topic/calvin_cycle/")).not.toBe(titleToSlug("Calvin cycle"));
+    expect(currentTopicSlug("/topic/Calvin cycle/")).not.toBe(titleToSlug("Calvin cycle"));
+    // The alias slug (AC3) differs from the resolved target's canonical slug.
+    expect(currentTopicSlug("/topic/jfk/")).not.toBe(titleToSlug("John F. Kennedy"));
+  });
+
+  it("tolerates a missing trailing slash and returns null for non-topic paths", () => {
+    expect(currentTopicSlug("/topic/Calvin_cycle")).toBe("Calvin_cycle");
+    expect(currentTopicSlug("/topic")).toBeNull();
+    expect(currentTopicSlug("/topic/")).toBeNull();
+    expect(currentTopicSlug("/")).toBeNull();
+    expect(currentTopicSlug("/contribute/")).toBeNull();
   });
 });
 

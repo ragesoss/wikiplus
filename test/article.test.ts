@@ -309,11 +309,18 @@ describe("qidToTitle (AC20 — QID→title resolution path)", () => {
 
 describe("titleToQid (AC5/AC23 — title→QID under the hood for the canonical route)", () => {
   it("returns the wikibase_item QID for a title via pageprops", async () => {
+    // titleToQid now delegates to resolvePage; an EXISTING page carries pageid + title.
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
       new Response(
         JSON.stringify({
           query: {
-            pages: { "1": { pageprops: { wikibase_item: "Q11982" } } },
+            pages: {
+              "1": {
+                pageid: 1,
+                title: "Photosynthesis",
+                pageprops: { wikibase_item: "Q11982" },
+              },
+            },
           },
         }),
         { status: 200 }
@@ -323,10 +330,14 @@ describe("titleToQid (AC5/AC23 — title→QID under the hood for the canonical 
   });
 
   it("returns null when the page has no Wikidata item", async () => {
+    // An existing page with no wikibase_item still resolves (pageid present); the QID is null.
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
-      new Response(JSON.stringify({ query: { pages: { "1": {} } } }), {
-        status: 200,
-      })
+      new Response(
+        JSON.stringify({
+          query: { pages: { "1": { pageid: 1, title: "Some red article" } } },
+        }),
+        { status: 200 }
+      )
     );
     expect(await titleToQid("Some red article")).toBeNull();
   });
