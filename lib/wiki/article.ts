@@ -34,10 +34,102 @@ export interface ArticleSectionBody extends ArticleSection {
 }
 
 export interface FullArticle {
+  /**
+   * Canonical Wikipedia title (`pages[].title` / the title `fetchFullArticle` was
+   * called with after redirect resolution). Keys the source URL and the "From
+   * Wikipedia" attribution link — NOT the human heading. See {@link FullArticle.displayTitle}.
+   */
   title: string;
+  /**
+   * Plain-text rendered display title (Wikipedia's `pages[].displaytitle`, markup
+   * stripped). Drives the human-facing heading ONLY. Equals {@link FullArticle.title}
+   * when Wikipedia renders no distinct display title; legitimately differs for
+   * author-stylized titles (e.g. canonical `Bell hooks` → display `bell hooks`).
+   */
+  displayTitle: string;
   lead: ArticleLead;
   sections: ArticleSectionBody[];
   url: string;
+}
+
+/**
+ * The resolution of a typed/pasted Topic title to Wikipedia's canonical form, the
+ * rendered (plain-text) display title, and the Wikidata QID — all from ONE action-API
+ * request (#23). The canonical title keys the URL/slug, the store lookup, the QID
+ * lookup, the article fetch, and the "From Wikipedia" link; the display title drives
+ * ONLY the human heading. `canonicalTitle`/`qid` are null when Wikipedia cannot
+ * resolve the title (a missing page) — the caller must then reach the not-found path
+ * and must NOT canonicalize (AC6).
+ */
+export interface ResolvedPage {
+  /** `pages[].title` — Wikipedia's canonical title (redirects/aliases followed). */
+  canonicalTitle: string | null;
+  /** Plain-text `pages[].displaytitle`; falls back to the canonical title. */
+  displayTitle: string | null;
+  /** `pages[].pageprops.wikibase_item`. */
+  qid: string | null;
+}
+
+/**
+ * Strip a Wikipedia `displaytitle` to plain text. The API returns `displaytitle` as a
+ * (possibly) HTML-formatted string — italics for species/works, sub/superscripts for
+ * formulae, etc. HTML-formatted display titles are OUT of scope for #23, so we render
+ * the heading as plain text this round: parse the fragment and take its `textContent`.
+ * For the common no-markup case (`bell hooks`, `Calvin cycle`) this is the string
+ * unchanged. Returns null for a null/empty input so the caller can fall back.
+ */
+export function stripDisplayTitle(html: string | null | undefined): string | null {
+  if (!html) return null;
+  // Fast path: no angle brackets and no entities → already plain text.
+  if (!/[<&]/.test(html)) return html.trim() || null;
+  const doc = new DOMParser().parseFromString(html, "text/html");
+  const text = (doc.body.textContent || "").trim();
+  return text || null;
+}
+
+/**
+ * Resolve a title to its canonical title + display title + QID in a SINGLE action-API
+ * request (#23) — `action=query&prop=info|pageprops&inprop=displaytitle&
+ * ppprop=wikibase_item&redirects=1&titles=…`. This is the one request previously made
+ * by {@link titleToQid} for the QID alone, now also reading `pages[].title` (canonical,
+ * no longer discarded) and `pages[].displaytitle` (rendered) — no extra round-trip.
+ * `redirects=1` follows Wikipedia redirects/aliases (`jfk` → `John F. Kennedy`). A
+ * `missing` page (or any failure) yields all-null so the caller reaches not-found
+ * without canonicalizing (AC6). CORS-enabled for anonymous GETs.
+ */
+export async function resolvePage(title: string): Promise<ResolvedPage> {
+  const empty: ResolvedPage = { canonicalTitle: null, displayTitle: null, qid: null };
+  const url =
+    "https://en.wikipedia.org/w/api.php" +
+    "?action=query&prop=info%7Cpageprops&inprop=displaytitle" +
+    "&ppprop=wikibase_item&redirects=1" +
+    `&titles=${encodeURIComponent(title)}&format=json&origin=*`;
+  const res = await fetch(url, { headers: { "Api-User-Agent": UA } });
+  if (!res.ok) return empty;
+  const data = await res.json();
+  const pages = data?.query?.pages;
+  if (!pages) return empty;
+  const first = Object.values(pages)[0] as
+    | {
+        title?: string;
+        missing?: string | boolean;
+        pageid?: number;
+        displaytitle?: string;
+        pageprops?: { wikibase_item?: string };
+      }
+    | undefined;
+  // A nonexistent title comes back as `{ missing: "", title: … }` (no pageid). Treat
+  // it as unresolved so the title route does NOT canonicalize to it (AC6, #19 boundary).
+  if (!first || first.missing !== undefined || first.pageid === undefined) {
+    return empty;
+  }
+  const canonicalTitle = first.title ?? null;
+  const displayTitle = stripDisplayTitle(first.displaytitle) ?? canonicalTitle;
+  return {
+    canonicalTitle,
+    displayTitle,
+    qid: first.pageprops?.wikibase_item ?? null,
+  };
 }
 
 /** Resolve a Wikidata QID to its English Wikipedia article title. */
@@ -61,22 +153,12 @@ export async function qidToTitle(qid: string): Promise<string | null> {
  * (e.g. a missing/red article) — the caller falls back to the title.
  *
  * Uses the Wikipedia action API `pageprops` (`wikibase_item`), which resolves
- * redirects and is CORS-enabled for anonymous GETs.
+ * redirects and is CORS-enabled for anonymous GETs. Thin wrapper over
+ * {@link resolvePage} (the single source of the action-API request) returning just
+ * the QID — kept for callers that only need the QID.
  */
 export async function titleToQid(title: string): Promise<string | null> {
-  const url =
-    "https://en.wikipedia.org/w/api.php" +
-    "?action=query&prop=pageprops&ppprop=wikibase_item&redirects=1" +
-    `&titles=${encodeURIComponent(title)}&format=json&origin=*`;
-  const res = await fetch(url, { headers: { "Api-User-Agent": UA } });
-  if (!res.ok) return null;
-  const data = await res.json();
-  const pages = data?.query?.pages;
-  if (!pages) return null;
-  const first = Object.values(pages)[0] as
-    | { pageprops?: { wikibase_item?: string } }
-    | undefined;
-  return first?.pageprops?.wikibase_item ?? null;
+  return (await resolvePage(title)).qid;
 }
 
 /** Slugify a heading to a stable anchor id (matches the mockup's kebab style). */
@@ -111,7 +193,10 @@ const DROP_SECTIONS = new Set<string>([]);
  * links + figures, then walk top-level headings (h2–h4) to build the TOC + split
  * the body. The lead = everything before the first h2.
  */
-export async function fetchFullArticle(title: string): Promise<FullArticle> {
+export async function fetchFullArticle(
+  title: string,
+  displayTitle?: string | null
+): Promise<FullArticle> {
   const res = await fetch(
     `${REST}/page/html/${encodeURIComponent(title)}`,
     { headers: { "Api-User-Agent": UA } }
@@ -239,8 +324,13 @@ export async function fetchFullArticle(title: string): Promise<FullArticle> {
   }
   if (current) finishSection(current, sections);
 
+  // The heading uses the plain-text display title when one was resolved (#23); it
+  // falls back to the canonical title so a direct fetch with no resolution still
+  // renders a heading. The canonical `title` continues to key the source URL +
+  // attribution link; only `displayTitle` feeds the human heading.
   return {
     title,
+    displayTitle: displayTitle?.trim() || title,
     url: articleUrl,
     lead: { title, leadHtml: leadParts.join("\n"), url: articleUrl, description },
     sections: dedupeSlugs(sections),

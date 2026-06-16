@@ -85,3 +85,20 @@ export function titleFromPathname(pathname: string): string | null {
   if (!m) return null;
   return slugToTitle(m[1]);
 }
+
+/**
+ * The RAW URL slug segment of a Topic pathname — the bytes after `/topic/` and before
+ * the trailing slash, decoded NOT AT ALL (unlike {@link titleFromPathname}, which
+ * decodes to the space-form title). Used by the title-route canonicalization (#23) to
+ * compare the slug a reader actually arrived on against `titleToSlug(canonicalTitle)`:
+ * a literal-space arrival (`/topic/Calvin cycle/`) and a lowercase arrival
+ * (`/topic/calvin_cycle/`) both differ from the canonical `Calvin_cycle` slug and so
+ * must canonicalize, whereas `/topic/Calvin_cycle/` already matches and must not.
+ * Returns null for any non-topic path.
+ */
+export function currentTopicSlug(pathname: string): string | null {
+  let path = pathname;
+  if (BASE_PATH && path.startsWith(BASE_PATH)) path = path.slice(BASE_PATH.length);
+  const m = path.match(/^\/topic\/([^/?#]+)\/?$/);
+  return m ? m[1] : null;
+}

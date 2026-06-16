@@ -110,6 +110,7 @@ const SEED: Candidate[] = [ytWithEmbed, ytWithEmbedB, ytNoEmbed, nonYouTube];
 
 const article: FullArticle = {
   title: "Cellular respiration",
+  displayTitle: "Cellular respiration",
   url: "https://en.wikipedia.org/wiki/Cellular_respiration",
   lead: {
     title: "Cellular respiration",
@@ -131,14 +132,23 @@ const fetchFullArticle = vi.fn();
 const routerReplace = vi.fn();
 const routerPush = vi.fn();
 
+// Stable router (matches the real useRouter) so the resolution effect — which now
+// depends on `pathname` (#23) — fires once per input change, not on every re-render.
+const router = { replace: routerReplace, push: routerPush };
 vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(`qid=${TOPIC_QID}`),
   usePathname: () => "/topic/",
-  useRouter: () => ({ replace: routerReplace, push: routerPush }),
+  useRouter: () => router,
 }));
 vi.mock("@/lib/wiki/article", () => ({
   qidToTitle: vi.fn(async () => "Cellular respiration"),
   titleToQid: vi.fn(async () => TOPIC_QID),
+  // The ?qid= entry never calls resolvePage (the title branch does); stub it for parity.
+  resolvePage: vi.fn(async () => ({
+    canonicalTitle: "Cellular respiration",
+    displayTitle: "Cellular respiration",
+    qid: TOPIC_QID,
+  })),
   fetchFullArticle: (...a: unknown[]) => fetchFullArticle(...a),
 }));
 
