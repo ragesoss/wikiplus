@@ -66,12 +66,20 @@ in places that already exist or naturally introduce a set — never per card:
 | Context | Element (where the signal lives once) | Carries |
 |---|---|---|
 | Whole topic / overview | **＋plus panel** (empty mode) | "0 videos curated" + "N auto-suggestions from {sources}" + synced status |
-| General strip (full-bleed band) | **General band header** | "＋ Suggested videos · **uncurated** — auto-found candidates, not yet vetted · N candidates" |
+| General strip (full-bleed band) | **General band header** | "＋ Suggested videos · **uncurated** — auto-found candidates, not yet vetted" |
 | Rail candidate list | **NEW "unvetted set" header** (one dashed-outline block atop the rail list) | "Suggested · uncurated. Auto-found from {sources}. No context notes yet — a human hasn't reviewed these. Curate one to vouch for it." |
 
 The new rail set-header **replaces** v2's tiny "Suggested ↓ · uncurated" eyebrow **and absorbs**
 the per-card "No context yet — a human hasn't reviewed this." sentence that v2 repeated on every
 card.
+
+> **v3.1 refinement (owner-approved, 2026-06-16):** the **volume count appears exactly once** — in
+> the ＋plus panel ("N auto-suggestions from {sources}"). The General band header no longer shows a
+> "N candidates" label; it states the *kind* of content once (uncurated, auto-found, not vetted)
+> but defers the *count* to the panel, so the band reads as a calmer section heading rather than a
+> metric. The rail set-header carries no count (it names sources and framing). Per-section TOC
+> `~N` badges remain — they are wayfinding (how many in each section), a distinct purpose from the
+> topic-wide volume signal, and stay.
 
 ### D3 — What stays per card vs. removed/consolidated
 
@@ -115,7 +123,7 @@ card.
 | Per-card "no context" line | `No context yet — a human hasn't reviewed this.` (every card) | removed (→ set header) |
 | Per-card match reason | `{source} · {matchReason}` inside a bordered block | compact single line: `{matchReason}` (source moves to the pill); `sr-only` prefix `Why suggested:` |
 | Per-card source | (implicit in removed block) | source pill, e.g. `YOUTUBE` (`title="Auto-suggested from {source}"`) |
-| General band header | `＋ Suggested videos` · `uncurated` · `— auto-found candidates, not yet vetted` · `N candidates` | **unchanged** (already once-per-context) |
+| General band header | `＋ Suggested videos` · `uncurated` · `— auto-found candidates, not yet vetted` · `N candidates` | `＋ Suggested videos` · `uncurated` · `— auto-found candidates, not yet vetted` (count label **removed** in v3.1 — volume lives once in the ＋plus panel) |
 | Dismiss button | `✕ Not relevant` | **unchanged** |
 
 Unchanged elsewhere: the ＋plus panel "N auto-suggestions from {sources}", "Be the first to
@@ -143,12 +151,14 @@ The decluttered treatment must hold across every state the candidate UI can be i
   active border + faint offset (`candcard.active` / `.active-glow`) — unchanged from v2; the
   declutter does not touch the sync pairing.
 - **Dismissing ("Not relevant"):** card fades/scales out (`candfade.dismissing`); the same clip
-  removed everywhere it appears; counts decrement in the band, ＋plus panel, and TOC badges —
-  unchanged behavior.
-- **Empty after dismiss-all (edge):** when every candidate in a context is dismissed, that
-  context's count reads 0 and its TOC badge hides. (The "fully empty, no candidates at all"
-  state — e.g. a topic with zero search hits — is governed by the ＋plus panel's "Be the first to
-  curate" CTA + manual-source buttons, which already stand alone without any candidate cards.)
+  removed everywhere it appears; the volume count decrements in the ＋plus panel, and the per-section
+  TOC `~N` badges decrement — unchanged behavior. (As of v3.1 the General band shows no count, so
+  there is nothing to decrement there; the band header is static.)
+- **Empty after dismiss-all (edge):** when every candidate in a context is dismissed, the ＋plus
+  panel's auto-suggestion count drops toward 0 and the affected TOC badge hides. (The "fully empty,
+  no candidates at all" state — e.g. a topic with zero search hits — is governed by the ＋plus
+  panel's "Be the first to curate" CTA + manual-source buttons, which already stand alone without
+  any candidate cards.)
 
 ---
 
@@ -195,8 +205,9 @@ YouTube/TikTok (or other) result set requires a redesign:
 
 - **AA contrast** verified for every shipping text-on-background pair in the after mockup
   (set-header violet eyebrow 7.2:1, set-header body ink2 7.0:1, hint muted 4.9:1, source pill ink
-  14.0:1, match line ink2 7.0:1, Curate white-on-indigo 4.7:1, genCount indigo-on-white 4.7:1 —
-  all ≥ 4.5:1).
+  14.0:1, match line ink2 7.0:1, Curate white-on-indigo 4.7:1 — all ≥ 4.5:1). (The General-band
+  `genCount` indigo-on-white label was removed in the v3.1 refinement, so it no longer needs a
+  contrast check.)
 - **Text-labeled signals, never color alone:** "uncurated" / "Suggested · uncurated" are words;
   the dashed border is reinforced by the set-header text; the source pill shows the source *as a
   word*. No meaning is carried by color or border-style alone.

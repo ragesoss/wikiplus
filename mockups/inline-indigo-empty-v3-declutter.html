@@ -116,6 +116,10 @@
       <span class="plus-sans text-[12px] font-bold text-[color:var(--ink)]">Empty state v3 — the unvetted signal reads <span class="underline">once per context</span>, not once per card.</span>
       <a href="inline-indigo-empty-v2.html" class="ml-auto sectionfind" aria-label="Open the v2 before-mockup for comparison">Compare with v2 (before) ↗</a>
     </div>
+    <div class="mb-2 border-2 border-dashed border-[color:var(--teal-dk)] bg-white px-3 py-2 plus-sans text-[12px] leading-relaxed text-[color:var(--ink)]">
+      <span class="font-bold text-[11px] uppercase tracking-wide text-[color:var(--teal-dk)]">v3.1 refinement (owner-approved):</span>
+      removed the <del>"N candidates"</del> count label from the General "Suggested · uncurated" band for a calmer header. The <span class="font-bold">volume count now lives once</span>, in the ＋plus panel ("N auto-suggestions from {sources}"). The General-band heading itself is unchanged.
+    </div>
     <div class="grid sm:grid-cols-2 gap-x-6 gap-y-1 plus-sans text-[12px] leading-relaxed text-[color:var(--ink)]">
       <div>
         <p class="font-bold text-[11px] uppercase tracking-wide text-[color:var(--violet)] mb-1">Removed per card (was redundant)</p>
@@ -204,7 +208,6 @@
       </div>
       <span class="plus-sans text-[11px] font-bold uppercase tracking-[0.18em] px-2 py-1 border-2 border-white text-white">uncurated</span>
       <span class="plus-sans text-sm text-white/80 font-normal">— auto-found candidates, not yet vetted</span>
-      <span id="genCount" class="plus-sans text-[11px] font-bold uppercase tracking-wide px-2 py-1 bg-white text-[color:var(--indigo)] border-2 border-[color:var(--ink)]"></span>
     </div>
     <!-- manual source actions cluster (carried from v2) -->
     <div class="flex items-center gap-2 mb-3 flex-wrap" role="group" aria-label="Add videos from a source manually">
@@ -456,7 +459,8 @@
   let generalRemaining = generalClips.length;
 
   function updateSuggestionUI(){
-    $("#genCount").textContent = generalRemaining + " candidates";
+    // V3.1 (#14 refinement): the General band no longer shows a candidate count —
+    // the volume signal lives once, in the ＋plus panel ("N auto-suggestions from {sources}", below).
     if(ctaSub) ctaSub.textContent = `${suggestionCount} auto-suggestion${suggestionCount===1?"":"s"} from ${S.sources}`;
     document.querySelectorAll('.toc a[data-target]').forEach(a=>{
       const id=a.dataset.target;
