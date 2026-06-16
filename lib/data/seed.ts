@@ -16,8 +16,9 @@ export const UNCURATED_DEMO_QID = "Q189603"; // Cellular respiration
 
 // Seeded topic titles, encoded the way the canonical title route expects (spaces →
 // `_`, paralleling Wikipedia). Used by the catch-all `generateStaticParams` so a hard
-// navigation / refresh to a seeded topic resolves from a pre-built HTML file (the rest
-// fall through to the GitHub Pages 404.html SPA fallback). Keep in sync with seedIfEmpty.
+// navigation / refresh to a seeded topic is pre-rendered and served warm; with
+// `dynamicParams = true` (issue #37) the rest are rendered ON DEMAND by the Node server,
+// not 404'd. Keep in sync with seedIfEmpty.
 export const SEEDED_TITLES = ["Photosynthesis", "Cellular respiration", "Cat"];
 
 export function staticTopicParams(): { slug: string[] }[] {

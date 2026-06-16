@@ -11,19 +11,27 @@ import { staticTopicParams } from "@/lib/data/seed";
 //   - `/topic`           — slug undefined; the `?qid=` back-compat entry (TopicView
 //                          resolves QID→title and replaces the URL with the canonical one).
 //   - `/topic/<Title>/`  — the canonical title route.
-// `generateStaticParams` pre-renders the seeded topics, so a hard navigation / refresh
-// to those resolves directly from a built HTML file. For ARBITRARY (unseeded) titles,
-// the static export has no pre-built page, so GitHub Pages serves `404.html` — which the
-// deploy step makes a copy of this same SPA shell; the client router then reads the
-// title from `location.pathname` and renders. In-app `<Link>` navigation never reloads.
+//
+// Under the Node SSR server (issue #37) this catch-all owns EVERY `/topic/...` path:
+// a known/seeded title and an arbitrary never-seeded one alike are rendered on demand
+// by the running server (`dynamicParams = true`). The old static export needed
+// `dynamicParams = false` + a `404.html`-as-SPA-shell trick for unseeded titles; with a
+// server that trick is gone — an unknown `/topic/<Title>/` is just served here, then
+// `TopicView` resolves it client-side exactly as before (the server never talks to
+// Wikipedia; title→QID, the article body, and candidate search stay client-side).
 export function generateStaticParams(): { slug?: string[] }[] {
-  // The bare `/topic` shell (slug omitted) + one pre-built page per seeded title.
+  // Still earns its keep: pre-render the bare `/topic` shell (slug omitted) + one page
+  // per seeded title at build time, so the common reader paths are warm without waiting
+  // on an on-demand render. With `dynamicParams = true`, any title NOT listed here is
+  // simply rendered on demand instead of 404'd — no exhaustive list required.
   return [{ slug: [] }, ...staticTopicParams()];
 }
 
-// Static export: only the params above are emitted; arbitrary titles fall through to
-// the 404.html SPA fallback rather than being generated, which is what we want.
-export const dynamicParams = false;
+// Node SSR: titles not in generateStaticParams are rendered on demand by the running
+// server (no more `dynamicParams = false`, no 404.html fallback). Default is `true`,
+// but we set it explicitly to document the deliberate switch away from the export
+// constraint.
+export const dynamicParams = true;
 
 export default function TopicPage() {
   return (

@@ -322,8 +322,8 @@ Design points:
   **`resolvePage`** (the seeded store first, else the Wikipedia action API) to its **canonical title +
   plain-text display title + QID** in one call; the **QID is never shown in the address bar**, and the
   **title route canonicalizes BOTH the URL and the heading** (follows redirects/aliases; heading uses
-  the plain-text `displaytitle`) — see *Routing — canonical title-based Topic URLs under static export*
-  (issue #23). The typed title is **not** preserved on the title route: a messy/alias arrival snaps to
+  the plain-text `displaytitle`) — see *Routing — canonical title-based Topic URLs, rendered on demand
+  by the Node server* (issue #23). The typed title is **not** preserved on the title route: a messy/alias arrival snaps to
   the canonical `/topic/<Canonical_Title>/`. **Red links** (`.new`/`.mw-redlink`) and **namespaced links**
   (`File:`/`Help:`/`Category:` — any href with a `:`) keep an **absolute Wikipedia URL** opening in a
   new tab (`rel=noopener`); in-page anchors (cite/note refs) are **de-linked** to plain text. No
@@ -367,27 +367,60 @@ Design points:
   Redis rate limits + the `clip.vetted` review hold. *Enforcement* (rate-limit + moderation
   tooling) remains Operations'/Development's to build with auth/persistence.
 
-## Prototype phase (current — client-side, GitHub Pages)
+## Prototype phase (current — client-side, Node SSR server, run locally)
 
-Before provisioning a server, wiki+ is built as a **client-side SPA** shipped to **GitHub
-Pages**, with `localStorage` standing in for the production database. This exercises the read +
-curate UX and the data model (and doubles as a public demo) without infra. It does **not** yet
-exercise the production read-path (ISR/Redis/Server Actions) and is **single-user** (per-browser).
+The prototype is a **client-side SPA** with `localStorage` standing in for the production database.
+This exercises the read + curate UX and the data model without production infra. It does **not** yet
+exercise the production read-path (ISR/Redis) or persistence (Drizzle/Postgres) or real auth, and is
+**single-user** (per-browser, in `localStorage`).
 
-- **Build:** Next.js static export (`output: 'export'`); `basePath` set to `/<repo>` by the Pages
-  workflow. Deployed by `.github/workflows/deploy.yml` on push to `main` — the cloud,
-  mobile-drivable prompt→staging loop, no server to operate.
-- **YouTube key:** `NEXT_PUBLIC_YOUTUBE_API_KEY` in `.env` (gitignored) for local dev; the Pages build
-  reads it from a **GitHub Actions secret** wired into `deploy.yml`'s build step. A `NEXT_PUBLIC_` var is
-  baked into the static export at build time, so (a) without that wiring the deployed site has no key, and
-  (b) the key is **visible in the shipped bundle by design** — the HTTP-referrer restriction (`ragesoss.github.io/*`)
-  and a quota cap are the guard, not secrecy.
+As of **issue #37** the prototype runs as a **Next.js App Router Node SSR server** — `next build`
+produces a **server build** (`.next/`, no `out/`) and `next start` serves it, rendering Topic titles
+**on demand** (including never-seeded ones). This replaced the earlier `output: 'export'` static
+export. The switch is the gate the rest of the Functional-prototype milestone sits behind: a running
+Node server is what makes **Server Actions** (enabled here as a capability; see *Server Actions*
+below), real auth (Auth.js), and a real DB (Drizzle) buildable. **It is verified locally and
+deliberately not auto-deployed** — the GitHub Pages auto-deploy is paused (see *Deploy* below) until
+a host is provisioned (issue A.2).
+
+- **Run / build / test:**
+  - `yarn dev` — local dev server.
+  - `yarn build` — produces the **server build** in `.next/` (no static `out/` export).
+  - `yarn start` — serves the built server (`next start`); pair with `yarn build` first.
+  - `yarn typecheck` / `yarn test` (Vitest) / `yarn test:e2e` (Playwright against `next build` +
+    `next start`; see *Testing*).
+  - `basePath` is **env-driven** (`NEXT_PUBLIC_BASE_PATH`, empty for the root-served local server; a
+    future subpath host can set it). `next.config.mjs` documents which export-only concessions were
+    kept vs. dropped at the SSR switch: `output:'export'` **dropped**; `assetPrefix` **dropped** (the
+    server prefixes `_next/` assets from `basePath` itself); `images.unoptimized` **kept** (no
+    `next/image` in use; harmless no-op); `trailingSlash:true` **kept** (the canonical `/topic/<Title>/`
+    URL — now enforced by the server's redirect rather than by a built `<route>/index.html`);
+    `outputFileTracingRoot` **kept**.
+- **Deploy:** **PAUSED.** `.github/workflows/deploy.yml` no longer auto-publishes to GitHub Pages on
+  push to `main` (the `push` trigger is disabled; the job is `workflow_dispatch`-only) because a static
+  export is no longer emitted — a `yarn build` would no longer produce `out/`. Re-enabling auto-deploy
+  against the committed self-hosted VPS + Docker Compose + Caddy + Cloudflare host is **issue A.2**, at
+  which point the cloud, mobile-drivable prompt→staging loop resumes (against the Node server, not Pages).
+- **YouTube key:** `NEXT_PUBLIC_YOUTUBE_API_KEY` in `.env` (gitignored) for local dev. A `NEXT_PUBLIC_`
+  var is read at **build time** and inlined into the **client** bundle (search runs client-side this
+  round), so it is **visible in the shipped bundle by design** — the HTTP-referrer restriction and a
+  quota cap are the guard, not secrecy. Unset in local/CI builds → the live search **no-ops** (falls
+  back to the seeded/empty candidate set), unchanged by the SSR switch. (The now-paused `deploy.yml`
+  read it from a GitHub Actions secret; when search moves **server-side** in the production read-path it
+  becomes a server secret, not a client-inlined var.)
 - **Data:** all access goes through the `DataStore` interface (`lib/data/store.ts`); the prototype
   uses `LocalStorageDataStore`. The swap point is the single line in `lib/data/index.ts`.
 - **Wikipedia:** article fetch + DOMPurify sanitize run client-side (as in production); Wikidata
   resolves QID→title. oEmbed is avoided — we store `platform`+`videoId` and build the click-to-load
   facade ourselves.
 - **Auth:** stubbed (reading is anonymous); real Wikimedia OAuth arrives with the server.
+- **Server Actions (enabled, not used — issue #37).** The Node SSR runtime supports Server Actions —
+  the capability the later milestone items (Drizzle persistence, Auth.js, curation write-flows) depend
+  on. A throwaway **smoke artifact** proves it: `lib/server/smoke-action.ts` (`"use server"`) returns a
+  server-confirmation, called once on mount by `components/dev/SmokeActionProbe.tsx` (renders nothing,
+  logs `[wiki+ smoke] Server Action ran on server=…` to the console). **No product write-flow ships**;
+  delete both files when the first real Server Action lands. The server **never** talks to Wikipedia —
+  title→QID, the article body, the TOC, and the candidate search all stay client-side, exactly as before.
 - **Vocabularies:** `stance`/`accuracy_flag` in `lib/data/types.ts` are now the **closed CURATION
   enums** (`docs/CURATION_STANDARD.md` §2/§3, Decisions C2/C4) — no longer provisional. Chip text is
   derived from a single **enum→label/fill map** in `lib/curation/labels.ts` (§4); optional display-only
@@ -421,22 +454,26 @@ exercise the production read-path (ISR/Redis/Server Actions) and is **single-use
   signal (Decision 4). Production moves the search **server-side** (key → server secret, set → Redis) — a
   source/store swap behind the same seam, not a redesign.
 
-- **Routing — canonical title-based Topic URLs under static export (Topic Page v1).** The
-  user-facing Topic URL is **title-based** (`/topic/<Title>`, paralleling `/wiki/<Title>`); the QID
-  is the internal key, resolved under the hood and never shown (owner directive; AC5/AC23). The route
-  is an **optional catch-all** `app/topic/[[...slug]]/page.tsx`: `generateStaticParams` pre-renders the
-  **seeded titles** (`Photosynthesis`, `Cellular_respiration`, `Cat`) plus the bare `/topic` shell
-  (`slug: []`) that serves the `?qid=` back-compat entry. `dynamicParams = false` — arbitrary titles
-  are **not** generated, so under `output: 'export'` GitHub Pages serves **`404.html`** for them.
-  As of issue #13, **`404.html` is `app/not-found.tsx`** (the export emits it as the default
-  `404.html`) — `deploy.yml` **no longer** copies `out/topic/index.html` over it. `not-found.tsx` is a
-  **superset** of the old Topic-shell-as-404: for an unmatched `/topic/<Title>/` (or any non-redirect
-  path) it renders `TopicView`, which reads the title from `location.pathname` (`titleFromPathname`) and
-  renders — **no QID in the URL** (`next dev` renders the same component for unmatched paths, giving
-  static-export ⇄ local-dev parity). Because the export uses an absolute basePath `assetPrefix`, that
-  shell boots from any path. In-app navigation uses the Next client router (`<Link>` + a delegated
-  wikilink click handler), so it never triggers a full reload. Helpers live in
-  `lib/wiki/topicRoute.ts` (`topicHref`, `titleFromPathname`, `titleToSlug`, `currentTopicSlug`).
+- **Routing — canonical title-based Topic URLs, rendered on demand by the Node server (Topic Page v1;
+  SSR switch issue #37).** The user-facing Topic URL is **title-based** (`/topic/<Title>`, paralleling
+  `/wiki/<Title>`); the QID is the internal key, resolved under the hood and never shown (owner
+  directive; AC5/AC23). The route is an **optional catch-all** `app/topic/[[...slug]]/page.tsx`:
+  `generateStaticParams` still pre-renders the **seeded titles** (`Photosynthesis`,
+  `Cellular_respiration`, `Cat`) plus the bare `/topic` shell (`slug: []`) that serves the `?qid=`
+  back-compat entry — so the warm paths render without an on-demand pass. **As of #37,
+  `dynamicParams = true`:** any title NOT in `generateStaticParams` is **rendered on demand by the
+  running server**, not 404'd. This **removed the static-export workarounds**: the old
+  `dynamicParams = false` constraint, and the **`404.html`-is-`not-found.tsx` SPA-shell trick** (under
+  `output:'export'`, GitHub Pages served `404.html` for unseeded titles and `not-found.tsx` was emitted
+  as that file and re-rendered `TopicView` from `location.pathname`). With a server, the catch-all owns
+  **every** `/topic/...` path, so `not-found.tsx` no longer doubles as the topic-deep-link shell — its
+  job shrinks to the #13 bare-path boot (below). The server **never** talks to Wikipedia: an on-demand
+  render emits the same neutral loading shell, and `TopicView` resolves the title client-side
+  (`titleFromPathname` → `resolvePage` → article fetch) exactly as before. In-app navigation uses the
+  Next client router (`<Link>` + a delegated wikilink click handler), so it never triggers a full
+  reload. Helpers live in `lib/wiki/topicRoute.ts` (`topicHref`, `titleFromPathname`, `titleToSlug`,
+  `currentTopicSlug`). `trailingSlash:true` is kept, so the server **308-redirects** a slashless
+  `/topic/<Title>` to the canonical `/topic/<Title>/`.
   - **Title-route arrival CANONICALIZES both the URL and the heading (issue #23 — supersedes the
     earlier "no redirect… title preserved" note).** On arrival at a typed/pasted `/topic/<typed>/`,
     `TopicView` resolves the title via **`resolvePage` (`lib/wiki/article.ts`)** — a SINGLE action-API
@@ -463,9 +500,11 @@ exercise the production read-path (ISR/Redis/Server Actions) and is **single-use
 - **Routing — bare-path fallback redirect (`/<Title>` → `/topic/<Title>/`, issue #13).** A **bare
   single-segment path** (e.g. `/San_Francisco`) is the natural shorthand a reader types/pastes; it is
   redirected to the canonical `/topic/<Title>/` rather than dead-ending. The rule lives in
-  **`app/not-found.tsx`** (the SPA-shell/not-found boot, covering both `404.html` on Pages and `next
-  dev`): on mount it computes a redirect target from `location.{pathname,search,hash}` and, if non-null,
-  `router.replace`s to it while rendering a **neutral Topic loading state** (`ArticleSkeleton`) plus a
+  **`app/not-found.tsx`** (the not-found boot, reached for any path the server can't match to a route —
+  chiefly a bare single segment; under SSR it is server-rendered per request, **not** the old
+  `404.html` file): on mount it computes a redirect target from `location.{pathname,search,hash}` and,
+  if non-null, `router.replace`s to it while rendering a **neutral Topic loading state**
+  (`ArticleSkeleton`) plus a
   polite `role="status"` "Loading topic…" announcement — so a real topic lands directly in *loading*,
   never the "Topic not found." flash, and a screen reader hears the hop (`router.replace` skips the
   native page-change announcement, and `TopicView`'s existing live region is `mode === "empty"`-gated).
@@ -480,14 +519,22 @@ exercise the production read-path (ISR/Redis/Server Actions) and is **single-use
   no-op on it. **Future-proofing policy:** every new top-level `app/<section>/` route MUST be added to
   `RESERVED_SEGMENTS` in the same change — enforced by an AC8 unit test that asserts each current
   top-level route is reserved.
+  - **Under SSR (#37) the bare-path boot is server-rendered per request.** The server returns a **404
+    *status*** for the unmatched bare path (correct HTTP semantics), but its **body is the neutral
+    loading shell** (`not-found.tsx`'s `redirecting === null` server branch → `ArticleSkeleton` +
+    "Loading topic…"), never a "Topic not found." flash; the client then runs the `router.replace` hop.
+    This is the faithful SSR analog of the old `404.html` behavior. The bare-path redirect stays
+    **client-side this round** (a server-side HTTP redirect for it is deferred to the production
+    read-path). Note `trailingSlash:true` makes the server first 308 a slashless `/San_Francisco` to
+    `/San_Francisco/`; the browser preserves query + hash across that hop, and the client reads them
+    from `window.location`, so they reach `/topic/<Title>/`.
 
-  *Production* drops `output: 'export'` and restores per-title path-based pages with ISR + the Redis
-  `cacheHandler` (no 404.html trick needed once a server renders unknown titles on demand; the bare-path
-  case becomes a real server-side HTTP redirect at that point).
-
-**Path to production:** add the Drizzle `DataStore` + Server Actions, restore path-based Topic pages
-with ISR + the Redis `cacheHandler`, and turn off `output: 'export'`. The components, data model,
-design system, article pipeline, and the title-based URL scheme carry forward.
+**Path to production:** `output:'export'` is **already dropped** (#37 — the prototype is a Node SSR
+server). Remaining steps: provision the host + restore auto-deploy (A.2), add the Drizzle `DataStore`
++ Server Actions (B/D — Server Actions are already enabled, see *Server Actions*), wire Auth.js /
+Wikimedia OAuth (C), and add the production read-path (ISR + the Redis `cacheHandler`, server-side
+candidate search, and a real server-side bare-path HTTP redirect). The components, data model, design
+system, article pipeline, and the title-based URL scheme carry forward unchanged.
 
 ## Testing
 
@@ -501,8 +548,10 @@ Two layers, both run with `yarn` (matches the committed lockfile/CI):
   `DataStore`), the components, and a `TopicView` integration test driving the curated/empty/
   loading/error state machine. **The live MediaWiki + Wikidata fetch is mocked** (cloud/CI sandboxes
   have no network egress and the article fetch is client-side anyway). `yarn test:watch` for dev.
-- **End-to-end — Playwright (`e2e/`).** `yarn test:e2e` builds the static export and serves `out/`,
-  then drives the core loop (find topic → read → watch & weigh → contribute) in a real browser. The
+- **End-to-end — Playwright (`e2e/`).** `yarn test:e2e` builds the **Node server** (`next build`) and
+  serves it with `next start` (issue #37 replaced the old `serve -s out` static-export serving), then
+  drives the core loop (find topic → read → watch & weigh → contribute) in a real browser. Unseeded
+  `/topic/<Title>/` deep links are rendered on demand by the running server (no `404.html` trick). The
   Wikipedia/Wikidata calls are **intercepted with fixtures** (`page.route`) so the run is
   deterministic and offline; the plus side renders from the seeded localStorage `DataStore`.
   Requires `npx playwright install chromium` (a one-time browser download — not possible in a

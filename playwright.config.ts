@@ -1,10 +1,10 @@
 import { defineConfig, devices } from "@playwright/test";
 
 // E2E for the core loop (find topic → read → watch & weigh → contribute), run
-// against the static export (`yarn build` → out/) served locally. The live
-// MediaWiki fetch is intercepted in-spec (the sandbox has no network egress), so
-// the article body resolves to a deterministic fixture; the plus side renders
-// from the seeded localStorage DataStore.
+// against the Node SSR server (`yarn build` → `next start`) — issue #37 replaced the
+// `serve -s out` static-export serving. The live MediaWiki fetch is intercepted
+// in-spec (the sandbox has no network egress), so the article body resolves to a
+// deterministic fixture; the plus side renders from the seeded localStorage DataStore.
 const PORT = Number(process.env.E2E_PORT || 4321);
 
 export default defineConfig({
@@ -20,9 +20,11 @@ export default defineConfig({
   projects: [
     { name: "chromium", use: { ...devices["Desktop Chrome"] } },
   ],
-  // Build the static export once, then serve out/ with a tiny static server.
+  // Build the Node server once, then serve it with `next start`. Unseeded
+  // `/topic/<Title>/` deep links are rendered on demand by the running server (no
+  // 404.html trick); the client resolves them exactly as today.
   webServer: {
-    command: `yarn build && npx serve -s out -l ${PORT}`,
+    command: `yarn build && yarn start --port ${PORT}`,
     url: `http://localhost:${PORT}`,
     timeout: 180_000,
     reuseExistingServer: !process.env.CI,
