@@ -154,8 +154,238 @@ figure.wikifig .credit {
   font-size: 0.7rem;
   color: #72777d;
 }
+/* ── Article fidelity (#24–#27): faithful Wikipedia chrome on the article side.
+   GOVERNING PRINCIPLE (design spec): NO Indigo Press bleed into the article column.
+   Indigo appears here ONLY as the existing scroll-sync/focus accent. Citation,
+   table-header, math, and hatnote styling all use Wikipedia's own grey/blue palette.
+   ────────────────────────────────────────────────────────────────────────── */
+
+/* Group A — citations (design §3.2). The inline marker stays the faithful Wikipedia
+   superscripted bracketed wikilink-blue number; the brackets are literal text from
+   Parsoid (conveyed by text, not color — A7). It's a real focusable <a>. */
+.wiki-body sup.reference,
+.wiki-body sup.mw-ref {
+  font-size: 0.75em;
+  line-height: 0;
+  white-space: nowrap;
+}
+.wiki-body sup.reference a,
+.wiki-body sup.mw-ref a {
+  color: var(--color-wikilink);
+  text-decoration: none;
+  cursor: pointer;
+}
+.wiki-body sup.reference a:hover,
+.wiki-body sup.mw-ref a:hover {
+  text-decoration: underline;
+}
+/* References / Notes list — faithful Wikipedia look (design §3.4): small text,
+   numbered, back-links live. The list comes through the section walk inside the
+   References/Notes section, so it just needs type styling. */
+.wiki-body ol.references,
+.wiki-body ol.mw-references {
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: var(--color-ink);
+}
+.wiki-body .mw-references-columns {
+  column-width: 30em;
+  column-gap: 2em;
+}
+.wiki-body .mw-cite-backlink {
+  font-size: 0.9em;
+}
+.wiki-body .mw-cite-backlink a {
+  color: var(--color-wikilink);
+}
+/* Marker → reference scroll target: clear the sticky header (matches .sec offset). */
+.wiki-body li[id^="cite_note"],
+.wiki-body sup[id^="cite_ref"] {
+  scroll-margin-top: 96px;
+}
+.wiki-body li[id^="cite_note"]:target {
+  /* Faint Wikipedia-style target flash — neutral, not indigo. */
+  background: #fdf3d8;
+}
+
+/* Group A — citation popover (design §3.3). OUR control surface: styled minimally
+   and neutrally so it reads as part of the page, NOT as a +plus card (no hardbox,
+   no indigo header). The focus ring is the shared site-wide indigo focus accent. */
+.wiki-cite-popover {
+  z-index: 60;
+  max-width: min(360px, calc(100vw - 2rem));
+  background: #fff;
+  border: 1px solid var(--color-wikirule);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.16);
+  border-radius: 2px;
+  padding: 0;
+}
+.wiki-cite-popover-body {
+  max-height: min(50vh, 320px);
+  overflow-y: auto;
+  padding: 0.7rem 0.85rem 0.5rem;
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+.wiki-cite-popover-body p {
+  margin: 0 0 0.5em;
+}
+.wiki-cite-popover-foot {
+  border-top: 1px solid #eaecf0;
+  padding: 0.4rem 0.85rem;
+}
+.wiki-cite-viewrefs {
+  color: var(--color-wikilink);
+  font-size: 0.78rem;
+  font-weight: 600;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+.wiki-cite-viewrefs:hover {
+  text-decoration: underline;
+}
+.wiki-cite-close {
+  position: absolute;
+  top: 2px;
+  right: 4px;
+  width: 1.5rem;
+  height: 1.5rem;
+  line-height: 1;
+  font-size: 1.1rem;
+  color: var(--color-ink2);
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+/* Group B — data tables (design §4.1): faithful Wikipedia, NOT Indigo Press. */
 .wiki-body table {
-  display: none; /* keep prose clean; tables/infoboxes deferred this round */
+  border-collapse: collapse;
+  font-size: 0.85rem;
+  margin: 0 0 0.9em;
+  background: #fff;
+}
+.wiki-body table th,
+.wiki-body table td {
+  border: 1px solid var(--color-wikirule);
+  padding: 4px 8px;
+  text-align: left;
+  vertical-align: top;
+}
+.wiki-body table th {
+  background: #eaecf0; /* Wikipedia table-header grey — NOT indigo. */
+  font-weight: 700;
+}
+.wiki-body table caption {
+  font-weight: 700;
+  font-size: 0.9rem;
+  text-align: left;
+  margin-bottom: 0.4em;
+}
+/* Wide-table responsive wrapper (design §4.2): horizontal scroll within a contained,
+   KEYBOARD-scrollable region; never widens the two-column shell. */
+.wiki-tablewrap {
+  position: relative;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  max-width: 100%;
+  margin: 0 0 0.9em;
+}
+.wiki-tablewrap > table {
+  margin-bottom: 0;
+}
+/* "Scroll table →" hint — TEXT, shown ONLY when the table overflows its wrapper
+   (design §4.2). Overflow can't be detected in CSS, so a client effect
+   (useTableOverflow, wired in TopicView) sets `data-overflow` on the wrapper after
+   layout; the hint renders solely off that flag. Text-labeled, never color/glyph
+   alone (A7/B2). */
+.wiki-tablewrap[data-overflow]::after {
+  content: "Scroll table →";
+  display: block;
+  font-size: 0.7rem;
+  color: var(--color-muted);
+  padding: 2px 0 0;
+}
+
+/* Group B — Wikipedia infobox (design §4.3): faithful Wikipedia, float-right in the
+   article column like a wikifig. Distinct from the right-rail WIKI+ PANEL (indigo
+   hardbox) by language alone — and structurally in a different grid column (B4). */
+.wiki-body table.wiki-infobox,
+.wiki-body table.infobox {
+  float: right;
+  width: 320px;
+  max-width: 42%;
+  margin: 0.2em 0 0.8em 1em;
+  clear: right;
+  border: 1px solid var(--color-wikirule);
+  background: #f8f9fa;
+  font-size: 0.82rem;
+}
+.wiki-body table.wiki-infobox th,
+.wiki-body table.infobox th {
+  background: #eaecf0;
+  text-align: left;
+}
+.wiki-body table.wiki-infobox caption,
+.wiki-body table.infobox caption {
+  background: #eaecf0;
+  font-weight: 700;
+  text-align: center;
+  padding: 4px;
+}
+.wiki-body table.wiki-infobox img,
+.wiki-body table.infobox img {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Group C — math (design §5). The SVG fallback image is the equation (C4 decision).
+   Inline: sits on the line, ink-colored, capped to the column. */
+.wiki-body .mwe-math-element {
+  max-width: 100%;
+}
+.wiki-body img.mwe-math-fallback-image-inline {
+  vertical-align: middle;
+  max-width: 100%;
+  height: auto;
+}
+/* Display (block) equation: own centered block, scroll-wrapped if wide (§5.2). */
+.wiki-body .wiki-math-display {
+  display: block;
+  margin: 0.8em 0;
+  text-align: center;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  max-width: 100%;
+}
+.wiki-body img.mwe-math-fallback-image-display {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Group D — hatnotes (design §6.2): faithful Wikipedia indented italic aside, clearly
+   not body prose, NO Indigo Press treatment, NOT a callout card. */
+.wiki-body .wiki-hatnote,
+.wiki-body div.hatnote {
+  font-size: 0.88rem;
+  font-style: italic;
+  color: var(--color-ink2);
+  margin: 0 0 0.6em 1.6em;
+  padding-left: 0;
+}
+
+/* Responsive: < lg the infobox stacks full-width (a 42% float is unreadable in a
+   single narrow column) and data-table wraps go full-bleed (design §7). */
+@media (max-width: 1023px) {
+  .wiki-body table.wiki-infobox,
+  .wiki-body table.infobox {
+    float: none;
+    width: 100%;
+    max-width: 100%;
+    margin: 0 0 1em;
+  }
 }
 
 /* Section wrappers get a reading-line scroll offset (design §5.6/§10). */

@@ -84,22 +84,17 @@ export function slugify(text: string): string {
     .replace(/^-|-$/g, "");
 }
 
-// Sections that are navigational/meta rather than article content — dropped from
-// the TOC + body so the reader sees the encyclopedia, not editor chrome.
-const DROP_SECTIONS = new Set([
-  "references",
-  "notes",
-  "citations",
-  "footnotes",
-  "external-links",
-  "external-link",
-  "further-reading",
-  "see-also",
-  "bibliography",
-  "sources",
-  "works-cited",
-  "general-and-cited-references",
-]);
+// Article-fidelity (#24–#27): the navigational tail + the References/Notes
+// (citation) sections are NO LONGER dropped — they come through the same section
+// walk as ordinary `ArticleSectionBody` entries so they get a slug, heading, TOC
+// row, `.sec` wrapper, and scroll-sync tracking for free (design spec §2/§6.3).
+// A footnote-style "Notes" block is a `note`-group reference list (`ol.mw-references`)
+// that carries its own backlinks — keeping it as its own section IS the citation
+// system for those notes (D7); there is no duplication because each footnote group
+// emits exactly one list. `DROP_SECTIONS` is therefore now EMPTY of these tail
+// names; the only thing still removed is genuine chrome (`stripChrome`), and empty
+// sections (e.g. a tail heading whose list was fully chrome) simply render no body.
+const DROP_SECTIONS = new Set<string>([]);
 
 /**
  * Fetch + sanitize the full article and derive its section structure.
@@ -120,9 +115,39 @@ export async function fetchFullArticle(title: string): Promise<FullArticle> {
 
   const DOMPurify = (await import("dompurify")).default;
 
-  // --- Allowlist (ARCHITECTURE open question, resolved here) -------------------
-  // Keep prose, headings, lists, links, and figures/images (with captions/credit).
-  // Drop scripts/styles/iframes/forms and Parsoid/MediaWiki bookkeeping attrs.
+  // --- Allowlist (ARCHITECTURE "DOMPurify allowlist" open question, resolved) --
+  // Article-fidelity (#24–#27) FLIPS the v1 "references/tables/math/tail deferred"
+  // decision. The allowlist now permits exactly what citations, tables, the
+  // Wikipedia infobox, and math need — and NOTHING that re-opens an XSS vector.
+  //
+  // TAGS: the v1 set already covered prose/headings/lists/links/figures/tables and
+  //   `sup`/`span` (so citation markers + the SVG-math `<span class="mwe-math-…">`
+  //   wrapper already pass). We deliberately keep DROPPING `<math>`, `<svg>`,
+  //   `<iframe>`, `<object>`, `<embed>`, `<form>`, `<style>`, `<link>`, `<script>`
+  //   — i.e. the math MathML/SVG payloads, embeds, and CSS-injection surfaces — so
+  //   the existing SECURITY tests (test/article.test.ts) still hold. See math below.
+  //
+  // ATTR additions for this round (all inert, render/a11y/anchor-routing only):
+  //   - `aria-hidden`, `role`           → table/equation scroll regions + math img
+  //   - `data-mw-group`                 → distinguishes the `note` footnote group
+  //   - `data-mw-footnote-number`       → reference-list <li> numbering (display)
+  //   - `aria-label`, `aria-labelledby` → preserved if Parsoid emits them
+  //   `style` is STILL NOT allowed (inline-style injection stays blocked, X4) — we
+  //   re-apply the small set of layout styles we need ourselves in CSS/JS.
+  //
+  // MATH render mechanism (C4 — DECIDED FROM LIVE PARSOID OUTPUT, Pythagorean_theorem):
+  //   Parsoid emits, per equation, a `<span class="mwe-math-element">` containing
+  //   BOTH (a) a `display:none` `<span class="mwe-math-mathml-a11y"><math>…</math></span>`
+  //   and (b) a visible `<img class="mwe-math-fallback-image-{inline|display}"
+  //   alt="{TeX}" aria-hidden="true" src="…/media/math/render/svg/…">`.
+  //   DECISION: render the **SVG fallback image**, NOT MathML. Rationale: (1) the
+  //   `<math>` element is a script/foreignObject XSS surface and is one of the few
+  //   things this sanitizer is built to strip — keeping it would weaken X4; (2) the
+  //   SVG image is what Wikipedia shows visually, scales crisply, and already carries
+  //   the TeX as `alt`. The hidden MathML span loses its `<math>` to sanitize (leaving
+  //   an empty hidden span we drop), and we move accessibility onto the image by
+  //   UN-hiding it (`stripChrome`/`cleanMath` removes its `aria-hidden`) so the `alt`
+  //   (TeX) is announced (C3/§5.3). No KaTeX/client dependency needed.
   const clean = DOMPurify.sanitize(rawHtml, {
     ALLOWED_TAGS: [
       "section", "p", "div", "span", "br", "hr",
@@ -137,17 +162,32 @@ export async function fetchFullArticle(title: string): Promise<FullArticle> {
       "href", "src", "srcset", "alt", "title",
       "id", "class", "colspan", "rowspan", "rel", "target",
       "width", "height", "data-mw-section-id",
+      // Article-fidelity additions (render/a11y/anchor-routing only — all inert):
+      "aria-hidden", "role", "aria-label", "aria-labelledby",
+      "data-mw-group", "data-mw-footnote-number",
     ],
-    // We rewrite links ourselves; allow http(s) + relative.
+    // We rewrite links ourselves; allow http(s) + relative + in-page anchors.
     ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto):|\.{0,2}\/|#)/i,
   });
 
   const doc = new DOMParser().parseFromString(clean, "text/html");
   const root = doc.body;
 
+  // Order matters:
+  //   1. stripChrome FIRST — remove navboxes/metadata/edit-links so later passes
+  //      (link rewrite, citation prep) never touch chrome we're about to drop.
+  //   2. prepCitations — normalize the marker↔reference anchors to pure in-page
+  //      `#cite_*` hashes BEFORE rewriteLinks, and tag elements for the React layer.
+  //   3. rewriteLinks — routes the REMAINING links; it now EXEMPTS `#cite_*`/`#cite_ref_*`
+  //      in-page anchors (kept functional) and de-links only other bare `#` anchors.
+  //   4. cleanFigures / cleanMath / wrapTables — image, math, and table presentation.
+  stripChrome(root);
+  prepCitations(root, title);
   rewriteLinks(root, title);
   cleanFigures(root);
-  stripChrome(root);
+  cleanMath(root);
+  wrapTables(root);
+  prepHatnotes(root);
 
   const articleUrl = `https://en.wikipedia.org/wiki/${encodeURIComponent(title)}`;
 
@@ -251,6 +291,14 @@ function rewriteLinks(root: HTMLElement, _title: string) {
       if (abs) m = abs;
     }
 
+    // Article-fidelity (#24): citation marker → reference and reference → marker
+    // round-trip anchors are kept FUNCTIONAL (prepCitations already normalized them
+    // to pure in-page `#cite_note-*` / `#cite_ref-*` hashes). Skip routing/de-linking
+    // entirely so the in-page scroll works (A4/A6); they are not topic links.
+    if (/^#cite_(note|ref)/.test(href)) {
+      continue;
+    }
+
     if (m && !m[1].includes(":")) {
       // Ordinary article link → canonical title-based topic route. Wikipedia hrefs
       // use the underscore form (`/wiki/Calvin_cycle`); slugToTitle maps `_`→space
@@ -268,7 +316,7 @@ function rewriteLinks(root: HTMLElement, _title: string) {
         a.removeAttribute("rel");
       }
     } else if (/^#/.test(href)) {
-      // In-page anchor (e.g. cite/note refs) → de-link to plain text.
+      // Other in-page anchors (not cite/backref) → de-link to plain text.
       delink(a);
     } else {
       // Namespaced (File:/Help:/Category:) or external → keep, open in new tab.
@@ -312,27 +360,190 @@ function cleanFigures(root: HTMLElement) {
   }
 }
 
-/** Strip editor chrome the sanitize allowlist let through. */
+/**
+ * Strip GENUINE editor chrome the sanitize allowlist let through — kept PRECISE
+ * (article-fidelity #25/#27, design §4.4/B7) so it never catches a data table, the
+ * Wikipedia infobox, a citation marker, the reference list, or a hatnote (all now
+ * RESTORED). Verified against live Parsoid markup of the seeded science topics:
+ * navboxes are `div.navbox` (with an inner table), maintenance side-boxes are
+ * `.metadata`/`.side-box`, and the old `table.infobox`/`sup.reference`/`.reference`/
+ * `.mw-references-wrap`/`.reflist`/`.hatnote` entries are DELIBERATELY removed.
+ */
 function stripChrome(root: HTMLElement) {
   const junk = [
-    ".mw-editsection",
-    ".reference",
-    ".mw-references-wrap",
-    ".reflist",
-    ".navbox",
-    ".metadata",
+    ".mw-editsection", // [edit] section links
+    ".navbox", // bottom navigation boxes (div.navbox on live markup)
+    ".metadata", // maintenance/side-box metadata (e.g. div.side-box.metadata)
     ".mbox-text",
-    ".ambox",
-    "table.infobox",
-    "table.sidebar",
+    ".ambox", // article-message maintenance banners
+    "table.sidebar", // vertical sidebar navigation
     "table.vertical-navbox",
-    "sup.reference",
-    ".hatnote",
-    ".thumbcaption .magnify",
-    "style",
+    ".thumbcaption .magnify", // figure "enlarge" icon
+    "style", // TemplateStyles (also dropped at sanitize; belt-and-suspenders)
     "link",
   ];
   for (const sel of junk) {
     for (const el of Array.from(root.querySelectorAll(sel))) el.remove();
+  }
+}
+
+/**
+ * Citations (article-fidelity #24, design §3). Runs BEFORE `rewriteLinks`.
+ *
+ * Live Parsoid structure (verified against Photosynthesis / Cellular_respiration):
+ *   marker:    <sup class="mw-ref reference" id="cite_ref-N">
+ *                <a href="./Title#cite_note-N"><span class="mw-reflink-text">
+ *                  <span class="cite-bracket">[</span>N<span class="cite-bracket">]</span>
+ *                </span></a></sup>
+ *   ref <li>:  <li id="cite_note-N" data-mw-footnote-number="1">
+ *                <span class="mw-cite-backlink"><a href="./Title#cite_ref-N"
+ *                  rel="mw:referencedBy"><span class="mw-linkback-text">↑</span></a></span>
+ *                <span class="mw-reference-text">…citation…</span></li>
+ *   multi:     <span class="mw-cite-backlink" rel="mw:referencedBy">
+ *                <a href="…#cite_ref-X_3-0"><span class="mw-linkback-text">1</span></a>
+ *                <a href="…#cite_ref-X_3-1">…2…</a></span>
+ *
+ * We DON'T re-emit the markup — we (1) normalize the `./Title#cite_*` hrefs to pure
+ * in-page `#cite_*` hashes (so `rewriteLinks` skips them and the browser scrolls in
+ * page), (2) tag the marker `<sup>`/`<a>` with `data-cite-marker` + an `aria-label`
+ * so the React popover layer (`components/topic/CitationLayer.tsx`) can wire the
+ * popover, and (3) tag the back-ref `<a>`s with `data-cite-backref` + `aria-label`.
+ */
+function prepCitations(root: HTMLElement, title: string) {
+  // Anchors point at `./<Title>#cite_*`; Parsoid encodes the title with underscores
+  // and may percent-encode. We only need the trailing `#cite_*` hash — drop the path.
+  const toHash = (href: string): string | null => {
+    const h = href.match(/#(cite_(?:note|ref)[^"'\s]*)$/);
+    return h ? `#${h[1]}` : null;
+  };
+
+  // Inline markers.
+  for (const sup of Array.from(root.querySelectorAll("sup.reference, sup.mw-ref"))) {
+    const a = sup.querySelector<HTMLAnchorElement>("a[href]");
+    if (!a) continue;
+    const hash = toHash(a.getAttribute("href") || "");
+    if (!hash) continue;
+    a.setAttribute("href", hash);
+    // The reference number is the visible bracketed text (e.g. "[12]" or "[note 1]").
+    const label = (a.textContent || "").replace(/[[\]]/g, "").trim() || "reference";
+    a.setAttribute("aria-label", `Citation ${label}`);
+    a.setAttribute("data-cite-marker", "");
+    // The id (`cite_ref-N`) is the back-ref target; keep it on the <sup>.
+    sup.setAttribute("data-cite-marker", "");
+  }
+
+  // Reference-list back-links (single `↑` and multi `1 2 …`).
+  for (const a of Array.from(
+    root.querySelectorAll<HTMLAnchorElement>(
+      '.mw-cite-backlink a[href], a[rel="mw:referencedBy"]'
+    )
+  )) {
+    const hash = toHash(a.getAttribute("href") || "");
+    if (!hash) continue;
+    a.setAttribute("href", hash);
+    a.setAttribute("data-cite-backref", "");
+    const inst = (a.textContent || "").trim();
+    a.setAttribute(
+      "aria-label",
+      inst && inst !== "↑" ? `Back to citation, instance ${inst}` : "Back to citation"
+    );
+  }
+
+  void title;
+}
+
+/**
+ * Math (article-fidelity #26, design §5). C4 decision recorded at the allowlist:
+ * render Parsoid's visible SVG fallback `<img>`, drop the MathML payload (a sanitize
+ * surface), and make the image accessible via its `alt` (the TeX).
+ *
+ * Per equation Parsoid emits `<span class="mwe-math-element">` wrapping a hidden
+ * `<span class="mwe-math-mathml-a11y">` (its `<math>` was already stripped at
+ * sanitize, leaving an empty hidden span) and a visible `<img
+ * class="mwe-math-fallback-image-{inline|display}" aria-hidden="true" alt="{TeX}">`.
+ * We: remove the now-empty a11y span; UN-hide the image so its `alt` is announced;
+ * mark display equations + their wrapper so the React layer can scroll-wrap wide
+ * ones (§5.2); ensure protocol-relative/`//`-srcs are https.
+ */
+function cleanMath(root: HTMLElement) {
+  // Drop the hidden MathML a11y spans (their <math> is gone after sanitize anyway).
+  for (const a11y of Array.from(root.querySelectorAll(".mwe-math-mathml-a11y"))) {
+    a11y.remove();
+  }
+  for (const img of Array.from(
+    root.querySelectorAll<HTMLImageElement>(
+      "img.mwe-math-fallback-image-inline, img.mwe-math-fallback-image-display"
+    )
+  )) {
+    // The SVG image IS now the equation's perceivable form → expose its alt (C3/§5.3).
+    img.removeAttribute("aria-hidden");
+    if (!img.getAttribute("alt")) img.setAttribute("alt", "equation");
+    const src = img.getAttribute("src") || "";
+    if (src.startsWith("//")) img.setAttribute("src", "https:" + src);
+    img.setAttribute("loading", "lazy");
+    img.classList.add("wiki-math-img");
+  }
+  // Tag display (block) equations so CSS centers them + the wrapper can scroll wide.
+  for (const el of Array.from(
+    root.querySelectorAll(".mwe-math-element")
+  )) {
+    const isBlock =
+      el.classList.contains("mwe-math-element-block") ||
+      el.querySelector(".mwe-math-fallback-image-display");
+    el.classList.add(isBlock ? "wiki-math-display" : "wiki-math-inline");
+    if (isBlock) {
+      el.setAttribute("role", "region");
+      el.setAttribute("tabindex", "0");
+      el.setAttribute("aria-label", "Equation");
+    }
+  }
+}
+
+/**
+ * Tables (article-fidelity #25, design §4.1/§4.2). Wrap every data table (and the
+ * Wikipedia infobox is intentionally NOT wrapped — it floats) in a keyboard-
+ * scrollable region so a wide table scrolls horizontally rather than breaking the
+ * two-column shell (B2). The "Scroll table →" hint (§4.2) is CSS-only, shown when
+ * the table overflows. The infobox is tagged for its float frame + its images get
+ * the figure treatment (B5).
+ */
+function wrapTables(root: HTMLElement) {
+  // Wikipedia infobox → float-right frame (kept; NOT wrapped/scrolled). §4.3.
+  for (const ib of Array.from(root.querySelectorAll("table.infobox"))) {
+    ib.classList.add("wiki-infobox");
+    for (const img of Array.from(ib.querySelectorAll<HTMLImageElement>("img"))) {
+      const src = img.getAttribute("src") || "";
+      if (src.startsWith("//")) img.setAttribute("src", "https:" + src);
+      img.setAttribute("loading", "lazy");
+    }
+  }
+
+  // Data tables → scroll-wrapped, keyboard-reachable region. Skip the infobox and
+  // any table that is itself the inner table of a chrome box already stripped.
+  for (const table of Array.from(root.querySelectorAll("table"))) {
+    if (table.classList.contains("infobox")) continue;
+    if (table.closest(".wiki-tablewrap")) continue; // already wrapped
+    const doc = table.ownerDocument!;
+    const wrap = doc.createElement("div");
+    wrap.className = "wiki-tablewrap";
+    wrap.setAttribute("role", "region");
+    wrap.setAttribute("tabindex", "0");
+    const caption = table.querySelector("caption")?.textContent?.trim();
+    wrap.setAttribute("aria-label", caption || "Data table");
+    table.classList.add("wiki-table");
+    table.replaceWith(wrap);
+    wrap.appendChild(table);
+  }
+}
+
+/**
+ * Hatnotes (article-fidelity #27, design §6.2). Parsoid emits `<div role="note"
+ * class="hatnote …">` at the lead top AND inside sections ("Main article: …").
+ * Keep them IN PLACE (not relocated) and tag them so CSS styles them distinctly
+ * (indented italic, §6.2). Their internal links are routed by `rewriteLinks`.
+ */
+function prepHatnotes(root: HTMLElement) {
+  for (const hn of Array.from(root.querySelectorAll(".hatnote"))) {
+    hn.classList.add("wiki-hatnote");
   }
 }

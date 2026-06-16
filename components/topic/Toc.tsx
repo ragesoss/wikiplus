@@ -55,8 +55,15 @@ export function Toc({
                       : "＋ Suggested"
                     : e.title}
                 </span>
-                {e.count > 0 &&
-                  (mode === "curated" ? (
+                {/* Count badge when > 0; else a muted "no video" TEXT badge so the
+                    absence of a curated video is an explicit, text-labeled signal —
+                    never silence, never color alone (article-fidelity #27 D5, design
+                    §6.3; A7/U7). Applies uniformly to ANY zero-count row, so the
+                    restored tail sections (References, See also, …) aren't special-
+                    cased — they just always hit the zero-count branch. No dashed
+                    border on "no video" (it's an absence, not a suggestion count). */}
+                {e.count > 0 ? (
+                  mode === "curated" ? (
                     <span className="shrink-0 border-2 border-ink bg-white px-1.5 text-[10px] font-bold text-brand">
                       {e.count}
                     </span>
@@ -67,7 +74,16 @@ export function Toc({
                     >
                       ~{e.count}
                     </span>
-                  ))}
+                  )
+                ) : (
+                  // The ＋General/Suggested band row conveys its own emptiness in the
+                  // band itself — only article SECTIONS get the "no video" badge.
+                  !isBand && (
+                    <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide text-muted">
+                      no video
+                    </span>
+                  )
+                )}
               </a>
             </li>
           );
