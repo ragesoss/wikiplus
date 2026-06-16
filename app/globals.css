@@ -422,14 +422,21 @@ figure.wikifig .credit {
   outline-offset: 2px;
 }
 
-/* The navbar search field shows ONE focus ring around the whole field box (border +
-   input + submit button), not the inner <input> — whose offset ring otherwise clips
-   through the field border / a leading control. Unlayered so it beats Tailwind v4's
-   layered `focus:outline-none` on the input; scoped to `input:focus-visible` so the
-   submit button keeps its own independent ring when tabbed to. */
+/* The navbar search field takes its focus cue from Wikipedia's own search (Codex):
+   instead of an outer ring, the field's OWN 2px border recolors to the brand indigo and
+   thickens slightly (a 1px inset shadow → ~3px effective, so there is no layout shift)
+   with a short transition. Unlayered so it governs the layered Tailwind `border-ink` / input
+   `focus:outline-none` utilities; the transparent at-rest inset shadow lets the
+   thickening animate. Scoped to `input:focus-visible` so the submit button keeps its
+   own ring when tabbed to. */
+.search-field {
+  box-shadow: inset 0 0 0 1px transparent;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
 .search-field:has(input:focus-visible) {
-  outline: 3px solid var(--color-brand);
-  outline-offset: 2px;
+  border-color: var(--color-brand);
+  box-shadow: inset 0 0 0 1px var(--color-brand);
+  outline: none;
 }
 .search-field input:focus,
 .search-field input:focus-visible {
