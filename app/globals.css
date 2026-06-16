@@ -79,6 +79,15 @@ body {
   transition: opacity 0.3s, transform 0.3s;
 }
 
+/* One-time "unvetted set" header that introduces the rail candidate list (#14, design
+   D2). Dashed-outline block — echoes the candidate language without the solid offset
+   shadow, so it reads as part of the unvetted set. Carries the once-per-context
+   framing; the per-card "No context yet…" sentence was removed in favor of this. */
+.candsethead {
+  background: #fff;
+  border: 2px dashed var(--color-ink);
+}
+
 /* ── Wikipedia article side: faithful look (design §5.2/§5.6). ── */
 .wiki-body {
   color: var(--color-ink);

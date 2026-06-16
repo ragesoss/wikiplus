@@ -77,12 +77,51 @@ describe("GeneralStrip — empty / Suggested (AC16, AC18)", () => {
     return { onAdd };
   }
 
-  it("reads 'Suggested videos · uncurated' with a candidate count (AC16)", () => {
+  it("reads 'Suggested videos · uncurated' and states the kind once (AC16)", () => {
     setup();
     expect(screen.getByText("＋ Suggested videos")).toBeInTheDocument();
     expect(screen.getByText("uncurated")).toBeInTheDocument();
-    // grammatical count at 1 (defect N3): "1 candidate", not "1 candidates"
-    expect(screen.getByText("1 candidate")).toBeInTheDocument();
+  });
+
+  // #14 AC6: the General band no longer renders a "N candidates" count label
+  // (the volume lives once, in the ＋plus panel).
+  it("does NOT render a 'N candidates' count label on the band (#14 AC6)", () => {
+    setup();
+    expect(screen.queryByText(/\d+\s+candidates?/)).toBeNull();
+  });
+
+  // #14 AC1: no per-tile "SUGGESTED" badge on the General-strip candidate tiles.
+  it("renders NO per-tile 'SUGGESTED' badge (#14 AC1)", () => {
+    setup();
+    expect(screen.queryByText("Suggested")).toBeNull();
+  });
+
+  // #14 AC8: the candidate tile retains the dashed/unvetted candcard distinction.
+  it("renders candidate tiles on the dashed candcard surface (#14 AC8)", () => {
+    const { container } = render(
+      <GeneralStrip
+        mode="empty"
+        topicTitle="Cellular respiration"
+        generalClips={[]}
+        generalCandidates={[cand]}
+        totalGeneral={1}
+        onPlay={vi.fn()}
+        onPromote={vi.fn()}
+        onDismiss={vi.fn()}
+        onAdd={vi.fn()}
+      />
+    );
+    expect(container.querySelector("li.candcard")).not.toBeNull();
+  });
+
+  // #14 AC9: the candidate tile CTA reads "Curate" (was "Promote").
+  it("labels the candidate-tile CTA 'Curate' with the right aria-label (#14 AC9)", () => {
+    setup();
+    const curate = screen.getByRole("button", {
+      name: `Curate this clip: ${cand.caption}`,
+    });
+    expect(curate).toHaveAttribute("aria-haspopup", "dialog");
+    expect(screen.queryByRole("button", { name: /Promote/ })).toBeNull();
   });
 
   it("offers Search TikTok / Search YouTube deep-links in a new tab (AC18)", () => {
@@ -135,7 +174,7 @@ describe("GeneralStrip — loading face (design §5.4 / AC2/AC11)", () => {
 });
 
 describe("GeneralStrip — zero-results face (design §5.2 / AC2 zero case)", () => {
-  it("shows the honest line, '0 candidates', and keeps 'Find more'", () => {
+  it("shows the honest line and keeps 'Find more' (no candidate count — #14 AC6)", () => {
     render(
       <GeneralStrip
         mode="empty"
@@ -151,7 +190,8 @@ describe("GeneralStrip — zero-results face (design §5.2 / AC2 zero case)", ()
       />
     );
     expect(screen.getByText(/No videos found for this topic yet/)).toBeInTheDocument();
-    expect(screen.getByText("0 candidates")).toBeInTheDocument();
+    // #14 AC6: the band no longer shows a candidate count, even at zero.
+    expect(screen.queryByText(/\d+\s+candidates?/)).toBeNull();
     expect(screen.getByRole("link", { name: /Search YouTube/ })).toBeInTheDocument();
   });
 });
