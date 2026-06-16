@@ -2,8 +2,6 @@
 
 import { Fragment } from "react";
 import type { ArticleSectionBody, ArticleLead } from "@/lib/wiki/article";
-import type { Candidate } from "@/lib/data/types";
-import { InlineCandidate } from "./InlineCandidate";
 
 // The faithful Wikipedia article column (design §5.2/§5.6, AC2/AC3), split to match
 // the page regions (design §3): the title + attribution + lead live in the MASTHEAD;
@@ -53,61 +51,43 @@ export function ArticleLeadBlock({
   );
 }
 
-/** Reader-left: the sectioned article body, never interrupted by a card (AC2). */
+/**
+ * Reader-left: the sectioned article body. The article column reads as faithful
+ * Wikipedia — never interrupted by a plus/candidate card in EITHER state. Plus
+ * content crosses into the Wiki column ONLY in the full-width General strip (the
+ * one crossover); section-matched candidates are anchored in the plus rail, not
+ * inline here. (The inline-under-section placement was retired — see issue #21 /
+ * docs/specs/wiki-column-no-plus.md.)
+ */
 export function ArticleSections({
   sections,
   activeSlug,
-  mode,
-  topicTitle,
-  inlineCandidates,
-  onPlay,
-  onPromote,
-  onDismiss,
   sectionRef,
 }: {
   sections: ArticleSectionBody[];
   activeSlug: string | null;
-  mode: "curated" | "empty";
-  topicTitle: string;
-  inlineCandidates: Map<string, Candidate>;
-  /** YouTube-candidate play → non-modal PinnedPlayer (issue #10, AC1). */
-  onPlay?: (c: Candidate) => void;
-  onPromote: (c: Candidate) => void;
-  onDismiss: (c: Candidate) => void;
   sectionRef?: (slug: string, el: HTMLElement | null) => void;
 }) {
   return (
     <main aria-label="Wikipedia article" className="min-w-0">
-      {sections.map((s) => {
-        const cand = mode === "empty" ? inlineCandidates.get(s.slug) : undefined;
-        return (
-          <section
-            key={s.slug}
-            id={`sec-${s.slug}`}
-            ref={(el) => sectionRef?.(s.slug, el)}
-            className={`sec ${activeSlug === s.slug ? "active" : ""}`}
-          >
-            {s.level === 2 && <h2 id={`h-${s.slug}`}>{s.title}</h2>}
-            {s.level === 3 && <h3 id={`h-${s.slug}`}>{s.title}</h3>}
-            {s.level >= 4 && <h4 id={`h-${s.slug}`}>{s.title}</h4>}
-            {s.html && (
-              <div
-                className="wiki-body"
-                dangerouslySetInnerHTML={{ __html: s.html }}
-              />
-            )}
-            {cand && (
-              <InlineCandidate
-                candidate={cand}
-                topicTitle={topicTitle}
-                onPlay={onPlay}
-                onPromote={onPromote}
-                onDismiss={onDismiss}
-              />
-            )}
-          </section>
-        );
-      })}
+      {sections.map((s) => (
+        <section
+          key={s.slug}
+          id={`sec-${s.slug}`}
+          ref={(el) => sectionRef?.(s.slug, el)}
+          className={`sec ${activeSlug === s.slug ? "active" : ""}`}
+        >
+          {s.level === 2 && <h2 id={`h-${s.slug}`}>{s.title}</h2>}
+          {s.level === 3 && <h3 id={`h-${s.slug}`}>{s.title}</h3>}
+          {s.level >= 4 && <h4 id={`h-${s.slug}`}>{s.title}</h4>}
+          {s.html && (
+            <div
+              className="wiki-body"
+              dangerouslySetInnerHTML={{ __html: s.html }}
+            />
+          )}
+        </section>
+      ))}
     </main>
   );
 }

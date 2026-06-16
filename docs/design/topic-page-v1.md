@@ -144,7 +144,9 @@ the body HTML arrives.
    details" detects platform + mocks a preview → reveals the same curate fields → "＋ Add & curate"
    (mock). *(AC18, AC19, S12)*
 5. **Search path:** **Search YouTube** / **Search TikTok** open the platform search for the topic in
-   a new tab; per-section "Search TikTok for '<section>'" links find alternates. *(AC18, S12)*
+   a new tab; the per-section "Search TikTok for '<section>'" find-alternates link lives on the rail
+   `CandidateCard` and the General strip (not in the article body — the inline block was retired,
+   §6.4 / issue #21). *(AC18, S12)*
 6. **Dismiss path:** **✕ Not relevant** fades the candidate out and decrements the visible counts
    (band count, TOC badges, the CTA subline) everywhere that clip appears. *(AC19, S13)*
 
@@ -229,9 +231,11 @@ shadow**. Larger blocks (infobox, CTA button) may use **6px 6px 0 ink**. Section
   - h3 `1.2rem`; h4 `1.05rem` `font-weight:700`.
 - Body paragraphs sans, `0.95rem`/1.65; section figures `figure.wikifig` floated right exactly like
   the lead image, caption + credit preserved.
-- **The article is never interrupted by a video card in the curated state** — the General strip is
-  the only crossover. *(AC2)* (Contrast: the empty state *does* inline a candidate after a section's
-  text — §6.4.)
+- **The article is never interrupted by a video card in *either* state** — the General strip is the
+  only place plus content crosses into the Wiki column; section-matched candidates are anchored in
+  the plus rail, never inline in the article body. *(AC2; issue #21 —
+  `docs/specs/wiki-column-no-plus.md` — retired the empty-state inline-under-section placement that
+  this note previously called out as an exception. There is no exception.)*
 - Active-pairing highlight: when a section is the active anchor, its heading gets a **−10px indigo
   left bar** (`box-shadow:-10px 0 0 indigo`) + a left-to-transparent indigo wash
   (`linear-gradient(90deg,#EEF0FB, transparent 60%)`), 0.25s transition (suppressed under
@@ -332,17 +336,24 @@ available, render the plain ＋plus block (no chip).
   subline, a **match-reason line** (magnifier icon + `matchReason`), then the **Promote / Not
   relevant** buttons (§6.6). No chips. *(AC15, AC16, AC19)*
 
-### 6.4 Inline section candidate (empty only) *(AC16)*
-Where a candidate matches a section, render **one** candidate block **after** that section's article
-paragraphs (and after its figure), `clear-both`, `my-4` — so the article text above is undisturbed
-(AC16: "rendered after the section's article text, not interrupting it"). It is an `<aside
-class="candcard" aria-label="Suggested video for <section>">`:
-- Header: **SUGGESTED** badge + "Suggested for this section" (violet `text-[11px]` bold).
-- A horizontal layout: facade thumbnail (aspect by orientation; vertical `w-28`, horizontal `w-44`)
-  beside caption + `name · handle · platformLabel`.
-- The **match-reason line** (§6.5) and the **Promote / Not relevant** buttons.
-- A bottom **per-section find** row (dashed top divider): "Search TikTok for '<section>' ↗"
-  (`.sectionfind` understated violet link, opens in a new tab) — find alternates. *(AC18, S12)*
+### 6.4 Section matching → rail anchoring (empty) *(AC16)*
+**Retired placement (issue #21 — `docs/specs/wiki-column-no-plus.md`):** this section formerly
+specified an *inline section candidate* — an `<aside class="candcard" aria-label="Suggested video
+for <section>">` rendered after a matched section's article paragraphs, inside the article body.
+That inline placement contradicted §5.6 (the article is never interrupted by a video card) and the
+"one crossover" principle, and has been **removed**. The Wiki column is plus-free except for the
+General strip.
+
+**Section *matching* is preserved** — only the inline placement is gone:
+- Where a candidate's metadata matches a section, the match **anchors that candidate to its section
+  in the plus rail** (the rail `CandidateCard`, §6.5) and **increments that section's TOC suggestion
+  count** (`~n`, §6.7). The match governs *where in the rail* the candidate is anchored and *which
+  TOC entry it counts toward* — not whether it appears in the article column. (The rail card carries
+  the full candidate UI — SUGGESTED badge, the "↳ <sectionLabel>" section link, thumbnail, creator,
+  match-reason §6.5, Promote / Not relevant §6.6 — so nothing the inline block once offered is lost.)
+- Scroll-sync (§5.9) pairs the active section with its rail card and TOC entry as the reader scrolls,
+  so the section→candidate relationship is preserved *temporally* in the rail rather than *spatially*
+  in the article body.
 
 ### 6.5 Unvetted candidate visual language (binding) *(AC15; CURATION §6)*
 - **`.candcard`:** white fill, **2px DASHED ink border, NO offset shadow.** (Distinct from the solid
@@ -362,8 +373,8 @@ class="candcard" aria-label="Suggested video for <section>">`:
   reduced-motion: skip the transition, remove immediately).
 
 ### 6.6 Promote / Not relevant controls *(AC19)*
-A row under each candidate (rail card, inline block, and strip tile — same clip may appear in
-multiple places):
+A row under each candidate (rail card and strip tile — the same clip may appear in both; the inline
+article-body block was retired, §6.4 / issue #21):
 - **"✓ Promote"** — `<button>`, indigo fill, white, 2px ink border, hover 2px ink offset.
   `aria-label="Promote and curate: <caption>"`. Opens "Curate this clip" (§6.8) seeded with the
   candidate's section + caption. *(AC19, S11)*
@@ -582,8 +593,9 @@ CTA). Focus is never removed without an equally-visible replacement.
 ### 11.5 Landmarks & names
 - `<header>`; article column `<main aria-label="Wikipedia article">`; rail `<aside aria-label="wiki+
   curated videos">` (empty: "wiki+ suggested videos"); TOC `<nav>`; General strip a labelled
-  `<section>` with `role="list"` track. Inline candidate = `<aside aria-label="Suggested video for
-  <section>">`.
+  `<section>` with `role="list"` track. (The inline article-body candidate `<aside aria-label="Suggested
+  video for <section>">` was retired — issue #21, §6.4 — so no candidate `<aside>` lives inside
+  `<main>`; section-matched candidates are `CandidateCard`s in the rail `<aside>`.)
 
 ### 11.6 Contrast *(AC21)* — see §9.3 for the chip fills (binding adjustments). Body/Wiki text on
 white and ink2/muted on bg2 already clear AA; QA spot-checks the smallest text (`text-[10px]`
@@ -604,8 +616,10 @@ labels) against their backgrounds.
     sticky** single-column; **scroll-sync relaxes** (the side-by-side pairing has no spatial meaning
     in one column) — keep TOC/section **jump-to** working (it's just in-page anchors), but the
     automatic article↔rail follow may be disabled below `lg`. *(Spec A9 / AC1 — "sync may relax".)*
-  - In the empty state, inline section candidates (§6.4) remain the most useful single-column pattern
-    (they sit right under their section); the rail's duplicate cards still render below.
+  - In every state, the article body renders **complete and uninterrupted**; section-matched
+    candidates render in the rail block **below** it (in source order) — never interleaved in the
+    article flow at any breakpoint. (Issue #21 retired the empty-state inline-under-section block, so
+    there are no longer "duplicate" cards to reconcile — the candidate exists only in the rail.)
   - All controls, modals, chips, and notes remain fully readable and keyboard/touch operable narrow.
 - Target tested widths for QA: ~1280px (full two-column), ~768px (single column tablet), ~390px
   (phone).
@@ -681,9 +695,9 @@ Final field names are Dev's; the seam in `lib/data/store.ts` must describe them 
 | AC13 sync rail→article + jump-to | §5.9, §10.3 |
 | AC14 empty CTA + infobox | §6.2 |
 | AC15 unvetted candidate distinct | §6.5 |
-| AC16 empty General band + inline candidates | §6.3, §6.4 |
+| AC16 empty General band + section matching → rail anchoring (inline placement retired, #21) | §6.3, §6.4 |
 | AC17 empty TOC badges distinct | §6.7 |
-| AC18 manual source actions | §6.3, §6.4, §6.9 |
+| AC18 manual source actions | §6.3, §6.9 |
 | AC19 Promote / Not relevant | §6.6, §6.8 |
 | AC20 DataStore-driven | §3, §13.8, §14 |
 | AC21 accessibility baseline | §9.3, §11 |

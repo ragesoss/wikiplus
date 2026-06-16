@@ -302,15 +302,6 @@ export function TopicView() {
     [liveCandidates]
   );
 
-  // One inline candidate per matching section (design §6.4).
-  const inlineCandidates = useMemo(() => {
-    const m = new Map<string, Candidate>();
-    for (const c of sectionCandidates) {
-      if (c.sectionSlug && !m.has(c.sectionSlug)) m.set(c.sectionSlug, c);
-    }
-    return m;
-  }, [sectionCandidates]);
-
   // ── TOC entries: ＋ band row first, then sections with counts. ──
   const tocEntries: TocEntry[] = useMemo(() => {
     const sections = article?.sections ?? [];
@@ -661,12 +652,6 @@ export function TopicView() {
               <ArticleSections
                 sections={article.sections}
                 activeSlug={activeSlug}
-                mode={mode}
-                topicTitle={canonicalTitle}
-                inlineCandidates={inlineCandidates}
-                onPlay={playCandidate}
-                onPromote={promote}
-                onDismiss={dismiss}
                 sectionRef={setSectionRef}
               />
             )}

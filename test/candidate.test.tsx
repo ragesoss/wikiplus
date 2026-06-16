@@ -1,8 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { CandidateCard } from "@/components/topic/CandidateBits";
-import { InlineCandidate } from "@/components/topic/InlineCandidate";
 import type { Candidate } from "@/lib/data/types";
 
 const cand: Candidate = {
@@ -86,39 +85,5 @@ describe("CandidateCard — unvetted treatment (AC15 / CURATION §6)", () => {
       screen.getByRole("button", { name: /Dismiss as not relevant/ })
     );
     expect(onDismiss).toHaveBeenCalledWith(cand);
-  });
-});
-
-describe("InlineCandidate (AC16 / AC18)", () => {
-  it("is an aside labelled for its section (rendered after the section text)", () => {
-    render(
-      <InlineCandidate
-        candidate={cand}
-        topicTitle="Cellular respiration"
-        onPromote={vi.fn()}
-        onDismiss={vi.fn()}
-      />
-    );
-    expect(
-      screen.getByRole("complementary", { name: /Suggested video for Glycolysis/ })
-    ).toBeInTheDocument();
-  });
-
-  it("offers a per-section 'Search TikTok' deep link opening in a new tab (AC18)", () => {
-    render(
-      <InlineCandidate
-        candidate={cand}
-        topicTitle="Cellular respiration"
-        onPromote={vi.fn()}
-        onDismiss={vi.fn()}
-      />
-    );
-    const link = screen.getByRole("link", { name: /Search TikTok for/ });
-    expect(link).toHaveAttribute("target", "_blank");
-    expect(link).toHaveAttribute("rel", "noopener");
-    expect(link.getAttribute("href")).toContain("tiktok.com/search");
-    expect(link.getAttribute("href")).toContain(
-      encodeURIComponent("Cellular respiration Glycolysis")
-    );
   });
 });

@@ -413,8 +413,10 @@ describe("TopicView — live candidate flow (F5: AC2/AC9/AC11 through the view)"
     // the cache is warm — the candidate must NOT resurface (AC9; design §6.3).
     unmount();
     render(<TopicView />);
-    // The OTHER candidate (v1, a section match → appears inline + in the rail) still
-    // renders (proves the live set loaded), but the dismissed general one stays gone.
+    // The OTHER candidate (v1, a section match → in the plus rail) still renders
+    // (proves the live set loaded), but the dismissed general one stays gone. (Since
+    // #21 retired the inline-under-section placement, a section match appears ONLY in
+    // the rail — `findAllByText` here is tolerant of the single rail occurrence.)
     expect(
       (await screen.findAllByText("Glycolysis explained step by step")).length
     ).toBeGreaterThan(0);
@@ -426,7 +428,8 @@ describe("TopicView — live candidate flow (F5: AC2/AC9/AC11 through the view)"
   it("(c) revisiting within the TTL does not call the source again (AC11)", async () => {
     const fetchSpy = mockYtSearch([ytItem("v1", "Glycolysis explained step by step")]);
     const { unmount } = render(<TopicView />);
-    // v1 matches the Glycolysis section → appears inline AND in the rail (findAllByText).
+    // v1 matches the Glycolysis section → appears in the plus rail (#21 retired the
+    // inline copy, so it is no longer also rendered in the article body).
     await screen.findAllByText("Glycolysis explained step by step");
     await waitFor(() => expect(fetchSpy).toHaveBeenCalledTimes(1));
     // Revisit (warm 24h cache): the source must NOT be called a second time.
