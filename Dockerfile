@@ -6,8 +6,8 @@
 # can RUN it. The box never builds Next.js (the deps+build stages run in CI on GitHub-hosted
 # runners; the box only `docker compose pull`s the result — see .github/workflows/deploy.yml).
 #
-# Node 24 (the version pinned in CI / used locally — see ARCHITECTURE "Stack"). Pin a
-# specific minor + the slim Debian (bookworm) variant for a small, reproducible base.
+# Node 24 LTS (per ARCHITECTURE "Stack"; used locally). Pin a specific minor + the slim
+# Debian (bookworm) variant for a small, reproducible base.
 
 # ---- deps: install the full dependency set against the committed lockfile ----------------
 FROM node:24.2.0-bookworm-slim AS deps

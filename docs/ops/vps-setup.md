@@ -8,6 +8,12 @@ Next.js Node SSR server (issue #37) at **`wikiplus.wikiedu.org`** via Docker Com
 This is run **once**. After it, the steady-state loop is fully automated: a push to `main`
 builds the image in CI and SSH-deploys it (`.github/workflows/deploy.yml`) — no SSH needed.
 
+> **As shipped (2026-06-16):** the first prototype box came up on **Debian 13 (trixie)**, not
+> Ubuntu 24.04. Docker's official convenience script handled it cleanly (see §3), and the rest
+> of the runbook applied unchanged. A non-root **`deploy`** user runs the stack; `DEPLOY_USER`
+> = `deploy`. Two deviations from the steps below were observed in practice — noted inline at
+> §3 (install method) and §5 (GHCR auth turned out to need *no* manual step).
+
 ## Prerequisites (owner provides)
 
 - The box's public IP, and SSH access as a sudo-capable user (root or a sudo user).
@@ -56,6 +62,13 @@ sudo ufw status verbose
 
 ## 3. Install Docker Engine + the compose plugin (official repo)
 
+> **On Debian 13 / non-Ubuntu, or to avoid the codename dance:** Docker's official convenience
+> script is the simplest path and is what was used in practice —
+> `curl -fsSL https://get.docker.com | sh` (installs Engine + the compose + buildx plugins,
+> auto-detecting the distro). The explicit apt-repo steps below assume Ubuntu and pin
+> `download.docker.com/linux/ubuntu`; swap `ubuntu`→`debian` for Debian if you prefer the repo
+> route. Either way, then run the `usermod -aG docker` line.
+
 ```sh
 sudo apt-get install -y ca-certificates curl
 sudo install -m 0755 -d /etc/apt/keyrings
@@ -78,9 +91,10 @@ docker --version
 docker compose version
 ```
 
-> The 1GB box has no swap by default and the app is small; if memory ever gets tight,
-> add a 1–2 GB swapfile. The box **never builds** Next.js (CI does), so build-time OOM is
-> not a concern here — only the lightweight `docker compose pull` + runtime.
+> The 1GB box has little/no swap by default and the app is small; a **1 GB swapfile was added**
+> as cheap OOM insurance (`fallocate -l 1G /swapfile && chmod 600 /swapfile && mkswap /swapfile
+> && swapon /swapfile`, plus an `/etc/fstab` entry). The box **never builds** Next.js (CI does),
+> so build-time OOM is not a concern here — only the lightweight `docker compose pull` + runtime.
 
 ## 4. Place the deploy files at `/opt/wikiplus`
 
@@ -114,24 +128,24 @@ scp -i ~/.ssh/wikiplus_vps_ed25519 \
 exactly these two files there. If the compose file's contents change in a later issue, re-copy
 it — the workflow does not sync it for you.)
 
-## 5. GHCR pull auth — make the package public (recommended), else `docker login`
+## 5. GHCR pull auth — no manual step needed for a public repo
 
-The image is `ghcr.io/ragesoss/wikiplus`. The repo is **public**, so the cleanest setup is to
-make the **GHCR package public** too — then the box pulls with **no auth**:
+The image is `ghcr.io/ragesoss/wikiplus`. **In practice (2026-06-16) the box's first
+`docker compose pull` succeeded with no auth and no manual visibility change** — GitHub serves
+a container package linked to a **public** repo to anonymous pulls. So for this repo: **do
+nothing here.** (The earlier worry that the first deploy would fail on a private package — QA
+finding "H1" — did not materialize.)
 
-> GitHub → the `wikiplus` package (under the user/org Packages) → **Package settings** →
-> **Change visibility** → **Public**. (The first CI push creates the package; set it public
-> right after the first successful `build` job run.)
-
-If the package is kept **private** instead, log the box in once with a **read-only PAT**
-(classic PAT with `read:packages` scope, or a fine-grained token with package read):
+Only if you later make the repo private, or pulls start returning `denied`/`unauthorized`,
+log the box in once with a **read-only PAT** (classic PAT with `read:packages`, or a
+fine-grained token with package read):
 
 ```sh
 echo "<GHCR_READ_PAT>" | docker login ghcr.io -u ragesoss --password-stdin
 ```
 
 (Login persists in `~/.docker/config.json`, so the deploy job's `docker compose pull` then
-works without re-auth. If public: **skip this step entirely.**)
+works without re-auth.)
 
 ## 6. First bring-up
 
@@ -181,10 +195,18 @@ The workflow consumes exactly these:
 | `DEPLOY_HOST` | The box's public IP (or `wikiplus.wikiedu.org` once DNS resolves). |
 | `DEPLOY_USER` | The SSH deploy user on the box (the sudo/docker-group user from step 3). |
 | `DEPLOY_SSH_KEY` | The **private** SSH key — the contents of `~/.ssh/wikiplus_vps_ed25519` (whose `.pub` is in the deploy user's `authorized_keys`). |
-| `YOUTUBE_API_KEY` | The referrer-restricted YouTube Data API key, baked into the client bundle at build time (`--build-arg NEXT_PUBLIC_YOUTUBE_API_KEY`). Unset → live search no-ops. *(Carried over from the old Pages workflow.)* |
+| `YOUTUBE_API_KEY` | The referrer-restricted YouTube Data API key, baked into the client bundle at build time (`--build-arg NEXT_PUBLIC_YOUTUBE_API_KEY`). Unset → live search no-ops. **The key is HTTP-referrer-restricted — the live origin must be on its allowlist (see ⚠️ below) or every search 403s even though the key is present.** *(Carried over from the old Pages workflow.)* |
 
 `GITHUB_TOKEN` is the built-in token GitHub injects automatically (used to push to GHCR) —
 **do not set it**.
+
+> **⚠️ YouTube referrer allowlist (post-deploy, easy to miss):** the `YOUTUBE_API_KEY` is
+> **HTTP-referrer-restricted** in Google Cloud Console, so it only works from origins on its
+> allowlist. After standing up a new origin, add it or live candidate suggestions fail with
+> `API_KEY_HTTP_REFERRER_BLOCKED` even though the key is correctly baked into the bundle.
+> Console → **APIs & Services → Credentials →** the key → **Application restrictions → Website
+> restrictions**, add `wikiplus.wikiedu.org/*` (keep `localhost`/`127.0.0.1` for local dev).
+> Confirmed required on the 2026-06-16 cutover from `ragesoss.github.io`.
 
 ```sh
 # Run from a checkout (the repo is the default target). DEPLOY_SSH_KEY reads the private key file:
