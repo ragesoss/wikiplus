@@ -1,67 +1,86 @@
-name: Deploy to GitHub Pages
+name: Build & deploy to VPS
 
-# PAUSED as of issue #37 (drop `output:'export'` → Node SSR server).
+# Issue A.2 (#42): the prototype now ships the Next.js Node SSR server (issue #37) to a
+# self-hosted Linode VPS via Docker Compose + Caddy at https://wikiplus.wikiedu.org — NOT
+# GitHub Pages (the old Pages-export workflow #37 paused is fully replaced here). This
+# re-enables the push-to-`main` auto-deploy and closes the cloud, mobile-drivable
+# prompt -> staging loop.
 #
-# wiki+ no longer builds a static export, so `yarn build` no longer emits `out/`. This
-# workflow's `yarn build` + `upload-pages-artifact path: out` would now fail / publish a
-# broken-or-empty Pages artifact. The push-to-`main` auto-deploy is therefore DISABLED:
-# the trigger is `workflow_dispatch` ONLY, so `main` never auto-attempts a static-export
-# Pages deploy. (This change is verified locally and not live-deployable by design.)
-#
-# RE-ENABLING is issue A.2 (#35 §A.2): provision the self-hosted VPS + Docker Compose +
-# Caddy + Cloudflare host and wire auto-deploy of the Node server against IT — NOT GitHub
-# Pages. This whole Pages-specific workflow is expected to be replaced there, not revived.
-# The cloud, mobile-drivable prompt→staging loop resumes at that point.
+# Two jobs:
+#   1. build  — build the Docker image in CI and push it to GHCR (the 1GB box must NEVER
+#               build Next.js; it would OOM). Tags :latest and :<sha>.
+#   2. deploy — SSH to the box and `docker compose pull && docker compose up -d`. Needs
+#               build, so a failed image build never reaches the box.
 
 on:
-  # push: { branches: [main] }  # DISABLED (#37) — re-wired against the VPS host in A.2.
+  push:
+    branches: [main]
   workflow_dispatch:
 
-permissions:
-  contents: read
-  pages: write
-  id-token: write
-
+# Avoid overlapping deploys clobbering each other; let an in-flight one finish.
 concurrency:
-  group: pages
-  cancel-in-progress: true
+  group: deploy-main
+  cancel-in-progress: false
+
+env:
+  # GHCR image repo. Lowercased owner/name (GHCR requires lowercase).
+  IMAGE: ghcr.io/ragesoss/wikiplus
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write # push to GHCR with the built-in GITHUB_TOKEN
     steps:
       - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
         with:
-          node-version: 24
-          cache: yarn
-      - run: yarn install --frozen-lockfile
-      - run: yarn build
-        env:
-          # Project pages are served under /<repo>; basePath must match.
-          NEXT_PUBLIC_BASE_PATH: /${{ github.event.repository.name }}
-          # Baked into the static bundle (NEXT_PUBLIC_); referrer-restricted in the Cloud console, so
-          # bundle-visible is by design. Repo secret; unset in local/cloud builds → search must no-op then.
-          NEXT_PUBLIC_YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
-      - run: touch out/.nojekyll
-      # SPA fallback: GitHub Pages serves out/404.html for any path with no pre-built
-      # page. As of issue #13 the export's own `app/not-found.tsx` IS that fallback —
-      # a superset of the old Topic-shell copy: it runs the bare-path → /topic/<Title>/
-      # redirect AND, for every other unmatched path (notably unseeded /topic/<Title>/
-      # title routes), renders TopicView, which reads the title from location.pathname
-      # and renders. No redirect, no QID in the bar (ARCHITECTURE "Prototype phase →
-      # routing"). We therefore NO LONGER overwrite out/404.html with out/topic/index.html;
-      # `next build` already emits the correct out/404.html from app/not-found.tsx.
-      - uses: actions/upload-pages-artifact@v5
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push image
+        uses: docker/build-push-action@v6
         with:
-          path: out
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: |
+            ${{ env.IMAGE }}:latest
+            ${{ env.IMAGE }}:${{ github.sha }}
+          build-args: |
+            NEXT_PUBLIC_YOUTUBE_API_KEY=${{ secrets.YOUTUBE_API_KEY }}
+          # Speed up repeat builds via the GitHub Actions layer cache.
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
   deploy:
     needs: build
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - id: deployment
-        uses: actions/deploy-pages@v5
+      # SSH to the box and pull+restart. The box runs nothing but `docker compose pull`
+      # + `up -d` — the image is already built and in GHCR. The compose files live at
+      # /opt/wikiplus on the box (placed there during box setup — see docs/ops runbook).
+      #
+      # GHCR pull auth on the box: the recommended setup makes the GHCR package PUBLIC
+      # (the repo is public anyway), so the box needs NO `docker login` to pull. If the
+      # package is kept private, the box must `docker login ghcr.io` once with a read-only
+      # PAT (documented in the runbook) — no change needed to this workflow either way.
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            set -euo pipefail
+            cd /opt/wikiplus
+            docker compose pull
+            docker compose up -d
+            docker image prune -f

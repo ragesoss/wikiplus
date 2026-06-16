@@ -54,6 +54,28 @@ serve a lot of cached read traffic.
 Scaling out later is intentionally a **config change, not a rewrite** — see the ISR cache
 note below.
 
+**Provisioned host (issue A.2 / #42 — the prototype is live):** a single **Linode Nanode
+1GB, Ubuntu 24.04 LTS**, serving **`wikiplus.wikiedu.org`**. The deploy files live in
+[`deploy/`](../deploy/) (`docker-compose.yml`, `Caddyfile`) and on the box at `/opt/wikiplus`;
+the box-setup runbook is `docs/ops/vps-setup.md`. Current stack on the box is **`app` +
+`caddy` only** — Postgres/Redis are deferred to issue B (nothing uses a DB yet; the prototype
+still uses the localStorage `DataStore`), with a commented `# postgres:` block in the compose
+file ready to slot in. **Caddy** terminates TLS directly via Let's Encrypt (automatic HTTPS)
+and reverse-proxies the apex → `app:3000`; **Cloudflare edge cache is deferred** to the
+production-MVP — at prototype scale a single box renders per-request fine. (Caveat baked into
+the Caddyfile: `wikiplus.wikiedu.org` is in the `wikiedu.org` zone, which may sit behind
+Cloudflare — if the DNS record is proxied, Caddy's HTTP-01 challenge needs Cloudflare SSL mode
+"Full", or a DNS-01 challenge; verify before bring-up.)
+
+**Pipeline — CI builds, the box only runs.** A push to `main` (or `workflow_dispatch`) runs
+[`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml): job 1 builds the Next.js
+**standalone** Docker image ([`Dockerfile`](../Dockerfile), `output: 'standalone'`) on a
+GitHub-hosted runner and pushes it to **GHCR** (`ghcr.io/ragesoss/wikiplus`, tagged `:latest`
++ `:<sha>`), passing the YouTube key as a `--build-arg`; job 2 SSHes to the box and runs
+`docker compose pull && docker compose up -d`. **The 1GB box never builds Next.js** (it would
+OOM) — it only pulls + runs. This is the deploy leg of the cloud, mobile-drivable
+prompt → staging loop, re-enabled here after #37 paused it.
+
 ### Self-hosted Next.js gotcha to design around (decide now, not later)
 
 Next.js ISR's default cache is **per-instance, on local disk**. The moment you run more
@@ -396,11 +418,15 @@ a host is provisioned (issue A.2).
     `next/image` in use; harmless no-op); `trailingSlash:true` **kept** (the canonical `/topic/<Title>/`
     URL — now enforced by the server's redirect rather than by a built `<route>/index.html`);
     `outputFileTracingRoot` **kept**.
-- **Deploy:** **PAUSED.** `.github/workflows/deploy.yml` no longer auto-publishes to GitHub Pages on
-  push to `main` (the `push` trigger is disabled; the job is `workflow_dispatch`-only) because a static
-  export is no longer emitted — a `yarn build` would no longer produce `out/`. Re-enabling auto-deploy
-  against the committed self-hosted VPS + Docker Compose + Caddy + Cloudflare host is **issue A.2**, at
-  which point the cloud, mobile-drivable prompt→staging loop resumes (against the Node server, not Pages).
+- **Deploy:** **LIVE (issue A.2 / #42).** A push to `main` auto-deploys the Node SSR server to a
+  **Linode Nanode 1GB (Ubuntu 24.04)** at **`wikiplus.wikiedu.org`** via Docker Compose (`app` +
+  `caddy`; Postgres/Redis still deferred to issue B, Cloudflare edge cache to the production-MVP).
+  `.github/workflows/deploy.yml` (re-enabled `push: [main]` + `workflow_dispatch`) builds the
+  **standalone** image in CI, pushes it to **GHCR** (`ghcr.io/ragesoss/wikiplus`), then SSHes to the box
+  to `docker compose pull && docker compose up -d` — **the box never builds Next.js** (would OOM). The
+  old GitHub Pages static-export workflow is fully replaced. See **Deployment** above + the `deploy/`
+  files + the box-setup runbook (`docs/ops/vps-setup.md`). The cloud, mobile-drivable prompt→staging loop
+  resumes here against the Node server.
 - **YouTube key:** `NEXT_PUBLIC_YOUTUBE_API_KEY` in `.env` (gitignored) for local dev. A `NEXT_PUBLIC_`
   var is read at **build time** and inlined into the **client** bundle (search runs client-side this
   round), so it is **visible in the shipped bundle by design** — the HTTP-referrer restriction and a
@@ -530,10 +556,12 @@ a host is provisioned (issue A.2).
     from `window.location`, so they reach `/topic/<Title>/`.
 
 **Path to production:** `output:'export'` is **already dropped** (#37 — the prototype is a Node SSR
-server). Remaining steps: provision the host + restore auto-deploy (A.2), add the Drizzle `DataStore`
-+ Server Actions (B/D — Server Actions are already enabled, see *Server Actions*), wire Auth.js /
-Wikimedia OAuth (C), and add the production read-path (ISR + the Redis `cacheHandler`, server-side
-candidate search, and a real server-side bare-path HTTP redirect). The components, data model, design
+server), and the host + auto-deploy are **already provisioned** (A.2 / #42 — Linode VPS + Compose +
+Caddy at `wikiplus.wikiedu.org`, CI→GHCR→SSH on push to `main`; see *Deployment*). Remaining steps: add
+the Drizzle `DataStore` + Server Actions (B/D — Server Actions are already enabled, see *Server
+Actions*), wire Auth.js / Wikimedia OAuth (C), and add the production read-path (ISR + the Redis
+`cacheHandler`, server-side candidate search, the deferred Postgres/Redis compose services + Cloudflare
+edge cache, and a real server-side bare-path HTTP redirect). The components, data model, design
 system, article pipeline, and the title-based URL scheme carry forward unchanged.
 
 ## Testing
