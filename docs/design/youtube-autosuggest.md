@@ -8,8 +8,10 @@
   reference mockups `mockups/inline-indigo-empty-v2.html` (empty) / `inline-indigo-sync.html`
   (curated).
 - **Designs for (existing components — behavior/microcopy only, NOT a redesign):**
-  `components/topic/GeneralStrip.tsx`, `components/topic/InlineCandidate.tsx`,
-  `components/topic/CandidateBits.tsx`, and the load/state plumbing in `app/topic/TopicView.tsx`.
+  `components/topic/GeneralStrip.tsx`, `components/topic/CandidateBits.tsx`, and the load/state
+  plumbing in `app/topic/TopicView.tsx`. *(The former inline-article-body component
+  `InlineCandidate.tsx` was retired — issue #21, `docs/specs/wiki-column-no-plus.md`; section-matched
+  candidates now render only as rail `CandidateCard`s.)*
 - **Hand-off:** Development implements; QA & Review + UX evaluate the built UI against this spec.
 
 ---
@@ -70,8 +72,10 @@ hint. Live data does **not** change this; real results are still suggestions, no
 6. *As any user on a slow first visit, I want a clear, announced "looking for videos" state rather
    than a flash of "nothing here," so I'm not misinformed while the search is in flight.* → AC2,
    AC11 (loading before the 24h cache is warm)
-7. *As a user on a phone, I want the suggested band and inline suggestions to be fully usable in one
-   column with thumb-reachable actions, since the whole build loop is mobile-drivable.* → responsive
+7. *As a user on a phone, I want the suggested band and the rail's section-matched candidate cards to
+   be fully usable in one column with thumb-reachable actions, since the whole build loop is
+   mobile-drivable.* → responsive *(the inline article-body suggestion was retired — issue #21; the
+   candidate's controls live on the rail `CandidateCard`)*
 
 ---
 
@@ -97,9 +101,10 @@ empty state, not a malfunction.** There is no "search is broken" UI in this feat
 
 ## 5. State-by-state contract
 
-All five states live inside `GeneralStrip` (`mode="empty"`) and the inline/rail candidate
-components. The infobox suggestion count (`liveCandidates.length`) and the TOC suggestion badges
-follow from the candidate array, so they're covered transitively — each state notes what they show.
+All five states live inside `GeneralStrip` (`mode="empty"`) and the rail candidate components
+(`CandidateCard`). The infobox suggestion count (`liveCandidates.length`) and the TOC suggestion
+badges follow from the candidate array, so they're covered transitively — each state notes what they
+show.
 
 ### 5.1 Populated — keyed + results (AC2, AC3, AC4, AC6, CURATION §6)
 
@@ -111,12 +116,16 @@ follow from the candidate array, so they're covered transitively — each state 
   (`N candidates`). Up to **5** general tiles (AC3), each: desaturated/hatched candidate thumbnail
   (`VideoThumb … candidate`), outline `SuggestedBadge`, caption, `handle · platformLabel`, the
   `MatchReason` block on white, and the `Promote` / `Not relevant` actions.
-- **Inline section candidates** (`InlineCandidate`): rendered *after* a matched section's
-  paragraphs, never interrupting them — one per matched section (AC5). Dashed-border `candcard`,
-  `SuggestedBadge` + "Suggested for this section", thumbnail, caption, creator line, `MatchReason`,
-  actions, and the existing "Search TikTok for '<section>' ↗" deep-link footer.
+- **Section matching → rail anchoring** (AC5): when a candidate's metadata matches a section, that
+  match **anchors the candidate to its section in the plus rail** and increments that section's TOC
+  suggestion badge — it is **not** rendered in the article body. *(Issue #21 —
+  `docs/specs/wiki-column-no-plus.md` — retired the former inline `InlineCandidate` article-body
+  placement that this bullet once described; the Wiki column is plus-free except for the General
+  strip. The **matching** is unchanged — only the inline placement is gone.)*
 - **Rail candidate cards** (`CandidateCard`): mirror the clip-card footprint, dashed, with the
-  `General`/section label, `SuggestedBadge`, `MatchReason`, actions.
+  `General`/section label, `SuggestedBadge`, thumbnail, caption, creator line, `MatchReason`, and the
+  `Promote` / `Not relevant` actions. A section-matched candidate appears here, anchored by its
+  `sectionSlug`/`sectionLabel` and paired to its section via scroll-sync.
 
 **Confirm (no change required), for QA traceability:**
 - Candidates carry **no** stance/accuracy chip and **no** context note — only `MatchReason` +
@@ -147,8 +156,9 @@ fix that with a small honest message. **This is the one net-new visual the featu
 
 - The **"Find more" action group stays** (Search TikTok ↗ / Search YouTube ↗ / ＋ Add video) — it
   is the user's escape hatch and the honest next step. It must remain visible in this state.
-- **Inline section candidates:** none render (there are no candidates to match). Sections simply
-  show their article text with no suggestion block — correct and quiet, no placeholder.
+- **Article body:** as always, no suggestion block renders in the article column (the inline
+  article-body placement was retired — issue #21). Sections simply show their article text — correct
+  and quiet, no placeholder. (With zero candidates there is also nothing to anchor in the rail.)
 - **Rail:** shows no candidate cards. Add a quiet rail line mirroring the curated-mode empty line:
 
   > **Microcopy (rail, zero results):**
@@ -211,8 +221,9 @@ band shows a **skeleton suggested state**, and it is **announced to assistive te
     found."**). One announcement per resolution; do not spam on re-render.
 - **"Find more" manual group:** show it during loading too (it doesn't depend on the search) so the
   user always has an immediate path.
-- **Inline + rail:** no skeletons inline (they'd disrupt the article); the rail may show a single
-  quiet "Looking for suggestions…" line, `aria-live="polite"`, replaced when results arrive.
+- **Article body + rail:** no suggestion content ever renders in the article body (it would disrupt
+  the article; the inline placement was retired — issue #21). The rail may show a single quiet
+  "Looking for suggestions…" line, `aria-live="polite"`, replaced when results arrive.
 - **Decouple from the article:** the suggested-loading state is independent of `fetchState` for the
   article. The article can be ready while suggestions still load, and vice-versa.
 
@@ -277,7 +288,8 @@ Templates (Dev fills the `<…>` slots; keep the exact wording, casing, and the 
       intent — names the source + the topic search — without the stutter. QA: verify the rendered
       line names YouTube once and the topic once.)
 
-- **Inline / section candidate** (`general: false`, has `sectionLabel`):
+- **Section-matched candidate** (`general: false`, has `sectionLabel` — rendered as a rail
+  `CandidateCard`; the inline article-body placement was retired, issue #21):
   - Template: **`Mentions '<matched keyword>' · matched to '<section label>'`**
   - Example: `Mentions 'glycolysis' · matched to 'Glycolysis'`
   - When the matched keyword and section label are effectively the same word, collapse to:
@@ -303,10 +315,12 @@ These already exist and **must be preserved verbatim**:
 - `MatchReason` hint → **`No context yet — a human hasn't reviewed this.`** (italic, muted).
 - `GeneralStrip` empty header → **`＋ Suggested videos`**, tag **`uncurated`**, sub-line
   **`— auto-found candidates, not yet vetted`**.
-- `InlineCandidate` label → **`Suggested for this section`**.
+- *(Retired — issue #21:* the inline article-body label **`Suggested for this section`** left the
+  product when the inline placement was removed; section-matched candidates carry only the rail
+  card's `↳ <sectionLabel>` section link.)*
 
-No copy change here. The only addition is the count-tag verb during loading (`Finding videos…`,
-§5.4) and the zero-results lines (§5.2).
+No copy change here beyond the retired inline label above. The only addition is the count-tag verb
+during loading (`Finding videos…`, §5.4) and the zero-results lines (§5.2).
 
 ### 6.3 Dismissal — now sticky (AC9, Decision 3; story 4)
 
@@ -350,11 +364,12 @@ The candidate states must be fully usable in that single column.
   without overflowing a phone.
 - **Zero-results line:** full-width within the band's `max-w-[1200px] px-5` container; wraps
   naturally; readable single-column.
-- **Inline section candidates:** already a stacked flex card; on mobile the thumbnail + text column
-  stay side-by-side but Dev must confirm the thumbnail doesn't crowd out the caption below ~360px —
-  allow the text column to wrap under the thumb if needed.
-- **Rail candidate cards:** in single-column the rail flows below the article; cards are full-width;
-  actions wrap (`flex-wrap` present). Loading/zero rail lines render inline in that flow.
+- **Rail candidate cards:** in single-column the rail flows below the **complete, uninterrupted**
+  article body (section-matched candidates are never interleaved in the article flow at any
+  breakpoint — issue #21); cards are full-width; on a phone the thumbnail + text column stay
+  side-by-side but Dev must confirm the thumbnail doesn't crowd out the caption below ~360px (allow
+  the text column to wrap under the thumb if needed); actions wrap (`flex-wrap` present).
+  Loading/zero rail lines render in that flow.
 - **Actions on touch:** `Promote` / `Not relevant` keep ≥44px touch targets and ≥8px gap so they're
   not mis-tapped on a phone.
 
@@ -375,8 +390,10 @@ Per CLAUDE.md principles and `docs/TOPIC_PAGE_DESIGN.md`. Every state above must
   **"No context yet" text**, not by the dashed border / desaturation alone (those reinforce). The
   `uncurated` tag is text. This already holds — keep it.
 - **Focus states:** every actionable control (Promote, Not relevant, Search TikTok/YouTube ↗, Add
-  video, the inline TikTok deep-link) has a **visible focus ring** meeting AA. Skeleton tiles are
-  **not** focusable (nothing to do).
+  video, the rail card's per-section TikTok deep-link) has a **visible focus ring** meeting AA.
+  Skeleton tiles are **not** focusable (nothing to do). *(A11y win, issue #21: with the inline
+  article-body block removed, the article column's reading/tab order is no longer interrupted by
+  candidate controls between sections — all candidate controls now live in the rail.)*
 - **Keyboard:** the horizontally-scrollable tile row must be reachable and operable by keyboard —
   actions are real `<button>`s (they are), so Tab order works; ensure the scroll row doesn't trap or
   hide focused actions (focused tile should scroll into view).
@@ -397,7 +414,7 @@ Per CLAUDE.md principles and `docs/TOPIC_PAGE_DESIGN.md`. Every state above must
 |---|---|---|
 | §5.1 Populated, no chips/note, thumbnail stays unvetted | AC4, CURATION §6 | Mandatory; structurally enforced |
 | §5.1 ≤5 general tiles | AC3 | UI renders the array; source caps at 5 |
-| §5.1 one inline per matched section | AC5 | `inlineCandidates` map already de-dupes by section |
+| §5.1 section match → rail anchoring + TOC count (no inline article-body placement) | AC5 | Matching unchanged; inline placement retired — issue #21 (`docs/specs/wiki-column-no-plus.md`) |
 | §5.1 one placement per video | AC7 | Source's job; UI must not duplicate-render |
 | §5.2 zero-results honest line (band + rail) | AC2 (zero case) | Net-new copy; only added visual |
 | §5.3 no-key looks identical to seeded/empty; no "broken" UI | AC1 | No key-aware UI element exists |
