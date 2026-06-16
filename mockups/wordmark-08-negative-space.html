@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>wiki+ · Wordmark 08 · Negative-space “+”</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Sans+Pro:wght@400;600;700;900&family=Open+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  :root{
+    --brand:#676EB4; --violet:#5248AF; --sprout:#2A8270; --action:#1F6F95;
+    --accred:#B0353B; --ink:#2C2C2C; --ink2:#595959; --muted:#717171;
+    --bg:#F7F7F7; --bg2:#F0F1F3; --wiki-rule:#a2a9b1; --wl:#3366cc;
+  }
+  body{background:var(--bg); color:var(--ink); font-family:'Open Sans',system-ui,sans-serif;}
+  .serif{font-family:Georgia,'Times New Roman',serif;}
+  .plus-disp{font-family:'Source Sans Pro',system-ui,sans-serif; font-weight:900; letter-spacing:-.02em;}
+  .plus-sans{font-family:'Source Sans Pro',system-ui,sans-serif;}
+  .wl{color:var(--wl); text-decoration:none;} .wl:hover{text-decoration:underline;}
+  *:focus-visible{outline:3px solid var(--brand); outline-offset:2px;}
+
+  /* Shared seam scaffold (proven in wordmark-01). Here the panel's left edge — the
+     wiki|plus material boundary — is what we sit on the divide, so the knocked-out
+     "+" reads just inside the indigo, riding the seam. */
+  .seam-mark{position:absolute; top:50%; right:-14px; transform:translate(50%,-50%); z-index:10;}
+  .seam-line{position:absolute; top:0; bottom:0; right:-14px; width:1px; background:var(--wiki-rule);}
+
+  .mark{display:flex; align-items:stretch; height:48px; white-space:nowrap;}
+  .wikiword{display:flex; align-items:center; padding:0 0 0 6px; background:#fff;}
+  /* indigo panel; the "+" is knocked OUT as white negative space riding the seam */
+  .panel{display:flex; align-items:center; gap:8px; padding:0 14px 0 14px; background:var(--brand);
+         border:2px solid var(--ink); box-shadow:3px 3px 0 var(--ink);}
+  .knock{position:relative; width:26px; height:26px; flex:0 0 auto;}
+  .knock::before,.knock::after{content:""; position:absolute; background:#fff;}
+  .knock::before{left:50%; top:0; width:6px; height:100%; transform:translateX(-50%);}
+  .knock::after{top:50%; left:0; height:6px; width:100%; transform:translateY(-50%);}
+</style>
+</head>
+<body class="text-ink">
+<a href="#ctx" class="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:top-2 focus:left-2 focus:bg-white focus:px-3 focus:py-2 focus:border-2 focus:border-ink plus-sans font-bold">Skip to caption</a>
+
+<header class="sticky top-0 z-40 border-b-2 border-ink bg-white">
+  <div class="mx-auto grid max-w-[1200px] grid-cols-1 items-stretch gap-7 px-5 lg:grid-cols-[1fr_360px]">
+    <div class="relative flex h-16 items-center gap-3 lg:pr-52">
+      <a href="#" aria-label="wiki plus — home" class="mark mr-1 flex lg:hidden">
+        <span class="wikiword"><span class="serif text-2xl font-semibold text-[#1b1b1b]">wiki</span></span>
+        <span class="panel"><span class="knock" aria-hidden></span><span class="plus-disp text-xl text-white">plus</span></span>
+      </a>
+      <label class="sr-only" for="s8">Search topics</label>
+      <div class="flex items-center gap-1 border border-[#c8ccd1] bg-white px-2 py-1 text-sm text-muted">
+        <span aria-hidden>🔍</span><input id="s8" class="w-28 outline-none placeholder:text-muted" placeholder="Search topics" />
+      </div>
+      <span class="hidden min-w-0 shrink truncate serif text-base text-slate-500 md:inline">Photosynthesis</span>
+
+      <span class="seam-line hidden lg:block" aria-hidden></span>
+      <a href="#" aria-label="wiki plus — home" class="seam-mark mark hidden lg:flex">
+        <span class="wikiword"><span class="serif text-2xl font-semibold text-[#1b1b1b]">wiki</span></span>
+        <span class="panel"><span class="knock" aria-hidden></span><span class="plus-disp text-xl text-white">plus</span></span>
+      </a>
+    </div>
+    <div class="hidden h-16 items-center justify-end lg:flex lg:pl-28">
+      <span class="flex items-center gap-1.5 text-ink">
+        <span aria-hidden class="h-7 w-7 rounded-full border-2 border-ink bg-gradient-to-br from-emerald-300 to-teal-600"></span>
+        <span class="text-[12px] font-bold">@maria_edu</span>
+        <span class="text-[9px] font-bold uppercase tracking-wide text-sprout">signed in</span>
+      </span>
+    </div>
+  </div>
+</header>
+
+<main class="mx-auto grid max-w-[1200px] grid-cols-1 gap-7 px-5 pb-10 pt-6 lg:grid-cols-[1fr_360px]">
+  <section aria-label="Article (Wikipedia)" class="relative">
+    <span class="seam-line hidden lg:block" aria-hidden style="top:-1.5rem;"></span>
+    <h1 class="serif text-3xl text-[#1b1b1b]" style="border-bottom:1px solid var(--wiki-rule);padding-bottom:.15em;">Photosynthesis</h1>
+    <p class="mt-1 text-xs text-muted">From Wikipedia · CC BY-SA 4.0</p>
+    <div class="mt-3 space-y-2" style="line-height:1.65;color:#202122;">
+      <p><strong>Photosynthesis</strong> is how plants capture <a class="wl" href="#">light</a> and store it as food.</p>
+      <div class="h-2 w-full rounded bg-bg2"></div><div class="h-2 w-11/12 rounded bg-bg2"></div><div class="h-2 w-10/12 rounded bg-bg2"></div>
+    </div>
+  </section>
+  <aside aria-label="wiki+ rail">
+    <div class="border-2 border-ink bg-white" style="box-shadow:4px 4px 0 var(--ink);">
+      <div class="bg-brand px-3 py-2 text-white plus-sans font-bold">wiki+ · curated video</div>
+      <div class="grid grid-cols-3 divide-x-2 divide-ink border-t-2 border-ink text-center">
+        <div class="p-2"><div class="plus-disp text-2xl text-brand">12</div><div class="text-[10px] uppercase text-muted">videos</div></div>
+        <div class="p-2"><div class="plus-disp text-2xl text-brand">7</div><div class="text-[10px] uppercase text-muted">creators</div></div>
+        <div class="p-2"><div class="plus-disp text-2xl text-brand">4</div><div class="text-[10px] uppercase text-muted">curators</div></div>
+      </div>
+    </div>
+  </aside>
+</main>
+
+<section class="mx-auto max-w-[1200px] px-5 pb-8">
+  <h2 class="plus-sans text-sm font-bold uppercase tracking-wide text-muted">Below <code>lg</code> — collapsed lockup</h2>
+  <div class="mt-3 inline-block border-2 border-dashed border-ink p-4" style="width:330px;max-width:100%;">
+    <div class="mark"><span class="wikiword"><span class="serif text-2xl font-semibold text-[#1b1b1b]">wiki</span></span><span class="panel"><span class="knock" aria-hidden></span><span class="plus-disp text-xl text-white">plus</span></span></div>
+    <p class="mt-2 text-xs text-muted">The knocked-out “+” lives inside the indigo panel, so the lockup collapses to a single inline mark; the panel’s left edge is the seam-substitute.</p>
+  </div>
+</section>
+
+<footer id="ctx" class="mx-auto max-w-[1200px] border-t-2 border-ink px-5 py-6">
+  <h2 class="plus-disp text-2xl">08 · Negative-space “+”</h2>
+  <p class="mt-2 max-w-3xl text-sm leading-relaxed text-ink2">
+    Bold and minimal: a full-height indigo Indigo Press panel butts the white serif “wiki” field on the divide, and the <strong>“+” is knocked out of the indigo</strong> as white negative space sitting right at the seam — it reads by <em>absence</em>, where the wiki-white shows through the plus block.
+    <strong>Left (Wiki):</strong> quiet serif on white. <strong>Right (Plus):</strong> a saturated indigo hardbox, Source Sans 900 “plus”. The knockout makes the white of Wikipedia literally form the plus mark — the two worlds defining each other.
+    <strong>Mobile (&lt; lg):</strong> the knockout is internal to the panel, so the lockup collapses to one inline mark; the panel’s left edge stands in for the lost seam.
+    <span class="block mt-1 text-xs text-muted">Accessibility: the white-on-indigo “plus” text carries the meaning (AA contrast); the knockout glyph is decorative (<code>aria-hidden</code>) and never the sole signal.</span>
+  </p>
+</footer>
+</body>
+</html>

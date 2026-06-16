@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>wiki+ · Centered-wordmark study — straddling the wiki/plus seam</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Sans+Pro:wght@400;700;900&family=Open+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body{font-family:'Open Sans',ui-sans-serif,system-ui,sans-serif;}
+  .plus-disp{font-family:'Source Sans Pro',sans-serif; font-weight:900; letter-spacing:-.02em;}
+  .serif{font-family:Georgia,'Times New Roman',serif;}
+  a:focus-visible{outline:3px solid #676EB4; outline-offset:2px;}
+</style>
+</head>
+<body class="bg-[#F7F7F7] text-[#2C2C2C]">
+  <header class="border-b-2 border-[#2C2C2C] bg-white">
+    <div class="max-w-5xl mx-auto px-6 py-7">
+      <div class="flex items-center gap-2 text-2xl tracking-tight">
+        <span class="serif font-semibold">wiki</span><span class="plus-disp text-[#676EB4]">+plus</span>
+        <span class="ml-3 text-sm font-normal text-[#717171]">Centered-wordmark study — straddling the wiki / plus seam</span>
+      </div>
+      <p class="mt-3 max-w-3xl text-sm leading-relaxed text-[#595959]">
+        Ten standalone explorations of one fixed idea: instead of splitting the wordmark to the two outer
+        edges, <strong>center the mark on the wiki | plus dividing line</strong> — so “wiki” reads just left of
+        the divide (drawing from <strong>Wikipedia</strong>: Georgia serif, restrained, encyclopedic) and the
+        “+ / plus” reads just right of it (drawing from the playful content-creator <strong>“Indigo Press”</strong>
+        side: Source Sans 900, hardbox, indigo). The seam between them is the real
+        <code>1fr | 360px</code> column boundary — well right of page-center — and every mockup shows a sliver of
+        the two columns beneath the header so the straddle reads. Palette is the committed identity
+        (indigo <code>#676EB4</code>, violet <code>#5248AF</code>, teal <code>#2A8270</code>, action <code>#1F6F95</code>,
+        ink <code>#2C2C2C</code>; <strong>gold deliberately unused</strong>). Each card opens a full mockup with a
+        desktop straddle, a collapse preview, and a rationale caption.
+      </p>
+      <p class="mt-2 text-xs text-[#717171]">Design exploration only — not production app code. The current shipped header lives in <code>components/topic/TopicHeader.tsx</code>.</p>
+    </div>
+  </header>
+  <main class="max-w-5xl mx-auto px-6 py-8">
+    <div id="grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5"></div>
+  </main>
+<script>
+  const items=[
+   {file:"wordmark-01-butt-joint.html",     title:"01 · Butt-joint seam",       sw:["#ffffff","#676EB4","#2C2C2C"], desc:"White serif “wiki” field butts a solid indigo “+plus” hardbox at a clean vertical joint on the divide. Two materials, one seam."},
+   {file:"wordmark-02-hinge-plus.html",      title:"02 · Hinge “+” on the rule", sw:["#1b1b1b","#676EB4","#2C2C2C"], desc:"A rotated indigo “+” diamond hardbox sits on the column-divider rule and physically joins serif “wiki” to indigo sans “plus.”"},
+   {file:"wordmark-03-crosshair.html",       title:"03 · Crosshair seam",        sw:["#2C2C2C","#676EB4","#ffffff"], desc:"The “+” is architecture: the header’s bottom rule × an indigo stroke rising from the divide draw the cross. The words just flank it."},
+   {file:"wordmark-04-postmark.html",        title:"04 · Postmark stamp",        sw:["#ffffff","#5248AF","#2C2C2C"], desc:"A rotated violet “+plus” rubber-stamp pressed over the boundary, biting into the serif page — the curator’s mark on the encyclopedia."},
+   {file:"wordmark-05-morph.html",           title:"05 · Serif→Sans morph",      sw:["#1b1b1b","#676EB4","#F7F7F7"], desc:"One continuous wordmark whose type system flips at the seam: Georgia “wiki” morphs into Source Sans 900 indigo “plus.”"},
+   {file:"wordmark-06-torn-paper.html",      title:"06 · Torn-paper seam",       sw:["#fbfaf6","#676EB4","#2C2C2C"], desc:"Encyclopedia paper torn away to reveal the indigo zine block behind it — a cut-and-paste collage of the two worlds."},
+   {file:"wordmark-07-interlock.html",       title:"07 · Interlock overlap",     sw:["#1b1b1b","#676EB4","#5248AF"], desc:"The indigo “+plus” hardbox chip overlaps the serif “wiki” with a multiply blend — the plus layer laid literally over Wikipedia."},
+   {file:"wordmark-08-negative-space.html",  title:"08 · Negative-space “+”",    sw:["#ffffff","#676EB4","#2C2C2C"], desc:"A “+” knocked out of a solid indigo panel as white negative space on the seam — the mark reads by absence. Bold, minimal."},
+   {file:"wordmark-09-spine-rule.html",      title:"09 · The divider is the spine", sw:["#676EB4","#1b1b1b","#2C2C2C"], desc:"The column-divider rule itself is the mark’s indigo spine, with a “+” flag at top, continuing down between the columns."},
+   {file:"wordmark-10-play-tile.html",       title:"10 · Play-tile “+”",         sw:["#676EB4","#5248AF","#2C2C2C"], desc:"The “+” is a rounded indigo→violet app-tile icon whose cross hides a play-triangle — a “+video” affordance on the seam. Most app-forward."},
+  ];
+  document.getElementById("grid").innerHTML=items.map(m=>`
+    <a href="${m.file}" class="group block bg-white border-2 border-[#2C2C2C] overflow-hidden transition hover:-translate-x-0.5 hover:-translate-y-0.5" style="box-shadow:5px 5px 0 #2C2C2C">
+      <div class="flex h-16">${m.sw.map(c=>`<div class="flex-1" style="background:${c}"></div>`).join("")}</div>
+      <div class="p-4 border-t-2 border-[#2C2C2C]">
+        <h2 class="plus-disp text-lg">${m.title}</h2>
+        <p class="mt-1 text-sm text-[#595959] leading-snug">${m.desc}</p>
+        <span class="mt-3 inline-block text-xs font-bold uppercase tracking-wide text-[#676EB4]">Open →</span>
+      </div>
+    </a>`).join("");
+</script>
+</body>
+</html>

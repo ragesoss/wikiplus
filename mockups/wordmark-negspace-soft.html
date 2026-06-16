@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>wiki+ · Negative-space “+” — soft shadow (round 3)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Sans+Pro:wght@400;600;700;900&family=Open+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --brand:#676EB4; --violet:#5248AF; --ink:#2C2C2C; --ink2:#595959; --muted:#717171;
+    --seam:#9aa0a8; --bd:#e6e8eb;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; background:#fff; color:var(--ink); font-family:'Open Sans',system-ui,sans-serif; line-height:1.55;}
+  .wrap{max-width:960px; margin:0 auto; padding:36px 24px 80px;}
+  h1{font-family:'Source Sans Pro',sans-serif; font-weight:900; font-size:1.9rem; letter-spacing:-.02em; margin:0 0 .4em;}
+  .lede{max-width:66ch; color:var(--ink2); font-size:.95rem;}
+  .lede code{background:#f0f1f3; padding:.05em .35em; border-radius:3px; font-size:.86em;}
+  .variant{margin-top:44px;}
+  .vhead{display:flex; align-items:baseline; gap:.6rem; margin-bottom:.5rem;}
+  .vnum{font-family:'Source Sans Pro',sans-serif; font-weight:900; color:var(--brand); font-size:1.05rem;}
+  .vtitle{font-family:'Source Sans Pro',sans-serif; font-weight:700; font-size:1.15rem;}
+  .canvas{position:relative; height:208px; background:#fff; border:1px solid var(--bd); overflow:hidden;}
+  .seam{position:absolute; top:0; bottom:0; left:50%; width:2px; margin-left:-1px; background:var(--seam);}
+  .hbar{position:absolute; left:0; right:0; top:120px; height:2px; background:var(--seam);}
+  .htag{position:absolute; top:124px; right:10px; font-size:10px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted);}
+  .logo{position:absolute; top:0; height:120px; left:0; right:0; display:grid; grid-template-columns:1fr 1fr; align-items:center;}
+  .lhalf{justify-self:end; display:flex; align-items:center;}
+  .rhalf{justify-self:start; display:flex; align-items:center;}
+  .Wiki{font-family:Georgia,'Times New Roman',serif; font-weight:600; color:#1b1b1b; font-size:2.1rem; padding-right:16px;}
+  .explain{margin-top:.7rem; max-width:70ch; font-size:.9rem; color:var(--ink2);}
+  .explain b{color:var(--ink);}
+  .mech{display:inline-block; margin-top:.35rem; font-size:.78rem; color:var(--muted);}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Negative-space “+” — round 3 (soft shadow)</h1>
+  <p class="lede">
+    Taking the <b style="color:#1b1b1b">deep-punch</b> read forward and dropping the hard black hardbox offset entirely.
+    The float now comes from a <b style="color:#1b1b1b">soft, light drop-shadow</b> — which, because the “+” is a real
+    hole, also casts a gentle shadow <i>inside</i> the cut (the page sitting recessed below the block). No black keyline,
+    no boxy stylized edge; the “+” stays clean and recognisable. Variants differ only in how high the block floats, how
+    deep the punch reads, and whether there’s a faint keyline. Canvas is stripped down on purpose: centred seam + a
+    header line. <code>?solo=N</code> isolates one.
+  </p>
+  <div id="grid"></div>
+</div>
+
+<script>
+const INK="#2C2C2C", BRAND="#676EB4", VIOLET="#5248AF";
+
+/* Floating indigo panel with a REAL plus hole (evenodd). The float + the in-cut recess
+   both come from one soft drop-shadow stack — no hard offset, no black keyline. */
+function softPanel({w=150,h=56,cx=30,word=true,arm=7,ext=18,shadow,key=false}){
+  const cy=h/2, a=arm, b=ext;
+  const P=[[cx-a,cy-b],[cx+a,cy-b],[cx+a,cy-a],[cx+b,cy-a],[cx+b,cy+a],[cx+a,cy+a],
+           [cx+a,cy+b],[cx-a,cy+b],[cx-a,cy+a],[cx-b,cy+a],[cx-b,cy-a],[cx-a,cy-a]];
+  const plus="M"+P.map(p=>p.join(" ")).join(" L")+" Z";
+  const outer=`M0 0 H${w} V${h} H0 Z`;
+  const keyline = key ? `<rect x="0.75" y="0.75" width="${w-1.5}" height="${h-1.5}" fill="none" stroke="rgba(44,44,44,.28)" stroke-width="1.5"/>` : "";
+  return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" style="display:block; overflow:visible; filter:${shadow};">
+      <path d="${outer} ${plus}" fill="${BRAND}" fill-rule="evenodd"/>
+      ${keyline}
+      ${word?`<text x="${cx+b+12}" y="${cy+1}" dominant-baseline="middle" font-family="'Source Sans Pro',sans-serif" font-weight="900" font-size="${Math.round(h*0.5)}" letter-spacing="-1" fill="#fff">plus</text>`:""}
+    </svg>`;
+}
+
+// Shadow stacks (soft + light; first layer = the tight one that makes the in-cut recess).
+const SH = {
+  low:  "drop-shadow(0 1px 2px rgba(35,35,60,.30)) drop-shadow(0 3px 6px rgba(35,35,60,.14))",
+  med:  "drop-shadow(0 2px 3px rgba(35,35,60,.32)) drop-shadow(0 6px 12px rgba(35,35,60,.16))",
+  high: "drop-shadow(0 3px 4px rgba(35,35,60,.28)) drop-shadow(0 12px 22px rgba(35,35,60,.18))",
+  deep: "drop-shadow(0 2px 2px rgba(20,20,45,.45)) drop-shadow(0 8px 16px rgba(20,20,45,.16))",
+};
+
+const variants=[
+ {n:"01", title:"Soft punch — low float",
+  mech:"One tight soft shadow + a wide faint one. The tight layer is what shades the top of the cut → a shallow recess.",
+  text:"Barely lifted. A soft, light drop-shadow sits close under the block, and because the “+” is a true hole the same shadow falls a little way <b>into the top of the cut</b> — the page reads as just below the surface. No black edge anywhere.",
+  logo:(lh,rh)=>{lh.innerHTML=`<span class="Wiki">Wiki</span>`; rh.innerHTML=softPanel({cx:30,shadow:SH.low});} },
+
+ {n:"02", title:"Soft punch — medium",
+  mech:"Slightly more elevation + a wider ambient shadow; the in-cut recess deepens with it.",
+  text:"The middle setting — probably the closest to the “deep punch” you liked, minus the stylised black. The block clearly floats, the “+” reads as <b>recessed below it</b>, and the cut stays crisp and white. A good default to tune from.",
+  logo:(lh,rh)=>{lh.innerHTML=`<span class="Wiki">Wiki</span>`; rh.innerHTML=softPanel({cx:30,shadow:SH.med});} },
+
+ {n:"03", title:"Soft punch — lifted",
+  mech:"Lower-opacity but much wider/blurrier shadow = reads as floating higher off the page.",
+  text:"Same idea, more elevation: a broader, softer shadow makes the block hover higher. The in-cut shadow softens and spreads, so the recess feels deeper and more atmospheric — more “app card,” less “sticker.”",
+  logo:(lh,rh)=>{lh.innerHTML=`<span class="Wiki">Wiki</span>`; rh.innerHTML=softPanel({cx:30,shadow:SH.high});} },
+
+ {n:"04", title:"Deeper punch",
+  mech:"A darker, tighter near-shadow concentrates contrast right at the cut edge → the hole reads as thicker / more bored-through.",
+  text:"Pushing the recess specifically: a tighter, darker near-shadow hugs the edges so the “+” feels <b>punched deeper</b> into thicker material, while the wider layer keeps the float gentle. Closest to a die-cut feel without any hard keyline.",
+  logo:(lh,rh)=>{lh.innerHTML=`<span class="Wiki">Wiki</span>`; rh.innerHTML=softPanel({cx:30,shadow:SH.deep});} },
+
+ {n:"05", title:"Soft punch + hairline",
+  mech:"Medium soft shadow plus a single faint grey keyline — definition without the black hardbox border.",
+  text:"If the floating block needs a touch more edge definition on a white page, a <b>faint 1.5px grey keyline</b> (not black, not offset) crisps the silhouette while the soft shadow does the lifting. A halfway house toward the Indigo-Press border without the heavy treatment.",
+  logo:(lh,rh)=>{lh.innerHTML=`<span class="Wiki">Wiki</span>`; rh.innerHTML=softPanel({cx:30,shadow:SH.med,key:true});} },
+
+ {n:"06", title:"Minimal “Wiki+” (soft)",
+  mech:"Drop the word; the recessed “+” square alone carries the plus.",
+  text:"The tightest mark: serif <b>“Wiki”</b> and a single soft-floating indigo square with a clean recessed “+”. Reads as a real logo / app tile, with the soft shadow doing the float and the in-cut recess doing the depth.",
+  logo:(lh,rh)=>{lh.innerHTML=`<span class="Wiki" style="padding-right:14px;">Wiki</span>`; rh.innerHTML=softPanel({w:56,h:56,cx:28,word:false,arm:8,ext:19,shadow:SH.med});} },
+];
+
+const grid=document.getElementById("grid");
+const solo=new URLSearchParams(location.search).get("solo");
+const shown = solo ? variants.filter(v=>v.n===String(solo).padStart(2,"0")) : variants;
+if(solo){ document.querySelector(".lede").style.display="none"; document.querySelector("h1").style.display="none"; }
+for(const v of shown){
+  const sec=document.createElement("section"); sec.className="variant";
+  sec.innerHTML=`<div class="vhead"><span class="vnum">${v.n}</span><span class="vtitle">${v.title}</span></div>`;
+  const canvas=document.createElement("div"); canvas.className="canvas";
+  canvas.innerHTML=`<div class="seam"></div><div class="hbar"></div><span class="htag">header ends</span>`;
+  const logo=document.createElement("div"); logo.className="logo";
+  const lh=document.createElement("div"); lh.className="lhalf";
+  const rh=document.createElement("div"); rh.className="rhalf";
+  v.logo(lh,rh); logo.appendChild(lh); logo.appendChild(rh); canvas.appendChild(logo);
+  sec.appendChild(canvas);
+  const ex=document.createElement("p"); ex.className="explain";
+  ex.innerHTML=v.text+`<span class="mech">${v.mech}</span>`;
+  sec.appendChild(ex);
+  grid.appendChild(sec);
+}
+</script>
+</body>
+</html>

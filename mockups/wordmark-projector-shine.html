@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>wiki+ · Projector shine on a distant surface (round 9)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Sans+Pro:wght@400;600;700;900&family=Open+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --brand:#676EB4; --violet:#5248AF; --sprout:#2A8270; --ink:#2C2C2C;
+    --ink2:#595959; --muted:#717171; --seam:#9aa0a8; --bd:#e6e8eb;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; background:#fff; color:var(--ink); font-family:'Open Sans',system-ui,sans-serif; line-height:1.55;}
+  .wrap{max-width:1000px; margin:0 auto; padding:36px 24px 90px;}
+  h1{font-family:'Source Sans Pro',sans-serif; font-weight:900; font-size:1.9rem; letter-spacing:-.02em; margin:0 0 .4em;}
+  .lede{max-width:72ch; color:var(--ink2); font-size:.95rem;}
+  .lede code{background:#f0f1f3; padding:.05em .35em; border-radius:3px; font-size:.86em;}
+  .variant{margin-top:46px;}
+  .vhead{display:flex; align-items:baseline; gap:.6rem; margin-bottom:.5rem;}
+  .vnum{font-family:'Source Sans Pro',sans-serif; font-weight:900; color:var(--brand); font-size:1.05rem;}
+  .vtitle{font-family:'Source Sans Pro',sans-serif; font-weight:700; font-size:1.15rem;}
+  .canvas{position:relative; height:520px; background:#fff; border:1px solid var(--bd); overflow:hidden;}
+  .seam{position:absolute; top:0; bottom:0; left:50%; width:2px; margin-left:-1px; background:var(--seam); z-index:12;}
+  .hbar{position:absolute; left:0; right:0; top:118px; height:2px; background:var(--seam); z-index:11;}
+  .htag{position:absolute; top:122px; right:10px; font-size:10px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); z-index:11;}
+  .explain{margin-top:.7rem; max-width:74ch; font-size:.9rem; color:var(--ink2);}
+  .explain b{color:var(--ink);}
+  .mech{display:inline-block; margin-top:.35rem; font-size:.78rem; color:var(--muted);}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Projector shine on a distant surface — round 9</h1>
+  <p class="lede">
+    Re-thought: the “+” you see isn’t the beam’s cross-section — it’s the <b style="color:#1b1b1b">shine landing on a distant
+    surface</b>. The grazing angle (or the curve of the surface) stretches it, so a narrow bright stem falls from the
+    aperture and <b style="color:#1b1b1b">flares into a crossbar wider than the whole content area</b>, then
+    <b style="color:#1b1b1b">fades to nothing just past the crossbar</b> — only the bottom of the cross ever resolves.
+    <code>?solo=N</code> isolates one.
+  </p>
+  <div id="grid"></div>
+</div>
+
+<script>
+const BRAND="#676EB4", VIOLET="#5248AF", INK="#2C2C2C";
+function plusPath(cx,cy,a,b){const P=[[cx-a,cy-b],[cx+a,cy-b],[cx+a,cy-a],[cx+b,cy-a],[cx+b,cy+a],[cx+a,cy+a],
+  [cx+a,cy+b],[cx-a,cy+b],[cx-a,cy+a],[cx-b,cy+a],[cx-b,cy-a],[cx-a,cy-a]];return "M"+P.map(p=>p.join(" ")).join(" L")+" Z";}
+function el(s,z){const d=document.createElement("div");Object.assign(d.style,{position:"absolute",zIndex:z,pointerEvents:"none"},s);return d;}
+function projectorBlock(w,h,cutCx){const cy=h/2,a=8,b=Math.min(h*0.32,18),cx=cutCx;
+  return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" style="display:block;">
+    <path d="M0 0 H${w} V${h} H0 Z ${plusPath(cx,cy,a,b)}" fill="${BRAND}" fill-rule="evenodd"/>
+    <rect x="1" y="1" width="${w-2}" height="${h-2}" fill="none" stroke="${INK}" stroke-width="2"/>
+    <text x="${cx+b+13}" y="${cy+1}" dominant-baseline="middle" font-family="'Source Sans Pro',sans-serif" font-weight="900" font-size="${Math.round(h*0.46)}" letter-spacing="-1" fill="#fff">plus</text></svg>`;}
+
+function buildScene(canvas,o){
+  const cw=canvas.clientWidth, seam=cw/2, cyMid=64, FS=42;
+
+  // very faint "distant surface" (empty-ish Wikipedia article) the shine lands on
+  const art=el({left:(seam-150)+"px", top:"160px", width:"300px", zIndex:1, opacity:.32},1);
+  art.innerHTML=`<div style="font-family:Georgia,serif;font-size:19px;color:#1b1b1b;border-bottom:1px solid #d3d7dc;padding-bottom:3px;">Photosynthesis</div>
+    <div style="height:7px;background:#eef0f3;margin-top:10px;border-radius:3px;"></div>
+    <div style="height:7px;background:#eef0f3;margin-top:7px;border-radius:3px;width:90%;"></div>
+    <div style="height:7px;background:#eef0f3;margin-top:7px;border-radius:3px;width:82%;"></div>`;
+  canvas.appendChild(art);
+
+  const ghost=document.createElement("span"); ghost.textContent="Wikipedia";
+  Object.assign(ghost.style,{position:"absolute",fontFamily:"Georgia,serif",fontWeight:"600",fontSize:FS+"px",
+    color:INK,opacity:.5,whiteSpace:"nowrap",top:cyMid+"px",transform:"translateY(-50%)",left:"0px",zIndex:3,filter:"blur(.5px)"});
+  canvas.appendChild(ghost);
+  const crisp=document.createElement("span"); crisp.textContent="Wiki";
+  Object.assign(crisp.style,{position:"absolute",fontFamily:"Georgia,serif",fontWeight:"600",fontSize:FS+"px",
+    color:"#1b1b1b",whiteSpace:"nowrap",top:cyMid+"px",transform:"translateY(-50%)",zIndex:10});
+  canvas.appendChild(crisp);
+  const w1=crisp.offsetWidth, wp=ghost.offsetWidth-w1;
+  ghost.style.left=(seam-w1)+"px"; crisp.style.left=(seam-w1)+"px";
+
+  const bh=56, by=cyMid-bh/2, bx=seam, bw=Math.max(wp+10, 30+Math.min(bh*0.32,18)+13+64);
+  const cutCx=Math.min(Math.max(wp*0.46,24),30), ccx=bx+cutCx, ccy=by+bh/2;
+
+  const C=o.col;                 // light colour "r,g,b"
+  const apexY=by+bh+2, barY=o.barY;        // stem from just below block down to the crossbar
+  const stemH=barY-apexY;
+
+  // STEM — narrow bright column descending from the aperture, widening toward the crossbar
+  const stem=el({left:(ccx-o.stemBot/2)+"px", top:apexY+"px", width:o.stemBot+"px", height:stemH+"px",
+    clipPath:`polygon(${(o.stemBot-o.stemTop)/2}px 0, ${(o.stemBot+o.stemTop)/2}px 0, 100% 100%, 0% 100%)`,
+    background:`linear-gradient(to bottom, rgba(${C},${(o.bright*0.28).toFixed(2)}) 0%, rgba(${C},${(o.bright*0.7).toFixed(2)}) 78%, rgba(${C},${o.bright}) 100%)`,
+    filter:`blur(${o.stemBlur}px)`},5);
+  canvas.appendChild(stem);
+
+  // CROSSBAR — the landed shine reads as a wide CROSS of light on the surface: a soft
+  // halo + a very wide horizontal arm + a short vertical arm + a hot core. The light is
+  // VISIBLE indigo (white is invisible on a white surface); the hot core is a light
+  // indigo. Everything fades to nothing just past the crossbar.
+  const CW=o.barW, CH=o.barH, HC=o.hotC;
+  const halo=el({left:(ccx-CW/2)+"px", top:(barY-CH/2)+"px", width:CW+"px", height:CH+"px",
+    background:`radial-gradient(ellipse 50% 50% at 50% 50%, rgba(${C},${(o.bright*0.75).toFixed(2)}) 0%, rgba(${C},${(o.bright*0.32).toFixed(2)}) 30%, rgba(${C},0) 70%)`,
+    filter:`blur(${o.barBlur}px)`},6);
+  if(o.curve) halo.style.transform=`perspective(720px) rotateX(42deg)`;
+  canvas.appendChild(halo);
+  const HW=CW*0.94;
+  canvas.appendChild(el({left:(ccx-HW/2)+"px", top:(barY-9)+"px", width:HW+"px", height:"18px",
+    background:`linear-gradient(to right, rgba(${C},0), rgba(${HC},${o.hot}) 50%, rgba(${C},0))`, filter:"blur(5px)"},7));
+  const VH=o.vArm||118;
+  canvas.appendChild(el({left:(ccx-9)+"px", top:(barY-VH/2)+"px", width:"18px", height:VH+"px",
+    background:`linear-gradient(to bottom, rgba(${C},0), rgba(${HC},${(o.hot*0.92).toFixed(2)}) 50%, rgba(${C},0))`, filter:"blur(5px)"},7));
+  canvas.appendChild(el({left:(ccx-o.coreR)+"px", top:(barY-o.coreR)+"px", width:(2*o.coreR)+"px", height:(2*o.coreR)+"px",
+    background:`radial-gradient(circle, rgba(${HC},1) 0%, rgba(${C},.5) 40%, rgba(${C},0) 72%)`},8));
+
+  // lit aperture bloom
+  const R=22;
+  canvas.appendChild(el({left:(ccx-R)+"px", top:(ccy-R)+"px", width:(2*R)+"px", height:(2*R)+"px",
+    background:`radial-gradient(circle, rgba(${C},.9) 0%, rgba(${C},.55) 42%, rgba(${C},0) 72%)`},3.5));
+
+  // hard black offset + block
+  canvas.appendChild(el({left:(bx+6)+"px", top:(by+bh)+"px", width:bw+"px", height:"6px", background:INK},4));
+  canvas.appendChild(el({left:(bx+bw)+"px", top:(by+6)+"px", width:"6px", height:bh+"px", background:INK},4));
+  const box=el({left:bx+"px", top:by+"px"},9); box.innerHTML=projectorBlock(bw,bh,cutCx);
+  canvas.appendChild(box);
+}
+
+const variants=[
+ {n:"01", title:"Shine — grazing angle",
+  mech:"Narrow bright stem from the aperture flares into a crossbar wider than the content area; it fades to nothing just past the crossbar — the bottom arm never resolves.",
+  text:"The reframed read: the “+” is the <b>shine on the surface</b>, not the beam. A narrow bright stem falls and <b>flares into a wide crossbar</b> (wider than the content area), then dissolves just past it — so you only ever see the stem and the spreading arms, fading out.",
+  o:{col:"103,110,180", hotC:"178,184,238", bright:.62, hot:.9, barY:360, barW:780, barH:170, stemTop:16, stemBot:64, stemBlur:8, barBlur:14, coreR:26, vArm:128}},
+
+ {n:"02", title:"Shine — steeper, wider",
+  mech:"Even shallower angle: the crossbar spreads almost the full width and the fade past it is quicker — maximally foreshortened.",
+  text:"Pushing the angle: the crossbar arms spread <b>almost the full width</b> and the fade past the crossbar is faster, so the shine reads as a very low, grazing projection just catching the surface before it’s gone.",
+  o:{col:"110,118,195", hotC:"190,194,245", bright:.66, hot:.95, barY:372, barW:920, barH:150, stemTop:14, stemBot:78, stemBlur:9, barBlur:13, coreR:28, vArm:120}},
+
+ {n:"03", title:"Shine — curved surface",
+  mech:"Same shine, but the crossbar is tilted in perspective as if landing on a curved/receding surface.",
+  text:"The “landscape such a curve” reading: the crossbar is <b>tilted into perspective</b>, as if the shine lands on a surface curving away — the arms rake across it and fade over the horizon just past the crossbar.",
+  o:{col:"103,110,180", hotC:"178,184,238", bright:.6, hot:.9, barY:356, barW:840, barH:180, stemTop:16, stemBot:70, stemBlur:8, barBlur:15, coreR:26, curve:true, vArm:128}},
+];
+
+const grid=document.getElementById("grid");
+const solo=new URLSearchParams(location.search).get("solo");
+const shown = solo ? variants.filter(v=>v.n===String(solo).padStart(2,"0")) : variants;
+if(solo){ document.querySelector(".lede").style.display="none"; document.querySelector("h1").style.display="none"; }
+for(const v of shown){
+  const sec=document.createElement("section"); sec.className="variant";
+  sec.innerHTML=`<div class="vhead"><span class="vnum">${v.n}</span><span class="vtitle">${v.title}</span></div>`;
+  const canvas=document.createElement("div"); canvas.className="canvas";
+  canvas.innerHTML=`<div class="seam"></div><div class="hbar"></div><span class="htag">header ends</span>`;
+  grid.appendChild(sec); sec.appendChild(canvas);
+  const ex=document.createElement("p"); ex.className="explain";
+  ex.innerHTML=v.text+`<span class="mech">${v.mech}</span>`;
+  sec.appendChild(ex);
+  buildScene(canvas, v.o);
+}
+</script>
+</body>
+</html>

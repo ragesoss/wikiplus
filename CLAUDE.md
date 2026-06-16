@@ -83,8 +83,9 @@ behind Cloudflare, Auth.js OAuth (Wikimedia for the MVP).
 - **Wikimedia etiquette** (descriptive User-Agent, rate limits, lazy cache) + **CC BY-SA**
   attribution on every article view.
 - **Plus identity = "Indigo Press"** on the Wiki Education Dashboard palette: `brand #676EB4`,
-  `sprout #2A8270`, `action #1F6F95`, `ink #2C2C2C`; **gold `#E5AB28` deliberately unused**.
-  The Wiki article side keeps a faithful Wikipedia look.
+  `sprout #2A8270`, `action #1F6F95`, `ink #2C2C2C`; **gold `#E5AB28` is an accent / tertiary
+  color** — used sparingly (e.g. the header wordmark), never indigo's equal and never a functional
+  signal color. The Wiki article side keeps a faithful Wikipedia look.
 - **Accessibility is baseline** — AA contrast, focus states, keyboard support, text-labeled
   signals (never color alone).
 

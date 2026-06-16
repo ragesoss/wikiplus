@@ -36,8 +36,10 @@ Dashboard** brand palette so wiki+ reads as part of that brand world. Defining t
 - **Light, editorial cards** — white/very-light panels with **2px ink (`#2C2C2C`) borders and
   solid offset drop-shadows**, big numerals for counts, chunky count tags, color-blocked panels,
   and bold oversized display headings on plus blocks.
-- **Indigo-dominant**, no gold. The ＋plus header label, the **wiki+ panel** (see *Two infoboxes*),
-  and the General band are **indigo `#676EB4`** color-blocks; count numerals/tags are indigo.
+- **Indigo-dominant**; gold is an accent only. The ＋plus header label, the **wiki+ panel** (see
+  *Two infoboxes*), and the General band are **indigo `#676EB4`** color-blocks; count numerals/tags
+  are indigo. Gold (`#E5AB28`) is a tertiary accent reserved for the header wordmark (see
+  `VISUAL_IDENTITY.md`), never a color-block or a functional signal.
 - **Brand fonts**: headings **Source Sans Pro**, body **Open Sans** (the dashboard's fonts).
   The Wiki side keeps its serif Wikipedia look — the two type systems reinforce the two worlds.
 
@@ -53,7 +55,9 @@ Dashboard** brand palette so wiki+ reads as part of that brand world. Defining t
 | Inks | `#2C2C2C` / `#595959` / `#717171` |
 | Light bg / borders | `#F7F7F7` · `#F0F1F3` / `#D9D9D9` |
 
-Gold (`#E5AB28`) exists in the brand palette but is **deliberately not used** in this identity.
+Gold (`#E5AB28`) is the palette's **accent / tertiary** color: used sparingly — and in a lighter,
+desaturated form — for the header wordmark (see `VISUAL_IDENTITY.md`); it is never indigo's equal,
+never a color-block fill, and never a functional signal color.
 
 ### Fact-vs-opinion signal (chips)
 

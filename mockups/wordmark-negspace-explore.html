@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>wiki+ · Negative-space “+” explorations</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Sans+Pro:wght@400;600;700;900&family=Open+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --brand:#676EB4; --violet:#5248AF; --ink:#2C2C2C; --ink2:#595959; --muted:#717171;
+    --seam:#9aa0a8; --bd:#e6e8eb;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; background:#fff; color:var(--ink); font-family:'Open Sans',system-ui,sans-serif; line-height:1.55;}
+  .wrap{max-width:960px; margin:0 auto; padding:36px 24px 80px;}
+  h1{font-family:'Source Sans Pro',sans-serif; font-weight:900; font-size:1.9rem; letter-spacing:-.02em; margin:0 0 .4em;}
+  .lede{max-width:64ch; color:var(--ink2); font-size:.95rem;}
+  .lede code{background:#f0f1f3; padding:.05em .35em; border-radius:3px; font-size:.86em;}
+  .variant{margin-top:44px;}
+  .vhead{display:flex; align-items:baseline; gap:.6rem; margin-bottom:.5rem;}
+  .vnum{font-family:'Source Sans Pro',sans-serif; font-weight:900; color:var(--brand); font-size:1.05rem;}
+  .vtitle{font-family:'Source Sans Pro',sans-serif; font-weight:700; font-size:1.15rem;}
+  /* the stripped-down canvas: a centred vertical seam + a horizontal header line */
+  .canvas{position:relative; height:208px; background:#fff; border:1px solid var(--bd); overflow:hidden;}
+  .seam{position:absolute; top:0; bottom:0; left:50%; width:2px; margin-left:-1px; background:var(--seam);}
+  .hbar{position:absolute; left:0; right:0; top:120px; height:2px; background:var(--seam);}
+  .htag{position:absolute; top:124px; right:10px; font-size:10px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted);}
+  /* the logo lives in the header band (above hbar), its wiki|plus junction on the seam */
+  .logo{position:absolute; top:0; height:120px; left:0; right:0; display:grid; grid-template-columns:1fr 1fr; align-items:center;}
+  .lhalf{justify-self:end; display:flex; align-items:center;}
+  .rhalf{justify-self:start; display:flex; align-items:center;}
+  .Wiki{font-family:Georgia,'Times New Roman',serif; font-weight:600; color:#1b1b1b; font-size:2.1rem; padding-right:14px;}
+  .explain{margin-top:.7rem; max-width:70ch; font-size:.9rem; color:var(--ink2);}
+  .explain b{color:var(--ink);}
+  .mech{display:inline-block; margin-top:.35rem; font-size:.78rem; color:var(--muted);}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Negative-space “+” — round 2</h1>
+  <p class="lede">
+    Stripped-down canvas on purpose: just a centred <b style="color:#1b1b1b">vertical seam</b>, a horizontal line for the
+    <b style="color:#1b1b1b">end of the header</b>, and the logo straddling the seam — no search field, rail, or page
+    fidelity. The point isn’t the colour: the “+” is a <i>real cut-out</i> in a floating Indigo-Press block, so its
+    negative space <b style="color:#1b1b1b">reveals whatever the Wiki side is</b> (here a flat white field — but it could
+    be paper, a tint, anything). Each variant is a different way to make that hole <i>read</i> as the page showing through
+    rather than painted-on white — you can see the page, and sometimes the seam line, through it.
+  </p>
+  <div id="grid"></div>
+</div>
+
+<script>
+const INK="#2C2C2C", BRAND="#676EB4", VIOLET="#5248AF";
+
+/* The hardbox offset shadow, drawn as TWO edge bars (bottom + right) only — never a
+   full silhouette behind the block. That's the whole trick: a solid drop-shadow fills
+   in behind the "+" hole and smears a boxy shadow inside the cut-out; edge bars sit
+   OUTSIDE the block footprint, so the cut stays clean and the plus keeps its shape. */
+function shadowBars(w,h,s){
+  return `<span style="position:absolute;z-index:0;left:${s}px;top:${h}px;width:${w}px;height:${s}px;background:${INK};"></span>`
+       + `<span style="position:absolute;z-index:0;left:${w}px;top:${s}px;width:${s}px;height:${h}px;background:${INK};"></span>`;
+}
+
+/* A floating indigo panel with a REAL plus-shaped hole (evenodd) so the page shows
+   through it — no shadow inside the cut. Optional white "plus" word. cx = horizontal
+   centre of the hole within the panel. */
+function plusPanel({w=150,h=56,cx=30,word=true,arm=7,ext=18}){
+  const cy=h/2, a=arm, b=ext;
+  const P=[[cx-a,cy-b],[cx+a,cy-b],[cx+a,cy-a],[cx+b,cy-a],[cx+b,cy+a],[cx+a,cy+a],
+           [cx+a,cy+b],[cx-a,cy+b],[cx-a,cy+a],[cx-b,cy+a],[cx-b,cy-a],[cx-a,cy-a]];
+  const plus="M"+P.map(p=>p.join(" ")).join(" L")+" Z";
+  const outer=`M0 0 H${w} V${h} H0 Z`;
+  const svg=`<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" style="display:block;position:relative;z-index:1;">
+      <path d="${outer} ${plus}" fill="${BRAND}" fill-rule="evenodd"/>
+      <rect x="1" y="1" width="${w-2}" height="${h-2}" fill="none" stroke="${INK}" stroke-width="2"/>
+      ${word?`<text x="${cx+b+12}" y="${cy+1}" dominant-baseline="middle" font-family="'Source Sans Pro',sans-serif" font-weight="900" font-size="${Math.round(h*0.5)}" letter-spacing="-1" fill="#fff">plus</text>`:""}
+    </svg>`;
+  return `<span style="position:relative;display:inline-block;width:${w}px;height:${h}px;">${svg}${shadowBars(w,h,6)}</span>`;
+}
+
+const variants=[
+ {n:"01", title:"Float & punch",
+  mech:"Mechanism: a big solid offset shadow makes the block read as lifted off the page → the cut-out can only be the page beneath.",
+  text:"The baseline, done with conviction. The indigo block sits well above the page on a chunky hardbox shadow, and a bold “+” is punched clean through it. Because the block is obviously <b>floating</b>, the eye reads the “+” as a window to the white underneath — the same white the serif “Wiki” sits on.",
+  logo:(lh,rh)=>{lh.innerHTML=`<span class="Wiki">Wiki</span>`; rh.innerHTML=plusPanel({cx:30});} },
+
+ {n:"02", title:"The seam runs through the “+”",
+  mech:"Mechanism: the hole sits ON the seam, so the page’s seam line is visible inside the “+” — proof it’s a window, not white ink.",
+  text:"The block straddles the divide and the “+” is centred on the seam, so the grey <b>seam line keeps going right through the vertical arm of the “+”.</b> You can see the page <i>and</i> the page’s own divider through the cut-out, which removes any doubt that the white is paint.",
+  logo:(lh,rh)=>{lh.innerHTML=`<span class="Wiki" style="padding-right:46px;">Wiki</span>`; rh.style.marginLeft="-30px"; rh.innerHTML=plusPanel({cx:30});} },
+
+ {n:"03", title:"Channel “+” (the gap, not a punch)",
+  mech:"Mechanism: no solid block at all — the “+” is the structural white gap between four indigo tiles; its vertical arm IS the seam.",
+  text:"Here the negative space is honest architecture: four indigo tiles float as one unit, parted by a cross-shaped <b>channel of bare page</b>. The vertical channel sits exactly on the seam, so the layout’s divide and the logo’s “+” are the same line of white.",
+  logo:(lh,rh)=>{
+     lh.innerHTML=`<span class="Wiki" style="padding-right:48px;">Wiki</span>`;
+     rh.style.marginLeft="-38px";  // centre the vertical channel on the seam
+     // transparent gap + box-shadow (not drop-shadow) → the cross of bare page shows
+     // through the channels with a clean float shadow only on the outer edge.
+     rh.innerHTML=`<div style="display:grid; grid-template-columns:30px 30px; grid-template-rows:24px 24px; gap:13px; background:transparent; border:2px solid ${INK}; box-shadow:6px 6px 0 ${INK};">
+        <div style="background:${BRAND}"></div><div style="background:${BRAND}"></div>
+        <div style="background:${BRAND}"></div><div style="background:${BRAND}"></div></div>
+        <span style="font-family:'Source Sans Pro',sans-serif; font-weight:900; font-size:1.6rem; color:${BRAND}; margin-left:12px;">plus</span>`;
+  } },
+
+ {n:"04", title:"Deep punch (inner shadow)",
+  mech:"Mechanism: a soft inset shadow on the hole’s edges gives it depth, so it reads as bored through the material to the page.",
+  text:"Same float, but the cut-out gets a faint <b>inner shadow</b> along its edges — the cue your eye uses for “this is a hole with thickness,” like a die-cut in thick card stock. The depth makes the page-white feel recessed beneath the indigo rather than level with it.",
+  logo:(lh,rh)=>{lh.innerHTML=`<span class="Wiki">Wiki</span>`; rh.innerHTML=plusPanel({cx:30,inner:true});} },
+
+ {n:"05", title:"Overlap embrace",
+  mech:"Mechanism: the indigo card overlaps a distinct white “Wiki” card; the “+” is cut where it sits over that card, revealing ITS white.",
+  text:"The Wiki side is its own white card (faint border + soft shadow); the indigo plus card laps over its right edge, and the “+” is punched <b>where it overlaps the Wiki card</b> — so the negative space reveals the Wikipedia surface specifically, not just generic page. The two worlds physically interlock and share one white.",
+  custom:(canvas)=>{
+     const c=document.createElement("div");
+     c.className="logo"; c.style.display="block";
+     c.innerHTML=`
+       <div style="position:absolute; top:34px; left:calc(50% - 150px); width:190px; height:52px; background:#fff; border:1px solid #d7dade; box-shadow:0 2px 7px rgba(0,0,0,.12); display:flex; align-items:center; justify-content:flex-start; padding-left:18px;">
+         <span class="Wiki" style="padding:0;">Wiki</span>
+       </div>
+       <div style="position:absolute; top:40px; left:calc(50% - 34px); ">${plusPanel({w:150,h:56,cx:28,shadow:"5px 5px 0 "+INK})}</div>`;
+     canvas.appendChild(c);
+  } },
+
+ {n:"06", title:"Minimal “Wiki+” (no word)",
+  mech:"Mechanism: drop the word “plus” entirely — the punched “+” alone carries it, the most logo-like reduction.",
+  text:"The tightest lockup: serif <b>“Wiki”</b> and a single floating indigo square with a clean “+” knocked out — the “+” <i>is</i> the “plus.” Reads as a real mark you could drop on a tab or an app icon, with the white-through-the-hole doing all the conceptual work.",
+  logo:(lh,rh)=>{lh.innerHTML=`<span class="Wiki" style="padding-right:12px;">Wiki</span>`; rh.innerHTML=plusPanel({w:56,h:56,cx:28,word:false,arm:8,ext:19});} },
+];
+
+const grid=document.getElementById("grid");
+// ?solo=N renders just one variant (for isolated inspection); hides the intro.
+const solo=new URLSearchParams(location.search).get("solo");
+const shown = solo ? variants.filter(v=>v.n===String(solo).padStart(2,"0")) : variants;
+if(solo){ document.querySelector(".lede").style.display="none"; document.querySelector("h1").style.display="none"; }
+for(const v of shown){
+  const sec=document.createElement("section"); sec.className="variant";
+  sec.innerHTML=`<div class="vhead"><span class="vnum">${v.n}</span><span class="vtitle">${v.title}</span></div>`;
+  const canvas=document.createElement("div"); canvas.className="canvas";
+  canvas.innerHTML=`<div class="seam"></div><div class="hbar"></div><span class="htag">header ends</span>`;
+  if(v.custom){ v.custom(canvas); }
+  else{
+    const logo=document.createElement("div"); logo.className="logo";
+    const lh=document.createElement("div"); lh.className="lhalf";
+    const rh=document.createElement("div"); rh.className="rhalf";
+    v.logo(lh,rh); logo.appendChild(lh); logo.appendChild(rh); canvas.appendChild(logo);
+  }
+  sec.appendChild(canvas);
+  const ex=document.createElement("p"); ex.className="explain";
+  ex.innerHTML=v.text+`<span class="mech">${v.mech}</span>`;
+  sec.appendChild(ex);
+  grid.appendChild(sec);
+}
+</script>
+</body>
+</html>

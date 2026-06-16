@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>wiki+ · Wordmark 06 · Torn-paper seam</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Sans+Pro:wght@400;600;700;900&family=Open+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  :root{
+    --brand:#676EB4; --violet:#5248AF; --sprout:#2A8270; --action:#1F6F95;
+    --accred:#B0353B; --ink:#2C2C2C; --ink2:#595959; --muted:#717171;
+    --bg:#F7F7F7; --bg2:#F0F1F3; --wiki-rule:#a2a9b1; --wl:#3366cc;
+  }
+  body{background:var(--bg); color:var(--ink); font-family:'Open Sans',system-ui,sans-serif;}
+  .serif{font-family:Georgia,'Times New Roman',serif;}
+  .plus-disp{font-family:'Source Sans Pro',system-ui,sans-serif; font-weight:900; letter-spacing:-.02em;}
+  .plus-sans{font-family:'Source Sans Pro',system-ui,sans-serif;}
+  .wl{color:var(--wl); text-decoration:none;} .wl:hover{text-decoration:underline;}
+  *:focus-visible{outline:3px solid var(--brand); outline-offset:2px;}
+
+  /* Shared seam scaffold (proven in wordmark-01): pins the mark's centre to the
+     1fr|360px divide — gap-7 = 28px, so the seam is 14px past the wiki cell's
+     right edge. translateX(50%) centres the mark there regardless of its width. */
+  .seam-mark{position:absolute; top:50%; right:-14px; transform:translate(50%,-50%); z-index:10;}
+  .seam-line{position:absolute; top:0; bottom:0; right:-14px; width:1px; background:var(--wiki-rule);}
+
+  /* paper field (wiki) ends in a torn edge; indigo block (plus) begins with the mating tear */
+  .mark{display:flex; align-items:stretch; height:44px; white-space:nowrap;}
+  .paper{display:flex; align-items:center; padding:0 2px 0 10px; background:#fbfaf6;
+         border:1px solid #e6e2d6; border-right:0;
+         clip-path:polygon(0 0, 100% 0, 92% 14%, 100% 30%, 90% 48%, 100% 66%, 91% 84%, 100% 100%, 0 100%);}
+  .zine{display:flex; align-items:center; gap:5px; padding:0 12px 0 4px; margin-left:-10px;
+        background:var(--brand); color:#fff;
+        clip-path:polygon(8% 0, 100% 0, 100% 100%, 8% 100%, 0 84%, 10% 66%, 0 48%, 9% 30%, 0 14%);}
+</style>
+</head>
+<body class="text-ink">
+<a href="#ctx" class="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:top-2 focus:left-2 focus:bg-white focus:px-3 focus:py-2 focus:border-2 focus:border-ink plus-sans font-bold">Skip to caption</a>
+
+<header class="sticky top-0 z-40 border-b-2 border-ink bg-white">
+  <div class="mx-auto grid max-w-[1200px] grid-cols-1 items-stretch gap-7 px-5 lg:grid-cols-[1fr_360px]">
+    <div class="relative flex h-16 items-center gap-3 lg:pr-44">
+      <!-- < lg: the straddle collapses to this inline lockup (no seam to straddle). -->
+      <a href="#" aria-label="wiki plus — home" class="mark mr-1 flex lg:hidden">
+        <span class="paper"><span class="serif text-2xl font-semibold text-[#1b1b1b]">wiki</span></span>
+        <span class="zine"><span class="plus-disp text-lg">+</span><span class="plus-disp text-xl">plus</span></span>
+      </a>
+      <label class="sr-only" for="s6">Search topics</label>
+      <div class="flex items-center gap-1 border border-[#c8ccd1] bg-white px-2 py-1 text-sm text-muted">
+        <span aria-hidden>🔍</span><input id="s6" class="w-28 outline-none placeholder:text-muted" placeholder="Search topics" />
+      </div>
+      <span class="hidden min-w-0 shrink truncate serif text-base text-slate-500 md:inline">Photosynthesis</span>
+
+      <span class="seam-line hidden lg:block" aria-hidden></span>
+      <a href="#" aria-label="wiki plus — home" class="seam-mark mark hidden lg:flex">
+        <span class="paper"><span class="serif text-2xl font-semibold text-[#1b1b1b]">wiki</span></span>
+        <span class="zine"><span class="plus-disp text-lg">+</span><span class="plus-disp text-xl">plus</span></span>
+      </a>
+    </div>
+    <div class="hidden h-16 items-center justify-end lg:flex lg:pl-24">
+      <span class="flex items-center gap-1.5 text-ink">
+        <span aria-hidden class="h-7 w-7 rounded-full border-2 border-ink bg-gradient-to-br from-emerald-300 to-teal-600"></span>
+        <span class="text-[12px] font-bold">@maria_edu</span>
+        <span class="text-[9px] font-bold uppercase tracking-wide text-sprout">signed in</span>
+      </span>
+    </div>
+  </div>
+</header>
+
+<main class="mx-auto grid max-w-[1200px] grid-cols-1 gap-7 px-5 pb-10 pt-6 lg:grid-cols-[1fr_360px]">
+  <section aria-label="Article (Wikipedia)" class="relative">
+    <span class="seam-line hidden lg:block" aria-hidden style="top:-1.5rem;"></span>
+    <h1 class="serif text-3xl text-[#1b1b1b]" style="border-bottom:1px solid var(--wiki-rule);padding-bottom:.15em;">Photosynthesis</h1>
+    <p class="mt-1 text-xs text-muted">From Wikipedia · CC BY-SA 4.0</p>
+    <div class="mt-3 space-y-2" style="line-height:1.65;color:#202122;">
+      <p><strong>Photosynthesis</strong> turns <a class="wl" href="#">sunlight</a> into the chemical energy plants need to grow.</p>
+      <div class="h-2 w-full rounded bg-bg2"></div><div class="h-2 w-11/12 rounded bg-bg2"></div><div class="h-2 w-10/12 rounded bg-bg2"></div>
+    </div>
+  </section>
+  <aside aria-label="wiki+ rail">
+    <div class="border-2 border-ink bg-white" style="box-shadow:4px 4px 0 var(--ink);">
+      <div class="bg-brand px-3 py-2 text-white plus-sans font-bold">wiki+ · curated video</div>
+      <div class="grid grid-cols-3 divide-x-2 divide-ink border-t-2 border-ink text-center">
+        <div class="p-2"><div class="plus-disp text-2xl text-brand">12</div><div class="text-[10px] uppercase text-muted">videos</div></div>
+        <div class="p-2"><div class="plus-disp text-2xl text-brand">7</div><div class="text-[10px] uppercase text-muted">creators</div></div>
+        <div class="p-2"><div class="plus-disp text-2xl text-brand">4</div><div class="text-[10px] uppercase text-muted">curators</div></div>
+      </div>
+    </div>
+  </aside>
+</main>
+
+<section class="mx-auto max-w-[1200px] px-5 pb-8">
+  <h2 class="plus-sans text-sm font-bold uppercase tracking-wide text-muted">Below <code>lg</code> — collapsed lockup</h2>
+  <div class="mt-3 inline-block border-2 border-dashed border-ink p-4" style="width:340px;max-width:100%;">
+    <div class="mark"><span class="paper"><span class="serif text-2xl font-semibold text-[#1b1b1b]">wiki</span></span><span class="zine"><span class="plus-disp text-lg">+</span><span class="plus-disp text-xl">plus</span></span></div>
+    <p class="mt-2 text-xs text-muted">The torn seam lives inside the mark, so it travels intact when stacked — two materials joined, just not aligned to a column edge.</p>
+  </div>
+</section>
+
+<footer id="ctx" class="mx-auto max-w-[1200px] border-t-2 border-ink px-5 py-6">
+  <h2 class="plus-disp text-2xl">06 · Torn-paper seam</h2>
+  <p class="mt-2 max-w-3xl text-sm leading-relaxed text-ink2">
+    Two physical <strong>materials meet at a ragged torn edge</strong> on the divide: a warm encyclopedia-<strong>paper</strong> field (serif “wiki”) torn away to reveal the bold indigo <strong>zine</strong> block (“+plus”) behind it. The tear sits on the seam (a faint rule marks the divide).
+    <strong>Left (Wiki):</strong> off-white paper + Georgia serif — the printed encyclopedia page. <strong>Right (Plus):</strong> a saturated Indigo Press block + Source Sans 900 — the cut-and-paste zine. The collage metaphor literally fuses Wikipedia and the creator layer.
+    <strong>Mobile (&lt; lg):</strong> the torn seam is internal to the lockup, so it carries over as a single inline collage mark; only the column-edge alignment is dropped.
+  </p>
+</footer>
+</body>
+</html>

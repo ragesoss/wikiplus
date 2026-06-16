@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>wiki+ · Beam flares to white, illuminating the article (round 10)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Sans+Pro:wght@400;600;700;900&family=Open+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --brand:#676EB4; --violet:#5248AF; --ink:#2C2C2C; --ink2:#595959; --muted:#717171;
+    --seam:#9aa0a8; --bd:#e6e8eb;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; background:#fff; color:var(--ink); font-family:'Open Sans',system-ui,sans-serif; line-height:1.55;}
+  .wrap{max-width:1000px; margin:0 auto; padding:36px 24px 90px;}
+  h1{font-family:'Source Sans Pro',sans-serif; font-weight:900; font-size:1.9rem; letter-spacing:-.02em; margin:0 0 .4em;}
+  .lede{max-width:72ch; color:var(--ink2); font-size:.95rem;}
+  .lede code{background:#f0f1f3; padding:.05em .35em; border-radius:3px; font-size:.86em;}
+  .variant{margin-top:46px;}
+  .vhead{display:flex; align-items:baseline; gap:.6rem; margin-bottom:.5rem;}
+  .vnum{font-family:'Source Sans Pro',sans-serif; font-weight:900; color:var(--brand); font-size:1.05rem;}
+  .vtitle{font-family:'Source Sans Pro',sans-serif; font-weight:700; font-size:1.15rem;}
+  .canvas{position:relative; height:250px; background:#fff; border:1px solid var(--bd); overflow:hidden;}
+  .seam{position:absolute; top:0; bottom:0; left:50%; width:2px; margin-left:-1px; background:var(--seam); z-index:12;}
+  .hbar{position:absolute; left:0; right:0; top:120px; height:2px; background:var(--seam); z-index:11;}
+  .htag{position:absolute; top:124px; right:10px; font-size:10px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); z-index:11;}
+  .explain{margin-top:.7rem; max-width:74ch; font-size:.9rem; color:var(--ink2);}
+  .explain b{color:var(--ink);}
+  .mech{display:inline-block; margin-top:.35rem; font-size:.78rem; color:var(--muted);}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Daylight projector — round 13</h1>
+  <p class="lede">
+    The beam reads as <b style="color:#1b1b1b">bright gold light with a white-hot core</b> — like an over-exposed light
+    source, where the centre is pure white but the <b style="color:#1b1b1b">colour glows around it</b>. It carries gold in
+    its body, then rises <b style="color:#1b1b1b">early to near-white and holds</b>, so the transition into the pure-white
+    content is <b style="color:#1b1b1b">imperceptible</b> — no seam. The “+” cut is a <b style="color:#1b1b1b">recessed
+    lamp</b>: a white core glowing against an amber inner-shadow, the glow <b style="color:#1b1b1b">confined to the cut</b>
+    (it never spills onto the indigo block). <code>?solo=N</code> isolates one.
+  </p>
+  <div id="grid"></div>
+</div>
+
+<script>
+const BRAND="#676EB4", INK="#2C2C2C";
+function plusPath(cx,cy,a,b){const P=[[cx-a,cy-b],[cx+a,cy-b],[cx+a,cy-a],[cx+b,cy-a],[cx+b,cy+a],[cx+a,cy+a],
+  [cx+a,cy+b],[cx-a,cy+b],[cx-a,cy+a],[cx-b,cy+a],[cx-b,cy-a],[cx-a,cy-a]];return "M"+P.map(p=>p.join(" ")).join(" L")+" Z";}
+function el(s,z){const d=document.createElement("div");Object.assign(d.style,{position:"absolute",zIndex:z,pointerEvents:"none"},s);return d;}
+// mix an [r,g,b] toward white by t (0..1) → "r,g,b" string. Lets the body stay light while the
+// peak stop keeps full gold saturation, so the beam reads as colour even where it's near-white.
+function mix(c,t){return c.map(v=>Math.round(v+(255-v)*t)).join(",");}
+// darken an [r,g,b] by factor t (<1) → "r,g,b" string. Used for the recessed inner-shadow ring
+// inside the "+" cut that the white-hot centre plays against.
+function dark(c,t){return c.map(v=>Math.round(v*t)).join(",");}
+let RIMN=0;
+function projectorBlock(w,h,cutCx,goldRim){const cy=h/2,a=8,b=Math.min(h*0.32,18),cx=cutCx;
+  const plus=plusPath(cx,cy,a,b), uid="rim"+(RIMN++);
+  // The gold is a thin HINT that follows the "+" border: a stroke on the plus path, blurred and
+  // clipped to the cut's interior, so it's brightest right at the edge and burns to white inward
+  // — not a circular gradient. (Drawn over the cut; the white backing + black "pedia" sit behind.)
+  return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" style="display:block;">
+    <defs>
+      <clipPath id="cp${uid}"><path d="${plus}"/></clipPath>
+      <filter id="fb${uid}" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="0.85"/></filter>
+    </defs>
+    <path d="M0 0 H${w} V${h} H0 Z ${plus}" fill="${BRAND}" fill-rule="evenodd"/>
+    <rect x="1" y="1" width="${w-2}" height="${h-2}" fill="none" stroke="${INK}" stroke-width="2"/>
+    <path d="${plus}" fill="none" stroke="rgb(${goldRim})" stroke-width="3" stroke-opacity="0.85" clip-path="url(#cp${uid})" filter="url(#fb${uid})"/>
+    <text x="${cx+b+13}" y="${cy+1}" dominant-baseline="middle" font-family="'Source Sans Pro',sans-serif" font-weight="900" font-size="${Math.round(h*0.46)}" letter-spacing="-1" fill="#fff">plus</text></svg>`;}
+
+function buildScene(canvas,o){
+  const cw=canvas.clientWidth, seam=cw/2, cyMid=64, FS=42, pageY=150;
+
+  // The cool fluorescent header is a SOLID field (no gradient); the content below is pure
+  // white. The BEAM does the transition — it flares to full width and burns to white by
+  // the content boundary, so there's no cool/white seam line where it lands.
+  canvas.appendChild(el({left:"0px", top:"0px", width:cw+"px", height:pageY+"px", background:"#fafbfe"},0.3));
+  canvas.appendChild(el({left:"0px", top:pageY+"px", width:cw+"px", height:(canvas.clientHeight-pageY)+"px", background:"#ffffff"},0.35));
+
+  // a small hint of the article top, just below the header — lit by the daylight spill
+  const ws=[100,88,76];
+  const art=el({left:(seam-170)+"px", top:(pageY+14)+"px", width:"340px", zIndex:1, opacity:o.artOpacity},1);
+  art.innerHTML=`<div style="font-family:Georgia,serif;font-size:18px;color:#3a3f47;border-bottom:1px solid #c7ccd4;padding-bottom:3px;">Photosynthesis</div>`
+    + ws.map(w=>`<div style="height:7px;background:#d7dbe2;margin-top:8px;border-radius:3px;width:${w}%;"></div>`).join("");
+  canvas.appendChild(art);
+
+  const ghost=document.createElement("span"); ghost.textContent="Wikipedia";
+  Object.assign(ghost.style,{position:"absolute",fontFamily:"Georgia,serif",fontWeight:"600",fontSize:FS+"px",
+    color:"#6a5e46",opacity:.06,whiteSpace:"nowrap",top:cyMid+"px",transform:"translateY(-50%)",left:"0px",zIndex:3,filter:"blur(.8px)"});
+  canvas.appendChild(ghost);
+  const crisp=document.createElement("span"); crisp.textContent="Wiki";
+  Object.assign(crisp.style,{position:"absolute",fontFamily:"Georgia,serif",fontWeight:"600",fontSize:FS+"px",
+    color:"#1b1b1b",whiteSpace:"nowrap",top:cyMid+"px",transform:"translateY(-50%)",zIndex:10});
+  canvas.appendChild(crisp);
+  const w1=crisp.offsetWidth, wp=ghost.offsetWidth-w1;
+  ghost.style.left=(seam-w1)+"px"; crisp.style.left=(seam-w1)+"px";
+
+  const bh=56, by=cyMid-bh/2, bx=seam, bw=Math.max(wp+10, 30+Math.min(bh*0.32,18)+13+64);
+  const cutCx=Math.min(Math.max(wp*0.46,24),30), ccx=bx+cutCx, ccy=by+bh/2;
+
+  // ---- the beam: a strictly GEOMETRIC "+" of light. Straight edges — the vertical-arm
+  // edges run at a fixed angle, the crossbar is completely horizontal — and it's filled
+  // with a VERTICAL gradient ONLY, so every point at a given height shares one value. Warm
+  // yellow at the source (just under the black zine edge), resolving to PURE WHITE exactly
+  // at the header's bottom (= the pure-white content field), then the arm fades. No blur. ----
+  const apexG=ccy, fadeY=o.fadeY, TAN=o.tan||0.42;
+  const top0=by+bh+6, crossY=fadeY-(o.crossUp||28);   // flares quickly after the aperture, then ~2x crossbeam height
+  const eM=o.edgeM||17, LX=eM, RX=cw-eM, coneBot=o.coneBot||(canvas.clientHeight-4);
+  const hw=(y)=>(y-apexG)*TAN, svgH=coneBot-top0, yy=(y)=>(y-top0).toFixed(1), dn=(coneBot-crossY)*TAN;
+  // outline of the projected "+": narrow cone → completely-horizontal crossbar whose ends
+  // reach NEARLY THE EDGES, then return to the beam angle and EXPAND DOWN — the bracket's
+  // implied continuation encloses the whole content region. Drawn as a subtle warm edge
+  // (its own vertical gradient, a touch more saturated than the interior); both fade to
+  // white by the seam = the pure-white content field.
+  const P=[[ccx-hw(top0),top0],[ccx+hw(top0),top0],
+           [ccx+hw(crossY),crossY],[RX,crossY],[RX+dn,coneBot],
+           [LX-dn,coneBot],[LX,crossY],[ccx-hw(crossY),crossY]];
+  const d="M"+P.map(p=>`${p[0].toFixed(1)},${yy(p[1])}`).join(" L")+" Z";
+  const fid="bf"+Math.round(ccx), sid="bs"+Math.round(ccx), seamPct=(fadeY-top0)/svgH*100;
+  const gF=o.gold, gE=o.goldE;
+  // The whole projector beam path is burnt to PURE WHITE — no interior transition. ALL the
+  // light-intensity signal is carried by the projection BORDER: a solid, full-intensity gold edge
+  // that traces the burnt-to-white region and just runs off the page edges (clipped at the content
+  // boundary — no fade to white). The glow lives only at that edge (the gold drop-shadow).
+  // Clip the beam (and its drop-shadow glow) at the content boundary so the gold halo stays in
+  // the header and never bleeds onto the white content below. The beam is pure white exactly at
+  // pageY and the content is pure white too, so this clip is invisible.
+  const beam=el({left:"0px", top:top0+"px", width:cw+"px", height:svgH+"px",
+    clipPath:`inset(0px 0px ${(coneBot-pageY).toFixed(1)}px 0px)`,
+    filter:`drop-shadow(0 0 4px rgba(${gE.join(',')},.6)) drop-shadow(0 0 11px rgba(${gE.join(',')},.32))`},6);
+  beam.innerHTML=`<svg width="${cw}" height="${svgH}" viewBox="0 0 ${cw} ${svgH}" style="display:block">
+    <path d="${d}" fill="#ffffff" stroke="rgb(${gE.join(',')})" stroke-width="2" stroke-linejoin="round"/></svg>`;
+  canvas.appendChild(beam);
+
+  // The cut is almost entirely burnt to white — a bright white core, only a whisper of warmth at
+  // the very edge (the gold "hint" is the thin SVG rim that hugs the "+" border and clips to white).
+  canvas.appendChild(el({left:(ccx-22)+"px", top:(ccy-22)+"px", width:"44px", height:"44px",
+    background:`radial-gradient(circle at 50% 46%, #ffffff 0%, #ffffff 74%, rgb(${mix(gF,0.5)}) 93%, rgb(${mix(gF,0.22)}) 100%)`},2));
+  // "pedia" printed behind the cut. The letter surfaces reflect NO light (pure black), but the
+  // intense light bleeds OVER them — so they read as the faintest dark ghosts, each letter's centre
+  // only a touch darker than its blurred-out edges. Masked to the "+" by the block; the glow added
+  // last (on top, screen-blended) is the light that washes over them.
+  const ped=document.createElement("span"); ped.textContent="pedia";
+  Object.assign(ped.style,{position:"absolute", fontFamily:"Georgia,serif", fontWeight:"600", fontSize:FS+"px",
+    color:"#000", opacity:String(o.pedia||0.24), whiteSpace:"nowrap", left:seam+"px", top:cyMid+"px",
+    transform:"translateY(-50%)", zIndex:5, filter:"blur(1.45px)", pointerEvents:"none"});
+  canvas.appendChild(ped);
+  canvas.appendChild(el({left:(bx+6)+"px", top:(by+bh)+"px", width:bw+"px", height:"6px", background:INK},4));
+  canvas.appendChild(el({left:(bx+bw)+"px", top:(by+6)+"px", width:"6px", height:bh+"px", background:INK},4));
+  const box=el({left:bx+"px", top:by+"px"},9); box.innerHTML=projectorBlock(bw,bh,cutCx,gE.join(','));
+  canvas.appendChild(box);
+  // GLOW: the too-bright cut bleeds light over the card FOLLOWING THE "+" OUTLINE (not a circle).
+  // Two blurred "+" shapes — a wider gold one and a tighter warm-white one — screen-blended over the
+  // card so the bleed hugs the cutout's edges. (Over the white cut interior, screen is a near no-op;
+  // the bleed only shows where it spills onto the indigo, tracing the "+".)
+  const gw=100, gpa=8, gpb=18, gA=(o.glow||0.92);
+  const glow=el({left:(ccx-gw/2)+"px", top:(ccy-gw/2)+"px", width:gw+"px", height:gw+"px",
+    zIndex:12, mixBlendMode:"screen", filter:`blur(${o.glowBlur||4}px)`});
+  glow.innerHTML=`<svg width="${gw}" height="${gw}" viewBox="0 0 ${gw} ${gw}" style="display:block">
+    <path d="${plusPath(gw/2,gw/2,gpa+4,gpb+4)}" fill="rgb(${gE.join(',')})" opacity="${(gA*0.5).toFixed(2)}"/>
+    <path d="${plusPath(gw/2,gw/2,gpa+1,gpb+1)}" fill="rgb(255,252,246)" opacity="${gA.toFixed(2)}"/></svg>`;
+  canvas.appendChild(glow);
+}
+
+// Each variant is driven by two golds: `gold` (the beam-body fill peak) and `goldE` (a deeper,
+// more-saturated gold for the stroke / drop-shadow / cutout). 01 → 05 spans subtle to intense.
+const variants=[
+ {n:"01", title:"Daylight — subtle glow",
+  mech:"Gentle gold. The cut's core glows white against a soft amber inner-shadow; the beam carries a little gold low-down, then holds near-white into the content.",
+  text:"The softest setting: the “+” cut glows <b>white-hot at the centre against a warm amber recess</b>, the beam picks up a little gold in its lower middle, then <b>spends a long stretch near-white</b> so you can’t tell exactly where it meets the pure-white content.",
+  o:{gold:[255,236,178], goldE:[238,206,135], fadeY:150, tan:0.6, artOpacity:.45}},
+
+ {n:"02", title:"Daylight — warmer",
+  mech:"More gold in the cut and the beam body; same long imperceptible near-white tail into the content.",
+  text:"A touch more colour: the cut reads <b>distinctly gold</b> around its white core and the beam body warms, but the burn to white stays <b>gradual and imperceptible</b> at the content boundary.",
+  o:{gold:[255,228,158], goldE:[236,198,118], fadeY:150, tan:0.6, artOpacity:.48}},
+
+ {n:"03", title:"Daylight — article lit",
+  mech:"Same gold as 02 with the article more present, so the near-white light reads as actually lighting the page.",
+  text:"Same gold, but the <b>article is more visible</b>, so the light reads as genuinely <b>illuminating the page</b> — the projection becomes the lit content surface, not just a glow in empty space.",
+  o:{gold:[255,228,158], goldE:[233,190,104], fadeY:150, tan:0.6, artOpacity:.62}},
+
+ {n:"04", title:"Daylight — rich gold",
+  mech:"The beam clearly reads as gold light in its body with a white-hot core; the cut is a vivid recessed lamp. Still blows out gradually to white.",
+  text:"The beam <b>reads as bright gold light</b> — colour you can name — with the core blowing out to white, exactly like the reference’s glowing bars. The cut is a <b>vivid recessed lamp</b>: white centre, gold ring, amber shadow. (Gold is the one hue the Indigo Press brand deliberately omits.)",
+  o:{gold:[255,213,120], goldE:[230,182,92], fadeY:150, tan:0.6, artOpacity:.55}},
+
+ {n:"05", title:"Daylight — intense",
+  mech:"Deepest gold, held longer before the white core — the most saturated coloured-light read.",
+  text:"Pushed furthest: the <b>gold is deepest and holds longest</b> before the white-hot core, the most saturated “really bright coloured light” read. Warmest, and furthest from brand.",
+  o:{gold:[255,203,96], goldE:[226,172,78], fadeY:150, tan:0.6, artOpacity:.6}},
+];
+
+const grid=document.getElementById("grid");
+const solo=new URLSearchParams(location.search).get("solo");
+const shown = solo ? variants.filter(v=>v.n===String(solo).padStart(2,"0")) : variants;
+if(solo){ document.querySelector(".lede").style.display="none"; document.querySelector("h1").style.display="none"; }
+for(const v of shown){
+  const sec=document.createElement("section"); sec.className="variant";
+  sec.innerHTML=`<div class="vhead"><span class="vnum">${v.n}</span><span class="vtitle">${v.title}</span></div>`;
+  const canvas=document.createElement("div"); canvas.className="canvas";
+  canvas.innerHTML="";   // no seam / header line — the header just becomes white at the content
+  grid.appendChild(sec); sec.appendChild(canvas);
+  const ex=document.createElement("p"); ex.className="explain";
+  ex.innerHTML=v.text+`<span class="mech">${v.mech}</span>`;
+  sec.appendChild(ex);
+  buildScene(canvas, v.o);
+}
+</script>
+</body>
+</html>

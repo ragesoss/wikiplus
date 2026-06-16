@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>wiki+ · The "+" projector (round 8)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Sans+Pro:wght@400;600;700;900&family=Open+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --brand:#676EB4; --violet:#5248AF; --sprout:#2A8270; --action:#1F6F95; --ink:#2C2C2C;
+    --ink2:#595959; --muted:#717171; --seam:#9aa0a8; --bd:#e6e8eb; --wl:#3366cc;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; background:#fff; color:var(--ink); font-family:'Open Sans',system-ui,sans-serif; line-height:1.55;}
+  .wrap{max-width:1000px; margin:0 auto; padding:36px 24px 90px;}
+  h1{font-family:'Source Sans Pro',sans-serif; font-weight:900; font-size:1.9rem; letter-spacing:-.02em; margin:0 0 .4em;}
+  .lede{max-width:70ch; color:var(--ink2); font-size:.95rem;}
+  .lede code{background:#f0f1f3; padding:.05em .35em; border-radius:3px; font-size:.86em;}
+  .variant{margin-top:46px;}
+  .vhead{display:flex; align-items:baseline; gap:.6rem; margin-bottom:.5rem;}
+  .vnum{font-family:'Source Sans Pro',sans-serif; font-weight:900; color:var(--brand); font-size:1.05rem;}
+  .vtitle{font-family:'Source Sans Pro',sans-serif; font-weight:700; font-size:1.15rem;}
+  .canvas{position:relative; height:540px; background:#fff; border:1px solid var(--bd); overflow:hidden;}
+  .seam{position:absolute; top:0; bottom:0; left:50%; width:2px; margin-left:-1px; background:var(--seam); z-index:12;}
+  .hbar{position:absolute; left:0; right:0; top:118px; height:2px; background:var(--seam); z-index:11;}
+  .htag{position:absolute; top:122px; right:10px; font-size:10px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); z-index:11;}
+  .explain{margin-top:.7rem; max-width:74ch; font-size:.9rem; color:var(--ink2);}
+  .explain b{color:var(--ink);}
+  .mech{display:inline-block; margin-top:.35rem; font-size:.78rem; color:var(--muted);}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>The “+” projector — round 8</h1>
+  <p class="lede">
+    The “+” cut isn’t a window — it’s a <b style="color:#1b1b1b">projector aperture</b>. The lit block throws a beam down
+    onto the Wikipedia page, and where the beam lands it resolves into a big “+” of light: the <b style="color:#1b1b1b">plus
+    content area projected onto the article</b>. The header block (with “Wiki” + the buried-“pedia” cut) sits up top; the
+    projection lands below the header line, over a faint article. <code>?solo=N</code> isolates one.
+  </p>
+  <div id="grid"></div>
+</div>
+
+<script>
+const BRAND="#676EB4", VIOLET="#5248AF", INK="#2C2C2C";
+function plusPts(cx,cy,a,b){return [[cx-a,cy-b],[cx+a,cy-b],[cx+a,cy-a],[cx+b,cy-a],[cx+b,cy+a],[cx+a,cy+a],
+  [cx+a,cy+b],[cx-a,cy+b],[cx-a,cy+a],[cx-b,cy+a],[cx-b,cy-a],[cx-a,cy-a]];}
+function plusPath(cx,cy,a,b){return "M"+plusPts(cx,cy,a,b).map(p=>p.join(" ")).join(" L")+" Z";}
+function el(s,z){const d=document.createElement("div");Object.assign(d.style,{position:"absolute",zIndex:z,pointerEvents:"none"},s);return d;}
+
+// The header block: opaque indigo, black rectangle border, lit "+" cut (the aperture), "plus".
+function projectorBlock(w,h,cutCx,cutLight,bloom){
+  const cy=h/2,a=8,b=Math.min(h*0.32,18),cx=cutCx;
+  return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" style="display:block;">
+    <path d="M0 0 H${w} V${h} H0 Z ${plusPath(cx,cy,a,b)}" fill="${BRAND}" fill-rule="evenodd"/>
+    <rect x="1" y="1" width="${w-2}" height="${h-2}" fill="none" stroke="${INK}" stroke-width="2"/>
+    <text x="${cx+b+13}" y="${cy+1}" dominant-baseline="middle" font-family="'Source Sans Pro',sans-serif" font-weight="900" font-size="${Math.round(h*0.46)}" letter-spacing="-1" fill="#fff">plus</text>
+  </svg>`;
+}
+// The projected large "+" of light (the content area).
+function bigPlus(w,h,a,b,o){
+  const id="g"+Math.round(a*97+b);
+  return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" style="display:block; filter:${o.glow};">
+    <defs><radialGradient id="${id}" cx="50%" cy="42%" r="62%">
+      <stop offset="0%" stop-color="rgba(${o.core},${o.coreA})"/>
+      <stop offset="55%" stop-color="rgba(${o.edge},${o.edgeA})"/>
+      <stop offset="100%" stop-color="rgba(${o.edge},${(o.edgeA*0.4).toFixed(2)})"/>
+    </radialGradient></defs>
+    <path d="${plusPath(w/2,h/2,a,b)}" fill="url(#${id})"/>
+    ${o.stroke?`<path d="${plusPath(w/2,h/2,a,b)}" fill="none" stroke="rgba(${o.stroke},${o.strokeA})" stroke-width="1.5"/>`:""}
+  </svg>`;
+}
+
+function buildScene(canvas,o){
+  const seam=canvas.clientWidth/2, cyMid=64, FS=42;
+
+  // faint Wikipedia article on the page (projected onto)
+  const art=el({left:(seam-150)+"px", top:"150px", width:"300px", zIndex:1, opacity:.5},1);
+  art.innerHTML=`<div style="font-family:Georgia,serif;font-size:20px;color:#1b1b1b;border-bottom:1px solid #c8ccd1;padding-bottom:3px;">Photosynthesis</div>
+    <div style="height:8px;background:#eef0f3;margin-top:10px;border-radius:3px;"></div>
+    <div style="height:8px;background:#eef0f3;margin-top:7px;border-radius:3px;width:92%;"></div>
+    <div style="height:8px;background:#eef0f3;margin-top:7px;border-radius:3px;width:84%;"></div>
+    <div style="height:8px;background:#eef0f3;margin-top:7px;border-radius:3px;width:96%;"></div>
+    <div style="height:8px;background:#eef0f3;margin-top:7px;border-radius:3px;width:70%;"></div>`;
+  canvas.appendChild(art);
+
+  // buried "pedia" + crisp "Wiki" in the header band
+  const ghost=document.createElement("span"); ghost.textContent="Wikipedia";
+  Object.assign(ghost.style,{position:"absolute",fontFamily:"Georgia,serif",fontWeight:"600",fontSize:FS+"px",
+    color:INK,opacity:.5,whiteSpace:"nowrap",top:cyMid+"px",transform:"translateY(-50%)",left:"0px",zIndex:3,filter:"blur(.5px)"});
+  canvas.appendChild(ghost);
+  const crisp=document.createElement("span"); crisp.textContent="Wiki";
+  Object.assign(crisp.style,{position:"absolute",fontFamily:"Georgia,serif",fontWeight:"600",fontSize:FS+"px",
+    color:"#1b1b1b",whiteSpace:"nowrap",top:cyMid+"px",transform:"translateY(-50%)",zIndex:10});
+  canvas.appendChild(crisp);
+  const w1=crisp.offsetWidth, wp=ghost.offsetWidth-w1;
+  ghost.style.left=(seam-w1)+"px"; crisp.style.left=(seam-w1)+"px";
+
+  const bh=56, by=cyMid-bh/2, bx=seam, bw=Math.max(wp+10, 30+Math.min(bh*0.32,18)+13+64);
+  const cutCx=Math.min(Math.max(wp*0.46,24),30);
+  const ccx=bx+cutCx, ccy=by+bh/2;
+
+  // ---- target: the projected large "+" of light ----
+  const A=o.tArm, B=o.tExt, PW=2*B+24, PH=2*B+24, tx=ccx+o.tdx, ty=o.ty;
+  // beam: a light cone from the aperture down to the target plus
+  const apexY=ccy+4, baseY=ty-2, beamH=baseY-apexY, baseHalf=B+6, apexHalf=14;
+  const beam=el({left:(ccx-baseHalf)+"px", top:apexY+"px", width:(2*baseHalf)+"px", height:beamH+"px",
+    clipPath:`polygon(${baseHalf-apexHalf}px 0, ${baseHalf+apexHalf}px 0, 100% 100%, 0% 100%)`,
+    background:`linear-gradient(to bottom, rgba(${o.beam},${o.beamA}) 0%, rgba(${o.beam},${(o.beamA*0.4).toFixed(2)}) 55%, rgba(${o.beam},0) 100%)`,
+    filter:`blur(${o.beamBlur}px)`, mixBlendMode:o.blend||"normal"},5);
+  canvas.appendChild(beam);
+
+  // optional bright edge rays
+  if(o.rays){
+    const rays=el({left:"0px",top:"0px",width:canvas.clientWidth+"px",height:canvas.clientHeight+"px"},6);
+    rays.innerHTML=`<svg width="100%" height="100%" style="display:block;overflow:visible">
+      <line x1="${ccx-apexHalf}" y1="${apexY}" x2="${ccx-baseHalf}" y2="${baseY}" stroke="rgba(${o.beam},${o.rays})" stroke-width="2" style="filter:blur(1.5px)"/>
+      <line x1="${ccx+apexHalf}" y1="${apexY}" x2="${ccx+baseHalf}" y2="${baseY}" stroke="rgba(${o.beam},${o.rays})" stroke-width="2" style="filter:blur(1.5px)"/></svg>`;
+    canvas.appendChild(rays);
+  }
+
+  // the projected plus (content area)
+  const plus=el({left:(tx-PW/2)+"px", top:(ty-PH/2)+"px", width:PW+"px", height:PH+"px"},7);
+  plus.innerHTML=bigPlus(PW,PH,A,B,o.plus);
+  canvas.appendChild(plus);
+
+  // optional content placeholders inside the projected plus (video cards)
+  if(o.cards){
+    const c=el({left:(tx-26)+"px", top:(ty-30)+"px", width:"52px", height:"60px", display:"flex",
+      flexDirection:"column", gap:"6px"},8);
+    c.innerHTML=`<div style="height:27px;border-radius:4px;background:rgba(255,255,255,.55);box-shadow:0 0 8px rgba(${o.beam},.7);"></div>
+      <div style="height:27px;border-radius:4px;background:rgba(255,255,255,.45);box-shadow:0 0 8px rgba(${o.beam},.6);"></div>`;
+    canvas.appendChild(c);
+  }
+
+  // lit cut bloom on the aperture (so the source reads as the bright origin)
+  const R=24;
+  canvas.appendChild(el({left:(ccx-R)+"px", top:(ccy-R)+"px", width:(2*R)+"px", height:(2*R)+"px",
+    background:`radial-gradient(circle, rgba(${o.cut},.92) 0%, rgba(${o.cut},.6) 40%, rgba(${o.cut},0) 72%)`},3.5));
+
+  // hard black offset edge (kept) — outer edge only
+  canvas.appendChild(el({left:(bx+6)+"px", top:(by+bh)+"px", width:bw+"px", height:"6px", background:INK},4));
+  canvas.appendChild(el({left:(bx+bw)+"px", top:(by+6)+"px", width:"6px", height:bh+"px", background:INK},4));
+  // the block
+  const box=el({left:bx+"px", top:by+"px"},9); box.innerHTML=projectorBlock(bw,bh,cutCx);
+  if(o.edgeGlow) box.style.boxShadow=o.edgeGlow;
+  canvas.appendChild(box);
+}
+
+const variants=[
+ {n:"01", title:"Projector — soft (indigo)",
+  mech:"Indigo light cone from the cut resolves into a glowing indigo “+” on the article — the content area, projected.",
+  text:"On-brand and elegant: a soft <b>indigo beam</b> falls from the “+” aperture and lands as a glowing indigo “+” over the faint Photosynthesis article — the <b>plus content area, projected onto Wikipedia</b>. The arms of the big “+” only resolve where the beam reaches.",
+  o:{beam:"103,110,180", beamA:.5, beamBlur:7, cut:"103,110,180", tdx:0, ty:355, tArm:26, tExt:84,
+     plus:{glow:"drop-shadow(0 0 14px rgba(103,110,180,.85)) drop-shadow(0 0 30px rgba(103,110,180,.45))",
+       core:"245,246,255", coreA:.95, edge:"103,110,180", edgeA:.85, stroke:"82,72,175", strokeA:.5}}},
+
+ {n:"02", title:"Projector — cinematic",
+  mech:"Brighter beam with visible edge rays and a hotter cut; a crisper, more luminous projected “+”.",
+  text:"Turned up: brighter beam with <b>visible edge rays</b> from the aperture, a hotter near-white cut, and a more luminous projected “+”. Reads unmistakably as a slide/LCD projector throwing the plus down onto the page.",
+  o:{beam:"150,170,235", beamA:.6, beamBlur:6, rays:.7, cut:"225,235,255", tdx:0, ty:358, tArm:27, tExt:88,
+     plus:{glow:"drop-shadow(0 0 16px rgba(120,150,235,.95)) drop-shadow(0 0 34px rgba(103,110,180,.5))",
+       core:"255,255,255", coreA:1, edge:"120,150,235", edgeA:.9, stroke:"255,255,255", strokeA:.5}}},
+
+ {n:"03", title:"Projector — content area",
+  mech:"The projected “+” literally holds faint video-card placeholders — the beam lands the curated content.",
+  text:"Making the metaphor explicit: the projected “+” <b>contains faint video-card placeholders</b> — so the beam isn’t just light, it’s landing the <b>curated plus content</b> in a “+”-shaped content area on the article.",
+  o:{beam:"103,110,180", beamA:.5, beamBlur:7, cut:"103,110,180", cards:true, tdx:0, ty:352, tArm:30, tExt:86,
+     plus:{glow:"drop-shadow(0 0 14px rgba(103,110,180,.8)) drop-shadow(0 0 30px rgba(103,110,180,.4))",
+       core:"243,245,255", coreA:.92, edge:"103,110,180", edgeA:.8, stroke:"82,72,175", strokeA:.45}}},
+];
+
+const grid=document.getElementById("grid");
+const solo=new URLSearchParams(location.search).get("solo");
+const shown = solo ? variants.filter(v=>v.n===String(solo).padStart(2,"0")) : variants;
+if(solo){ document.querySelector(".lede").style.display="none"; document.querySelector("h1").style.display="none"; }
+for(const v of shown){
+  const sec=document.createElement("section"); sec.className="variant";
+  sec.innerHTML=`<div class="vhead"><span class="vnum">${v.n}</span><span class="vtitle">${v.title}</span></div>`;
+  const canvas=document.createElement("div"); canvas.className="canvas";
+  canvas.innerHTML=`<div class="seam"></div><div class="hbar"></div><span class="htag">header ends</span>`;
+  grid.appendChild(sec); sec.appendChild(canvas);
+  const ex=document.createElement("p"); ex.className="explain";
+  ex.innerHTML=v.text+`<span class="mech">${v.mech}</span>`;
+  sec.appendChild(ex);
+  buildScene(canvas, v.o);
+}
+</script>
+</body>
+</html>
