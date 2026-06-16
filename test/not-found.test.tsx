@@ -1,11 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 
-// Component test for the SPA-fallback / bare-path redirect host (app/not-found.tsx).
-// Verifies the UX contract (design spec): a bare title redirects ONCE via
-// router.replace AND lands in the loading state (the existing ArticleSkeleton) — never
-// the not-found flash — with a polite "Loading topic…" a11y announcement; a non-bare
-// path falls through to TopicView (the SPA shell), unchanged. (AC1/AC4/AC9 + a11y.)
+// Component test for the bare-path redirect host (app/not-found.tsx). Verifies the UX
+// contract (design spec): a bare title redirects ONCE via router.replace AND lands in the
+// loading state (the existing ArticleSkeleton) — never the not-found flash — with a
+// polite "Loading topic…" a11y announcement; a non-bare path falls through to TopicView,
+// which ends in the graceful "Topic not found. Back home" dead end. (AC1/AC4 + a11y.)
+//
+// Under the Node SSR server (issue #37) not-found.tsx is no longer the `404.html` SPA
+// shell, and `/topic/...` deep links are now rendered on demand by the `[[...slug]]`
+// catch-all — they no longer reach this component at runtime. The fallback render here
+// is the defensive path for genuinely-unmatched (reserved/multi-segment) paths.
 //
 // TopicView is mocked to a sentinel so we test the not-found host's routing decision in
 // isolation (TopicView's own resolve flow is covered by topic-view.test.tsx).
@@ -92,7 +97,10 @@ describe("app/not-found.tsx — bare-path redirect host", () => {
     expect(routerReplace).not.toHaveBeenCalled();
   });
 
-  it("AC2 — an unseeded /topic/<Title>/ deep link falls through to TopicView (no redirect, #11 preserved)", async () => {
+  it("a /topic/<Title>/ path is never redirected by not-found's bare-path rule (loop guard)", async () => {
+    // Under SSR the catch-all renders /topic/... on demand, so this path no longer reaches
+    // not-found.tsx at runtime; this asserts the defensive behavior IF it did — the
+    // bare-path rule is a no-op on the reserved /topic prefix (no redirect, falls through).
     setLocation("/topic/Cellular_respiration/");
     render(<NotFound />);
     await waitFor(() =>

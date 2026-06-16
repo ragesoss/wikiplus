@@ -1,10 +1,11 @@
 import { expect, test, type Page } from "@playwright/test";
 
-// E2E for the navbar topic search (#12) against the static export. The sandbox has no
-// network egress, so the Wikipedia typeahead (REST search/title), title→QID, and
-// article HTML are INTERCEPTED with deterministic fixtures. Covers AC1 (submit a title),
-// AC2 (select a suggestion), AC5 (an UNSEEDED title still opens a working Topic page,
-// no QID in the URL). Drives the control by accessible role/name (AC11) per the design.
+// E2E for the navbar topic search (#12) against the Node SSR server (issue #37). The
+// sandbox has no network egress, so the Wikipedia typeahead (REST search/title),
+// title→QID, and article HTML are INTERCEPTED with deterministic fixtures. Covers AC1
+// (submit a title), AC2 (select a suggestion), AC5 (an UNSEEDED title — now rendered on
+// demand by the server, not via 404.html — still opens a working Topic page, no QID in
+// the URL). Drives the control by accessible role/name (AC11) per the design.
 
 const ARTICLE_HTML = (lead: string) => `<!DOCTYPE html><html><body>
   <section><p>${lead}</p></section>

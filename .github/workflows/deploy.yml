@@ -1,11 +1,20 @@
 name: Deploy to GitHub Pages
 
-# The cloud, mobile-drivable loop: push → build the static export → publish to
-# Pages, no server to operate. (Operations role; see docs/AGENT_OPERATING_MODEL.md.)
+# PAUSED as of issue #37 (drop `output:'export'` → Node SSR server).
+#
+# wiki+ no longer builds a static export, so `yarn build` no longer emits `out/`. This
+# workflow's `yarn build` + `upload-pages-artifact path: out` would now fail / publish a
+# broken-or-empty Pages artifact. The push-to-`main` auto-deploy is therefore DISABLED:
+# the trigger is `workflow_dispatch` ONLY, so `main` never auto-attempts a static-export
+# Pages deploy. (This change is verified locally and not live-deployable by design.)
+#
+# RE-ENABLING is issue A.2 (#35 §A.2): provision the self-hosted VPS + Docker Compose +
+# Caddy + Cloudflare host and wire auto-deploy of the Node server against IT — NOT GitHub
+# Pages. This whole Pages-specific workflow is expected to be replaced there, not revived.
+# The cloud, mobile-drivable prompt→staging loop resumes at that point.
 
 on:
-  push:
-    branches: [main]
+  # push: { branches: [main] }  # DISABLED (#37) — re-wired against the VPS host in A.2.
   workflow_dispatch:
 
 permissions:

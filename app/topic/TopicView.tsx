@@ -131,9 +131,9 @@ export function TopicView() {
         // canonical title AND the slug a reader arrived on differs from
         // titleToSlug(canonicalTitle) (AC1–AC4). Already-canonical arrivals replace
         // ZERO times (AC5); `replace` (never `push`) so Back doesn't bounce through
-        // the typed/typo URL (AC7). Built via topicHref → trailing slash + basePath
-        // under static export. Guarded on `page.canonicalTitle` so an unresolved
-        // title is never canonicalized to a guessed slug (AC6).
+        // the typed/typo URL (AC7). Built via topicHref → trailing slash + (optional)
+        // basePath. Guarded on `page.canonicalTitle` so an unresolved title is never
+        // canonicalized to a guessed slug (AC6).
         if (
           page.canonicalTitle &&
           currentTopicSlug(pathname ?? "") !== titleToSlug(page.canonicalTitle)

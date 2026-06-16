@@ -3,13 +3,15 @@
 // store key, resolved lazily) and NEVER appears in the address bar.
 // See docs/ARCHITECTURE.md ("Internal-link resolution" — owner-directed title scheme).
 //
-// Static export under GitHub Pages adds two wrinkles these helpers absorb so call
-// sites (the wikilink rewrite, <Link>s, the SPA 404 fallback) stay simple:
-//   - a `basePath` ("/<repo>") prefixes every URL in the deployed bundle, and
-//   - `trailingSlash: true` (next.config) means the static asset for a route lives at
-//     `/topic/<Title>/` — a hard navigation to the slashless form would 404 from Pages.
+// Two config wrinkles these helpers absorb so call sites (the wikilink rewrite,
+// <Link>s, the bare-path redirect) stay simple:
+//   - an optional `basePath` (empty for the root-served Node SSR server; set by a future
+//     subpath host via NEXT_PUBLIC_BASE_PATH) prefixes every URL, and
+//   - `trailingSlash: true` (next.config, KEPT through the SSR switch — issue #37) makes
+//     `/topic/<Title>/` the one canonical form; the server redirects the slashless form
+//     to it (under the old static export the slash matched a built `<route>/index.html`).
 
-/** basePath baked into the static export (empty in local dev; "/<repo>" on Pages). */
+/** basePath (empty for the root-served Node SSR server; "/<sub>" if a host sets it). */
 export const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH || "";
 
 // ── Canonical title ⇄ URL-slug encoding (the single source of truth) ──────────

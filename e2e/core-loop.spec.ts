@@ -1,9 +1,10 @@
 import { expect, test, type Page } from "@playwright/test";
 
 // E2E of the core loop (find topic → read → watch & weigh → contribute) against the
-// static export. The sandbox has no network egress, so the live MediaWiki + Wikidata
-// calls are INTERCEPTED with deterministic fixtures; the plus side renders from the
-// seeded localStorage DataStore (seeded on first visit by the app).
+// Node SSR server (`next build` → `next start`; issue #37). The sandbox has no network
+// egress, so the live MediaWiki + Wikidata calls are INTERCEPTED with deterministic
+// fixtures; the plus side renders from the seeded localStorage DataStore (seeded on
+// first visit by the app).
 
 const PHOTOSYNTHESIS_HTML = `<!DOCTYPE html><html><body>
   <section><p>Photosynthesis is the <a href="./Process">process</a> used by plants.</p></section>
