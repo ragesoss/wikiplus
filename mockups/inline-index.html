@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>wiki+ · Inline concept — 5 designs</title>
+<title>wiki+ · design mockups index</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <style> body{font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;} .thumb{aspect-ratio:16/9;} </style>
 </head>
@@ -11,43 +11,46 @@
   <header class="border-b border-slate-200 bg-white">
     <div class="max-w-5xl mx-auto px-6 py-6">
       <div class="flex items-center gap-2 text-2xl font-bold tracking-tight"><span>wiki</span><span class="text-emerald-600">+</span>
-        <span class="ml-3 text-sm font-normal text-slate-500">Inline concept — 5 plus-side explorations</span></div>
+        <span class="ml-3 text-sm font-normal text-slate-500">design mockups — canonical set</span></div>
       <p class="mt-2 text-slate-600 max-w-3xl text-sm leading-relaxed">
-        All five share one skeleton: a <strong>real Wikipedia-styled article</strong> (serif title/headings,
-        blue wikilinks, real Commons images) as the main column, a sticky <strong>“+plus” infobox + Table of
-        Contents</strong> with per-section video counts (starting with a special <strong>General</strong> entry),
-        and a <strong>General carousel</strong> of whole-topic videos right after the lede. They differ only in the
-        <strong>“plus” visual language</strong> — colorful, playful, short-form-video-flavored, in deliberate
-        contrast to the scholarly wiki side. Accessibility (contrast, focus, keyboard, text-labeled signals) is the baseline.
+        The committed reference mockups, one per focus, after the mockup-cleanup pass. The
+        superseded exploration rounds (layout concepts 01–10, the inline style studies, the
+        plus-identity and wordmark explorations) were pruned and live on in <strong>git
+        history</strong>. The few older files kept below are <strong>doc-referenced baselines</strong>,
+        not current designs. Shared data lives in <code class="bg-slate-100 px-1 rounded">data/content.js</code>.
       </p>
-      <p class="mt-3 text-xs text-slate-500">Round-3 (all-10) gallery still lives at <a class="text-emerald-600 underline" href="index.html">index.html</a>.</p>
     </div>
   </header>
   <main class="max-w-5xl mx-auto px-6 py-8">
-    <div id="grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5"></div>
+    <h2 class="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-3">Current — canonical</h2>
+    <div id="current" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5"></div>
+    <h2 class="mt-10 text-xs font-semibold uppercase tracking-wide text-slate-500 mb-3">Reference / history (kept for the docs that cite them)</h2>
+    <div id="reference" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5"></div>
   </main>
 <script>
-  const items=[
-   {file:"inline-indigo-sync.html", title:"★ Indigo Sync — CURATED (current)", grad:"from-[#676EB4] via-[#5248AF] to-[#2A8270]", desc:"The committed Topic page: neon-sync layout + scroll-sync, restyled with the WikiEdu 'Indigo Press' plus identity. The full-curation state."},
-   {file:"inline-indigo-empty-v2.html", title:"★ Indigo Sync — EMPTY STATE (current)", grad:"from-[#2C2C2C] via-[#676EB4] to-[#1F6F95]", desc:"Zero-curation start: auto-suggested unvetted candidates (dashed) with Promote / Not-relevant, PLUS manual source paths — Search TikTok / Search YouTube launch buttons and a logged-in Add-video (paste link) flow."},
-   {file:"inline-indigo-empty.html", title:"Indigo Sync — Empty State v1", grad:"from-[#2C2C2C] via-[#676EB4] to-[#1F6F95]", desc:"Earlier empty state: auto-suggested candidates + Promote/Not-relevant, before the manual source paths were added. Kept for history."},
-   {file:"inline-neon-sync.html", title:"Neon Sync (superseded styling)", grad:"from-cyan-400 via-purple-600 to-pink-500", desc:"Same layout, earlier neon palette. Kept for reference; Indigo Sync above is the current identity."},
-   {file:"inline-01-sticker.html", title:"01 · Sticker Pop",  grad:"from-fuchsia-400 via-pink-500 to-amber-400", desc:"Candy-bright, rounded, chunky pill chips & badges, bouncy hover. Soft tinted panels vs. white article."},
-   {file:"inline-02-neon.html",    title:"02 · Neon Night",   grad:"from-cyan-400 via-purple-600 to-pink-500",  desc:"Light scholarly article; every plus module is a dark, neon-glow card. Maximum light↔dark contrast."},
-   {file:"inline-03-phone.html",   title:"03 · Pocket Player",grad:"from-violet-500 via-fuchsia-500 to-rose-500",desc:"Videos as phone screens with short-form chrome — progress bar, side action buttons, handle."},
-   {file:"inline-04-stories.html", title:"04 · Story Tray",   grad:"from-amber-400 via-rose-500 to-purple-600", desc:"Instagram-Stories tray: gradient story-ring avatars open clips in a modal; Reels-style cards."},
-   {file:"inline-05-zine.html",    title:"05 · Playful Zine", grad:"from-yellow-400 via-fuchsia-500 to-emerald-500",desc:"Editorial-playful: oversized display headings, hard borders + offset shadows, big numerals."},
+  const current=[
+   {file:"inline-indigo-sync.html", title:"Topic page — curated", grad:"from-[#676EB4] via-[#5248AF] to-[#2A8270]", desc:"★ The committed Topic page: scroll-synced layout in the 'Indigo Press' identity. The full-curation state."},
+   {file:"inline-indigo-empty-v3-declutter.html", title:"Topic page — empty state", grad:"from-[#2C2C2C] via-[#676EB4] to-[#1F6F95]", desc:"★ Current zero-curation start (Declutter v3.1): auto-suggested unvetted candidates + manual source paths, decluttered."},
+   {file:"plus-id-01-indigo.html", title:"Plus identity — Indigo Press", grad:"from-[#676EB4] via-[#5248AF] to-[#1F6F95]", desc:"The chosen +plus visual identity: indigo color-blocks, 2px ink borders + offset shadows, Source Sans Pro display."},
+   {file:"wordmark-projector-illuminate.html?solo=01", title:"Header wordmark — Daylight Projector", grad:"from-[#fafbfe] via-[#EECE87] to-[#ffffff]", desc:"★ The locked header wordmark (variant 01). See docs/VISUAL_IDENTITY.md."},
   ];
-  document.getElementById("grid").innerHTML=items.map(m=>`
+  const reference=[
+   {file:"inline-indigo-empty-v2.html", title:"Empty state — v2 (baseline)", grad:"from-[#2C2C2C] via-[#676EB4] to-[#1F6F95]", desc:"Spec baseline: the empty-state reference cited by ~13 specs and the declutter feature's documented 'before' state."},
+   {file:"inline-indigo-empty.html", title:"Empty state — v1", grad:"from-[#2C2C2C] via-[#676EB4] to-[#1F6F95]", desc:"Earlier empty state, before the manual source paths were added. Kept for history."},
+   {file:"inline-neon-sync.html", title:"Topic page — neon palette", grad:"from-cyan-400 via-purple-600 to-pink-500", desc:"Same layout, earlier neon palette — the styling that preceded the Indigo Press identity. Kept for reference."},
+  ];
+  const card = m => `
     <a href="${m.file}" class="group block bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-md hover:border-emerald-400 transition">
       <div class="thumb bg-gradient-to-br ${m.grad} relative flex items-center justify-center">
         <svg class="w-10 h-10 text-white/90 group-hover:scale-110 transition" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
       </div>
-      <div class="p-4"><h2 class="font-semibold">${m.title}</h2>
+      <div class="p-4"><h3 class="font-semibold">${m.title}</h3>
       <p class="mt-1 text-sm text-slate-600 leading-snug">${m.desc}</p>
-      <span class="mt-3 inline-flex items-center gap-1 text-xs font-medium text-emerald-600">Open design
+      <span class="mt-3 inline-flex items-center gap-1 text-xs font-medium text-emerald-600">Open mockup
         <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span></div>
-    </a>`).join("");
+    </a>`;
+  document.getElementById("current").innerHTML = current.map(card).join("");
+  document.getElementById("reference").innerHTML = reference.map(card).join("");
 </script>
 </body>
 </html>
