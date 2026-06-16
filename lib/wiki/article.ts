@@ -20,6 +20,12 @@ export interface ArticleLead {
   /** Sanitized lead HTML (paragraphs + the right-floated lead figure). */
   leadHtml: string;
   url: string;
+  /**
+   * Wikidata short description (Parsoid's `.shortdescription` metadata). It is page
+   * metadata, NOT article prose, so it is lifted out of `leadHtml` and surfaced in the
+   * masthead instead (alongside the CC BY-SA + QID line). Null when the article has none.
+   */
+  description?: string | null;
 }
 
 export interface ArticleSectionBody extends ArticleSection {
@@ -189,6 +195,14 @@ export async function fetchFullArticle(title: string): Promise<FullArticle> {
   wrapTables(root);
   prepHatnotes(root);
 
+  // Parsoid's short description (`<div class="shortdescription" style="display:none">`)
+  // is page METADATA, not prose. Wikipedia hides it with an inline style our sanitizer
+  // strips (correctly — `style` is not allowlisted), so it would otherwise leak to the
+  // top of the lead. Lift its text for the masthead and remove the element from the body.
+  const shortDescEl = root.querySelector(".shortdescription");
+  const description = shortDescEl?.textContent?.trim() || null;
+  shortDescEl?.remove();
+
   const articleUrl = `https://en.wikipedia.org/wiki/${encodeURIComponent(title)}`;
 
   // --- Walk children: lead = before first h2; then split by h2/h3/h4. ----------
@@ -228,7 +242,7 @@ export async function fetchFullArticle(title: string): Promise<FullArticle> {
   return {
     title,
     url: articleUrl,
-    lead: { title, leadHtml: leadParts.join("\n"), url: articleUrl },
+    lead: { title, leadHtml: leadParts.join("\n"), url: articleUrl, description },
     sections: dedupeSlugs(sections),
   };
 }

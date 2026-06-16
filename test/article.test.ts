@@ -57,6 +57,28 @@ describe("fetchFullArticle — section structure (AC3)", () => {
     expect(a.sections.map((s) => s.slug)).toEqual(["history", "history-2"]);
   });
 
+  it("lifts the Parsoid short description into lead.description and OUT of the body", async () => {
+    // Parsoid hides .shortdescription with an inline style our sanitizer strips, so it
+    // must not leak into the lead — it is page metadata, surfaced in the masthead instead.
+    mockArticleHtml(`
+      <section><div class="shortdescription nomobile noexcerpt noprint searchaux" style="display:none">Biological process to convert light into chemical energy</div><p>Lead paragraph.</p></section>
+      <section><h2>History</h2><p>Body.</p></section>
+    `);
+    const a = await fetchFullArticle("Photosynthesis");
+    expect(a.lead.description).toBe(
+      "Biological process to convert light into chemical energy"
+    );
+    expect(a.lead.leadHtml).not.toContain("shortdescription");
+    expect(a.lead.leadHtml).not.toContain("Biological process to convert light");
+    expect(a.lead.leadHtml).toContain("Lead paragraph.");
+  });
+
+  it("leaves lead.description null when the article has no short description", async () => {
+    mockArticleHtml(`<section><p>Lead only.</p></section>`);
+    const a = await fetchFullArticle("X");
+    expect(a.lead.description).toBeNull();
+  });
+
   it("KEEPS navigational/tail sections as real sections (article-fidelity #27 D1)", async () => {
     // Flipped from the v1 deferral: References / See also / etc. now come through the
     // section walk as ordinary entries (slug + heading + TOC row). See article-fidelity.test.ts.
