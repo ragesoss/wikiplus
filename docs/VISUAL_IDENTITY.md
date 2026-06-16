@@ -156,8 +156,10 @@ core.** That is why the gold lives at edges and rims, and the interiors clip to 
 
 ### 2.10 How we got here
 
-The direction converged across many iterative rounds. The lineage (preserved in `mockups/`) is worth
-recording, because it explains why the final mark is so restrained:
+The direction converged across many iterative rounds. The working tree keeps only the locked mark
+(`wordmark-projector-illuminate.html`); the exploration files named below were pruned in the
+mockup-cleanup pass and live on in **git history**. The lineage is worth recording, because it
+explains why the final mark is so restrained:
 
 1. **Seam / negative-space studies** — `wordmark-01-butt-joint` … `wordmark-10-play-tile`,
    `wordmark-negspace-*`: how "Wiki" and the plus block meet (butt joint, hinge, interlock, negative
