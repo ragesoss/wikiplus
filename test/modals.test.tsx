@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { PlayerModal } from "@/components/topic/PlayerModal";
 import { CurateModal } from "@/components/topic/CurateModal";
@@ -206,6 +206,31 @@ describe("CurateModal — Promote target (AC19 / CURATION §1–§5; D1)", () =>
     await userEvent.click(screen.getByRole("button", { name: /Publish curation/ }));
     expect(onClose).toHaveBeenCalled();
     expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("does not double-submit: while a write is pending the publish control is busy + disabled and a second click is a no-op (AC11)", async () => {
+    // A submit that never resolves keeps the modal in the pending state, so we can probe it.
+    let resolve: ((o: SubmitOutcome) => void) | undefined;
+    const onSubmit = vi.fn<OnSubmit>(
+      () => new Promise<SubmitOutcome>((r) => (resolve = r))
+    );
+    const onClose = vi.fn();
+    renderCurate(onSubmit, onClose);
+    await userEvent.type(screen.getByRole("textbox"), "Solid note.");
+    await userEvent.click(screen.getByRole("checkbox"));
+
+    const publish = screen.getByRole("button", { name: /Publish curation/ });
+    await userEvent.click(publish);
+    // Pending: the busy label is shown (a text signal, not a spinner alone — §5) and the
+    // control is disabled, so a second click cannot fire a second write.
+    expect(screen.getByRole("button", { name: /Publishing…/ })).toBeDisabled();
+    await userEvent.click(publish);
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+    expect(onClose).not.toHaveBeenCalled();
+
+    // Let the in-flight write succeed → the modal closes exactly once.
+    resolve?.({ outcome: "added" });
+    await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
   });
 });
 
