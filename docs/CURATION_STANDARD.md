@@ -259,11 +259,37 @@ CC BY-SA 4.0** — the same license as the surrounding Wikipedia content.
   the Wikipedia text it sits beside, matches the Wikimedia-adjacent ethos, and prevents a
   curator's note from being enclosed. It is the "natural fit" ARCHITECTURE flagged.
 - *Attribution of notes:* a context note is attributable to its **curator/contributor** (the
-  wiki+ identity), distinct from the **creator** of the video. The build should be ready to
-  show "context by <curator>" even if the prototype's stubbed identity makes it implicit.
-- *Contributor agreement:* contributors must **agree to release their note under CC BY-SA 4.0
-  at submission time** (a one-line notice by the submit control — UX microcopy). Persisted
-  capture of that agreement arrives with auth/persistence; the **notice is stated now**.
+  wiki+ identity), distinct from the **creator** of the video — see §5.2. The note-license
+  agreement is the **curator's** act over **their own note**; it is **not** a creator
+  attribution and must never be conflated with crediting the video's creator. The creator
+  agreed to nothing here: we reference and credit them (§5.2); the curator licenses their note
+  (this section). The build should be ready to show "context by <curator>" even if the
+  prototype's stubbed identity makes it implicit.
+- *Contributor agreement — required and captured (resolves the C5 "capture arrives with
+  persistence" carry-open):* a contributor must **affirmatively agree to release their context
+  note under CC BY-SA 4.0 at the moment they publish**. This is a **required precondition of
+  the write**, not a passive notice: publishing is blocked until the curator agrees, on both
+  the Promote ("Curate this clip") and Add-video modals.
+  - **Canonical microcopy (UX uses these strings verbatim on both modals):**
+    - *License statement* (always visible at the submit control): **"Your context note will be
+      released under CC BY-SA 4.0."**
+    - *Required agreement act* (the checkbox label / equivalent affirmative control):
+      **"I agree to release my context note under CC BY-SA 4.0."**
+  - **What the captured agreement must editorially bind (the standard behind AC7 / Decision
+    D1-1):** the persisted record must tie the agreement to **this note, by this contributor,
+    under this license version, at this time** — i.e. it captures (a) that the contributor
+    agreed, (b) the license identifier/version `CC-BY-SA-4.0` (a version string, not a bare
+    boolean, so a future license bump is expressible), and (c) the agreement timestamp, bound
+    to the clip and its contributor. A per-submit (per-note) capture is required; an
+    account-level "I agree to license all my contributions" toggle does **not** satisfy this
+    standard, because it would not bind the agreement to the specific note text and time. The
+    persisted *shape* (columns vs. a record) is Development's call; the *facts bound* are fixed
+    here.
+  - **On a future edit (forward note for D2 — not D1 scope):** a **material change to the note
+    text re-affirms the agreement** (a new note license act + timestamp), since the agreement
+    binds to the note as published. A trivial/typo fix or a stance/accuracy chip change that
+    leaves the note text substantively unchanged does **not** require re-affirmation. D2 sets
+    the edit mechanics; this is the standard's position so D2 need not reopen it.
 
 ---
 
@@ -335,7 +361,7 @@ policy level here.)
 | **C2** | `stance` and `accuracy_flag` are **fixed controlled enums**, not free-form. | Resolves the ARCHITECTURE open question. Enables filtering, consistency, future AI-assist. Dev encodes as schema enums. |
 | **C3** | The accuracy **red group is split by label** (`opinion` vs `mixed`/`misleading`/`inaccurate`); same color, distinct text. | Closes the design doc's "red reads as error?" open note; satisfies the non-color rule (§4). |
 | **C4** | The provisional `primary-source` becomes the **`demonstration` stance** and the **`primary_source` accuracy** value. | A primary clip is *a kind of clip* (stance) and *a reliability mode* (accuracy); the mockup's "Demonstration · primary" + "Real footage" needs both. Dev updates `lib/data/types.ts`. |
-| **C5** | wiki+ **context notes are licensed CC BY-SA 4.0**; agreement captured at submit. | Closes the ARCHITECTURE open question. UX adds the submit-time notice; Dev wires agreement when persistence lands. |
+| **C5** | wiki+ **context notes are licensed CC BY-SA 4.0**; the contributor's agreement is a **required precondition of publishing** and is **captured per-submit** (license version + timestamp, bound to this note + contributor). The note-license agreement is the *curator's* act, distinct from *creator* credit (§5.2). | Closes the ARCHITECTURE open question and the "capture arrives with persistence" carry-open. UX uses the §5.3 canonical agreement strings (required control, not a passive line); Dev captures per D1-1 / AC7. |
 | **C6** | Stance/accuracy support an optional **free-form modifier** (≤24 chars) shown after the label, never filtered on. | Reproduces the mockup display strings ("Accurate · fast-paced") without breaking the enum. Dev adds `stance_modifier` / `accuracy_modifier` optional fields; UX renders "Label · modifier". |
 
 ---
@@ -345,7 +371,9 @@ policy level here.)
 - **UX (design spec + microcopy):** context-note form field sized to §1.3 (1–3 sentences,
   ~320-char soft cap) with a live counter and the §1 helper text; the two chips rendering the
   §2/§3 **Label** text (+ optional modifier) per §4; the CC BY-SA article line (§5.1) and
-  creator credit (name + handle + platform, §5.2); the §5.3 submit-time license notice; the
+  creator credit (name + handle + platform, §5.2); the §5.3 **required** submit-time license
+  agreement using the canonical strings (license statement + agreement-act label, verbatim);
+  the
   candidate treatment showing `match_reason` + "no context yet" and **no chips** (§6).
 - **Development (schema + limits):** encode the §2 stance enum and §3 accuracy enum as the
   controlled vocabulary in `lib/data/types.ts` (replacing the provisional sets), with a single
