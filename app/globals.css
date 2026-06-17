@@ -452,6 +452,24 @@ figure.wikifig .credit {
   outline: none;
 }
 
+/* The signed-in account menu trigger (AuthControl, all variants). The site-wide 3px brand
+   :focus-visible ring (above) is visually heavy on this inline username+avatar button on the
+   light home header — and on the topic ＋plus block it's indigo-on-indigo (invisible), so the
+   cue is both ugly in one place and missing in another. Replace it with a SUBTLE,
+   surface-adaptive, KEYBOARD-ONLY cue: `currentColor` is ink on light headers and white on the
+   indigo block, at low opacity; plain mouse :focus shows nothing. Unlayered so it governs the
+   layered Tailwind utilities + the global :focus-visible (same pattern as the search field). */
+.auth-account-trigger {
+  border-radius: 4px;
+}
+.auth-account-trigger:focus-visible {
+  outline: 2px solid color-mix(in srgb, currentColor 45%, transparent);
+  outline-offset: 2px;
+}
+.auth-account-trigger:focus:not(:focus-visible) {
+  outline: none;
+}
+
 /* Shimmer skeleton for the loading state (design §7.1). */
 @keyframes wikiplus-shimmer {
   0% {

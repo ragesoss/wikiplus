@@ -99,7 +99,7 @@ function SignedIn({
         <button
           type="button"
           aria-label={`Account: ${username}`}
-          className={`inline-flex min-h-[44px] items-center gap-1.5 px-1.5 py-1 text-sm font-bold ${textColor} focus-visible:outline-none`}
+          className={`auth-account-trigger inline-flex min-h-[44px] items-center gap-1.5 px-1.5 py-1 text-sm font-bold ${textColor}`}
         >
           <span
             aria-hidden
