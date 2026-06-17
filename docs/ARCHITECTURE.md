@@ -101,8 +101,10 @@ Keyed on stable identifiers, normalized, minimal.
 > fetches Wikipedia in B — that cache belongs to the deferred production read-path), and the **`clip`
 > fields are the app's current `Clip` type** (`lib/data/types.ts`) — `embed_meta`/`timestamp_seconds`
 > are not yet carried, and `section_anchor` is stored as the `section_slug` + `section_label` pair.
-> The `account` table is Auth.js-adapter-shaped but **unused by writes** until issue C; interim writes
-> attribute to a stub `@prototype` contributor.
+> The `account` table is Auth.js-adapter-shaped; **as of issue C it is populated by real
+> Wikimedia logins** (find-or-create on `(provider, provider_account_id)`), and writes attribute
+> to the real signed-in contributor. The stub `@prototype` contributor remains only for clips
+> curated before C (no retro-rewrite — D6). See *Authentication & identity*.
 
 - **topic**
   - `id` (internal PK)
@@ -302,20 +304,49 @@ OAuth/OIDC provider**; Google is a built-in provider we can switch on later with
 This resolves the earlier "Auth.js vs Lucia" question — Auth.js wins on first-class
 multi-provider OAuth support, so launching single-provider costs us nothing later.
 
-Design points:
+**As of issue C (#?) this is LIVE — as built:**
 
-- **Reading is anonymous; contributing requires login.** This keeps the cached read path
-  free of any per-user/auth work — auth only matters on writes and the contributor's own views.
-- **Identity model:** each successful OAuth login maps to an **`account`** row
-  (`provider` + `provider_account_id`) belonging to a **`contributor`**. The MVP has a single
-  provider, so each contributor has exactly one account — but the **`account`** table exists
-  from the start so that adding Google (and **account linking/merge**) later is additive, not
-  a rewrite of the core identity.
-- **Sessions:** prefer **stateless JWT session cookies** so ordinary requests need no session
-  lookup (consistent with the read-path-efficiency principle); use the Redis/Drizzle adapter
-  for the account records and any server-side session needs.
-- **Secrets:** the Wikimedia consumer key/secret (and later Google's client ID/secret) live in
-  environment/secret config (Docker secrets), never in the repo.
+- **Auth.js v5** (`next-auth@5.0.0-beta.31`, App-Router-native: one config exports
+  `handlers`/`auth`/`signIn`/`signOut`). Wikimedia is the **built-in `@auth/core` provider**
+  (`next-auth/providers/wikimedia`) — authorize/token/userinfo at `meta.wikimedia.org`,
+  **default identify-only scope** (stable `sub` + `username`; no edit/act-on-behalf grant —
+  Decision D5). The catch-all route handler lives at `app/api/auth/[...nextauth]/route.ts`;
+  the default callback is **`/api/auth/callback/wikimedia`** (the URL Ops registers at
+  meta.wikimedia.org). The config (`lib/auth/config.ts`) sets `trustHost: true` (behind
+  Caddy/Cloudflare) and a descriptive Wikimedia **`User-Agent`** via Auth.js's `customFetch`
+  on the identity-endpoint calls (Wikimedia etiquette).
+- **Sessions: stateless JWT** (`session.strategy = "jwt"`, **no database adapter, no
+  server-side session store, no Redis**). An ordinary read resolves the header from the signed
+  JWT cookie with **no per-read DB hit** (read-path-efficiency principle preserved). The
+  **only** DB write a login makes is the find-or-create identity mapping, run once in the `jwt`
+  callback on sign-in; the resolved `contributorId` + Wikimedia `username` are stashed on the
+  token and surfaced via the `session` callback.
+- **Reading is anonymous; contributing requires login.** The three persisted write Server
+  Actions — `addClipAction`, `upsertTopicAction`, `recordDismissalAction` — are **auth-gated at
+  the boundary** (`lib/auth/require-session.ts` `requireContributor()` throws `AuthRequiredError`
+  when there is no session; the gate is in the Server Action, not only a hidden button —
+  Decision D1). A gated write attributes to the **real signed-in contributor** (`clip.curatorId`
+  + `clip.curatedBy` = the Wikimedia username; dismissal `contributorId`). `updateClip`/
+  `deleteClip` stay **off** the boundary (that's issue D).
+- **Identity model:** each successful Wikimedia login find-or-creates an **`account`** row keyed
+  by `(provider='wikimedia', provider_account_id=<stable Wikimedia subject id>)` belonging to a
+  **`contributor`** carrying the Wikimedia username (`lib/auth/contributor.ts`). A repeat login
+  by the same subject resolves to the **same** rows (matched on the
+  `account_provider_identity` unique) — no duplicates; a Wikimedia rename updates the handle in
+  place. The `(provider, provider_account_id)` shape means **Google (and account
+  linking/merge) later is additive** — Decision D2. **No schema change was needed for C** — the
+  #45 `account`/`contributor` tables already carried everything the JWT-session find-or-create
+  needs (`name`/`email`/`avatarUrl` on `account`; `handle`/`displayName`/`avatarUrl` on
+  `contributor`), so C adopts them as-is with **no migration** (AC9).
+- **The `@prototype` stub is superseded for new writes.** The seeded stub contributor stays as
+  attribution for clips curated **before** C (no retro-rewrite — Decision D6); only new writes
+  attribute to the real signed-in contributor.
+- **Secrets:** the Wikimedia consumer key/secret live in env under the owner-confirmed names
+  **`wikimedia_oauth_client_key`** / **`wikimedia_oauth_client_secret`** (read explicitly as the
+  provider's `clientId`/`clientSecret`); Auth.js's session-signing **`AUTH_SECRET`** is also a
+  server secret. All three live in environment/Docker secrets, **never** in the repo and
+  **never** in the client bundle (AC12; verified absent from `.next/static`). `.dockerignore`
+  excludes `.env` so the CI image build never bakes them; they arrive at runtime on the box.
 
 ## Licensing & attribution (must be handled, not an afterthought)
 
@@ -417,12 +448,15 @@ build on additively.
   plain typed async functions — so the call-site rewire from `await store.*` is near drop-in (parity).
   The boundary (`lib/server/actions.ts`, `"use server"`) is a thin set of **mechanical wrappers** over
   the store — **no product logic** (auth-gating / the CC-BY-SA agreement are issue D).
-- **Boundary surface is narrower than the store (security, fix round).** The boundary is
-  **unauthenticated** until issue C, so it deliberately does **not** expose every store method. The
-  destructive `updateClip` / `deleteClip` have **no UI caller** and are **not** Server Actions (an
-  anonymous boundary export would let any visitor edit/delete any clip) — they live **only** on
-  `DrizzleDataStore` (for issue D + store-level tests) and are absent from both the boundary and the
-  client-facing `DataStore` interface. A **minimal input stopgap** sits on the public write actions
+- **Boundary surface is narrower than the store (security, fix round).** The boundary deliberately
+  does **not** expose every store method. The destructive `updateClip` / `deleteClip` have **no UI
+  caller** and are **not** Server Actions (a boundary export would let any visitor edit/delete any
+  clip) — they live **only** on `DrizzleDataStore` (for issue D + store-level tests) and are absent
+  from both the boundary and the client-facing `DataStore` interface. **As of issue C the three write
+  actions (`addClip`/`upsertTopic`/`recordDismissal`) are AUTH-GATED** — `requireContributor()` runs
+  at the top of each and rejects an unauthenticated call before any DB write (the B-era
+  "unauthenticated boundary" is closed; see *Authentication & identity*). A **minimal input stopgap**
+  sits on the write actions (after the gate)
   (`addClip`, `upsertTopic`) ahead of D's full validation: a free-text **length cap**
   (`context_note` / `caption` / `title`) and a **closed-set guard** on the curation enums
   (`stance` / `accuracy_flag` / `platform`), rejecting out-of-vocabulary values before any DB call.
@@ -439,9 +473,9 @@ build on additively.
   calls Wikipedia, AC8):**
   - **Reads (server-DB):** `listTopics`, `getTopic`, `getTopicByTitle`, `listClips`, the persisted
     `dismissedKeys` — Server Actions → `DrizzleDataStore` → Postgres.
-  - **Writes (server-DB):** `upsertTopic`, `addClip`, `recordDismissal` — same path. (`updateClip` /
-    `deleteClip` exist on the store but are **not** boundary actions — see *Boundary surface* above.)
-    Interim writes are attributed to a single **stub `@prototype` contributor** (see below).
+  - **Writes (server-DB):** `upsertTopic`, `addClip`, `recordDismissal` — same path, **auth-gated as
+    of issue C** (rejected when anonymous; attributed to the real signed-in contributor). (`updateClip`
+    / `deleteClip` exist on the store but are **not** boundary actions — see *Boundary surface* above.)
   - **Client (Wikipedia/YouTube), unchanged:** title→QID resolution, the article-body fetch, the TOC,
     and the **live YouTube candidate search** all stay **client-side**. `suggestCandidates` runs the
     pure pipeline in the browser; the (now shared) dismissed-video keys it needs for dedup are fetched
@@ -452,7 +486,8 @@ build on additively.
   `topic` (`wikidata_qid` unique, `title`/`lang`/`description`, timestamps — **no `article_index`**,
   which belongs to the deferred production read-path), `clip` (**every** field on the app's `Clip`
   type), `contributor`, `account` (**Auth.js-adapter-shaped** — `unique(provider, provider_account_id)`,
-  FK to contributor — so **C** adopts it without a schema rewrite; unused by writes in B),
+  FK to contributor — **issue C adopted it with NO schema change/migration**, AC9: the existing
+  columns already carried the JWT find-or-create's needs),
   `dismissed_candidate` (`unique(topic_id, provider, provider_video_id)` — the sticky-dismissal
   identity; shared so a candidate dismissed by anyone stays dismissed for everyone).
 - **Migration + seed run on DEPLOY, never at build or per-request.** A compose **`migrate` one-shot**
@@ -462,9 +497,10 @@ build on additively.
   that changes the schema lands a migrated + seeded DB with no manual SSH. The migrate entrypoint is
   bundled (`scripts/build-migrate.mjs` → `dist/migrate.cjs`) so the tiny standalone runtime image runs
   it with plain `node` (no tsx / drizzle-kit / full `node_modules`).
-- **Interim attribution (stub contributor) until C.** No sign-in is introduced in B. Every write is
-  attributed to a single seeded **`@prototype`** contributor; the `account`↔`contributor` wiring
-  exists in the schema, unused by writes. **C** swaps the stub for real per-user identity additively.
+- **Interim attribution (stub contributor) — superseded by C.** B introduced no sign-in: every write
+  was attributed to a single seeded **`@prototype`** contributor. **Issue C swapped this for real
+  per-user identity** — new writes attribute to the signed-in Wikimedia contributor; the stub stays
+  only for clips curated before C (no retro-rewrite — D6). See *Authentication & identity*.
 - **Async-write UX (new in B — localStorage was synchronous and never failed).** The two relocated
   reader/curate writes get deliberate pending/failure UX (design `docs/design/persistence-postgres.md`):
   the **contribute add is awaited** (pending/disabled button, fields preserved on failure, honest
@@ -534,7 +570,16 @@ a host is provisioned (issue A.2).
 - **Wikipedia:** article fetch + DOMPurify sanitize run client-side (as in production); Wikidata
   resolves QID→title. oEmbed is avoided — we store `platform`+`videoId` and build the click-to-load
   facade ourselves.
-- **Auth:** stubbed (reading is anonymous); real Wikimedia OAuth arrives with the server.
+- **Auth:** **LIVE as of issue C** — real **Wikimedia OAuth 2.0 via Auth.js v5** (JWT sessions,
+  no session store). Reading stays anonymous; the three persisted write actions
+  (`addClipAction`/`upsertTopicAction`/`recordDismissalAction`) are **auth-gated at the Server
+  Actions boundary** and attribute to the real signed-in contributor. The interim `@prototype`
+  stub is **superseded for new writes** (kept only for pre-C clips — D6). See *Authentication &
+  identity* above for the as-built. (Was: "stubbed — reading is anonymous; real Wikimedia OAuth
+  arrives with the server.") **Ops bring-up needs:** `AUTH_SECRET` (new server secret), the
+  existing `wikimedia_oauth_client_key`/`_secret` as Docker secrets on the box, and the prod
+  callback `https://wikiplus.wikiedu.org/api/auth/callback/wikimedia` registered at
+  meta.wikimedia.org.
 - **Server Actions (enabled #37; now the data-access boundary — issue #45).** The Node SSR runtime
   supports Server Actions; as of #45 they are the **data-access boundary** for shared Postgres
   (`lib/server/actions.ts`, `"use server"` — see *Persistence* above). The throwaway #37 smoke artifact

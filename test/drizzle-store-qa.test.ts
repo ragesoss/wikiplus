@@ -1,6 +1,15 @@
 // @vitest-environment node
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { eq } from "drizzle-orm";
+
+// Issue C: the three write actions are now auth-gated (they call `auth()` BEFORE validation —
+// gate-first is the security order). These #45 characterization tests for the input STOPGAP
+// exercise the validation rejection paths, so they must be past the gate: mock `auth()` to a
+// signed-in session. The gate itself (reject-when-anonymous) is covered by test/auth-boundary.
+vi.mock("@/lib/auth/config", () => ({
+  auth: async () => ({ user: { contributorId: 1, username: "QaCurator" } }),
+}));
+
 import {
   DrizzleDataStore,
   getStubContributorId,

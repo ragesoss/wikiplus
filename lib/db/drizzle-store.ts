@@ -134,18 +134,25 @@ export class DrizzleDataStore implements DataStore {
     return null;
   }
 
-  async addClip(input: Omit<Clip, "id" | "createdAt">): Promise<Clip> {
+  async addClip(
+    input: Omit<Clip, "id" | "createdAt">,
+    curatorId?: number
+  ): Promise<Clip> {
     const topicId = await this.topicIdForQid(input.topicQid);
     if (topicId === null) {
       throw new Error(
         `addClip: no topic for QID ${input.topicQid} — upsert the topic first.`
       );
     }
-    // Interim attribution to the stub "prototype" contributor (AC13) until issue C.
-    const curatorId = await getStubContributorId(this.db);
+    // Issue C: attribute to the REAL signed-in contributor passed by the auth-gated
+    // boundary (AC6). Only when none is supplied (store-level tests / seed / reference
+    // impl) do we fall back to the seeded "@prototype" stub — the deployed write path
+    // always passes the authenticated contributor.
+    const attributedId =
+      curatorId ?? (await getStubContributorId(this.db));
     const rows = await this.db
       .insert(clip)
-      .values(clipToInsert(input, topicId, curatorId))
+      .values(clipToInsert(input, topicId, attributedId))
       .returning();
     return rowToClip(rows[0], input.topicQid);
   }
@@ -172,21 +179,27 @@ export class DrizzleDataStore implements DataStore {
   }
 
   // ── Sticky dismissals (shared + durable — AC5) ─────────────────────────────────────
-  async recordDismissal(input: {
-    topicQid: string;
-    platform: string;
-    videoId: string;
-  }): Promise<void> {
+  async recordDismissal(
+    input: {
+      topicQid: string;
+      platform: string;
+      videoId: string;
+    },
+    contributorId?: number
+  ): Promise<void> {
     const topicId = await this.topicIdForQid(input.topicQid);
     if (topicId === null) return; // nothing to dismiss against an unknown topic
-    const contributorId = await getStubContributorId(this.db);
+    // Issue C: the dismissal is attributed to the REAL signed-in contributor passed by the
+    // auth-gated boundary (AC8); fall back to the stub only for store-level tests / seed.
+    const attributedId =
+      contributorId ?? (await getStubContributorId(this.db));
     await this.db
       .insert(dismissedCandidate)
       .values({
         topicId,
         provider: input.platform,
         providerVideoId: input.videoId,
-        contributorId,
+        contributorId: attributedId,
       })
       // Idempotent on the (topic, provider, provider_video_id) unique identity (AC5):
       // re-dismissing the same candidate is a no-op, not a duplicate-key error.

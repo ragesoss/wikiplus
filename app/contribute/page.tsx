@@ -1,8 +1,13 @@
 "use client";
 
+import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { AuthControl } from "@/components/auth/AuthControl";
+import { LoginPromptPanel } from "@/components/auth/LoginPrompt";
 import { store } from "@/lib/data";
+import { AUTH_COPY } from "@/lib/auth/microcopy";
+import { isAuthRequired } from "@/lib/auth/auth-error";
 import {
   ACCURACY_LABEL,
   ACCURACY_ORDER,
@@ -18,7 +23,23 @@ import { parseVideoUrl } from "@/lib/embed/facade";
 const STANCES: Stance[] = STANCE_ORDER;
 const ACCURACY: AccuracyFlag[] = ACCURACY_ORDER;
 
+// A minimal home-style header row so the auth affordance + the login gate have a home on
+// /contribute (design §1b — the page had no app header before C).
+function ContributeHeader() {
+  return (
+    <header className="border-b border-ink/10">
+      <div className="mx-auto flex max-w-xl flex-wrap items-center justify-between gap-3 px-4 py-3">
+        <Link href="/" className="text-lg font-semibold text-brand">
+          wiki<span className="text-sprout">+</span>
+        </Link>
+        <AuthControl variant="home" />
+      </div>
+    </header>
+  );
+}
+
 export default function ContributePage() {
+  const { status } = useSession();
   const [qid, setQid] = useState("");
   const [videoUrl, setVideoUrl] = useState("");
   const [handle, setHandle] = useState("");
@@ -38,10 +59,27 @@ export default function ContributePage() {
   // AFTER it re-renders enabled (a disabled element can't take focus) — design §"Focus
   // management": a keyboard user can immediately retry instead of focus dropping to <body>.
   const refocusOnFail = useRef(false);
+  // OAuth-return error (design §4): meta.wikimedia.org / Auth.js can bounce back with
+  // ?error=… (cancelled or provider failure). Map it to the honest, non-blocking notice
+  // shown above the login gate's "Log in with Wikipedia" Try-again button.
+  const [oauthError, setOauthError] = useState<string | null>(null);
+  // The URL to return to after login, preserving ?qid= so the form lands prefilled (§2a).
+  // Built from the live location on the client (this page is a client component).
+  const [callbackUrl, setCallbackUrl] = useState("/contribute");
 
   useEffect(() => {
-    const p = new URLSearchParams(window.location.search).get("qid");
+    const params = new URLSearchParams(window.location.search);
+    const p = params.get("qid");
     if (p) setQid(p);
+    setCallbackUrl(`${window.location.pathname}${window.location.search}`);
+    const err = params.get("error");
+    if (err) {
+      setOauthError(
+        err === "AccessDenied"
+          ? AUTH_COPY.errors.cancelled
+          : AUTH_COPY.errors.provider
+      );
+    }
   }, []);
 
   // After a failed add re-enables the submit, return focus to it (DEFECT-2). Runs once the
@@ -102,12 +140,19 @@ export default function ContributePage() {
       });
       setAnnounce("Clip added.");
       setSavedQid(id); // success view — only AFTER the server confirms (awaited)
-    } catch {
-      // Write failure (DB down / network / constraint). Keep every typed field, show an
-      // honest error in the same red slot validation uses, re-enable submit as a retry,
+    } catch (err) {
+      // Issue C (design §4): a session that expired between render and submit is rejected at
+      // the auth-gated boundary (AC7). Surface the expired-session prompt in the error slot
+      // (every typed field is preserved; the form falls back to the gate on re-render once
+      // the session is gone) rather than the generic save-failure copy.
+      const message = isAuthRequired(err)
+        ? AUTH_COPY.errors.expiredSession
+        : "Couldn't save your clip — please try again.";
+      // Write failure (DB down / network / constraint / expired auth). Keep every typed field,
+      // show an honest error in the same red slot validation uses, re-enable submit as a retry,
       // and do NOT show the "Clip added." success (no false success, no silent loss).
-      setError("Couldn't save your clip — please try again.");
-      setAnnounce("Couldn't save your clip — please try again.");
+      setError(message);
+      setAnnounce(message);
       // Return focus to the submit (re-enabled below) so a keyboard user can retry without
       // focus dropping to <body> (DEFECT-2). The effect on `submitting` does the focus once
       // the button re-renders enabled.
@@ -119,22 +164,59 @@ export default function ContributePage() {
 
   if (savedQid) {
     return (
-      <div className="mx-auto max-w-xl space-y-3 px-4 py-8">
-        <p className="text-sm text-ink">Clip added.</p>
-        {/* Back-compat entry: this lightweight form only knows the QID, so it links via
-            the ?qid= path; TopicView resolves QID→title and canonicalizes the URL. */}
-        <Link
-          href={`/topic/?qid=${encodeURIComponent(savedQid)}`}
-          className="text-action underline"
-        >
-          View the topic →
-        </Link>
-      </div>
+      <>
+        <ContributeHeader />
+        <div className="mx-auto max-w-xl space-y-3 px-4 py-8">
+          <p className="text-sm text-ink">Clip added.</p>
+          {/* Back-compat entry: this lightweight form only knows the QID, so it links via
+              the ?qid= path; TopicView resolves QID→title and canonicalizes the URL. */}
+          <Link
+            href={`/topic/?qid=${encodeURIComponent(savedQid)}`}
+            className="text-action underline"
+          >
+            View the topic →
+          </Link>
+        </div>
+      </>
+    );
+  }
+
+  // ── Logged-out gate (AC10 / design §2a). Do NOT render the form fields to a logged-out
+  // user (an unusable form is the dead-end / false-affordance D7 forbids); show the login
+  // gate panel instead, keeping the "Add a clip" heading and preserving ?qid= via callbackUrl.
+  // While the session is still resolving, hold a neutral placeholder to avoid a form↔gate flash.
+  if (status !== "authenticated") {
+    return (
+      <>
+        <ContributeHeader />
+        <main className="mx-auto max-w-xl space-y-5 px-4 py-8">
+          <h1 className="text-2xl font-semibold text-ink">
+            {AUTH_COPY.contributeGateHeading}
+          </h1>
+          {status === "loading" ? (
+            <div
+              aria-hidden
+              className="h-40 w-full animate-pulse rounded-xl border-2 border-ink/10 bg-ink/5"
+            />
+          ) : (
+            <LoginPromptPanel
+              title={AUTH_COPY.gates.contribute.title}
+              body={AUTH_COPY.gates.contribute.body}
+              callbackUrl={callbackUrl}
+              secondaryHref="/"
+              secondaryLabel={AUTH_COPY.gates.contribute.secondaryLabel}
+              error={oauthError}
+            />
+          )}
+        </main>
+      </>
     );
   }
 
   return (
-    <form onSubmit={onSubmit} className="mx-auto max-w-xl space-y-5 px-4 py-8">
+    <>
+      <ContributeHeader />
+      <form onSubmit={onSubmit} className="mx-auto max-w-xl space-y-5 px-4 py-8">
       <h1 className="text-2xl font-semibold text-ink">Add a clip</h1>
 
       <Field label="Topic Wikidata QID">
@@ -220,7 +302,8 @@ export default function ContributePage() {
       >
         {submitting ? "Adding…" : "Add clip"}
       </button>
-    </form>
+      </form>
+    </>
   );
 }
 
