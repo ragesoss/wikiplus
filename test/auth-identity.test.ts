@@ -96,6 +96,54 @@ describe("findOrCreateContributor (AC3 — repeat login = same rows, no duplicat
     expect(accounts).toHaveLength(2);
   });
 
+  // QA DEFECT (routed to Development — identity-collision via the mutable username).
+  // The trust anchor is supposed to be (provider, provider_account_id) — NOT the username.
+  // But findOrCreateContributor's first-login path uses onConflictDoNothing on the UNIQUE
+  // `contributor.handle` and, on a handle collision, FALLS BACK to reading the existing
+  // contributor by handle (lib/auth/contributor.ts:78–104) — so two DISTINCT subjects that
+  // present the SAME username string collapse onto ONE contributor row. That merges two real
+  // Wikimedia identities (their clips/dismissals co-mingle under one contributor; either user
+  // signing in is treated as the same person). Reachable via: a username freed by a rename then
+  // reclaimed by a different account (Wikimedia permits reuse), the seeded "@prototype" handle,
+  // or any future second provider whose name string coincides. Skipped (asserts the CORRECT
+  // invariant) — flip to `it(...)` when fixed (anchor find-or-create on the account identity, not
+  // the handle; make the handle a non-unique display column or disambiguate on collision).
+  it.skip("DEFECT: distinct subjects with the SAME username must NOT share a contributor", async () => {
+    const a = await findOrCreateContributor(
+      { subject: "AAA", username: "Pat", email: null },
+      h.db
+    );
+    const b = await findOrCreateContributor(
+      { subject: "BBB", username: "Pat", email: null },
+      h.db
+    );
+    expect(b.contributorId).not.toBe(a.contributorId); // currently FAILS: both → one row
+    const accounts = await h.db.select().from(account);
+    expect(accounts).toHaveLength(2);
+  });
+
+  // QA DEFECT (routed to Development — login throws on a rename into an existing handle).
+  // The repeat-login path unconditionally `update(contributor).set({ handle: username })`
+  // (lib/auth/contributor.ts:70–74). If a known subject renames to a username ALREADY held by
+  // another contributor, that update violates the `contributor.handle` UNIQUE constraint and
+  // THROWS inside the Auth.js jwt callback — so a legitimately-authenticated user is locked out
+  // of login even though their (provider, subject) identity is valid. Skipped (asserts the
+  // CORRECT invariant) — flip to `it(...)` when the handle-sync tolerates a collision.
+  it.skip("DEFECT: a rename into another contributor's handle must not break login", async () => {
+    await findOrCreateContributor(
+      { subject: "AAA", username: "Alice", email: null },
+      h.db
+    );
+    await findOrCreateContributor(
+      { subject: "BBB", username: "Bob", email: null },
+      h.db
+    );
+    // Subject AAA renames to "Bob" — must resolve, not throw.
+    await expect(
+      findOrCreateContributor({ subject: "AAA", username: "Bob", email: null }, h.db)
+    ).resolves.toBeTruthy();
+  });
+
   it("a Wikimedia rename updates the handle in place — same identity, no new row (AC3)", async () => {
     const first = await findOrCreateContributor(RAGESOSS, h.db);
     // Same subject id, new username (a Wikimedia rename).

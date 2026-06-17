@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 
 // AuthControl + LoginPrompt component tests (issue C). The auth client surface
 // (`useSession` / `signIn` / `signOut`) is mocked here PER-TEST so we can drive the
@@ -87,6 +87,23 @@ describe("AuthControl — signed-in (AC2 / AC5)", () => {
     const trigger = screen.getByRole("button", { name: "Account: Ragesoss" });
     expect(trigger).toHaveAttribute("aria-haspopup", "menu");
     expect(trigger).toHaveAttribute("aria-expanded", "false");
+  });
+
+  // QA-added (AC5): the dev only asserted the trigger's ARIA contract, leaving the actual
+  // Sign-out invocation unverified. Radix DOES open via KEYBOARD under jsdom (Enter on the
+  // menu-button), so the sign-out path is testable without a running app. This closes the
+  // gap: opening the menu and activating "Sign out" must call signOut({ callbackUrl: "/" })
+  // — the call that clears the session and returns the UI to the anonymous state (AC5).
+  it("opening the menu and activating 'Sign out' calls signOut({ callbackUrl: '/' }) (AC5)", async () => {
+    render(<AuthControl variant="home" />);
+    const trigger = screen.getByRole("button", { name: "Account: Ragesoss" });
+    // Keyboard-open the menu-button (WAI-ARIA: Enter opens), then click the item.
+    fireEvent.keyDown(trigger, { key: "Enter" });
+    const item = await screen.findByText("Sign out");
+    fireEvent.click(item);
+    await waitFor(() =>
+      expect(signOut).toHaveBeenCalledWith({ callbackUrl: "/" })
+    );
   });
 });
 

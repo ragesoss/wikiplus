@@ -134,6 +134,26 @@ describe("AC6/AC8 — authenticated writes attribute to the REAL contributor (no
     if (stub[0]) expect(rows[0].curatorId).not.toBe(stub[0].id);
   });
 
+  it("a client-supplied curatedBy is OVERRIDDEN by the boundary (attribution is the server's call, AC6)", async () => {
+    // Security/correctness: the client must not be able to forge the vouch's displayed name.
+    // The boundary stamps `curatedBy` = the signed-in username and `curatorId` = the session
+    // contributor regardless of what the caller passes — so a spoofed `curatedBy` is ignored.
+    const me = await signInAs("Ragesoss", "12345");
+    await upsertTopicAction({ qid: "Q11982", title: "Photosynthesis" });
+    const added = await addClipAction({
+      ...clip0(),
+      topicQid: "Q11982",
+      curatedBy: "@somebody_else", // attempted spoof — must NOT survive
+    });
+    expect(added.curatedBy).toBe("Ragesoss");
+    const rows = await h.db
+      .select()
+      .from(clip)
+      .where(eq(clip.id, Number(added.id)));
+    expect(rows[0].curatedBy).toBe("Ragesoss");
+    expect(rows[0].curatorId).toBe(me.contributorId);
+  });
+
   it("an authenticated recordDismissal writes a row with the signed-in contributorId", async () => {
     const me = await signInAs("Ragesoss", "12345");
     await upsertTopicAction({ qid: "Q11982", title: "Photosynthesis" });
