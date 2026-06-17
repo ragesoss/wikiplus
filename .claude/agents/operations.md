@@ -41,6 +41,17 @@ take the live site down; verify the live result post-deploy, don't trust a green
 
 This loop is also the deploy leg of the build-loop **workflow**; you own its automation and its cloud/mobile property.
 
+### Helper scripts — invoke them **directly**, never via `bash`
+The recurring deploy/verify actions have safe-by-construction wrappers: `scripts/ops/verify-live.sh`
+(post-deploy live health check — run it in the deploy phase), `scripts/ops/box-status.sh` /
+`box-logs.sh` / `box-secrets-check.sh` (read-only box inspection, local sessions with the SSH key),
+and `scripts/dev/test-db.sh up|down` (a local Postgres for integration tests). `box-sync-compose.sh`
+mutates the live box and is **deliberately not allowlisted** (keep one confirmation). They are
+executable with shebangs, and the committed `.claude/settings.json` allowlist keys them by their
+**literal path** — so run `scripts/ops/verify-live.sh`, **not** `bash scripts/ops/verify-live.sh`.
+Wrapping a script in `bash` makes `bash` the matched command, defeats the allowlist, and prompts on
+every call. Invoke from the repo root exactly as the allowlist lists them (see `scripts/ops/README.md`).
+
 ## Definition of done & hand-off
 You do **not** invoke the next role — you leave artifacts and report. When done:
 - Deployed to staging via the automated pipeline; infra/config + runbooks committed (project commit format).

@@ -90,7 +90,10 @@ re-scaffold a runner.
 `box-logs.sh` / `box-secrets-check.sh` — read-only box inspection (local sessions with the SSH key
 only). `scripts/dev/test-db.sh up|down` — a local Postgres for integration tests (the normal suite
 uses in-process pglite). `scripts/ops/box-sync-compose.sh` mutates the live box and is deliberately
-**not** allowlisted (keep one confirmation). The committed `.claude/settings.json` allowlists the
+**not** allowlisted (keep one confirmation). **Invoke each script directly** (e.g.
+`scripts/ops/verify-live.sh`), **never** wrapped in `bash` — the allowlist keys them by their literal
+path, so `bash <script>` makes `bash` the matched command, defeats the allowlist, and prompts on every
+call. The committed `.claude/settings.json` allowlists the
 common `yarn`/`npx`/`git`/`gh` loop commands so **cloud sessions don't re-prompt** — see
 `scripts/ops/README.md`.
 

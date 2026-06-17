@@ -70,6 +70,8 @@
       "Bash(./scripts/ops/box-status.sh)",
       "Bash(scripts/ops/box-logs.sh)",
       "Bash(./scripts/ops/box-logs.sh)",
+      "Bash(scripts/ops/box-logs.sh:*)",
+      "Bash(./scripts/ops/box-logs.sh:*)",
       "Bash(scripts/ops/box-secrets-check.sh)",
       "Bash(./scripts/ops/box-secrets-check.sh)",
       "Bash(scripts/dev/test-db.sh up)",
