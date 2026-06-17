@@ -31,7 +31,14 @@ ARG NEXT_PUBLIC_YOUTUBE_API_KEY=""
 ENV NEXT_PUBLIC_YOUTUBE_API_KEY=${NEXT_PUBLIC_YOUTUBE_API_KEY}
 # basePath stays empty (root-served): Caddy reverse-proxies the apex of wikiplus.wikiedu.org
 # directly to app:3000, not a subpath. (NEXT_PUBLIC_BASE_PATH left unset on purpose.)
+# NOTE: `next build` does NOT connect to Postgres (DB access is lazy, runtime-only) — so no
+# DATABASE_URL is needed here, and the build never fails for lack of a DB (issue #45).
 RUN yarn build
+# Bundle the DB migrate+seed entrypoint (issue #45) into a single self-contained
+# dist/migrate.cjs so the runtime image can apply migrations on deploy with plain `node`
+# (no tsx / drizzle-kit / full node_modules in the tiny standalone runtime). The migrate
+# compose one-shot runs this against the live Postgres — see deploy/docker-compose.yml.
+RUN yarn build:migrate
 
 # ---- runtime: tiny image, non-root, just the standalone server ---------------------------
 FROM node:24.2.0-bookworm-slim AS runtime
@@ -48,9 +55,15 @@ ENV HOSTNAME=0.0.0.0
 COPY --from=build --chown=node:node /app/.next/standalone ./
 COPY --from=build --chown=node:node /app/.next/static ./.next/static
 COPY --from=build --chown=node:node /app/public ./public
+# DB migration assets (issue #45): the bundled migrate+seed entrypoint and the committed
+# SQL migrations it applies. Used ONLY by the migrate compose one-shot (which overrides the
+# command to `node dist/migrate.cjs`), never by the app server. Cheap to carry (~0.4MB).
+COPY --from=build --chown=node:node /app/dist ./dist
+COPY --from=build --chown=node:node /app/drizzle ./drizzle
 
 USER node
 EXPOSE 3000
 
-# The standalone bundle's entrypoint. No `yarn`, no `next` — just Node.
+# The standalone bundle's entrypoint. No `yarn`, no `next` — just Node. (The migrate one-shot
+# overrides this with `node dist/migrate.cjs`; see deploy/docker-compose.yml.)
 CMD ["node", "server.js"]

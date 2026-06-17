@@ -50,9 +50,29 @@ export interface DataStore {
     sections: ArticleSection[];
     /** `platform:videoId` keys already curated for this topic (AC8 dedup). */
     curatedVideoKeys: Set<string>;
+    /**
+     * `platform:videoId` keys dismissed for this topic (AC9 dedup). As of issue #45
+     * dismissals are shared/durable in Postgres; the client fetches them (via the server
+     * boundary) and passes them in here so the live pipeline stays pure + client-side (AC8).
+     */
+    dismissedVideoKeys: Set<string>;
   }): Promise<Candidate[] | null>;
 
   addClip(clip: Omit<Clip, "id" | "createdAt">): Promise<Clip>;
   updateClip(id: string, patch: Partial<Omit<Clip, "id">>): Promise<Clip>;
   deleteClip(id: string): Promise<void>;
+
+  // ── Sticky candidate dismissals (issue #45). ─────────────────────────────────────
+  // Moved behind the store boundary so a dismissal is SHARED + DURABLE like a clip:
+  // a candidate dismissed by anyone does not resurface for anyone (AC5), matched by the
+  // (topicQid, platform, videoId) identity. (Was per-browser localStorage in the
+  // prototype — lib/candidates/dismissals.ts.)
+  /** Persist a dismissal so the candidate does not resurface (idempotent on the identity). */
+  recordDismissal(input: {
+    topicQid: string;
+    platform: string;
+    videoId: string;
+  }): Promise<void>;
+  /** The set of dismissed `platform:videoId` keys for a topic (for filtering candidates). */
+  dismissedKeys(topicQid: string): Promise<string[]>;
 }

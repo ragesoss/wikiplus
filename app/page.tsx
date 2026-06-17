@@ -2,19 +2,32 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { store, seedIfEmpty } from "@/lib/data";
+import { store } from "@/lib/data";
 import type { Topic } from "@/lib/data/types";
 import { topicHref } from "@/lib/wiki/topicRoute";
 import { TopicSearch } from "@/components/search/TopicSearch";
 
 export default function HomePage() {
   const [topics, setTopics] = useState<Topic[] | null>(null);
+  // Read-error floor (design §"read failure"): a server read can now fail (DB down) — show
+  // an honest line rather than hang on "Loading…" forever. localStorage never failed.
+  const [loadError, setLoadError] = useState(false);
 
   useEffect(() => {
+    let alive = true;
     (async () => {
-      await seedIfEmpty();
-      setTopics(await store.listTopics());
+      try {
+        // The seeded topics now come from shared Postgres (the DB seed) — no per-browser
+        // seedIfEmpty. Every visitor sees the same seeded list + anyone's curated topics.
+        const list = await store.listTopics();
+        if (alive) setTopics(list);
+      } catch {
+        if (alive) setLoadError(true);
+      }
     })();
+    return () => {
+      alive = false;
+    };
   }, []);
 
   return (
@@ -38,12 +51,15 @@ export default function HomePage() {
           A curation layer over Wikipedia — each topic pairs the article with
           curated, contextualized clips.{" "}
           <span className="text-ink/50">
-            (Prototype: data lives in your browser&apos;s local storage.)
+            (Prototype: curations are shared — everyone sees the same topics and
+            clips.)
           </span>
         </p>
       </section>
 
-      {topics === null ? (
+      {loadError ? (
+        <p className="text-sm text-ink/50">Couldn&apos;t load topics — please refresh.</p>
+      ) : topics === null ? (
         <p className="text-sm text-ink/50">Loading…</p>
       ) : topics.length === 0 ? (
         <p className="text-sm text-ink/50">No topics yet.</p>

@@ -5,6 +5,7 @@ import type { ArticleSection, Candidate, Clip, Topic } from "./types";
 const TOPICS_KEY = "wikiplus.topics";
 const CLIPS_KEY = "wikiplus.clips";
 const CANDIDATES_KEY = "wikiplus.candidates";
+const DISMISSED_KEY = "wikiplus.dismissed_candidates";
 
 function read<T>(key: string): T[] {
   if (typeof window === "undefined") return [];
@@ -65,6 +66,7 @@ export class LocalStorageDataStore implements DataStore {
     topicTitle: string;
     sections: ArticleSection[];
     curatedVideoKeys: Set<string>;
+    dismissedVideoKeys: Set<string>;
   }): Promise<Candidate[] | null> {
     // Live path (AC2): the pluggable source pipeline (YouTube only this round) does the
     // single search + section matching + dedup + 24h cache. Returns null when no source
@@ -99,6 +101,35 @@ export class LocalStorageDataStore implements DataStore {
       CLIPS_KEY,
       read<Clip>(CLIPS_KEY).filter((c) => c.id !== id)
     );
+  }
+
+  // ── Sticky dismissals (issue #45). Ported from lib/candidates/dismissals.ts so the
+  // localStorage store implements the FULL DataStore interface and the carried-forward
+  // contract tests cover it. Keyed `topicQid|platform|videoId`; the read returns the
+  // `platform:videoId` keys for a topic (the filter identity).
+  async recordDismissal(input: {
+    topicQid: string;
+    platform: string;
+    videoId: string;
+  }): Promise<void> {
+    if (typeof window === "undefined") return;
+    const all = read<{ k: string }>(DISMISSED_KEY);
+    const k = `${input.topicQid}|${input.platform}|${input.videoId}`;
+    if (!all.some((e) => e.k === k)) {
+      all.push({ k });
+      write(DISMISSED_KEY, all);
+    }
+  }
+
+  async dismissedKeys(topicQid: string): Promise<string[]> {
+    const prefix = `${topicQid}|`;
+    const out = new Set<string>();
+    for (const { k } of read<{ k: string }>(DISMISSED_KEY)) {
+      if (!k.startsWith(prefix)) continue;
+      const [, platform, videoId] = k.split("|");
+      if (platform && videoId) out.add(`${platform}:${videoId}`);
+    }
+    return [...out];
   }
 
   /** Seed helpers (used by lib/data/index.ts). */

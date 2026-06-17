@@ -70,9 +70,14 @@ vi.mock("@/lib/wiki/article", () => ({
   })),
   fetchFullArticle: (...a: unknown[]) => fetchFullArticle(...a),
 }));
+// Issue #45: mock the @/lib/data seam to the localStorage-backed test double.
+vi.mock("@/lib/data", async () => {
+  const { buildDataMock } = await import("./helpers/data-mock");
+  return buildDataMock();
+});
 
 import { TopicView } from "@/app/topic/TopicView";
-import { seedIfEmpty } from "@/lib/data";
+import { seedIfEmpty } from "./helpers/data-mock";
 
 /** The Wikipedia article column — the left <main> region. AC1/AC4 inspect it. */
 function articleColumn(): HTMLElement {

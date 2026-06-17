@@ -59,9 +59,16 @@ vi.mock("@/lib/wiki/article", () => ({
   })),
   fetchFullArticle: (...a: unknown[]) => fetchFullArticle(...a),
 }));
+// Issue #45: the production @/lib/data seam routes through Server Actions → Postgres (not
+// runnable in jsdom). Mock it to the localStorage-backed test double, preserving the pre-#45
+// behavior these state-machine tests rely on (incl. a test `seedIfEmpty`).
+vi.mock("@/lib/data", async () => {
+  const { buildDataMock } = await import("./helpers/data-mock");
+  return buildDataMock();
+});
 
 import { TopicView } from "@/app/topic/TopicView";
-import { seedIfEmpty } from "@/lib/data";
+import { seedIfEmpty } from "./helpers/data-mock";
 
 // A minimal YouTube search.list item the live source can normalize (F5 — drives the
 // live flow through TopicView end-to-end, with the network MOCKED like article.test.ts).
