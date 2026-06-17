@@ -1,7 +1,8 @@
 "use server";
 
 import { DrizzleDataStore } from "@/lib/db/drizzle-store";
-import type { Clip, Topic } from "@/lib/data/types";
+import type { Clip, Platform, Topic } from "@/lib/data/types";
+import { ACCURACY_ORDER, STANCE_ORDER } from "@/lib/curation/labels";
 
 // The server data-access boundary (issue #45 — deliverable 1/4).
 //
@@ -27,6 +28,54 @@ function store(): DrizzleDataStore {
   return new DrizzleDataStore();
 }
 
+// ── Minimal input stopgap on the PUBLIC write boundary (issue #45 fix round) ────────────
+// These anonymous write actions are reachable by anyone (no auth until issue C). This is a
+// CHEAP server-side stopgap before D's full validation/auth: a length cap on free text so an
+// open endpoint can't be used to store absurd blobs, and a closed-set guard so the curation
+// enums (stance / accuracy / platform) can't be poisoned with out-of-vocabulary values that
+// would break chip rendering downstream. It is deliberately minimal — D owns real validation,
+// auth-gating, ownership, and the CC BY-SA agreement capture.
+
+/** Max length for free-text fields (`context_note`, `caption`). A sane cap, not a UX limit. */
+const MAX_TEXT = 5000;
+
+const STANCES = new Set<string>(STANCE_ORDER);
+const ACCURACY = new Set<string>(ACCURACY_ORDER);
+// The closed `Platform` enum (lib/data/types.ts). `parseVideoUrl` only ever yields these.
+const PLATFORMS = new Set<Platform>(["youtube", "tiktok", "instagram", "other"]);
+
+function capText(value: string, field: string): string {
+  if (value.length > MAX_TEXT) {
+    throw new Error(`${field} exceeds the ${MAX_TEXT}-character limit.`);
+  }
+  return value;
+}
+
+/** Closed-set + length-cap guard for an incoming clip add (the public `addClip` boundary). */
+function validateClipInput(
+  input: Omit<Clip, "id" | "createdAt">
+): Omit<Clip, "id" | "createdAt"> {
+  capText(input.contextNote ?? "", "contextNote");
+  capText(input.caption ?? "", "caption");
+  if (!STANCES.has(input.stance)) {
+    throw new Error(`Unknown stance: ${input.stance}`);
+  }
+  if (!ACCURACY.has(input.accuracyFlag)) {
+    throw new Error(`Unknown accuracy flag: ${input.accuracyFlag}`);
+  }
+  if (!PLATFORMS.has(input.platform)) {
+    throw new Error(`Unknown platform: ${input.platform}`);
+  }
+  return input;
+}
+
+/** Length-cap guard for an incoming topic upsert (the public `upsertTopic` boundary). */
+function validateTopicInput(input: Topic): Topic {
+  capText(input.title ?? "", "title");
+  if (input.description) capText(input.description, "description");
+  return input;
+}
+
 // ── Topics ───────────────────────────────────────────────────────────────────────────
 export async function listTopicsAction(): Promise<Topic[]> {
   return store().listTopics();
@@ -43,7 +92,10 @@ export async function getTopicByTitleAction(
 }
 
 export async function upsertTopicAction(topic: Topic): Promise<Topic> {
-  return store().upsertTopic(topic);
+  // Validate FIRST (before constructing the store / touching the DB) so an out-of-bounds
+  // input is rejected at the boundary regardless of DB availability.
+  const valid = validateTopicInput(topic);
+  return store().upsertTopic(valid);
 }
 
 // ── Clips ──────────────────────────────────────────────────────────────────────────────
@@ -54,19 +106,17 @@ export async function listClipsAction(topicQid: string): Promise<Clip[]> {
 export async function addClipAction(
   input: Omit<Clip, "id" | "createdAt">
 ): Promise<Clip> {
-  return store().addClip(input);
+  // Validate FIRST (before constructing the store / touching the DB).
+  const valid = validateClipInput(input);
+  return store().addClip(valid);
 }
 
-export async function updateClipAction(
-  id: string,
-  patch: Partial<Omit<Clip, "id">>
-): Promise<Clip> {
-  return store().updateClip(id, patch);
-}
-
-export async function deleteClipAction(id: string): Promise<void> {
-  return store().deleteClip(id);
-}
+// NOT exposed at the boundary (issue #45 fix round): `updateClip` / `deleteClip` are
+// DESTRUCTIVE and have NO UI caller. With no auth until issue C, a boundary export would
+// let any anonymous visitor edit or delete ANY clip — an over-broad capability. The
+// methods stay on `DrizzleDataStore` (for issue D + the store-level tests), but the
+// anonymous Server-Action boundary deliberately does NOT surface them. When D adds
+// auth-gating + ownership checks, it can add gated actions then.
 
 // ── Sticky dismissals (shared + durable — AC5) ──────────────────────────────────────────
 export async function recordDismissalAction(input: {

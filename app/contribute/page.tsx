@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { store } from "@/lib/data";
 import {
   ACCURACY_LABEL,
@@ -33,11 +33,25 @@ export default function ContributePage() {
   // field is preserved and the submit re-enables as a retry (no silent loss of the note).
   const [submitting, setSubmitting] = useState(false);
   const [announce, setAnnounce] = useState("");
+  const submitRef = useRef<HTMLButtonElement>(null);
+  // Set when an awaited add fails, to return focus to the (re-enabled) submit button
+  // AFTER it re-renders enabled (a disabled element can't take focus) — design §"Focus
+  // management": a keyboard user can immediately retry instead of focus dropping to <body>.
+  const refocusOnFail = useRef(false);
 
   useEffect(() => {
     const p = new URLSearchParams(window.location.search).get("qid");
     if (p) setQid(p);
   }, []);
+
+  // After a failed add re-enables the submit, return focus to it (DEFECT-2). Runs once the
+  // re-render with `submitting === false` has committed, so the button is focusable.
+  useEffect(() => {
+    if (!submitting && refocusOnFail.current) {
+      refocusOnFail.current = false;
+      submitRef.current?.focus();
+    }
+  }, [submitting]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -94,6 +108,10 @@ export default function ContributePage() {
       // and do NOT show the "Clip added." success (no false success, no silent loss).
       setError("Couldn't save your clip — please try again.");
       setAnnounce("Couldn't save your clip — please try again.");
+      // Return focus to the submit (re-enabled below) so a keyboard user can retry without
+      // focus dropping to <body> (DEFECT-2). The effect on `submitting` does the focus once
+      // the button re-renders enabled.
+      refocusOnFail.current = true;
     } finally {
       setSubmitting(false);
     }
@@ -194,6 +212,7 @@ export default function ContributePage() {
       </p>
 
       <button
+        ref={submitRef}
         type="submit"
         disabled={submitting}
         aria-busy={submitting}

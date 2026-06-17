@@ -59,8 +59,13 @@ export interface DataStore {
   }): Promise<Candidate[] | null>;
 
   addClip(clip: Omit<Clip, "id" | "createdAt">): Promise<Clip>;
-  updateClip(id: string, patch: Partial<Omit<Clip, "id">>): Promise<Clip>;
-  deleteClip(id: string): Promise<void>;
+
+  // NOTE (issue #45 fix round): `updateClip` / `deleteClip` are intentionally NOT on the
+  // client-facing seam. They are DESTRUCTIVE and have no UI caller; with no auth until
+  // issue C, exposing them anonymously would let any visitor edit/delete any clip. The
+  // methods still exist on `DrizzleDataStore` (lib/db/drizzle-store.ts) for issue D + the
+  // store-level tests, but they are NOT reachable through this boundary. When D adds
+  // auth-gating + ownership, it can surface gated edit/delete actions then.
 
   // ── Sticky candidate dismissals (issue #45). ─────────────────────────────────────
   // Moved behind the store boundary so a dismissal is SHARED + DURABLE like a clip:

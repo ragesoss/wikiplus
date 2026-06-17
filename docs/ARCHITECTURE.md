@@ -416,7 +416,17 @@ build on additively.
   (#37), are the idiomatic App-Router client→server call, and let the client import the boundary as
   plain typed async functions — so the call-site rewire from `await store.*` is near drop-in (parity).
   The boundary (`lib/server/actions.ts`, `"use server"`) is a thin set of **mechanical wrappers** over
-  the store — **no product logic** (auth-gating / validation / the CC-BY-SA agreement are issue D).
+  the store — **no product logic** (auth-gating / the CC-BY-SA agreement are issue D).
+- **Boundary surface is narrower than the store (security, fix round).** The boundary is
+  **unauthenticated** until issue C, so it deliberately does **not** expose every store method. The
+  destructive `updateClip` / `deleteClip` have **no UI caller** and are **not** Server Actions (an
+  anonymous boundary export would let any visitor edit/delete any clip) — they live **only** on
+  `DrizzleDataStore` (for issue D + store-level tests) and are absent from both the boundary and the
+  client-facing `DataStore` interface. A **minimal input stopgap** sits on the public write actions
+  (`addClip`, `upsertTopic`) ahead of D's full validation: a free-text **length cap**
+  (`context_note` / `caption` / `title`) and a **closed-set guard** on the curation enums
+  (`stance` / `accuracy_flag` / `platform`), rejecting out-of-vocabulary values before any DB call.
+  This is a cheap defense, not D's validation/auth layer.
 - **The store.** `DrizzleDataStore` (`lib/db/drizzle-store.ts`) implements the **full** `DataStore`
   interface server-side. `lib/data/index.ts` remains the **single seam / swap point**: it wires the
   client to the boundary (DB ops → Server Actions) and keeps the **one client-side method**,
@@ -429,8 +439,9 @@ build on additively.
   calls Wikipedia, AC8):**
   - **Reads (server-DB):** `listTopics`, `getTopic`, `getTopicByTitle`, `listClips`, the persisted
     `dismissedKeys` — Server Actions → `DrizzleDataStore` → Postgres.
-  - **Writes (server-DB):** `upsertTopic`, `addClip`, `updateClip`, `deleteClip`, `recordDismissal` —
-    same path. Interim writes are attributed to a single **stub `@prototype` contributor** (see below).
+  - **Writes (server-DB):** `upsertTopic`, `addClip`, `recordDismissal` — same path. (`updateClip` /
+    `deleteClip` exist on the store but are **not** boundary actions — see *Boundary surface* above.)
+    Interim writes are attributed to a single **stub `@prototype` contributor** (see below).
   - **Client (Wikipedia/YouTube), unchanged:** title→QID resolution, the article-body fetch, the TOC,
     and the **live YouTube candidate search** all stay **client-side**. `suggestCandidates` runs the
     pure pipeline in the browser; the (now shared) dismissed-video keys it needs for dedup are fetched
@@ -527,9 +538,9 @@ a host is provisioned (issue A.2).
 - **Server Actions (enabled #37; now the data-access boundary — issue #45).** The Node SSR runtime
   supports Server Actions; as of #45 they are the **data-access boundary** for shared Postgres
   (`lib/server/actions.ts`, `"use server"` — see *Persistence* above). The throwaway #37 smoke artifact
-  (`lib/server/smoke-action.ts` + `components/dev/SmokeActionProbe.tsx`) was its placeholder; it is now
-  superseded by the real boundary and may be removed in a follow-up (left in place here to keep #45
-  scoped to persistence). The server **still never** talks to Wikipedia — title→QID, the article body,
+  (`lib/server/smoke-action.ts` + `components/dev/SmokeActionProbe.tsx`) was its placeholder; it has
+  been **removed** now that the real boundary has landed (its own comments said to delete it when a
+  real action arrives). The server **still never** talks to Wikipedia — title→QID, the article body,
   the TOC, and the YouTube candidate search all stay client-side, exactly as before (AC8).
 - **Vocabularies:** `stance`/`accuracy_flag` in `lib/data/types.ts` are now the **closed CURATION
   enums** (`docs/CURATION_STANDARD.md` §2/§3, Decisions C2/C4) — no longer provisional. Chip text is

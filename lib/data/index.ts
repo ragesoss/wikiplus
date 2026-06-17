@@ -2,14 +2,12 @@ import { runCandidatePipeline } from "@/lib/candidates";
 import { identityKey, videoIdOf } from "@/lib/candidates/dismissals";
 import {
   addClipAction,
-  deleteClipAction,
   dismissedKeysAction,
   getTopicAction,
   getTopicByTitleAction,
   listClipsAction,
   listTopicsAction,
   recordDismissalAction,
-  updateClipAction,
   upsertTopicAction,
 } from "@/lib/server/actions";
 import type { DataStore } from "./store";
@@ -44,8 +42,6 @@ const clientStore: DataStore = {
   // CLIENT-SIDE live YouTube pipeline (AC8). Runs in the browser; the seeded fallback is [].
   suggestCandidates: (input) => runCandidatePipeline(input),
   addClip: (clip) => addClipAction(clip),
-  updateClip: (id, patch) => updateClipAction(id, patch),
-  deleteClip: (id) => deleteClipAction(id),
   recordDismissal: (input) => recordDismissalAction(input),
   dismissedKeys: (topicQid) => dismissedKeysAction(topicQid),
 };

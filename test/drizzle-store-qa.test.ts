@@ -21,10 +21,17 @@ import { makeTestDb, type TestDb } from "./helpers/pglite-db";
 //   - AC13: interim attribution is wired to the curator_id FK (points at @prototype), not
 //           only the decorative `curatedBy` display string.
 //   - The Server-Actions write boundary is UNAUTHENTICATED in B (no auth until C): these
-//     tests CHARACTERIZE the over-broad capability (anonymous update/delete of ANY clip,
+//     tests CHARACTERIZE the over-broad capabilities the boundary DOES expose (anonymous
 //     arbitrary upsertTopic) so the finding is codified and the test flips when C/D gate it.
+//   - The destructive `updateClip` / `deleteClip` are NO LONGER exposed at the boundary
+//     (fix round): they have no UI caller and would let an anonymous visitor edit/delete
+//     ANY clip with no auth, so they were removed from lib/server/actions.ts. The methods
+//     remain on `DrizzleDataStore` (for issue D + the store-level coverage below). This
+//     suite now PINS both facts: the store still can update/delete (D's foundation), AND
+//     the anonymous boundary does not surface them.
 //   - addClip against an unknown topic is rejected (the topic-resolution guard).
-//   - No length cap on text inputs today (storage-abuse surface on an open endpoint).
+//   - Free-text inputs are now length-capped at the boundary (the stopgap before D's full
+//     validation); the store itself stays unbounded (D owns real validation).
 //
 // pglite is a real Postgres (WASM): the committed migrations + real unique/FK/ON CONFLICT
 // semantics are exercised with no live DB (AC16). A second `new DrizzleDataStore(h.db)` over
@@ -125,28 +132,41 @@ describe("addClip topic-resolution guard", () => {
 });
 
 // ── SECURITY CHARACTERIZATION ─────────────────────────────────────────────────────────
-// In epic-B there is NO AUTH (that is issue C). Every Server Action is callable by any
-// anonymous visitor. These tests pin the CURRENT (unauthenticated, no-ownership) behavior
-// of the destructive/over-broad capabilities so (a) the finding is codified for the report
-// and (b) when C/D add auth-gating + ownership checks, these tests must be UPDATED — a
-// deliberate trip-wire, not a green-forever assertion.
-describe("SECURITY (B has no auth) — destructive/over-broad capabilities are ungated", () => {
-  it("deleteClip removes ANY clip with no ownership/auth check (FINDING: over-broad action)", async () => {
+// In epic-B there is NO AUTH (that is issue C). The Server Actions that ARE exposed are
+// callable by any anonymous visitor. These tests pin the current security posture so
+// (a) the findings are codified for the report and (b) when C/D add auth-gating + ownership
+// checks, these tests must be UPDATED — a deliberate trip-wire, not a green-forever assert.
+//
+// As of the fix round: the destructive `updateClip` / `deleteClip` are NOT exposed at the
+// Server-Actions boundary (no UI caller; an anonymous boundary export = edit/delete-any).
+// The capability stays on the STORE (issue D needs it). So the two destructive cases below
+// now pin BOTH: the store can still update/delete (D's foundation), AND the anonymous
+// boundary does not surface those actions.
+describe("SECURITY (B has no auth) — boundary surface + store capability", () => {
+  it("the Server-Actions boundary does NOT export updateClip/deleteClip (no anonymous edit/delete-any)", async () => {
+    const actions = await import("@/lib/server/actions");
+    // Removed from the boundary in the fix round — an unauthenticated visitor cannot reach
+    // a destructive clip mutation. (D can add gated edit/delete actions once auth lands.)
+    expect("updateClipAction" in actions).toBe(false);
+    expect("deleteClipAction" in actions).toBe(false);
+  });
+
+  it("deleteClip stays on the STORE for issue D (still no ownership/auth check at the store level)", async () => {
     await store.upsertTopic({ qid: "Q11982", title: "Photosynthesis" });
-    // "Someone else's" clip.
     const victim = await store.addClip({
       ...clip0(),
       topicQid: "Q11982",
       caption: "not yours",
       curatedBy: "@victim",
     });
-    // A second, anonymous session deletes it — no identity, no check.
-    const attacker = new DrizzleDataStore(h.db);
-    await attacker.deleteClip(victim.id);
+    // The store method is intact (D's foundation): a direct store call deletes the row.
+    // The protection added in B is that this is NOT reachable anonymously via the boundary.
+    const sessionB = new DrizzleDataStore(h.db);
+    await sessionB.deleteClip(victim.id);
     expect(await store.listClips("Q11982")).toHaveLength(0);
   });
 
-  it("updateClip edits ANY clip's content with no ownership/auth check (FINDING: over-broad action)", async () => {
+  it("updateClip stays on the STORE for issue D (still no ownership/auth check at the store level)", async () => {
     await store.upsertTopic({ qid: "Q11982", title: "Photosynthesis" });
     const victim = await store.addClip({
       ...clip0(),
@@ -154,11 +174,11 @@ describe("SECURITY (B has no auth) — destructive/over-broad capabilities are u
       contextNote: "the original, honest note",
       curatedBy: "@victim",
     });
-    const attacker = new DrizzleDataStore(h.db);
-    const tampered = await attacker.updateClip(victim.id, {
-      contextNote: "defaced by anyone",
+    const sessionB = new DrizzleDataStore(h.db);
+    const edited = await sessionB.updateClip(victim.id, {
+      contextNote: "edited via the store",
     });
-    expect(tampered.contextNote).toBe("defaced by anyone");
+    expect(edited.contextNote).toBe("edited via the store");
   });
 
   it("upsertTopic lets any caller overwrite an existing topic's display title (FINDING: mass-mutation)", async () => {
@@ -168,9 +188,11 @@ describe("SECURITY (B has no auth) — destructive/over-broad capabilities are u
     expect((await store.getTopic("Q11982"))?.title).toBe("Vandalized");
   });
 
-  it("text inputs have NO length cap — an oversized context note is accepted (FINDING: unbounded write on an open endpoint)", async () => {
+  it("the STORE itself has no length cap — an oversized context note is accepted at the store level", async () => {
+    // The boundary now caps free text (see the boundary-stopgap test below); the store stays
+    // unbounded by design — real validation is issue D. This pins the store-level behavior.
     await store.upsertTopic({ qid: "Q11982", title: "Photosynthesis" });
-    const huge = "x".repeat(200_000); // 200KB note; no validation rejects it in B
+    const huge = "x".repeat(200_000); // 200KB note; the store does not reject it
     const added = await store.addClip({
       ...clip0(),
       topicQid: "Q11982",
@@ -178,5 +200,61 @@ describe("SECURITY (B has no auth) — destructive/over-broad capabilities are u
     });
     const got = (await store.listClips("Q11982")).find((c) => c.id === added.id);
     expect(got?.contextNote.length).toBe(200_000);
+  });
+});
+
+// ── BOUNDARY INPUT STOPGAP (issue #45 fix round) ──────────────────────────────────────
+// A cheap server-side defense on the PUBLIC, unauthenticated write actions before issue D's
+// full validation/auth: free-text length cap + closed-set guard on the curation enums. The
+// validation runs BEFORE the store is constructed, so these rejection paths are exercised
+// with NO DB connection (no DATABASE_URL needed) — they throw at the boundary, not the store.
+describe("boundary input stopgap — addClipAction / upsertTopicAction reject out-of-bounds input", () => {
+  function validClip(): Omit<Clip, "id" | "createdAt"> {
+    return clip0();
+  }
+
+  it("rejects an oversized context note at the boundary (length cap before the DB)", async () => {
+    const { addClipAction } = await import("@/lib/server/actions");
+    await expect(
+      addClipAction({ ...validClip(), contextNote: "x".repeat(50_000) })
+    ).rejects.toThrow(/contextNote exceeds/);
+  });
+
+  it("rejects an oversized caption at the boundary", async () => {
+    const { addClipAction } = await import("@/lib/server/actions");
+    await expect(
+      addClipAction({ ...validClip(), caption: "y".repeat(50_000) })
+    ).rejects.toThrow(/caption exceeds/);
+  });
+
+  it("rejects an out-of-vocabulary stance (closed-set guard)", async () => {
+    const { addClipAction } = await import("@/lib/server/actions");
+    await expect(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      addClipAction({ ...validClip(), stance: "not-a-stance" as any })
+    ).rejects.toThrow(/Unknown stance/);
+  });
+
+  it("rejects an out-of-vocabulary accuracy flag (closed-set guard)", async () => {
+    const { addClipAction } = await import("@/lib/server/actions");
+    await expect(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      addClipAction({ ...validClip(), accuracyFlag: "wildly-wrong" as any })
+    ).rejects.toThrow(/Unknown accuracy flag/);
+  });
+
+  it("rejects an out-of-vocabulary platform (closed-set guard)", async () => {
+    const { addClipAction } = await import("@/lib/server/actions");
+    await expect(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      addClipAction({ ...validClip(), platform: "myspace" as any })
+    ).rejects.toThrow(/Unknown platform/);
+  });
+
+  it("rejects an oversized topic title at the upsertTopic boundary", async () => {
+    const { upsertTopicAction } = await import("@/lib/server/actions");
+    await expect(
+      upsertTopicAction({ qid: "Q1", title: "z".repeat(50_000) })
+    ).rejects.toThrow(/title exceeds/);
   });
 });

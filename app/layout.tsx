@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { SmokeActionProbe } from "@/components/dev/SmokeActionProbe";
 
 export const metadata: Metadata = {
   title: "wiki+",
@@ -17,11 +16,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body>
-        {children}
-        {/* Smoke-only Server Action probe (issue #37, AC7) — renders nothing. */}
-        <SmokeActionProbe />
-      </body>
+      <body>{children}</body>
     </html>
   );
 }

@@ -2,10 +2,14 @@ import { describe, expect, it } from "vitest";
 
 // QA (issue #37) — the Node SSR runtime-switch acceptance criteria that are best
 // pinned as static-config / contract assertions: the catch-all routing config
-// (AC1/AC3), and the smoke Server Action contract (AC7). These guard the
-// foundational switch so a later edit that silently reverts to the static-export
-// posture (`dynamicParams = false`, `output: 'export'`) fails a test instead of
-// regressing the milestone gate.
+// (AC1/AC3). These guard the foundational switch so a later edit that silently
+// reverts to the static-export posture (`dynamicParams = false`, `output: 'export'`)
+// fails a test instead of regressing the milestone gate.
+//
+// (The #37 smoke Server Action contract that lived here is GONE as of issue #45: the
+// real Server-Actions boundary — lib/server/actions.ts — has landed, so the throwaway
+// smoke action + its probe + this AC7 test were removed with it, as the smoke artifact's
+// own comments instructed.)
 //
 // Runtime behavior (server serves the app, on-demand 200s, no not-found flash,
 // no hydration mismatch) is verified out-of-band by QA against `next start`; this
@@ -42,27 +46,5 @@ describe("AC3 — Topic catch-all renders unseeded titles on demand (dynamicPara
     }
     // It is NOT an exhaustive list: warm set == bare shell + seeded titles only.
     expect(params.length).toBe(1 + SEEDED_TITLES.length);
-  });
-});
-
-describe("AC7 — Server Actions are an available capability (smoke action)", () => {
-  it("ssrSmokeAction runs and reports it executed on the server (typeof window === undefined)", async () => {
-    const { ssrSmokeAction } = await import("@/lib/server/smoke-action");
-    const res = await ssrSmokeAction();
-    // In the jsdom test env `window` IS defined, so this asserts the SHAPE of the
-    // server-confirmation contract (the runtime proof — ranOnServer === true — is
-    // verified by QA against `next start`, where the action POST returns
-    // {"ranOnServer":true,...}). What matters here: the action is callable, async,
-    // and returns the documented `{ ranOnServer, ranAt }` confirmation shape.
-    expect(typeof res.ranOnServer).toBe("boolean");
-    expect(typeof res.ranAt).toBe("string");
-    // ranAt is a valid ISO timestamp.
-    expect(Number.isNaN(Date.parse(res.ranAt))).toBe(false);
-  });
-
-  it("ssrSmokeAction takes no arguments — it touches no untrusted input or data (security)", async () => {
-    const { ssrSmokeAction } = await import("@/lib/server/smoke-action");
-    // A zero-arity action cannot be driven by attacker-supplied input; it is inert.
-    expect(ssrSmokeAction.length).toBe(0);
   });
 });

@@ -127,8 +127,22 @@ export function TopicView() {
         // store title (keeps URL + store key + heading mutually consistent — spec
         // Open question); the store is the fallback when the API resolves nothing
         // (e.g. offline / a seeded topic the API didn't return).
+        //
+        // issue #45: `getTopicByTitle` is now a Server Action that can REJECT when the
+        // DB is down. A rejection must NOT escape to React (→ blank screen, DEFECT-1):
+        // the article + QID resolution are client-side (AC8) and don't need the DB, so
+        // a failed store read degrades to `known = null` (treat as "no seeded topic")
+        // AND sets the store-read error floor so the ＋plus rail shows an honest line
+        // instead of a permanent skeleton (design §"read failure"). Title→QID still
+        // resolves via the client-side Wikipedia call (`resolvePage`), so the article
+        // renders. The separate store-read effect (below) also sets `storeError` once
+        // `qid` is known, but DEFECT-1 was that `getTopic`/`getTopicByTitle` rejecting
+        // HERE meant `qid` never got set, so that guarded effect never ran.
         const [known, page] = await Promise.all([
-          store.getTopicByTitle(routeTitle),
+          store.getTopicByTitle(routeTitle).catch(() => {
+            if (alive) setStoreError(true);
+            return null;
+          }),
           resolvePage(routeTitle),
         ]);
         if (!alive) return;
@@ -160,7 +174,14 @@ export function TopicView() {
         return;
       }
       if (qidParam) {
-        const t = await store.getTopic(qidParam);
+        // issue #45 / DEFECT-1: `getTopic` is a Server Action that can REJECT (DB down).
+        // Degrade to `t = null` + set the store-read floor rather than let the rejection
+        // crash to a blank page; `qidToTitle` (client-side) still resolves the title so
+        // the article renders and the URL canonicalizes.
+        const t = await store.getTopic(qidParam).catch(() => {
+          if (alive) setStoreError(true);
+          return null;
+        });
         const title = t?.title ?? (await qidToTitle(qidParam));
         if (!alive) return;
         if (title) {

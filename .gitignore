@@ -16,6 +16,8 @@ next-env.d.ts
 .env*.local
 .env.production
 *.pem
+# Docker secret files (e.g. deploy/secrets/postgres_password) — never commit secrets
+deploy/secrets/
 
 # logs
 *.log
