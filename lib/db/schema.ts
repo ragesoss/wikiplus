@@ -110,8 +110,14 @@ export const clip = pgTable("clip", {
 /** A wiki+ curator (distinct from the external creator referenced on a clip). */
 export const contributor = pgTable("contributor", {
   id: serial("id").primaryKey(),
-  /** Display handle, e.g. "@sage" — stable string identity for the stub + future users. */
-  handle: text("handle").notNull().unique(),
+  /**
+   * Display handle, e.g. "@sage" or a Wikimedia username — a NON-unique display column.
+   * The durable trust anchor is the linked `account` row's (provider, provider_account_id),
+   * NOT this string (issue C fix round): a Wikimedia username is mutable and reusable, so two
+   * distinct subjects may legitimately present the same handle and must NOT merge onto one
+   * contributor. The handle is what the header shows; it is never an identity key.
+   */
+  handle: text("handle").notNull(),
   displayName: text("display_name"),
   avatarUrl: text("avatar_url"),
   createdAt: timestamp("created_at", { withTimezone: true })

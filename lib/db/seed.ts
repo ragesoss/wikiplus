@@ -49,16 +49,22 @@ export async function seedDatabase(db: Db): Promise<boolean> {
     if (someClip[0]) return false; // already seeded
   }
 
-  // ── Stub "prototype" contributor (interim attribution until issue C — AC13). ──
-  await db
-    .insert(contributor)
-    .values({ handle: STUB_HANDLE, displayName: "Prototype curator" })
-    .onConflictDoNothing({ target: contributor.handle });
-  const stub = await db
+  // ── Stub "prototype" contributor (interim attribution; preserved post-C per D6). ──
+  // `contributor.handle` is non-unique now (issue C fix round — the identity anchor is the
+  // account row, not the handle), so we read-first / insert-if-absent rather than ON CONFLICT
+  // (handle). The seed is idempotent (it bails above once the curated topic has clips), so the
+  // stub is inserted at most once.
+  let stub = await db
     .select({ id: contributor.id })
     .from(contributor)
     .where(eq(contributor.handle, STUB_HANDLE))
     .limit(1);
+  if (!stub[0]) {
+    stub = await db
+      .insert(contributor)
+      .values({ handle: STUB_HANDLE, displayName: "Prototype curator" })
+      .returning({ id: contributor.id });
+  }
   const stubId = stub[0]?.id ?? null;
 
   // ── Topics (upsert by QID). ──

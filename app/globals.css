@@ -502,6 +502,13 @@ figure.wikifig .credit {
   .pinned-dock-in {
     animation: none;
   }
+  /* Tailwind's looping utility animations on loading/skeleton chips (e.g. the header
+     session-loading chip — issue C MINOR-1 — and the contribute/search skeletons). These
+     stay legible as static elements, so disable the motion under a reduced-motion request. */
+  .animate-pulse,
+  .animate-spin {
+    animation: none !important;
+  }
   * {
     scroll-behavior: auto !important;
   }

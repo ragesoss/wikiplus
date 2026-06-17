@@ -240,20 +240,24 @@ export function _resetStubContributorCache(): void {
 
 export async function getStubContributorId(db: Db): Promise<number | null> {
   if (stubId !== null) return stubId;
-  const rows = await db
-    .insert(contributor)
-    .values({ handle: STUB_HANDLE, displayName: "Prototype curator" })
-    .onConflictDoNothing({ target: contributor.handle })
-    .returning({ id: contributor.id });
-  if (rows[0]) {
-    stubId = rows[0].id;
-    return stubId;
-  }
+  // The "@prototype" stub is a singleton kept alive by D6 (pre-C clips attribute to it). Now that
+  // `contributor.handle` is non-unique (issue C fix round — the identity anchor is the account
+  // row, not the handle), we can no longer ON CONFLICT (handle); read-first, insert only if
+  // absent. The seed creates the stub once on deploy and this is memoized, so there is no
+  // contended path here.
   const existing = await db
     .select({ id: contributor.id })
     .from(contributor)
     .where(eq(contributor.handle, STUB_HANDLE))
     .limit(1);
-  stubId = existing[0]?.id ?? null;
+  if (existing[0]) {
+    stubId = existing[0].id;
+    return stubId;
+  }
+  const rows = await db
+    .insert(contributor)
+    .values({ handle: STUB_HANDLE, displayName: "Prototype curator" })
+    .returning({ id: contributor.id });
+  stubId = rows[0]?.id ?? null;
   return stubId;
 }

@@ -108,7 +108,7 @@ describe("findOrCreateContributor (AC3 — repeat login = same rows, no duplicat
   // or any future second provider whose name string coincides. Skipped (asserts the CORRECT
   // invariant) — flip to `it(...)` when fixed (anchor find-or-create on the account identity, not
   // the handle; make the handle a non-unique display column or disambiguate on collision).
-  it.skip("DEFECT: distinct subjects with the SAME username must NOT share a contributor", async () => {
+  it("DEFECT: distinct subjects with the SAME username must NOT share a contributor", async () => {
     const a = await findOrCreateContributor(
       { subject: "AAA", username: "Pat", email: null },
       h.db
@@ -129,7 +129,7 @@ describe("findOrCreateContributor (AC3 — repeat login = same rows, no duplicat
   // THROWS inside the Auth.js jwt callback — so a legitimately-authenticated user is locked out
   // of login even though their (provider, subject) identity is valid. Skipped (asserts the
   // CORRECT invariant) — flip to `it(...)` when the handle-sync tolerates a collision.
-  it.skip("DEFECT: a rename into another contributor's handle must not break login", async () => {
+  it("DEFECT: a rename into another contributor's handle must not break login", async () => {
     await findOrCreateContributor(
       { subject: "AAA", username: "Alice", email: null },
       h.db

@@ -37,14 +37,27 @@ export interface ResolvedContributor {
 /**
  * Find-or-create the `contributor` + `account` for a Wikimedia login (AC2/AC3).
  *
- * Idempotent on `(provider, provider_account_id)`: the first login inserts both rows; a repeat
- * login by the same Wikimedia subject finds the existing `account` and returns its contributor
- * — never a duplicate (AC3). The contributor handle is kept in sync with the current Wikimedia
- * username on each login (a Wikimedia rename is reflected) without creating a new identity.
+ * The trust anchor is the ACCOUNT IDENTITY — `(provider, provider_account_id=<stable Wikimedia
+ * subject>)` — NOT the mutable, reusable Wikimedia username (per spec / ARCHITECTURE). Find-or-
+ * create is keyed entirely on that anchor:
  *
- * Concurrency: the `account_provider_identity` unique constraint is the source of truth. If two
- * logins for a never-seen subject race, the loser's insert hits the unique constraint; we then
- * re-read the winner's row, so both resolve to the same contributor.
+ *   - A repeat login by the same subject finds the existing `account` and returns its
+ *     contributor — never a duplicate (AC3) — and refreshes the contributor's handle/displayName
+ *     to the current Wikimedia username (a rename is reflected without a new identity).
+ *   - A first login for a never-seen subject inserts a FRESH contributor and links a new account.
+ *     We never look up or reuse a contributor by handle: `contributor.handle` is a non-unique
+ *     display column, so two DISTINCT subjects that present the SAME username string get TWO
+ *     distinct contributors (they must never co-mingle — the username is not an identity key).
+ *
+ * Because the handle is non-unique, the rename refresh can never collide: a known subject who
+ * renames into a username already held by another contributor resolves normally (the handle is
+ * display, the account is identity) instead of throwing inside the JWT callback.
+ *
+ * Concurrency: the `account_provider_identity` unique (provider, provider_account_id) is the
+ * source of truth. If two first logins for the same never-seen subject race, the loser's account
+ * insert no-ops on that constraint; we re-read the winner's account and both resolve to the same
+ * contributor (AC3). The loser's freshly-inserted contributor is left unlinked — harmless: no FK
+ * depends on it and it is never returned.
  */
 export async function findOrCreateContributor(
   identity: WikimediaIdentity,
@@ -67,7 +80,8 @@ export async function findOrCreateContributor(
     .limit(1);
 
   if (existing[0]) {
-    // Keep the contributor handle current with the Wikimedia username (rename-safe, no new row).
+    // Refresh the display handle to the current Wikimedia username. Collision-safe: `handle` is
+    // non-unique, so a rename into another contributor's handle no longer violates a constraint.
     await db
       .update(contributor)
       .set({ handle: username, displayName: username })
@@ -75,7 +89,9 @@ export async function findOrCreateContributor(
     return { contributorId: existing[0].contributorId, handle: username };
   }
 
-  // 2. First login for this subject: create the contributor, then link the account.
+  // 2. First login for THIS subject: always create a fresh contributor — never reuse one by
+  //    handle. The account identity (not the username) is what links a login to a contributor,
+  //    so distinct subjects sharing a username stay distinct.
   const contributorRows = await db
     .insert(contributor)
     .values({
@@ -83,25 +99,8 @@ export async function findOrCreateContributor(
       displayName: username,
       avatarUrl: identity.avatarUrl ?? null,
     })
-    // A handle collision (the same Wikimedia username already created earlier, or the seeded
-    // stub somehow shares it) must not throw — fall through to a read below.
-    .onConflictDoNothing({ target: contributor.handle })
     .returning({ id: contributor.id });
-
-  let contributorId = contributorRows[0]?.id;
-  if (contributorId === undefined) {
-    const found = await db
-      .select({ id: contributor.id })
-      .from(contributor)
-      .where(eq(contributor.handle, username))
-      .limit(1);
-    contributorId = found[0]?.id;
-    if (contributorId === undefined) {
-      throw new Error(
-        `findOrCreateContributor: could not create or find contributor for ${username}`
-      );
-    }
-  }
+  const contributorId = contributorRows[0].id;
 
   // Link the account (idempotent on the provider identity — handles a login race, AC3).
   await db
@@ -119,7 +118,7 @@ export async function findOrCreateContributor(
     });
 
   // If the account insert lost a race, the winner's account points at a (possibly different)
-  // contributor — re-resolve so both logins agree (AC3).
+  // contributor — re-resolve so both logins agree (AC3). Our own contributor is the common case.
   const linked = await db
     .select({ contributorId: account.contributorId })
     .from(account)
