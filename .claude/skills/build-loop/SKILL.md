@@ -84,6 +84,16 @@ Library — unit/integration, config in `vitest.config.ts`, specs under `test/`)
 --frozen-lockfile` (as CI does). New work adds `test/*.test.ts` to the existing suite — do **not**
 re-scaffold a runner.
 
+**Helper scripts (use them — they're allowlisted, so they don't prompt; prefer them over raw
+`ssh`/`curl`/`docker`).** `scripts/ops/verify-live.sh` — post-deploy live health check (read path
++ auth endpoints; Operations should run it in Phase 5). `scripts/ops/box-status.sh` /
+`box-logs.sh` / `box-secrets-check.sh` — read-only box inspection (local sessions with the SSH key
+only). `scripts/dev/test-db.sh up|down` — a local Postgres for integration tests (the normal suite
+uses in-process pglite). `scripts/ops/box-sync-compose.sh` mutates the live box and is deliberately
+**not** allowlisted (keep one confirmation). The committed `.claude/settings.json` allowlists the
+common `yarn`/`npx`/`git`/`gh` loop commands so **cloud sessions don't re-prompt** — see
+`scripts/ops/README.md`.
+
 **Known gap — the e2e gate is not green on `main`.** `yarn test:e2e` has **pre-existing failures** on
 `main` (fixture/locator debt — tracked by the e2e-fixture-repair issue). Until that's fixed, an e2e run
 can only verify **"no new failures vs. `main`,"** never a clean "e2e passes" acceptance criterion — QA
