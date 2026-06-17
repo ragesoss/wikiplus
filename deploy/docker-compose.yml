@@ -47,6 +47,13 @@ services:
       #   - AUTH_SECRET                    : Auth.js JWT session signing/encryption (server-only).
       #   - wikimedia_oauth_client_key     : the Wikimedia OAuth consumer key   (clientId).
       #   - wikimedia_oauth_client_secret  : the Wikimedia OAuth consumer secret (clientSecret).
+      # Auth.js base URL — pin the PUBLIC origin so the OAuth redirect_uri is
+      # `https://wikiplus.wikiedu.org/api/auth/callback/wikimedia`, matching the registered
+      # consumer callback. Behind Caddy/Cloudflare, `trustHost: true` alone resolved the base to
+      # the container's HOSTNAME:PORT (`https://0.0.0.0:3000`), which meta rejected as an
+      # invalid/mismatched redirect_uri ("Application connection error"). Public value, not a
+      # secret — safe as a literal here.
+      AUTH_URL: "https://wikiplus.wikiedu.org"
       AUTH_SECRET: "${AUTH_SECRET:?AUTH_SECRET missing — set it in /opt/wikiplus/.env (see docs/ops/vps-setup.md)}"
       wikimedia_oauth_client_key: "${wikimedia_oauth_client_key:?wikimedia_oauth_client_key missing — set it in /opt/wikiplus/.env (see docs/ops/vps-setup.md)}"
       wikimedia_oauth_client_secret: "${wikimedia_oauth_client_secret:?wikimedia_oauth_client_secret missing — set it in /opt/wikiplus/.env (see docs/ops/vps-setup.md)}"
