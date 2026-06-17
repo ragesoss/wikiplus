@@ -134,18 +134,25 @@ export class DrizzleDataStore implements DataStore {
     return null;
   }
 
-  async addClip(input: Omit<Clip, "id" | "createdAt">): Promise<Clip> {
+  async addClip(
+    input: Omit<Clip, "id" | "createdAt">,
+    curatorId?: number
+  ): Promise<Clip> {
     const topicId = await this.topicIdForQid(input.topicQid);
     if (topicId === null) {
       throw new Error(
         `addClip: no topic for QID ${input.topicQid} — upsert the topic first.`
       );
     }
-    // Interim attribution to the stub "prototype" contributor (AC13) until issue C.
-    const curatorId = await getStubContributorId(this.db);
+    // Issue C: attribute to the REAL signed-in contributor passed by the auth-gated
+    // boundary (AC6). Only when none is supplied (store-level tests / seed / reference
+    // impl) do we fall back to the seeded "@prototype" stub — the deployed write path
+    // always passes the authenticated contributor.
+    const attributedId =
+      curatorId ?? (await getStubContributorId(this.db));
     const rows = await this.db
       .insert(clip)
-      .values(clipToInsert(input, topicId, curatorId))
+      .values(clipToInsert(input, topicId, attributedId))
       .returning();
     return rowToClip(rows[0], input.topicQid);
   }
@@ -172,21 +179,27 @@ export class DrizzleDataStore implements DataStore {
   }
 
   // ── Sticky dismissals (shared + durable — AC5) ─────────────────────────────────────
-  async recordDismissal(input: {
-    topicQid: string;
-    platform: string;
-    videoId: string;
-  }): Promise<void> {
+  async recordDismissal(
+    input: {
+      topicQid: string;
+      platform: string;
+      videoId: string;
+    },
+    contributorId?: number
+  ): Promise<void> {
     const topicId = await this.topicIdForQid(input.topicQid);
     if (topicId === null) return; // nothing to dismiss against an unknown topic
-    const contributorId = await getStubContributorId(this.db);
+    // Issue C: the dismissal is attributed to the REAL signed-in contributor passed by the
+    // auth-gated boundary (AC8); fall back to the stub only for store-level tests / seed.
+    const attributedId =
+      contributorId ?? (await getStubContributorId(this.db));
     await this.db
       .insert(dismissedCandidate)
       .values({
         topicId,
         provider: input.platform,
         providerVideoId: input.videoId,
-        contributorId,
+        contributorId: attributedId,
       })
       // Idempotent on the (topic, provider, provider_video_id) unique identity (AC5):
       // re-dismissing the same candidate is a no-op, not a duplicate-key error.
@@ -227,20 +240,24 @@ export function _resetStubContributorCache(): void {
 
 export async function getStubContributorId(db: Db): Promise<number | null> {
   if (stubId !== null) return stubId;
-  const rows = await db
-    .insert(contributor)
-    .values({ handle: STUB_HANDLE, displayName: "Prototype curator" })
-    .onConflictDoNothing({ target: contributor.handle })
-    .returning({ id: contributor.id });
-  if (rows[0]) {
-    stubId = rows[0].id;
-    return stubId;
-  }
+  // The "@prototype" stub is a singleton kept alive by D6 (pre-C clips attribute to it). Now that
+  // `contributor.handle` is non-unique (issue C fix round — the identity anchor is the account
+  // row, not the handle), we can no longer ON CONFLICT (handle); read-first, insert only if
+  // absent. The seed creates the stub once on deploy and this is memoized, so there is no
+  // contended path here.
   const existing = await db
     .select({ id: contributor.id })
     .from(contributor)
     .where(eq(contributor.handle, STUB_HANDLE))
     .limit(1);
-  stubId = existing[0]?.id ?? null;
+  if (existing[0]) {
+    stubId = existing[0].id;
+    return stubId;
+  }
+  const rows = await db
+    .insert(contributor)
+    .values({ handle: STUB_HANDLE, displayName: "Prototype curator" })
+    .returning({ id: contributor.id });
+  stubId = rows[0]?.id ?? null;
   return stubId;
 }

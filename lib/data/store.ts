@@ -58,7 +58,17 @@ export interface DataStore {
     dismissedVideoKeys: Set<string>;
   }): Promise<Candidate[] | null>;
 
-  addClip(clip: Omit<Clip, "id" | "createdAt">): Promise<Clip>;
+  /**
+   * Persist a curated clip. As of issue C the curator is the REAL signed-in contributor:
+   * the Server Action boundary resolves the session and passes `curatorId` (the
+   * authenticated `contributor.id`); the store no longer falls back to the `@prototype`
+   * stub for new writes (AC6). `curatorId` is optional only so the store-level tests +
+   * the localStorage reference impl can call it without a session.
+   */
+  addClip(
+    clip: Omit<Clip, "id" | "createdAt">,
+    curatorId?: number
+  ): Promise<Clip>;
 
   // NOTE (issue #45 fix round): `updateClip` / `deleteClip` are intentionally NOT on the
   // client-facing seam. They are DESTRUCTIVE and have no UI caller; with no auth until
@@ -72,12 +82,20 @@ export interface DataStore {
   // a candidate dismissed by anyone does not resurface for anyone (AC5), matched by the
   // (topicQid, platform, videoId) identity. (Was per-browser localStorage in the
   // prototype — lib/candidates/dismissals.ts.)
-  /** Persist a dismissal so the candidate does not resurface (idempotent on the identity). */
-  recordDismissal(input: {
-    topicQid: string;
-    platform: string;
-    videoId: string;
-  }): Promise<void>;
+  /**
+   * Persist a dismissal so the candidate does not resurface (idempotent on the identity).
+   * As of issue C the dismissal is attributed to the REAL signed-in contributor: the boundary
+   * resolves the session and passes `contributorId` (AC8). Optional only for the store-level
+   * tests + the reference impl.
+   */
+  recordDismissal(
+    input: {
+      topicQid: string;
+      platform: string;
+      videoId: string;
+    },
+    contributorId?: number
+  ): Promise<void>;
   /** The set of dismissed `platform:videoId` keys for a topic (for filtering candidates). */
   dismissedKeys(topicQid: string): Promise<string[]>;
 }

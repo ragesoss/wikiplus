@@ -20,6 +20,8 @@ import { PinnedPlayer, type PinnedClip } from "@/components/topic/PinnedPlayer";
 import { PlayerModal } from "@/components/topic/PlayerModal";
 import { Toc, type TocEntry } from "@/components/topic/Toc";
 import { TopicHeader } from "@/components/topic/TopicHeader";
+import { useRequireLogin } from "@/components/auth/useRequireLogin";
+import { isAuthRequired } from "@/lib/auth/auth-error";
 import { liveCandidatesEnabled } from "@/lib/candidates";
 import {
   curatedVideoKeys,
@@ -44,12 +46,14 @@ import {
 
 const HEAD = 64;
 const READ = 120;
-const IDENTITY = "@sage"; // stubbed signed-in curator (design §6.1; A7)
 
 type FetchState = "loading" | "ready" | "error";
 
 export function TopicView() {
   const router = useRouter();
+  // Issue C: the gate seam for the four contribute entry points (design §2 / §9). It runs the
+  // action when signed in, else opens the right login gate (no auto-resume on return — UX-2).
+  const { requireLogin, showExpiredGate, gateElement } = useRequireLogin();
   const pathname = usePathname();
   const qidParam = useSearchParams().get("qid");
 
@@ -570,7 +574,12 @@ export function TopicView() {
   // via liveCandidates), fire the persistence in the background, and if the server write
   // fails, REVERT the optimistic hide (the card reappears) + show a non-blocking polite
   // notice. No silent loss; a card is never hidden-but-unsaved beyond the round-trip.
-  const dismiss = useCallback(
+  // The actual optimistic-with-rollback dismissal — only run when SIGNED IN (the gate is at
+  // the entry point below). Issue C (design §2d): a logged-out dismiss must NOT optimistically
+  // hide (the boundary would reject it — a false "dismissed"); so the hide lives here, after
+  // the gate. A boundary `AuthRequiredError` (session expired between render and click) rolls
+  // the hide back AND surfaces the expired-session gate, not the generic failure notice (§4).
+  const runDismiss = useCallback(
     (c: Candidate) => {
       const videoId = videoIdOf(c);
       // Unparseable id can't be persisted as a dismissal — keep the prior in-session-hide
@@ -590,19 +599,32 @@ export function TopicView() {
           setPersistedDismissed((prev) =>
             new Set(prev).add(identityKey(c.platform, videoId))
           );
-        } catch {
+        } catch (err) {
           // Rollback the optimistic hide: the card reappears (the honest "that didn't take"
-          // signal) and a polite notice names why. Focus is NOT stolen back to the card.
+          // signal). Focus is NOT stolen back to the card.
           setDismissed((prev) => {
             const next = new Set(prev);
             next.delete(c.id);
             return next;
           });
-          setDismissError(true);
+          // Defense in depth (design §2d/§4): a session that expired between render and click
+          // is rejected at the boundary — surface the expired-session login gate rather than
+          // the generic "couldn't dismiss" notice.
+          if (isAuthRequired(err)) showExpiredGate();
+          else setDismissError(true);
         }
       })();
     },
-    [focusBandHeading]
+    [focusBandHeading, showExpiredGate]
+  );
+
+  // Entry point (design §2d): gate first. Signed in → run the optimistic dismiss; logged out →
+  // the dismiss login gate WITHOUT any optimistic hide (the card stays visible — honest).
+  const dismiss = useCallback(
+    (c: Candidate) => {
+      requireLogin({ gate: "dismiss", action: () => runDismiss(c) });
+    },
+    [requireLogin, runDismiss]
   );
 
   // ── Candidate play (issue #10, design §3/§9). Open the NON-MODAL PinnedPlayer for
@@ -634,19 +656,40 @@ export function TopicView() {
     setPinned(null);
     focusBandHeading();
   }, [focusBandHeading]);
-  const promote = useCallback((c: Candidate) => {
-    setCurateFor(c);
-    setCurateOpen(true);
-  }, []);
+  // Curate (candidate Promote) — gated (design §2b). Signed in → open the real CurateModal
+  // (still mock submit in C, D4); logged out → the "Log in to curate" gate. No auto-resume.
+  const promote = useCallback(
+    (c: Candidate) => {
+      requireLogin({
+        gate: "curate",
+        action: () => {
+          setCurateFor(c);
+          setCurateOpen(true);
+        },
+      });
+    },
+    [requireLogin]
+  );
+  // "Be the first to curate" — same curate gate (design §2b). The empty-state scroll fallback
+  // (no candidate to curate) is not a write, so it runs regardless of session.
   const curateFirst = useCallback(() => {
     const first = liveCandidates[0] ?? null;
-    if (first) {
-      setCurateFor(first);
-      setCurateOpen(true);
-    } else {
+    if (!first) {
       document.getElementById("general-band")?.scrollIntoView({ block: "start" });
+      return;
     }
-  }, [liveCandidates]);
+    requireLogin({
+      gate: "curate",
+      action: () => {
+        setCurateFor(first);
+        setCurateOpen(true);
+      },
+    });
+  }, [liveCandidates, requireLogin]);
+  // Add video — gated (design §2c). Signed in → open AddModal; logged out → "Log in to add".
+  const openAdd = useCallback(() => {
+    requireLogin({ gate: "add", action: () => setAddOpen(true) });
+  }, [requireLogin]);
 
   const sectionList = useMemo(
     () => (article?.sections ?? []).map((s) => ({ slug: s.slug, title: s.title })),
@@ -671,10 +714,7 @@ export function TopicView() {
 
   return (
     <>
-      <TopicHeader
-        articleTitle={displayTitle}
-        identityHandle={mode === "empty" ? IDENTITY : undefined}
-      />
+      <TopicHeader articleTitle={displayTitle} />
 
       <div className="mx-auto max-w-[1200px] px-5">
         {/* Masthead: title + attribution + lead (left) + infobox + TOC (right). */}
@@ -734,7 +774,7 @@ export function TopicView() {
           onPlayCandidate={playCandidate}
           onPromote={promote}
           onDismiss={dismiss}
-          onAdd={() => setAddOpen(true)}
+          onAdd={openAdd}
         />
       )}
 
@@ -891,12 +931,13 @@ export function TopicView() {
         />
       )}
       {addOpen && (
-        <AddModal
-          sections={sectionList}
-          identityHandle={IDENTITY}
-          onClose={() => setAddOpen(false)}
-        />
+        <AddModal sections={sectionList} onClose={() => setAddOpen(false)} />
       )}
+
+      {/* Login gate (issue C, design §2 / §9): the modal a logged-out contribute attempt
+          (Curate / Add / dismiss) resolves to, and the expired-session gate (§2d). Rendered
+          once; null when no gate is open. */}
+      {gateElement}
     </>
   );
 }

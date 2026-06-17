@@ -1,0 +1,1 @@
+ALTER TABLE "contributor" DROP CONSTRAINT "contributor_handle_unique";

@@ -1,5 +1,6 @@
 "use client";
 
+import { useSession } from "next-auth/react";
 import { useId, useState } from "react";
 import { parseVideoUrl } from "@/lib/embed/facade";
 import { CurateFields } from "./CurateForm";
@@ -7,15 +8,17 @@ import { ModalShell } from "./ModalShell";
 
 // "Add a video" by-link modal (design §6.9, AC18/AC19). Detect platform from the
 // link, mock a preview (no network — A7), then reveal the curate fields. Mock submit.
+// Issue C: reached ONLY when signed in (the gate is at the trigger in TopicView); the
+// "signed in as" pill now shows the REAL Wikimedia username from the session (design §1d).
 export function AddModal({
   sections,
-  identityHandle,
   onClose,
 }: {
   sections: { slug: string; title: string }[];
-  identityHandle?: string;
   onClose: () => void;
 }) {
+  const { data: session } = useSession();
+  const identityHandle = session?.user?.username;
   const titleId = useId();
   const [link, setLink] = useState("");
   const [resolved, setResolved] = useState<{

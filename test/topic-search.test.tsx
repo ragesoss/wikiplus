@@ -13,6 +13,10 @@ import userEvent from "@testing-library/user-event";
 const routerPush = vi.fn();
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: routerPush, replace: vi.fn() }),
+  // AuthControl (issue C) lives in both headers and reads the path/query to build its OAuth
+  // callbackUrl — provide stubs so rendering HomePage / TopicHeader doesn't need a router ctx.
+  usePathname: () => "/",
+  useSearchParams: () => new URLSearchParams(),
 }));
 
 // Mock the suggest module so tests control the typeahead results deterministically.

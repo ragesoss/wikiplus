@@ -141,6 +141,91 @@ chmod 600 .env
 > `POSTGRES_PASSWORD` / mount the secret. Do §3b before re-pulling the #45 compose file (§4) and
 > triggering the deploy.
 
+> **The issue C deploy is stateful + owner-gated the same way:** before the C compose file lands,
+> the box `.env` must additionally hold `AUTH_SECRET` + the two `wikimedia_oauth_client_*` values
+> (§3c), **and** the owner must register the prod callback URL at meta.wikimedia.org (§3c). The
+> `:?` guards in the C compose file make `docker compose up -d --wait` **fail loudly** if any of the
+> three is unset — so the live site is not taken down by a half-applied deploy, but login will be
+> broken until the callback is registered. Stage §3c on the box **before** merging C to `main`
+> (the merge auto-deploys); re-pull the updated compose file (§4) so the box has the new `app`
+> environment wiring, then verify login live (not just a green Actions run).
+
+## 3c. OAuth bring-up (issue C — Wikimedia login)
+
+As of **issue C** the app does **real Wikimedia OAuth 2.0** (Auth.js v5, JWT sessions). The `app`
+container reads **three RUNTIME secrets** (read by `lib/auth/config.ts` + Auth.js at request time —
+**not** baked into the image, unlike the build-time YouTube key). They follow the **same box-`.env`
+pattern as `POSTGRES_PASSWORD`** (§3b): the values live **only** in `/opt/wikiplus/.env` on the box;
+`deploy/docker-compose.yml` interpolates them into the `app` service and passes them to the container.
+The committed compose file carries **no** secret values. A **`:?` guard** on each makes
+`docker compose up -d --wait` **fail loudly** if any is unset — so a missing secret is caught at deploy,
+never shipped as silently-broken login.
+
+| Env var (in `/opt/wikiplus/.env`) | What it is | Source |
+|---|---|---|
+| `AUTH_SECRET` | Auth.js JWT session signing/encryption. **NEW server secret — generate a fresh strong value ON THE BOX.** The local-dev `.env` value is dev-only; **do not reuse it.** | `openssl rand -base64 32` (see below) |
+| `wikimedia_oauth_client_key` | The Wikimedia OAuth **consumer key** (`clientId`). | The owner's registered consumer (meta.wikimedia.org) |
+| `wikimedia_oauth_client_secret` | The Wikimedia OAuth **consumer secret** (`clientSecret`). | Same consumer |
+
+```sh
+cd /opt/wikiplus
+
+# Append the three auth secrets to the SAME .env that already holds POSTGRES_PASSWORD (§3b).
+# AUTH_SECRET: generate a FRESH strong value on the box (never reuse the dev .env value):
+{
+  printf 'AUTH_SECRET=%s\n' "$(openssl rand -base64 32 | tr -d '\n')"
+  printf 'wikimedia_oauth_client_key=%s\n'    '<OWNER-PROVIDED CONSUMER KEY>'
+  printf 'wikimedia_oauth_client_secret=%s\n' '<OWNER-PROVIDED CONSUMER SECRET>'
+} >> .env
+chmod 600 .env
+
+# Sanity-check the file has all four keys (POSTGRES_PASSWORD + the three above), values redacted:
+sed -E 's/=.*/=<set>/' .env
+```
+
+- **Sessions are stateless JWT** — no Redis, no session table; `AUTH_SECRET` is the only new
+  server-secret surface. The OAuth scope is identify-only (no edit/act-on-behalf grant).
+- **`trustHost: true`** is set in the app config (it runs behind Caddy), so **no `AUTH_URL` /
+  `NEXTAUTH_URL` env var is needed** — Auth.js derives the origin from the (trusted) host header.
+- After editing `.env`, the change takes effect on the next `docker compose up -d` (the deploy job,
+  or by hand). `docker compose config` on the box is a safe dry-run that surfaces a missing/blank
+  secret before you bring the stack up.
+
+### ⚠️ OWNER ACTION — register the prod callback URL (login fails until done)
+
+The Wikimedia OAuth **consumer** must have the production callback/redirect URL registered, or every
+login round-trip fails with **`redirect_uri mismatch`**. Auth.js's built-in Wikimedia provider uses the
+default callback path:
+
+```
+https://wikiplus.wikiedu.org/api/auth/callback/wikimedia
+```
+
+Register/confirm it on the consumer's admin page at **meta.wikimedia.org**
+(`Special:OAuthConsumerRegistration` / the consumer's manage page). This is the **owner's** action
+(consumer admin) — Ops cannot do it. Confirm it is registered **before** the change goes live, or login
+ships broken (reading is unaffected — only the auth round-trip 400s).
+
+### Migration on this deploy (issue C — `0001_loose_blockbuster`)
+
+This deploy carries **one** Drizzle migration, `drizzle/0001_loose_blockbuster.sql`:
+`ALTER TABLE contributor DROP CONSTRAINT contributor_handle_unique;` — additive and unconditional
+(QA-verified it applies cleanly on top of #45 and preserves the seeded `@prototype` stub). It runs
+**automatically** via the `migrate` one-shot during `docker compose up -d --wait`, before `app` starts.
+No manual step. **Rollback note:** re-adding the constraint later is only blocked by genuine duplicate
+handles, of which there are none today; the previous image `:<sha>` tag in GHCR is the fast rollback.
+
+### Session cookie / TLS + a 308 to confirm
+
+- **Cookie `Secure`:** Caddy terminates TLS, so Auth.js sets the session cookie `Secure` automatically
+  (HTTPS host). No action — but post-deploy, confirm login persists (the cookie is accepted) through
+  Caddy/Cloudflare.
+- **MINOR-2 — `trailingSlash:true` + `/api/auth/session` 308:** the next-auth client fetches
+  `/api/auth/session` (no trailing slash); with `trailingSlash:true` Next emits a **308** to the
+  slashed form, which browsers follow. Confirm Caddy/Cloudflare passes the 308 through cleanly (does not
+  strip/mangle it) so `useSession()` resolves and the header shows the logged-in state. If the
+  proxy interferes, that is the first thing to check.
+
 ## 4. Place the deploy files at `/opt/wikiplus`
 
 The box needs `deploy/docker-compose.yml` (renamed to `docker-compose.yml`) and the `Caddyfile`
@@ -253,6 +338,13 @@ The workflow consumes exactly these:
 > `DATABASE_URL`). There is **no** `DATABASE_URL` or DB password GitHub Actions secret to set; the app
 > assembles `DATABASE_URL` at runtime from the box's `.env`. The migrate one-shot runs on the box
 > during `docker compose up -d`, not in CI.
+
+> **Auth secrets are ALSO box-side, not GitHub secrets (issue C).** `AUTH_SECRET`,
+> `wikimedia_oauth_client_key`, and `wikimedia_oauth_client_secret` live **only** in
+> `/opt/wikiplus/.env` on the box (§3c) — read by the `app` container at **runtime**. The OAuth
+> consumer secret must **never** be baked into the CI image (unlike the build-time YouTube key);
+> `.dockerignore` excludes `.env` so it cannot enter an image layer. There is **no** auth GitHub
+> Actions secret to set.
 
 > **⚠️ YouTube referrer allowlist (post-deploy, easy to miss):** the `YOUTUBE_API_KEY` is
 > **HTTP-referrer-restricted** in Google Cloud Console, so it only works from origins on its

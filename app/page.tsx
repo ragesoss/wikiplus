@@ -6,6 +6,7 @@ import { store } from "@/lib/data";
 import type { Topic } from "@/lib/data/types";
 import { topicHref } from "@/lib/wiki/topicRoute";
 import { TopicSearch } from "@/components/search/TopicSearch";
+import { AuthControl } from "@/components/auth/AuthControl";
 
 export default function HomePage() {
   const [topics, setTopics] = useState<Topic[] | null>(null);
@@ -33,13 +34,20 @@ export default function HomePage() {
   return (
     <main className="mx-auto max-w-5xl space-y-6 px-4 py-8">
       <header className="space-y-4 border-b border-ink/10 pb-4">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <Link href="/" className="text-lg font-semibold text-brand">
             wiki<span className="text-sprout">+</span>
           </Link>
-          <Link href="/contribute" className="text-sm text-action hover:underline">
-            Contribute
-          </Link>
+          {/* Top row right end: Contribute link + the sign-in affordance (design §1b). */}
+          <div className="flex items-center gap-4">
+            <Link
+              href="/contribute"
+              className="text-sm text-action hover:underline"
+            >
+              Contribute
+            </Link>
+            <AuthControl variant="home" />
+          </div>
         </div>
         {/* Always-visible, full-width topic search — the primary entry (#12, design
             §Placement Host 1: the must-ship floor; never collapses to an icon on home). */}
