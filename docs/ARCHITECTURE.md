@@ -55,7 +55,8 @@ Scaling out later is intentionally a **config change, not a rewrite** — see th
 note below.
 
 **Provisioned host (issue A.2 / #42 — the prototype is live):** a single **Linode Nanode
-1GB, Ubuntu 24.04 LTS**, serving **`wikiplus.wikiedu.org`**. The deploy files live in
+1GB** (planned Ubuntu 24.04; **shipped Debian 13 / trixie** — see `docs/ops/vps-setup.md`),
+serving **`wikiplus.wikiedu.org`**. The deploy files live in
 [`deploy/`](../deploy/) (`docker-compose.yml`, `Caddyfile`) and on the box at `/opt/wikiplus`;
 the box-setup runbook is `docs/ops/vps-setup.md`. Stack on the box is **`app` + `caddy` +
 `postgres`** (the shared data store, issue #45 / #35 B) plus a one-shot **`migrate`** service that
@@ -287,8 +288,9 @@ lazily (alongside `article_index`) — Redis is a natural home for these cached 
 **YouTube Data API key.** Search uses a **public-data API key** — not OAuth and not a service account
 (the YouTube Data API doesn't support service-account auth; OAuth is only for a *user's* private data,
 which we never touch). The key is **API-restricted to YouTube Data API v3**. *Where it lives* is the real
-decision: in the prototype it's a **browser key restricted by HTTP referrer** to `https://ragesoss.github.io/*`
-(see *Prototype phase*). Because a client key is inlined into the static bundle and publicly readable, the
+decision: in the prototype it's a **browser key restricted by HTTP referrer** to the live origin
+`https://wikiplus.wikiedu.org/*` (the allowlist had to be updated from the old `ragesoss.github.io`
+Pages origin at the host cutover — see *Prototype phase* and the ⚠️ in `docs/ops/vps-setup.md`). Because a client key is inlined into the static bundle and publicly readable, the
 **referrer restriction plus a quota cap are the protection, not secrecy**. The production read-path should
 move search **server-side** (key held as a server secret; the expensive quota shared + cached) — see
 *Open questions*. Embedding needs no key — that's oEmbed/the facade.
@@ -559,7 +561,7 @@ a host is provisioned (issue A.2).
     URL — now enforced by the server's redirect rather than by a built `<route>/index.html`);
     `outputFileTracingRoot` **kept**.
 - **Deploy:** **LIVE (issue A.2 / #42).** A push to `main` auto-deploys the Node SSR server to a
-  **Linode Nanode 1GB (Ubuntu 24.04)** at **`wikiplus.wikiedu.org`** via Docker Compose (`app` +
+  **Linode Nanode 1GB (Debian 13 / trixie as shipped)** at **`wikiplus.wikiedu.org`** via Docker Compose (`app` +
   `caddy`; Postgres/Redis still deferred to issue B, Cloudflare edge cache to the production-MVP).
   `.github/workflows/deploy.yml` (re-enabled `push: [main]` + `workflow_dispatch`) builds the
   **standalone** image in CI, pushes it to **GHCR** (`ghcr.io/ragesoss/wikiplus`), then SSHes to the box

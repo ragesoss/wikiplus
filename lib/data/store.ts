@@ -1,8 +1,16 @@
 import type { ArticleSection, Candidate, Clip, Topic } from "./types";
 
-// The seam between the GitHub Pages prototype (localStorage) and production
-// (Server Actions + Drizzle/Postgres). Only ./index.ts decides which
-// implementation is active — swap it there, not at call sites.
+// The `DataStore` interface — the data-access seam. `./index.ts` is the single place that
+// wires the concrete implementation: as of issue #45 that's `DrizzleDataStore` (shared
+// Postgres, lib/db/drizzle-store.ts) reached through the Server Actions boundary
+// (lib/server/actions.ts); the localStorage store is retired for the deployed app, kept
+// only as a reference impl + test double.
+//
+// This seam localizes *which store* is active to one file — but it is NOT a "swap one line"
+// boundary, despite earlier framing. Moving off localStorage forced the store server-side,
+// which meant standing up the Server Actions boundary AND rewiring the (previously
+// client-only) call sites to await it. Treat a store change as "pick the impl in index.ts +
+// reconcile the client/server split," not a single-line edit.
 //
 // Data model the seam carries (extended for Topic Page v1 — see types.ts and
 // docs/design/topic-page-v1.md §14):

@@ -10,6 +10,7 @@ You are the **Operations** role for wiki+ — the curation-and-contextualization
 ## Read first
 - `CLAUDE.md` (always in your context) — principles, Wikimedia etiquette.
 - `docs/ARCHITECTURE.md` — **Deployment**, the **self-hosted ISR gotcha** (Redis shared cache handler), and the **Stack**.
+- The **as-built pipeline you operate**: `.github/workflows/deploy.yml` + the box-setup runbook `docs/ops/vps-setup.md`. The cloud/mobile loop below is **live**, not aspirational — read these for the current reality before changing anything.
 - The Development change being shipped, and **QA & Review's green signal**.
 
 ## You own / produce
@@ -25,6 +26,18 @@ The dev cycle must run **completely in the cloud and be drivable from a mobile C
 3. **Mobile observability & approval.** A stable staging URL (Cloudflare subdomain), with CI/deploy status and logs surfaced where a phone can see them (PR checks + reported back into the session), so the owner can approve (PR merge from mobile) and verify from a phone.
 4. **No interactive access in the normal path.** Secrets, backups, and monitoring wired so the routine loop never needs an interactive shell on the box.
 5. **Stay cost-efficient.** Automate the single VPS rather than reflexively swapping to a managed PaaS (record the staging-target decision in `ARCHITECTURE.md`).
+
+**As built (issue A.2 / #42 — live, not aspirational):** the prototype runs as a **Next.js Node SSR
+server on a single Linode Nanode 1GB** (shipped Debian 13) at **`https://wikiplus.wikiedu.org`**. A push
+to **`main`** fires `.github/workflows/deploy.yml`: CI builds the standalone Docker image and pushes it to
+**GHCR**, then SSHes to the box to `docker compose pull && docker compose up -d --wait`. **The 1GB box
+never builds Next.js** (it would OOM) — CI builds, the box only pulls. Compose stack is `app` + `caddy`
++ `postgres` + a one-shot `migrate` service (`app depends_on migrate: service_completed_successfully`),
+so migrations + seed run automatically before `app` starts (issue #45). There is **one** environment
+today (the live prototype); a separately-gated prod promotion comes later. **Stateful deploys**
+(migrations, a new secret / `.env` var like `POSTGRES_PASSWORD`, host changes) need their prerequisites
+**staged on the box before the merge** — a missing secret or a bad migration fails `compose up` and can
+take the live site down; verify the live result post-deploy, don't trust a green Actions run alone.
 
 This loop is also the deploy leg of the build-loop **workflow**; you own its automation and its cloud/mobile property.
 

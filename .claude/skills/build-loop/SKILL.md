@@ -1,13 +1,14 @@
 ---
 name: build-loop
-description: This skill should be used to build or change a wiki+ application feature — whenever the owner asks to "build", "add", "implement", "redo", "rebuild", or substantially change or fix the behavior of a feature, page, component, or flow of the wiki+ app (including "run the build-loop for issue #N"). It runs the full role pipeline (Product → UX → Development → QA & Review + UX evaluation → Operations) by delegating each stage to the matching `.claude/agents/` role subagent, then commits and deploys the updated prototype to GitHub Pages — autonomously, from one prompt to a live deploy. Use it instead of doing feature/code work inline. A one-line copy, CI, or doc fix is NOT a feature change — do those inline, do not run this loop.
+description: This skill should be used to build or change a wiki+ application feature — whenever the owner asks to "build", "add", "implement", "redo", "rebuild", or substantially change or fix the behavior of a feature, page, component, or flow of the wiki+ app (including "run the build-loop for issue #N"). It runs the full role pipeline (Product → UX → Development → QA & Review + UX evaluation → Operations) by delegating each stage to the matching `.claude/agents/` role subagent, then commits and deploys the updated prototype to its live host (a push to `main` ships it to the Linode VPS at `wikiplus.wikiedu.org`) — autonomously, from one prompt to a live deploy. Use it instead of doing feature/code work inline. A one-line copy, CI, or doc fix is NOT a feature change — do those inline, do not run this loop.
 ---
 
 # wiki+ build-loop — the role pipeline, enforced
 
 Run a wiki+ feature or code change through the full role pipeline by delegating each stage to the
 matching `.claude/agents/` subagent, committing each role's artifact as the hand-off, and deploying
-the result to GitHub Pages — autonomously, from one prompt to a live updated prototype.
+the result to the project's live host (a push to `main` ships it to the Linode VPS at
+`wikiplus.wikiedu.org`) — autonomously, from one prompt to a live updated prototype.
 
 This skill is the **enforcement mechanism** behind the hard rule in `CLAUDE.md` ("delegate; don't
 wear hats"). It exists because a 2026-06-14 cloud session built a feature solo — no QA, no UX
@@ -35,7 +36,17 @@ recorded in `docs/AGENT_OPERATING_MODEL.md`.)
 - **Run autonomously — one prompt to a live deploy.** Do **not** pause for human approval between
   stages. The owner's checkpoint is the **deployed site**; git is the rollback safety net. Where the
   prompt is ambiguous, make the most reasonable product assumption, record it for Product to refine,
-  and keep going — do not stop to ask.
+  and keep going — do not stop to ask. The **one** exception is a genuine **owner action the loop
+  cannot perform** (provision a host, register an OAuth consumer, flip a cloud-console setting, add a
+  DNS record) — see *Human action required* below: surface it and pause **without marking the run
+  failed**, then resume when it's done. That is not the same as pausing to ask a product question.
+- **A subagent that returns nothing is a failure, not a pass.** If a spawned role dies with an internal
+  error or hands back an empty/garbled result, **re-spawn it** — never close a gate on a missing result.
+  This matters most at the Phase-4 verify gate: a silently-dead re-verify once let a gate go unchecked.
+  Confirm you actually have each reviewer's substantive result before proceeding.
+- **You own the task list.** Track the phases — and the Phase-4 fix-round count — yourself. Tell each
+  subagent to keep its *own* internal todos out of the shared task list, so phase tracking stays legible
+  (a Dev subagent once interleaved its breakdown into the orchestrator's list).
 - **Autonomy does not mean shipping red.** Drive to a *green* deploy. If QA or UX defects can't be
   cleared within the bounded fix loop in Phase 4, **stop and report — do not deploy** known-broken
   code. The Phase-6 report must then **lead with `BLOCKED`** so the owner notices, since the live site
@@ -47,21 +58,36 @@ recorded in `docs/AGENT_OPERATING_MODEL.md`.)
 - **Skip the loop for trivial, process-neutral changes** (CI bump, typo, doc tweak, one-line copy
   fix) — do those inline. This loop is for feature/behavior work on the app.
 
-## Prototype scope (today's reality — don't over-build)
+## Prototype scope (read the live reality — don't assert it from here)
 
-The app is a **client-side static SPA** (`output: "export"`, deployed to GitHub Pages). Data access
-goes through the **`lib/data/` DataStore seam** (localStorage now; swap point `lib/data/index.ts`).
-There are **no** Server Actions, Auth.js, Redis, Drizzle, or migrations yet — the production read-path
-(ISR/Redis/Server Actions/Postgres) is **not built**. Those obligations from the role charters and
-`docs/ARCHITECTURE.md` apply to the **production read-path, not this static export**. Do not let a role
-wire server infra into the SPA, or block on "no migration written," in the prototype phase.
+The runtime moves fast, so this skill must **not** hard-code a snapshot of it. **`docs/ARCHITECTURE.md`
+— its *Prototype phase* and *Still deferred* sections — is the source of truth for what's built.** Read
+it in Phase 0 and hand each role the scope relevant to its stage, rather than trusting a paragraph here.
+If this paragraph ever disagrees with ARCHITECTURE, trust ARCHITECTURE and fix this.
 
-The build/verify commands that actually exist: **`yarn build`**, **`yarn typecheck`**, and **`yarn
-test`** (Vitest + React Testing Library, with Playwright for the core-loop e2e — config in
-`vitest.config.ts`, specs under `test/` and `e2e/`). There is **no `lint` script** (eslint is ignored
-during builds). The test harness is already committed; deps install with `yarn install
---frozen-lockfile` (as CI does). New work adds `test/*.test.ts` files to the existing suite — do **not**
+As of this writing the app is a **Next.js App Router Node SSR server** (no longer a static `output:
+"export"`), running **live on a Linode VPS at `https://wikiplus.wikiedu.org`**, auto-deployed by a push
+to `main` (`.github/workflows/deploy.yml`: build the image in CI → push to GHCR → SSH to the box →
+`docker compose pull && up`). Persistence is **shared Postgres via Drizzle, reached through a Server
+Actions data-access boundary** (`lib/data/index.ts` → `lib/server/actions.ts` → `lib/db/drizzle-store.ts`),
+so the deployed app is **multi-user and durable**. **Server Actions and migrations are live.** **Still
+ahead:** real auth (Wikimedia OAuth — issue C) and the production read-path (ISR + the Redis shared
+`cacheHandler`). So: a feature *may* legitimately add server infra (a Server Action, a schema change +
+its migration) — don't block a role on "no migration written" when the change has no schema delta; but
+don't let a role build the deferred read-path caching or auth speculatively either.
+
+The build/verify commands that exist: **`yarn build`** (a *server* build in `.next/`, no static `out/`),
+**`yarn start`** (serves that build), **`yarn typecheck`**, **`yarn test`** (Vitest + React Testing
+Library — unit/integration, config in `vitest.config.ts`, specs under `test/`), and **`yarn test:e2e`**
+(Playwright against `next build` + `next start`, specs under `e2e/`). There is **no `lint` script**
+(eslint is ignored during builds). The harness is already committed; deps install with `yarn install
+--frozen-lockfile` (as CI does). New work adds `test/*.test.ts` to the existing suite — do **not**
 re-scaffold a runner.
+
+**Known gap — the e2e gate is not green on `main`.** `yarn test:e2e` has **pre-existing failures** on
+`main` (fixture/locator debt — tracked by the e2e-fixture-repair issue). Until that's fixed, an e2e run
+can only verify **"no new failures vs. `main`,"** never a clean "e2e passes" acceptance criterion — QA
+should baseline `main` first and **not** charge pre-existing reds to the change under review.
 
 ## The pipeline
 
@@ -81,6 +107,11 @@ enter a phase until the previous phase's **gate** is satisfied (read the artifac
   artifact filenames (and an `issue-<N>-<slug>` branch when working from an issue).
 - Note any assumption made from an ambiguous prompt (hand it to Product to refine). Do not ask the
   owner.
+- **If other agents or worktrees share this repo** (parallel work — a separate branch/worktree, another
+  build), identify the off-limits path/branch up front and pass a standing **"do not touch
+  `<path-or-branch>`"** line to *every* subagent. The loop has no built-in awareness of concurrent work;
+  a parallel agent's cleanup once made session files appear to vanish. Don't merge another agent's
+  in-progress PR without confirming it's owner-authorized and conflict-free.
 
 ### 1 — Product → `docs/specs/<slug>.md`
 Spawn **`product-manager`** (Opus). Input: the owner's prompt + any Phase-0 assumption.
@@ -135,11 +166,12 @@ it to Development to fix and it does **not** consume a fix round.
 UX-evaluation pass (minor cosmetic notes may pass with a logged follow-up). If still red after 2 rounds
 → **stop, commit what exists, and report `BLOCKED` with the unresolved defects — do not deploy.**
 
-### 5 — Deploy (Operations) → live on GitHub Pages
+### 5 — Deploy (Operations) → live on the VPS
 Spawn **`operations`** (Opus). Its job: land the committed work on **`main`** (the only branch
-`.github/workflows/deploy.yml` deploys from) and confirm the deploy. The Pages run fires on a push/merge
-**to `main`**, never on a feature branch. Operations picks the right mechanism for the environment, in
-this preference order:
+`.github/workflows/deploy.yml` deploys from) and confirm the **live result** at
+`https://wikiplus.wikiedu.org`. A push/merge **to `main`** fires the deploy workflow (build image → GHCR
+→ SSH to the box → `docker compose pull && up`); a feature branch fires nothing. Operations picks the
+right mechanism for the environment, in this preference order:
 1. **Already on `main` with push rights** (typical local session) → push `main`.
 2. **On a feature/cloud branch, merge permitted** → push the branch and merge it to `main` (e.g.
    `gh pr merge`) so the workflow fires — fully automatic.
@@ -147,21 +179,52 @@ this preference order:
    the branch, **open a PR to `main`, and report it for a one-tap mobile merge**. This is the expected
    cloud fallback, not an error.
 
+**Stateless change vs. stateful/infra change — they deploy differently.** Decide which this is and hand
+it to Operations:
+- A **stateless app change** (UI, client logic, a pure code path) deploys cleanly on the push — git is
+  the rollback, nothing else to stage. This is the common case and the only one the old "push and it's
+  green" doctrine fit.
+- A **stateful or infra change** (a DB migration, a new secret / `.env` var, a compose or host change —
+  anything the box must already have *before* the new image runs) can **take the live site down** if
+  shipped naively: a missing secret fails `docker compose up`; `app depends_on migrate` means a bad
+  migration blocks startup. Operations must then **stage the prerequisites on the box before the merge**,
+  keep a **rollback image/plan** ready, **verify the live site post-deploy** (a green Actions run is not
+  proof the site is healthy), and flag in the report that this deploy carried downtime risk.
+
 Operations owns these git mechanics — do not hand-roll them in the orchestrator. When working from an
-issue, the landing commit or PR carries **`Closes #N`**, so the issue closes automatically when the work
-merges to `main` (= deploys).
-**Gate:** **not deployed** until a commit actually lands on `main` and the Actions run goes green —
-**or** a PR to `main` is open and reported (case 3). Pushing only a feature branch is **not** a deploy;
-never report "deployed" on a branch push that fired no `main` workflow run.
+issue, the landing commit or PR carries **`Closes #N`** so the issue closes when the work merges to
+`main`. **If bundling several issues, repeat the keyword per number** — `Closes #24, closes #25, closes
+#26` — or GitHub auto-closes only the first.
+**Gate:** **not deployed** until a commit actually lands on `main`, the Actions run goes green, **and**
+(for a stateful change) the live site is verified healthy — **or** a PR to `main` is open and reported
+(case 3). Pushing only a feature branch is **not** a deploy; never report "deployed" on a branch push
+that fired no `main` workflow run.
 
 ### 6 — Report
 Summarize for the owner, mobile-legibly: what was built, the artifact paths (spec, design, tests if
-present), the per-role commits, the **live URL** (`https://ragesoss.github.io/wikiplus/`) **or** the
+present), the per-role commits, the **live URL** (`https://wikiplus.wikiedu.org`) **or** the
 open PR to merge, and any assumption made or follow-up logged. If the loop stopped at a gate, **lead
 with `BLOCKED`** and the reason. When working from an issue, post this summary as an **issue comment** (the durable,
 mobile-visible report): a green run closes the issue via the `Closes #N` merge; a blocked run leaves it
 open with `status: blocked`. Mark the todos done. The next round starts from the owner's reaction to
 the **live site**.
+
+## Human action required (infra / credentials / cloud console)
+
+Some issues — especially **A.2-class** infra/host work and **C** auth — need an action only the owner
+can perform, outside any subagent's reach: provisioning a Linode + DNS A record + SSH-key authorization,
+registering a Wikimedia OAuth consumer (external lead time), flipping a cloud-console setting (the
+YouTube key's HTTP-referrer allowlist silently 403'd on the host cutover), GHCR package visibility, etc.
+The loop can't do these, and a `BLOCKED` stop is the wrong signal — the work isn't broken, it's *waiting*.
+
+When you hit one:
+- **Pause without failing.** Surface a clearly-labeled **`OWNER ACTION REQUIRED`** block: exactly what to
+  do, why, and what the loop will do once it's done. Don't mark the issue failed/blocked-as-broken; when
+  working from an issue, comment the requested action and set `status: blocked-on-owner` (leave it open).
+- **Resume cleanly** from the owner's "done," re-verifying the prerequisite actually landed (e.g. the DNS
+  record resolves, the referrer allowlist includes the live origin) before continuing — don't assume.
+- **Groom for it.** An A.2-class issue should be scoped *expecting* one or more owner-action pauses, not
+  as a fully-autonomous run. Stage the human steps as an explicit checklist in the issue from the start.
 
 ## If a role can't proceed
 A role that hits a genuine fork it can't resolve within its charter reports back rather than guessing.
