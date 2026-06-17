@@ -72,10 +72,24 @@ export interface DataStore {
    * authenticated `contributor.id`); the store no longer falls back to the `@prototype`
    * stub for new writes (AC6). `curatorId` is optional only so the store-level tests +
    * the localStorage reference impl can call it without a session.
+   *
+   * The note-license agreement (issue #52 / D1, AC7) flows differently per side of the seam,
+   * and the two trailing params model both honestly without minting trust on the client:
+   *   - `agreement` — the SERVER-STAMPED capture `{ noteLicense: "CC-BY-SA-4.0",
+   *     noteLicenseAgreedAt }`. Used by the SERVER store (DrizzleDataStore) only; the boundary
+   *     (lib/server/actions.ts) builds it after `requireContributor`. Omitting it (seed/stub/
+   *     non-agreed path) records no license. The CLIENT never passes this — it cannot mint a
+   *     license version or timestamp.
+   *   - `noteLicenseAgreed` — the CLIENT-FACING consent boolean. The client facade
+   *     (lib/data/index.ts) forwards it to `addClipAction`, which converts consent → a stamped
+   *     `agreement` server-side. The server store ignores it (the boundary already converted it).
+   * A `Clip.noteLicense*` smuggled on `clip` is stripped at the boundary — never trusted.
    */
   addClip(
     clip: Omit<Clip, "id" | "createdAt">,
-    curatorId?: number
+    curatorId?: number,
+    agreement?: { noteLicense: string; noteLicenseAgreedAt: Date },
+    noteLicenseAgreed?: boolean
   ): Promise<Clip>;
 
   // NOTE (issue #45 fix round): `updateClip` / `deleteClip` are intentionally NOT on the

@@ -41,7 +41,11 @@ const clientStore: DataStore = {
   listCandidates: async () => [],
   // CLIENT-SIDE live YouTube pipeline (AC8). Runs in the browser; the seeded fallback is [].
   suggestCandidates: (input) => runCandidatePipeline(input),
-  addClip: (clip) => addClipAction(clip),
+  // Client → boundary: forward ONLY the per-submit consent boolean (issue #52 / D1, AC7).
+  // The server stamps the license version + timestamp; the client never mints either. The
+  // `curatorId` / server-`agreement` params of the seam are server-internal and unused here.
+  addClip: (clip, _curatorId, _agreement, noteLicenseAgreed) =>
+    addClipAction(clip, noteLicenseAgreed),
   recordDismissal: (input) => recordDismissalAction(input),
   dismissedKeys: (topicQid) => dismissedKeysAction(topicQid),
 };

@@ -1,22 +1,41 @@
 "use client";
 
 import { useId } from "react";
-import type { Candidate } from "@/lib/data/types";
+import type { Candidate, Clip } from "@/lib/data/types";
 import { CurateFields } from "./CurateForm";
+import { ModalActionRow } from "./ModalActionRow";
 import { ModalShell } from "./ModalShell";
+import { useCurateSubmit, type SubmitOutcome } from "./useCurateSubmit";
+import { clipFromForm } from "./curate-clip";
 
-// "Curate this clip" modal (design §6.8, AC19). Mock submit (A7): closes, no
-// persistence this round.
+// "Curate this clip" modal (design §6.8 + D1). Promotes a candidate into a persisted, curated,
+// attributed clip (issue #52 / D1, AC1): assembles a `Clip` from the candidate's media/creator
+// fields + the curate form values, requires the CC BY-SA agreement (AC6), and runs the real
+// submit lifecycle (pending/success/error/expired — §§5–7). The host (TopicView) owns the write
+// + clip-state update + candidate dedup + the expired-session gate; it supplies `onSubmit`.
 export function CurateModal({
   candidate,
   sections,
   onClose,
+  onSubmit,
 }: {
   candidate: Candidate | null;
   sections: { slug: string; title: string }[];
   onClose: () => void;
+  /**
+   * Persist the assembled clip (host owns the write + state). Resolves `{ outcome: "added" }`
+   * on success or `{ outcome: "expired" }` when the session expired (host shows the gate);
+   * REJECTS on a generic server error (the modal stays open + shows the alert).
+   */
+  onSubmit: (
+    clip: Omit<Clip, "id" | "createdAt">,
+    agreed: boolean
+  ) => Promise<SubmitOutcome>;
 }) {
   const titleId = useId();
+  const licenseStatementId = useId();
+  const submit = useCurateSubmit();
+
   return (
     <ModalShell
       onClose={onClose}
@@ -28,7 +47,13 @@ export function CurateModal({
         className="plus-card max-h-[90vh] overflow-y-auto"
         onSubmit={(e) => {
           e.preventDefault();
-          onClose(); // mock submit — no persistence (A7)
+          if (!candidate) return;
+          const form = e.currentTarget;
+          void submit.run(
+            () =>
+              onSubmit(clipFromForm(form, candidate, sections), submit.agreed),
+            onClose
+          );
         }}
       >
         <div className="flex items-center justify-between border-b-2 border-ink bg-brand px-3 py-2 text-white">
@@ -61,22 +86,18 @@ export function CurateModal({
                 ? candidate.sectionSlug ?? "__general"
                 : "__general"
             }
+            onPreconditionsChange={submit.setPreconditions}
+            licenseStatementId={licenseStatementId}
           />
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="submit"
-              className="border-2 border-ink bg-brand px-3 py-2 text-sm font-bold text-white hover:shadow-[2px_2px_0_#2C2C2C]"
-            >
-              ✓ Publish curation
-            </button>
-            <button
-              type="button"
-              onClick={onClose}
-              className="border-2 border-ink bg-white px-3 py-2 text-sm font-bold text-ink"
-            >
-              Cancel
-            </button>
-          </div>
+          <ModalActionRow
+            publishIdleLabel="✓ Publish curation"
+            publishBusyLabel="Publishing…"
+            canPublish={submit.hasNote && submit.agreed}
+            pending={submit.pending}
+            error={submit.error}
+            licenseStatementId={licenseStatementId}
+            onCancel={onClose}
+          />
         </div>
       </form>
     </ModalShell>

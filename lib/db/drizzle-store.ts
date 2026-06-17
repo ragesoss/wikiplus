@@ -136,7 +136,8 @@ export class DrizzleDataStore implements DataStore {
 
   async addClip(
     input: Omit<Clip, "id" | "createdAt">,
-    curatorId?: number
+    curatorId?: number,
+    agreement?: { noteLicense: string; noteLicenseAgreedAt: Date }
   ): Promise<Clip> {
     const topicId = await this.topicIdForQid(input.topicQid);
     if (topicId === null) {
@@ -150,9 +151,11 @@ export class DrizzleDataStore implements DataStore {
     // always passes the authenticated contributor.
     const attributedId =
       curatorId ?? (await getStubContributorId(this.db));
+    // Issue #52 / D1 (AC7): persist the server-stamped note-license agreement when present.
+    // It comes from the boundary (lib/server/actions.ts), never from the client `input`.
     const rows = await this.db
       .insert(clip)
-      .values(clipToInsert(input, topicId, attributedId))
+      .values(clipToInsert(input, topicId, attributedId, agreement))
       .returning();
     return rowToClip(rows[0], input.topicQid);
   }

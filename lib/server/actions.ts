@@ -3,6 +3,7 @@
 import { DrizzleDataStore } from "@/lib/db/drizzle-store";
 import type { Clip, Platform, Topic } from "@/lib/data/types";
 import { ACCURACY_ORDER, STANCE_ORDER } from "@/lib/curation/labels";
+import { NOTE_LICENSE } from "@/lib/curation/note-license";
 import { requireContributor } from "@/lib/auth/require-session";
 
 // The server data-access boundary (issue #45 — deliverable 1/4).
@@ -113,7 +114,15 @@ export async function listClipsAction(topicQid: string): Promise<Clip[]> {
 }
 
 export async function addClipAction(
-  input: Omit<Clip, "id" | "createdAt">
+  input: Omit<Clip, "id" | "createdAt">,
+  /**
+   * The contributor's per-submit CC BY-SA agreement (issue #52 / D1 — Decision D1-1, AC6/AC7).
+   * The client signals consent (`true`) when the curator checked the required agreement; the
+   * boundary then STAMPS the license version + a server-side timestamp. A bare boolean on the
+   * wire is all the client may assert — it can neither set the version nor backdate the
+   * timestamp, and any `noteLicense*` it tries to smuggle on `input` is stripped below.
+   */
+  noteLicenseAgreed = false
 ): Promise<Clip> {
   // GATE FIRST (AC7): reject an unauthenticated add before any DB write. The resolved
   // contributor attributes the clip (AC6): `curatorId` → the real contributor, and
@@ -122,7 +131,28 @@ export async function addClipAction(
   // attribution is the boundary's call, not the client's.
   const { contributorId, username } = await requireContributor();
   const valid = validateClipInput(input);
-  return store().addClip({ ...valid, curatedBy: username }, contributorId);
+  // Strip any client-supplied license fields: the agreement record is the boundary's to
+  // stamp, never trusted off the wire (mirrors the `curatedBy` override above). The client's
+  // ONLY input to the agreement is the `noteLicenseAgreed` consent boolean.
+  const {
+    noteLicense: _ignoreLicense,
+    noteLicenseAgreedAt: _ignoreAgreedAt,
+    ...rest
+  } = valid;
+  void _ignoreLicense;
+  void _ignoreAgreedAt;
+  // Capture the agreement only when the client signalled consent (Decision D1-1): version
+  // `CC-BY-SA-4.0` + a server timestamp, bound to this clip + contributor. A non-agreed write
+  // records NO license (per AC6 the client blocks publish until agreed; the boundary is the
+  // belt-and-suspenders — it simply won't stamp a license without the consent signal).
+  const agreement = noteLicenseAgreed
+    ? { noteLicense: NOTE_LICENSE, noteLicenseAgreedAt: new Date() }
+    : undefined;
+  return store().addClip(
+    { ...rest, curatedBy: username },
+    contributorId,
+    agreement
+  );
 }
 
 // NOT exposed at the boundary (issue #45 fix round): `updateClip` / `deleteClip` are

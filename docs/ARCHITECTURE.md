@@ -138,6 +138,14 @@ Keyed on stable identifiers, normalized, minimal.
     are **not** clip rows (see *Candidate suggestion*). `vetted` remains so we can hold a freshly
     added clip for review if needed.
   - `curator_id` → contributor (who promoted/added it)
+  - `note_license`, `note_license_agreed_at` (both nullable) — the **per-submit CC BY-SA
+    note-license agreement** captured at publish (issue #52 / D1, Curation Standard §5.3 /
+    Decision D1-1). `note_license` is a **version string** (`CC-BY-SA-4.0`), not a boolean, so a
+    future license bump is expressible; `note_license_agreed_at` is the server-stamped agreement
+    timestamp. Together with `curator_id` they bind *"this note, by this contributor, under this
+    license version, at this time."* Stamped **by the auth-gated Server Action** when the client
+    signals consent (never trusted off the wire); **null** on seed/stub clips and any non-agreed
+    path, so a D1-published clip is distinguishable from a pre-D1 one. See *Prototype phase* below.
   - `created_at`, `updated_at`
 - **contributor** (the wiki+ curator — distinct from the external **creator** referenced above)
   - `id` (internal PK), `handle` (display only — **non-unique**), `display_name`, `avatar_url`,
@@ -438,7 +446,9 @@ multi-provider OAuth support, so launching single-provider costs us nothing late
   `demonstration` stance + `primary_source` accuracy (C4); `lib/data/types.ts` to be updated.
 - ~~The license chosen for wiki+ context notes.~~ **Resolved:** **CC BY-SA 4.0** (same as the
   article text), with contributor agreement captured at submit time (Curation Standard §5.3,
-  Decision C5).
+  Decision C5). **Capture landed in issue #52 / D1:** the in-product Promote/Add flows require the
+  agreement and persist it as `clip.note_license` (`CC-BY-SA-4.0`) + `clip.note_license_agreed_at`,
+  stamped server-side by `addClipAction` (see *Data model* → `clip` and *Prototype phase*).
 - ~~Abuse/spam handling for open contribution.~~ **Policy resolved** (Curation Standard §7):
   login-gated contribution, defined removable content, honest flagging allowed, per-identity
   Redis rate limits + the `clip.vetted` review hold. *Enforcement* (rate-limit + moderation
@@ -594,6 +604,24 @@ a host is provisioned (issue A.2).
   existing `wikimedia_oauth_client_key`/`_secret` as Docker secrets on the box, and the prod
   callback `https://wikiplus.wikiedu.org/api/auth/callback/wikimedia` registered at
   meta.wikimedia.org.
+- **In-product Promote / Add-by-link now persist (issue #52 / D1).** The two Topic-page curation
+  modals (`components/topic/CurateModal.tsx`, `AddModal.tsx`) — previously `// mock submit` — now
+  write through the **auth-gated Server Actions boundary**: `CurateModal` → `addClipAction`;
+  `AddModal` → (`upsertTopicAction` if the topic is not yet in the store →) `addClipAction`. The
+  host (`app/topic/TopicView.tsx`) owns the write + the in-memory clip-state update (the new clip
+  renders with no reload, flipping empty→curated when first) + dropping the promoted candidate from
+  the live suggestion set (deduped by `platform:videoId`) + the expired-session gate (reusing C's
+  `isAuthRequired` → `showExpiredGate` pattern). The **CC BY-SA note-license agreement** (Curation
+  Standard §5.3 / Decision D1-1) is a **required** publish precondition (the unchecked-on-open
+  checkbox in `CurateFields` gates publish) and is **captured** on the clip row at write time:
+  `clip.note_license` (`CC-BY-SA-4.0`, a version string) + `clip.note_license_agreed_at`
+  (server-stamped timestamp). The client sends only a **consent boolean**; `addClipAction` stamps
+  the license + timestamp and **strips any `note_license*` smuggled on the input** (attribution +
+  license are the boundary's call, never the client's — same posture as `curated_by`). The canonical
+  license version + the two verbatim agreement strings live in `lib/curation/note-license.ts`.
+  Edit/delete of one's own clips stays **off** the boundary (D2); immediate publish, no `vetted`
+  review hold (Decision D1-2; D5 owns the hold). Migration `drizzle/0002_*` adds the two nullable
+  columns to the C schema.
 - **Server Actions (enabled #37; now the data-access boundary — issue #45).** The Node SSR runtime
   supports Server Actions; as of #45 they are the **data-access boundary** for shared Postgres
   (`lib/server/actions.ts`, `"use server"` — see *Persistence* above). The throwaway #37 smoke artifact
