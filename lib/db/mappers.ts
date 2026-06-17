@@ -39,15 +39,29 @@ export function rowToClip(row: ClipRow, topicQid: string): Clip {
     upvotes: row.upvotes ?? undefined,
     curatedBy: row.curatedBy ?? undefined,
     curatedAt: row.curatedAt ?? undefined,
+    // Note-license agreement (issue #52 / D1, AC7). Surfaced read-side so QA can confirm a
+    // D1 clip carries the captured license version + timestamp and a seed/stub clip does not.
+    noteLicense: row.noteLicense ?? undefined,
+    noteLicenseAgreedAt: row.noteLicenseAgreedAt
+      ? row.noteLicenseAgreedAt.toISOString()
+      : undefined,
     createdAt: row.createdAt.toISOString(),
   };
 }
 
-/** An app `Clip` (without id/createdAt) + its topic's numeric id → an insert row. */
+/**
+ * An app `Clip` (without id/createdAt) + its topic's numeric id → an insert row.
+ *
+ * The note-license agreement (issue #52 / D1, AC7) is passed SEPARATELY as a server-stamped
+ * `agreement`, never read off `input`: the license version + agreement timestamp are the
+ * boundary's call (the client only signals consent), so a forged `noteLicense` on the wire
+ * can never reach the row. Omitting `agreement` writes no license (seed/stub/non-agreed path).
+ */
 export function clipToInsert(
   input: Omit<Clip, "id" | "createdAt">,
   topicId: number,
-  curatorId: number | null
+  curatorId: number | null,
+  agreement?: { noteLicense: string; noteLicenseAgreedAt: Date }
 ) {
   return {
     topicId,
@@ -77,6 +91,10 @@ export function clipToInsert(
     curatedBy: input.curatedBy ?? null,
     curatedAt: input.curatedAt ?? null,
     curatorId,
+    // Server-stamped agreement only (never from `input`): present ⇒ a D1-published clip
+    // with the captured license version + timestamp; absent ⇒ no license recorded.
+    noteLicense: agreement?.noteLicense ?? null,
+    noteLicenseAgreedAt: agreement?.noteLicenseAgreedAt ?? null,
   };
 }
 

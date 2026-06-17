@@ -91,6 +91,18 @@ export const clip = pgTable("clip", {
   curatedBy: text("curated_by"),
   /** Decorative relative-date label carried by the seed (e.g. "2 days ago"). */
   curatedAt: text("curated_at"),
+
+  // ── Note-license agreement (issue #52 / D1 — Decision D1-1, AC7) ───────────────
+  // The contributor's per-submit CC BY-SA agreement, captured at publish time. A
+  // VERSION STRING (not a bare boolean) so a future license bump is expressible
+  // (`CC-BY-SA-4.0`), plus the agreement timestamp — together they bind "this note,
+  // by this contributor (curator_id / curated_by), under this license, at this time"
+  // (CURATION §5.3). Nullable: seed/stub clips and any non-agreed path carry no
+  // license record, so a D1-published clip is distinguishable from a seeded one (AC7).
+  noteLicense: text("note_license"),
+  noteLicenseAgreedAt: timestamp("note_license_agreed_at", {
+    withTimezone: true,
+  }),
   /**
    * Contributor who curated this clip. Nullable in B: interim writes are attributed to a
    * single seeded stub "prototype" contributor (AC13) until issue C wires real sign-in.

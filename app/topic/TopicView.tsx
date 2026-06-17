@@ -14,6 +14,7 @@ import { CandidateCard, CandidateSetHeader } from "@/components/topic/CandidateB
 import { CitationLayer } from "@/components/topic/CitationLayer";
 import { ClipCard } from "@/components/topic/ClipCard";
 import { CurateModal } from "@/components/topic/CurateModal";
+import type { SubmitOutcome } from "@/components/topic/useCurateSubmit";
 import { GeneralStrip } from "@/components/topic/GeneralStrip";
 import { Infobox } from "@/components/topic/Infobox";
 import { PinnedPlayer, type PinnedClip } from "@/components/topic/PinnedPlayer";
@@ -657,7 +658,7 @@ export function TopicView() {
     focusBandHeading();
   }, [focusBandHeading]);
   // Curate (candidate Promote) — gated (design §2b). Signed in → open the real CurateModal
-  // (still mock submit in C, D4); logged out → the "Log in to curate" gate. No auto-resume.
+  // (now a REAL persisting submit, issue #52 / D1); logged out → "Log in to curate". No auto-resume.
   const promote = useCallback(
     (c: Candidate) => {
       requireLogin({
@@ -690,6 +691,107 @@ export function TopicView() {
   const openAdd = useCallback(() => {
     requireLogin({ gate: "add", action: () => setAddOpen(true) });
   }, [requireLogin]);
+
+  // ── Persist a curated clip (issue #52 / D1, AC1–AC5). ──────────────────────────────────
+  // The two modals (Promote / Add) hand the assembled clip + the CC BY-SA consent up here; the
+  // host owns the write (the auth-gated boundary), the in-memory clip-state update (the new clip
+  // renders with no reload — AC2/AC5, flipping empty→curated when first since `mode` derives from
+  // `clips.length`), and the expired-session gate (it holds `useRequireLogin`). It returns the
+  // SubmitOutcome the modal's submit machine expects: "added" / "expired" resolve (modal closes),
+  // a generic error THROWS (modal stays open with the note intact + the §6 alert — AC11).
+  const persistClip = useCallback(
+    async (
+      clip: Omit<Clip, "id" | "createdAt">,
+      agreed: boolean,
+      opts: {
+        /** Run before the add (add-by-link upserts the topic if it is not yet in the store). */
+        before?: () => Promise<void>;
+        /** Dedup the live suggestion set after the add (AC3/AC5); return the focus follow-up. */
+        afterAdd?: (added: Clip) => void;
+      } = {}
+    ): Promise<SubmitOutcome> => {
+      try {
+        await opts.before?.();
+        // The boundary stamps attribution (curatorId/curatedBy) + the note-license agreement from
+        // the consent boolean; the client supplies neither (C AC6 / D1 §3.5 / AC7).
+        const added = await store.addClip(clip, undefined, undefined, agreed);
+        setClips((prev) => [added, ...prev]);
+        opts.afterAdd?.(added);
+        return { outcome: "added" };
+      } catch (err) {
+        // Session expired between opening the modal and submit (design §7.2 / AC9): surface the
+        // expired-session gate exactly like the dismiss path — NOT the generic in-modal error.
+        if (isAuthRequired(err)) {
+          showExpiredGate();
+          return { outcome: "expired" };
+        }
+        throw err; // generic server/boundary error → the modal keeps open + shows its §6 alert
+      }
+    },
+    [showExpiredGate]
+  );
+
+  // Promote a candidate (design §2.1 / AC1–AC3). On success: drop the promoted candidate from the
+  // LIVE suggestion set deduped by `platform:videoId` (it must not linger as an un-vouched-for
+  // suggestion — AC3), and — since the originating candidate CARD is removed — move focus to the
+  // General band heading rather than let `ModalShell`'s return-to-trigger target a detached node
+  // (design §4.4 / §7.3). Scheduled post-close (rAF) so it runs AFTER the shell's `prevActive`.
+  const onCurateSubmit = useCallback(
+    (clip: Omit<Clip, "id" | "createdAt">, agreed: boolean): Promise<SubmitOutcome> => {
+      const promoted = curateFor;
+      return persistClip(clip, agreed, {
+        afterAdd: () => {
+          if (!promoted) return;
+          const videoId = videoIdOf(promoted);
+          if (videoId) {
+            const key = identityKey(promoted.platform, videoId);
+            setDismissed((prev) => new Set(prev).add(promoted.id));
+            // Mark the identity so it stays filtered even if the live pipeline re-surfaces it.
+            setPersistedDismissed((prev) => new Set(prev).add(key));
+          } else {
+            // Unparseable id: at least hide the exact card this session by its candidate id.
+            setDismissed((prev) => new Set(prev).add(promoted.id));
+          }
+          // The promoted candidate card was removed — anchor focus on the band heading after
+          // the modal's own focus-return fires (else focus is lost to <body>).
+          if (typeof requestAnimationFrame !== "undefined") {
+            requestAnimationFrame(() => focusBandHeading());
+          } else {
+            focusBandHeading();
+          }
+        },
+      });
+    },
+    [curateFor, persistClip, focusBandHeading]
+  );
+
+  // Add-by-link (design §2.2 / AC4/AC5). Upsert the topic first if it is not yet in the store
+  // (the page's QID is resolved), then add the clip. On success, also dedup a duplicate live
+  // suggestion for the same `platform:videoId` if one was showing (§4.3 / AC5). The "＋ Add video"
+  // trigger is NOT removed, so focus-return is the normal `ModalShell` `prevActive`.
+  const onAddSubmit = useCallback(
+    (clip: Omit<Clip, "id" | "createdAt">, agreed: boolean): Promise<SubmitOutcome> => {
+      return persistClip(clip, agreed, {
+        before: async () => {
+          // Ensure the parent topic exists (addClip's prerequisite). Idempotent upsert; skipped
+          // when the topic is already loaded. Both upsert + add are auth-gated at the boundary.
+          if (qid && !topic) {
+            await store.upsertTopic({ qid, title: canonicalTitle });
+          }
+        },
+        afterAdd: (added) => {
+          const videoId = videoIdOf(added);
+          if (videoId) {
+            // Drop any live suggestion matching the just-added video so it does not linger.
+            setPersistedDismissed((prev) =>
+              new Set(prev).add(identityKey(added.platform, videoId))
+            );
+          }
+        },
+      });
+    },
+    [persistClip, qid, topic, canonicalTitle]
+  );
 
   const sectionList = useMemo(
     () => (article?.sections ?? []).map((s) => ({ slug: s.slug, title: s.title })),
@@ -928,10 +1030,16 @@ export function TopicView() {
             setCurateOpen(false);
             setCurateFor(null);
           }}
+          onSubmit={onCurateSubmit}
         />
       )}
-      {addOpen && (
-        <AddModal sections={sectionList} onClose={() => setAddOpen(false)} />
+      {addOpen && qid && (
+        <AddModal
+          sections={sectionList}
+          topicQid={qid}
+          onClose={() => setAddOpen(false)}
+          onSubmit={onAddSubmit}
+        />
       )}
 
       {/* Login gate (issue C, design §2 / §9): the modal a logged-out contribute attempt

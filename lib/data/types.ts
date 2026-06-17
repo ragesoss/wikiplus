@@ -110,6 +110,16 @@ export interface Clip extends VideoBase {
   curatedBy?: string;
   /** Relative date label (decorative). */
   curatedAt?: string;
+  /**
+   * The note-license version the contributor agreed to release this note under, captured
+   * at publish (CURATION §5.3 / Decision D1-1). `"CC-BY-SA-4.0"` for a D1-published clip;
+   * undefined for seed/stub clips that predate the captured agreement (AC7). A version
+   * string, not a boolean, so a future license bump is expressible. Stamped by the
+   * Server-Actions boundary on agreement — never trusted from the client.
+   */
+  noteLicense?: string;
+  /** ISO timestamp of the per-submit agreement (paired with `noteLicense`; D1-1/AC7). */
+  noteLicenseAgreedAt?: string;
   createdAt: string;
 }
 
