@@ -96,10 +96,56 @@ docker compose version
 > && swapon /swapfile`, plus an `/etc/fstab` entry). The box **never builds** Next.js (CI does),
 > so build-time OOM is not a concern here — only the lightweight `docker compose pull` + runtime.
 
+## 3b. Postgres bring-up (issue #45 — the shared data store)
+
+As of **issue #45** the stack includes **Postgres** (the shared, multi-user data store) and a
+one-shot **`migrate`** service that applies Drizzle migrations + the seed on deploy. Two secrets must
+be placed on the box **once**, before the first deploy of the #45 image; after that the steady-state
+loop is unchanged (push to `main` → CI build → SSH `docker compose up -d`, which now also migrates).
+
+**Why two secret surfaces for one password (read this):** Postgres reads its password from a Docker
+**secret file** (`POSTGRES_PASSWORD_FILE` → `/run/secrets/postgres_password`); the **app + migrate**
+build their `DATABASE_URL` connection string from an **env var** (`POSTGRES_PASSWORD`, interpolated by
+compose from `/opt/wikiplus/.env`). Put the **same** password in both places. The secret file never
+leaves the box; the committed compose file contains **no** password (AC14).
+
+```sh
+cd /opt/wikiplus
+
+# 1) The Docker secret FILE Postgres reads (chmod 600; never world-readable):
+mkdir -p secrets
+# Generate a strong password once and write it to the secret file:
+openssl rand -base64 32 | tr -d '\n' > secrets/postgres_password
+chmod 600 secrets/postgres_password
+
+# 2) The .env compose reads to assemble the app/migrate DATABASE_URL. POSTGRES_PASSWORD MUST
+#    equal the secret file's contents (the app connects with the same password Postgres expects).
+printf 'POSTGRES_PASSWORD=%s\n' "$(cat secrets/postgres_password)" > .env
+chmod 600 .env
+```
+
+- The app's `DATABASE_URL` is assembled by compose as
+  `postgres://wikiplus:${POSTGRES_PASSWORD}@postgres:5432/wikiplus` (internal compose hostname; no
+  published DB port). You do **not** set `DATABASE_URL` directly — only `POSTGRES_PASSWORD` in `.env`.
+- **Migrations apply automatically on deploy.** `docker compose up -d --wait` brings up `postgres`,
+  runs the `migrate` one-shot to completion (Drizzle migrations + the idempotent seed), then starts
+  `app` + `caddy` (`app depends_on migrate: service_completed_successfully`). No manual migration step,
+  no `next build` on the box. A failed migration makes the deploy exit non-zero (the app won't start
+  against an unmigrated DB).
+- To apply migrations by hand (rare): `cd /opt/wikiplus && docker compose run --rm migrate`.
+- **`pgdata` is a persistent named volume** — curations survive restarts/redeploys. Add it to backups
+  (see *Operational notes*).
+
+> **First #45 deploy is special:** the box must have `secrets/postgres_password` + `.env` in place
+> **before** the deploy job runs `docker compose up -d`, or compose will fail to interpolate
+> `POSTGRES_PASSWORD` / mount the secret. Do §3b before re-pulling the #45 compose file (§4) and
+> triggering the deploy.
+
 ## 4. Place the deploy files at `/opt/wikiplus`
 
-The box only needs `deploy/docker-compose.yml` (renamed to `docker-compose.yml`) and the
-`Caddyfile`. Two options:
+The box needs `deploy/docker-compose.yml` (renamed to `docker-compose.yml`) and the `Caddyfile`
+(plus, since #45, the `secrets/postgres_password` + `.env` from §3b — those are created on the box,
+not copied from the repo). Two options for the committed files:
 
 ```sh
 sudo mkdir -p /opt/wikiplus
@@ -200,6 +246,14 @@ The workflow consumes exactly these:
 `GITHUB_TOKEN` is the built-in token GitHub injects automatically (used to push to GHCR) —
 **do not set it**.
 
+> **Postgres secrets are BOX-side, not GitHub secrets (issue #45).** `POSTGRES_PASSWORD`
+> (`/opt/wikiplus/.env`) and the `postgres_password` Docker secret file
+> (`/opt/wikiplus/secrets/postgres_password`) live **only on the box** (§3b) — the CI **image build
+> never connects to Postgres** (DB access is lazy + runtime-only, so `next build` needs no
+> `DATABASE_URL`). There is **no** `DATABASE_URL` or DB password GitHub Actions secret to set; the app
+> assembles `DATABASE_URL` at runtime from the box's `.env`. The migrate one-shot runs on the box
+> during `docker compose up -d`, not in CI.
+
 > **⚠️ YouTube referrer allowlist (post-deploy, easy to miss):** the `YOUTUBE_API_KEY` is
 > **HTTP-referrer-restricted** in Google Cloud Console, so it only works from origins on its
 > allowlist. After standing up a new origin, add it or live candidate suggestions fail with
@@ -221,10 +275,13 @@ multi-line private key without it touching the shell history.)
 
 ## Operational notes
 
-- **Backups:** the only stateful prototype data on the box is the `caddy_data` volume (the
-  ACME account + issued certs). Losing it just re-issues certs on next start (rate-limited by
-  Let's Encrypt — fine at this volume). Once Postgres lands (issue B), add a `pg_dump` backup
-  job. No app data lives on the box yet (still localStorage, per-browser).
+- **Backups:** two stateful volumes now live on the box. **`pgdata`** (issue #45) holds the **shared
+  curation data** — back it up with a scheduled `pg_dump`, e.g.
+  `docker compose exec -T postgres pg_dump -U wikiplus wikiplus | gzip > /opt/wikiplus/backups/wikiplus-$(date +%F).sql.gz`
+  (create `backups/`, add a cron job, prune old dumps). **`caddy_data`** holds the ACME account +
+  issued certs; losing it just re-issues certs on next start (rate-limited by Let's Encrypt — fine at
+  this volume). Also keep `secrets/postgres_password` + `.env` backed up off-box (losing the password
+  with the volume = unreadable data).
 - **Logs:** `docker compose logs -f app` / `... caddy`. Caddy access logs are JSON on stdout.
 - **GHCR image hygiene:** the deploy job runs `docker image prune -f` after each `up -d` so
   superseded `:<sha>` layers don't accumulate on the small disk.

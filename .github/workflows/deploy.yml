@@ -72,6 +72,12 @@ jobs:
       # (the repo is public anyway), so the box needs NO `docker login` to pull. If the
       # package is kept private, the box must `docker login ghcr.io` once with a read-only
       # PAT (documented in the runbook) — no change needed to this workflow either way.
+      # Migrations (issue #45): the compose stack includes a one-shot `migrate` service that
+      # applies Drizzle migrations + the seed against Postgres BEFORE `app` starts (app
+      # depends_on migrate: service_completed_successfully). So a plain `docker compose up -d`
+      # runs migrations automatically on deploy — no extra SSH step, no manual `next build` on
+      # the box. The box needs the new Postgres secret + .env (POSTGRES_PASSWORD) set ONCE
+      # during setup — see docs/ops/vps-setup.md ("Postgres bring-up").
       - name: Deploy over SSH
         uses: appleboy/ssh-action@v1
         with:
@@ -82,5 +88,8 @@ jobs:
             set -euo pipefail
             cd /opt/wikiplus
             docker compose pull
-            docker compose up -d
+            # `up -d` brings up postgres, runs the migrate one-shot to completion, then starts
+            # app + caddy. --wait surfaces a failed migration as a non-zero exit (deploy fails
+            # loudly rather than starting the app against an unmigrated DB).
+            docker compose up -d --wait
             docker image prune -f

@@ -1,67 +1,57 @@
+import { runCandidatePipeline } from "@/lib/candidates";
 import { identityKey, videoIdOf } from "@/lib/candidates/dismissals";
-import { LocalStorageDataStore } from "./local-store";
 import {
-  PHOTOSYNTHESIS_QID,
-  UNCURATED_DEMO_QID,
-  seedCandidates,
-  seedClips,
-} from "./seed";
+  addClipAction,
+  dismissedKeysAction,
+  getTopicAction,
+  getTopicByTitleAction,
+  listClipsAction,
+  listTopicsAction,
+  recordDismissalAction,
+  upsertTopicAction,
+} from "@/lib/server/actions";
 import type { DataStore } from "./store";
-import type { Candidate, Clip, TopicStats } from "./types";
+import type { ArticleSection, Candidate, Clip, TopicStats } from "./types";
 
-// Prototype phase: localStorage. Production swaps this single line for a
-// Drizzle/Postgres store invoked via Server Actions — see docs/ARCHITECTURE.md.
-// This is the ONLY place that names the concrete store (AC20 swap point).
-const local = new LocalStorageDataStore();
-export const store: DataStore = local;
+// ── The DataStore seam (issue #45). ────────────────────────────────────────────────────
+// PRODUCTION shape: the concrete store is `DrizzleDataStore` (lib/db/drizzle-store.ts),
+// running server-side and reached through the Server Actions boundary (lib/server/actions.ts).
+// This file is the ONLY place that wires the client to the concrete store (the documented
+// swap point — AC4). The localStorage `DataStore` is retired for the deployed app.
+//
+// HOW THE SPLIT WORKS (AC6/AC7/AC8):
+//   - Every DB read/write below delegates to a Server Action — DB access is server-only, so
+//     the pg driver + DATABASE_URL never enter the client bundle (AC7).
+//   - `suggestCandidates` is the ONE method that stays CLIENT-SIDE: it runs the live YouTube
+//     pipeline in the browser (reading the client-inlined key) — the server never calls
+//     YouTube/Wikipedia (AC8). The dismissed set it needs is fetched via the server boundary
+//     first (shared/durable dismissals) and passed into the pure pipeline.
+//
+// `store` is a `DataStore`-shaped client facade: callers keep the same `await store.*` shape
+// they used against the localStorage store, so the call-site rewire is minimal (parity).
+const clientStore: DataStore = {
+  listTopics: () => listTopicsAction(),
+  getTopic: (qid) => getTopicAction(qid),
+  getTopicByTitle: (title) => getTopicByTitleAction(title),
+  upsertTopic: (topic) => upsertTopicAction(topic),
+  listClips: (topicQid) => listClipsAction(topicQid),
+  // Seeded/fallback candidates are not DB rows (ARCHITECTURE: candidates are computed +
+  // cached, only promote/dismiss persists). The server returns []; the live pipeline below
+  // is the real client-side suggestion path.
+  listCandidates: async () => [],
+  // CLIENT-SIDE live YouTube pipeline (AC8). Runs in the browser; the seeded fallback is [].
+  suggestCandidates: (input) => runCandidatePipeline(input),
+  addClip: (clip) => addClipAction(clip),
+  recordDismissal: (input) => recordDismissalAction(input),
+  dismissedKeys: (topicQid) => dismissedKeysAction(topicQid),
+};
 
-const SEED_VERSION = "topic-page-v1";
-const SEED_FLAG = "wikiplus.seedVersion";
-
-/** Seed the demo topics + clips + candidates so both states are exercised. */
-export async function seedIfEmpty(): Promise<void> {
-  if (typeof window !== "undefined") {
-    // Re-seed when the seed shape changes so stale localStorage doesn't mask v1.
-    if (window.localStorage.getItem(SEED_FLAG) === SEED_VERSION) return;
-  } else if ((await store.listTopics()).length > 0) {
-    return;
-  }
-
-  await store.upsertTopic({
-    qid: PHOTOSYNTHESIS_QID,
-    title: "Photosynthesis",
-    description: "Biological process converting light into chemical energy",
-  });
-  await store.upsertTopic({
-    qid: UNCURATED_DEMO_QID,
-    title: "Cellular respiration",
-    description: "How cells release energy from nutrients",
-  });
-  // Keep the original tiny demo topic discoverable too (uncurated → empty state).
-  await store.upsertTopic({ qid: "Q146", title: "Cat" });
-
-  const clips: Clip[] = seedClips.map((c, i) => ({
-    ...c,
-    id: `seed_clip_${i + 1}`,
-    createdAt: new Date(Date.now() - i * 3_600_000).toISOString(),
-  }));
-  local._seedClips(clips);
-
-  const cands: Candidate[] = seedCandidates.map((c, i) => ({
-    ...c,
-    id: `seed_cand_${i + 1}`,
-  }));
-  local._seedCandidates(cands);
-
-  if (typeof window !== "undefined") {
-    window.localStorage.setItem(SEED_FLAG, SEED_VERSION);
-  }
-}
+export const store: DataStore = clientStore;
 
 /**
  * The set of `platform:videoId` identity keys already curated as clips for a topic —
  * passed to the live candidate pipeline so an already-curated video is never suggested
- * (AC8). Uses the same provider-video-identity parser as dismissal dedup (Decision 3).
+ * (AC8). Uses the same provider-video-identity parser as dismissal dedup.
  */
 export function curatedVideoKeys(clips: Clip[]): Set<string> {
   const keys = new Set<string>();
@@ -70,6 +60,15 @@ export function curatedVideoKeys(clips: Clip[]): Set<string> {
     if (videoId) keys.add(identityKey(c.platform, videoId));
   }
   return keys;
+}
+
+/**
+ * Fetch the shared, durable dismissed-video keys for a topic (issue #45) as a Set, for the
+ * live candidate pipeline's AC9 dedup. Thin wrapper over the server boundary so call sites
+ * get a `Set<string>` ready to pass into `suggestCandidates`.
+ */
+export async function dismissedVideoKeys(topicQid: string): Promise<Set<string>> {
+  return new Set(await store.dismissedKeys(topicQid));
 }
 
 /** Derive the infobox counts (videos / creators / curators) from a clip set (AC7). */
@@ -88,3 +87,7 @@ export function deriveStats(clips: Clip[]): TopicStats {
 
 export { PHOTOSYNTHESIS_QID, UNCURATED_DEMO_QID } from "./seed";
 export type { DataStore } from "./store";
+
+// Re-export the candidate-pipeline input type so callers can type the `suggestCandidates`
+// argument without reaching into lib/candidates.
+export type { ArticleSection, Candidate };

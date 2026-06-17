@@ -9,12 +9,7 @@ import {
 } from "@/lib/candidates/matching";
 import { normalizeResponse, youtubeApiKey, youtubeSource } from "@/lib/candidates/youtube";
 import { CANDIDATE_TTL_MS, isStale, readCache, writeCache } from "@/lib/candidates/cache";
-import {
-  dismissedKeysForTopic,
-  identityKey,
-  recordDismissal,
-  videoIdOf,
-} from "@/lib/candidates/dismissals";
+import { identityKey, videoIdOf } from "@/lib/candidates/dismissals";
 import { suggestCandidates } from "@/lib/candidates/pipeline";
 import type { CandidateSource, RawCandidate } from "@/lib/candidates/types";
 
@@ -319,23 +314,11 @@ describe("candidate cache (AC11 — per-QID 24h TTL)", () => {
   });
 });
 
-// ── Dismissals (Decision 3 / AC9) ─────────────────────────────────────────────────
-describe("dismissals (AC9 — sticky, per (topicQid, platform, videoId))", () => {
-  const cand = {
-    id: "cand_youtube_v1",
-    topicQid: QID,
-    platform: "youtube" as const,
-    platformLabel: "YouTube",
-    orientation: "horizontal" as const,
-    watchUrl: "https://www.youtube.com/watch?v=v1",
-    embedUrl: "https://www.youtube-nocookie.com/embed/v1",
-    caption: "X",
-    creator: { handle: "@c", name: "C", platform: "youtube" as const },
-    general: true,
-    vetted: false as const,
-    source: "YouTube",
-    matchReason: "Top result for 'x'",
-  };
+// ── Video-identity helpers (Decision 3 / AC9) ─────────────────────────────────────
+// As of issue #45 the sticky-dismissal STORE moved behind the server boundary (Postgres
+// `dismissed_candidate`) — its persistence is covered by test/drizzle-store.test.ts. Here we
+// only test the PURE identity parser that both the pipeline and the store share.
+describe("videoIdOf (AC9 — provider-video identity)", () => {
   it("parses provider video ids from watch / nocookie / shorts / tiktok URLs", () => {
     expect(videoIdOf({ platform: "youtube", watchUrl: "https://youtu.be/abc" })).toBe("abc");
     expect(videoIdOf({ platform: "youtube", watchUrl: "https://www.youtube.com/shorts/sh1" })).toBe("sh1");
@@ -345,12 +328,6 @@ describe("dismissals (AC9 — sticky, per (topicQid, platform, videoId))", () =>
     expect(
       videoIdOf({ platform: "tiktok", watchUrl: "https://www.tiktok.com/@a/video/7100000000000000000" })
     ).toBe("7100000000000000000");
-  });
-  it("records a dismissal that surfaces in dismissedKeysForTopic", () => {
-    recordDismissal(cand);
-    expect(dismissedKeysForTopic(QID).has(identityKey("youtube", "v1"))).toBe(true);
-    // not leaked to a different topic
-    expect(dismissedKeysForTopic("Q-other").size).toBe(0);
   });
 });
 
@@ -362,6 +339,7 @@ describe("suggestCandidates pipeline", () => {
     topicTitle: "Cellular respiration",
     sections,
     curatedVideoKeys: new Set<string>(),
+    dismissedVideoKeys: new Set<string>(),
   };
   const disabled: CandidateSource = { id: "x", isEnabled: () => false, search: async () => [] };
   const enabled = (results: RawCandidate[]): CandidateSource => ({
@@ -394,20 +372,8 @@ describe("suggestCandidates pipeline", () => {
   });
 
   it("excludes already-curated videos (AC8) and dismissed videos (AC9)", async () => {
-    recordDismissal({
-      id: "x",
-      topicQid: QID,
-      platform: "youtube",
-      platformLabel: "YouTube",
-      orientation: "horizontal",
-      watchUrl: "https://www.youtube.com/watch?v=v2",
-      caption: "X",
-      creator: { handle: "@c", name: "C", platform: "youtube" },
-      general: true,
-      vetted: false,
-      source: "YouTube",
-      matchReason: "r",
-    });
+    // Issue #45: dismissed keys are now passed IN (from shared Postgres), not read from
+    // localStorage. v2 is dismissed; v3 is curated.
     const results = [
       raw("v1", "Respiration overview one"),
       raw("v2", "Respiration overview two"), // dismissed
@@ -416,6 +382,7 @@ describe("suggestCandidates pipeline", () => {
     const out = await suggestCandidates([enabled(results)], {
       ...input,
       curatedVideoKeys: new Set([identityKey("youtube", "v3")]),
+      dismissedVideoKeys: new Set([identityKey("youtube", "v2")]),
     });
     const ids = out!.map((c) => c.id);
     expect(ids).toContain("cand_youtube_v1");
@@ -440,9 +407,12 @@ describe("suggestCandidates pipeline", () => {
     const first = await suggestCandidates([source], input);
     expect(first!.map((c) => c.id)).toContain("cand_youtube_v1");
     expect(search).toHaveBeenCalledTimes(1);
-    // Dismiss v1 (sticky in localStorage), then revisit within the TTL.
-    recordDismissal(first!.find((c) => c.id === "cand_youtube_v1")!);
-    const warm = await suggestCandidates([source], input);
+    // Dismiss v1: issue #45 — the dismissed key is now passed IN (from shared Postgres) on the
+    // next visit, not read from localStorage. Revisit within the TTL with v1 in the set.
+    const warm = await suggestCandidates([source], {
+      ...input,
+      dismissedVideoKeys: new Set([identityKey("youtube", "v1")]),
+    });
     expect(search).toHaveBeenCalledTimes(1); // still the cache hit — NO re-search
     const ids = warm!.map((c) => c.id);
     expect(ids).not.toContain("cand_youtube_v1"); // dismissed → gone on the warm read

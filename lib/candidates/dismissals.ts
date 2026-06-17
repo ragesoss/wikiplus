@@ -1,11 +1,12 @@
-import type { Candidate } from "@/lib/data/types";
-
-// Sticky dismissal store (spec Decision 3, AC9; design §6.3). Mirrors the production
-// `dismissed_candidate` table — keyed by (topicQid, platform, videoId) so a dismissed
-// candidate does NOT resurface on reload or re-fetch. Per-browser localStorage in the
-// prototype; the production move is a store swap, not a redesign.
-
-const KEY = "wikiplus.dismissed_candidates";
+// Provider-video identity helpers for candidate dedup + dismissal (Decision 3).
+//
+// As of issue #45 the sticky-dismissal STORE moved behind the server data-access boundary
+// (Postgres `dismissed_candidate`, reached via lib/server/actions.ts) — dismissals are now
+// SHARED + DURABLE, not per-browser localStorage. So this file keeps only the PURE identity
+// helpers (parse a provider video id from a URL; build the `platform:videoId` dedup key) that
+// both the pipeline and the store use. The former localStorage read/write functions
+// (recordDismissal / isDismissed / dismissedKeysForTopic) are gone — their behavior now lives
+// in the DataStore (`recordDismissal` / `dismissedKeys`).
 
 /** A stable per-video identity for dedup (matches the production unique key shape). */
 export interface VideoIdentity {
@@ -53,54 +54,4 @@ export function videoIdOf(c: {
 /** Stable dedup key: platform + provider video id (Decision 3). */
 export function identityKey(platform: string, videoId: string): string {
   return `${platform}:${videoId}`;
-}
-
-function read(): Record<string, true> {
-  if (typeof window === "undefined") return {};
-  try {
-    return JSON.parse(window.localStorage.getItem(KEY) || "{}") as Record<string, true>;
-  } catch {
-    return {};
-  }
-}
-
-function entryKey(d: VideoIdentity): string {
-  return `${d.topicQid}|${d.platform}|${d.videoId}`;
-}
-
-/** Persist a dismissal so the candidate does not resurface (AC9). */
-export function recordDismissal(c: Candidate): void {
-  if (typeof window === "undefined") return;
-  const videoId = videoIdOf(c);
-  if (!videoId) return;
-  const all = read();
-  all[entryKey({ topicQid: c.topicQid, platform: c.platform, videoId })] = true;
-  try {
-    window.localStorage.setItem(KEY, JSON.stringify(all));
-  } catch {
-    /* non-fatal */
-  }
-}
-
-/**
- * True when this candidate has a persisted dismissal for its topic (AC9). Used by the
- * view to reflect sticky dismissals on mount — not just the in-memory set, which resets
- * on reload. Matches by the same `platform:videoId` identity the pipeline dedups on.
- */
-export function isDismissed(c: Candidate): boolean {
-  const videoId = videoIdOf(c);
-  if (!videoId) return false;
-  return dismissedKeysForTopic(c.topicQid).has(identityKey(c.platform, videoId));
-}
-
-/** The set of dismissed `platform:videoId` keys for a topic (for pipeline dedup). */
-export function dismissedKeysForTopic(topicQid: string): Set<string> {
-  const out = new Set<string>();
-  const prefix = `${topicQid}|`;
-  for (const k of Object.keys(read())) {
-    if (!k.startsWith(prefix)) continue;
-    const [, platform, videoId] = k.split("|");
-    if (platform && videoId) out.add(identityKey(platform, videoId));
-  }
-  return out;
 }

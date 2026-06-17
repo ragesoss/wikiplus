@@ -1,6 +1,6 @@
 import type { ArticleSection, Candidate } from "@/lib/data/types";
 import { isStale, readCache, writeCache } from "./cache";
-import { dismissedKeysForTopic, identityKey, videoIdOf } from "./dismissals";
+import { identityKey, videoIdOf } from "./dismissals";
 import { placeCandidates } from "./matching";
 import type { CandidateSource, RawCandidate } from "./types";
 
@@ -21,6 +21,13 @@ export interface SuggestInput {
   sections: ArticleSection[];
   /** `platform:videoId` keys already curated for this topic (AC8 dedup). */
   curatedVideoKeys: Set<string>;
+  /**
+   * `platform:videoId` keys the user has dismissed for this topic (AC9 dedup). As of
+   * issue #45 dismissals are SHARED + DURABLE in Postgres, not per-browser localStorage —
+   * so the (now async, server-backed) dismissed set is fetched by the client caller and
+   * passed IN here, keeping the pipeline pure (no localStorage read). Empty set = none.
+   */
+  dismissedVideoKeys: Set<string>;
 }
 
 /**
@@ -45,7 +52,11 @@ export async function suggestCandidates(
   // dismissed/promoted within the 24h TTL reappears on reload.
   const cached = readCache(input.topicQid);
   if (!isStale(cached, now)) {
-    return filterExcluded(cached!.candidates, input.topicQid, input.curatedVideoKeys);
+    return filterExcluded(
+      cached!.candidates,
+      input.curatedVideoKeys,
+      input.dismissedVideoKeys
+    );
   }
 
   // Run each enabled source's single search (Decision 1: one call per source/topic).
@@ -56,7 +67,7 @@ export async function suggestCandidates(
   );
   const raw = rawLists.flat();
 
-  const deduped = dedupe(raw, input.topicQid, input.curatedVideoKeys);
+  const deduped = dedupe(raw, input.curatedVideoKeys, input.dismissedVideoKeys);
   const { sectionCandidates, generalCandidates } = placeCandidates(
     input.topicQid,
     input.topicTitle,
@@ -75,21 +86,21 @@ export async function suggestCandidates(
 /**
  * Re-apply the dismissed + curated-clip exclusion to an already-built Candidate set
  * (AC8/AC9). Used on the warm-cache path: the cached snapshot can predate a dismissal
- * or a promotion, so we filter on every read using the live dismissal store and the
- * caller's current curated-video keys. Identity is the same `platform:videoId` key the
- * dedup uses; a candidate whose video id we can't parse is kept (it can't be matched).
+ * or a promotion, so we filter on every read using the dismissed + curated-video keys the
+ * caller passed in (the dismissed set now comes from shared Postgres — issue #45 — fetched
+ * by the client before this runs). Identity is the same `platform:videoId` key the dedup
+ * uses; a candidate whose video id we can't parse is kept (it can't be matched).
  */
 function filterExcluded(
   candidates: Candidate[],
-  topicQid: string,
-  curatedVideoKeys: Set<string>
+  curatedVideoKeys: Set<string>,
+  dismissedVideoKeys: Set<string>
 ): Candidate[] {
-  const dismissed = dismissedKeysForTopic(topicQid);
   return candidates.filter((c) => {
     const videoId = videoIdOf(c);
     if (!videoId) return true; // unparseable id can't be a dismissed/curated match
     const k = identityKey(c.platform, videoId);
-    return !curatedVideoKeys.has(k) && !dismissed.has(k);
+    return !curatedVideoKeys.has(k) && !dismissedVideoKeys.has(k);
   });
 }
 
@@ -100,17 +111,16 @@ function filterExcluded(
  */
 function dedupe(
   raw: RawCandidate[],
-  topicQid: string,
-  curatedVideoKeys: Set<string>
+  curatedVideoKeys: Set<string>,
+  dismissedVideoKeys: Set<string>
 ): RawCandidate[] {
-  const dismissed = dismissedKeysForTopic(topicQid);
   const seen = new Set<string>();
   const out: RawCandidate[] = [];
   for (const r of raw) {
     const k = identityKey(r.platform, r.videoId);
     if (seen.has(k)) continue; // within-set dup (AC7)
     if (curatedVideoKeys.has(k)) continue; // already a curated clip (AC8)
-    if (dismissed.has(k)) continue; // user-dismissed (AC9)
+    if (dismissedVideoKeys.has(k)) continue; // user-dismissed (AC9)
     seen.add(k);
     out.push(r);
   }

@@ -32,9 +32,15 @@ vi.mock("@/lib/wiki/article", () => ({
   resolvePage: (t: string) => resolvePage(t),
   fetchFullArticle: (t: string, d?: string | null) => fetchFullArticle(t, d),
 }));
+// Issue #45: mock the @/lib/data seam to the localStorage-backed test double (the prod seam
+// routes through Server Actions → Postgres, not runnable in jsdom).
+vi.mock("@/lib/data", async () => {
+  const { buildDataMock } = await import("./helpers/data-mock");
+  return buildDataMock();
+});
 
 import { TopicView } from "@/app/topic/TopicView";
-import { seedIfEmpty } from "@/lib/data";
+import { seedIfEmpty } from "./helpers/data-mock";
 
 /** Build a FullArticle for a canonical/display pair (fetchFullArticle's contract). */
 function article(canonical: string, display: string): FullArticle {

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { store } from "@/lib/data";
 import {
   ACCURACY_LABEL,
@@ -27,15 +27,37 @@ export default function ContributePage() {
   const [accuracyFlag, setAccuracyFlag] = useState<AccuracyFlag>("accurate");
   const [error, setError] = useState<string | null>(null);
   const [savedQid, setSavedQid] = useState<string | null>(null);
+  // Async-write state (design §"async write — awaited"). The add is now a server round-trip
+  // that can be PENDING and can FAIL — localStorage could be neither. The write is AWAITED
+  // (never optimistic): success shows only after the server confirms; on failure every typed
+  // field is preserved and the submit re-enables as a retry (no silent loss of the note).
+  const [submitting, setSubmitting] = useState(false);
+  const [announce, setAnnounce] = useState("");
+  const submitRef = useRef<HTMLButtonElement>(null);
+  // Set when an awaited add fails, to return focus to the (re-enabled) submit button
+  // AFTER it re-renders enabled (a disabled element can't take focus) — design §"Focus
+  // management": a keyboard user can immediately retry instead of focus dropping to <body>.
+  const refocusOnFail = useRef(false);
 
   useEffect(() => {
     const p = new URLSearchParams(window.location.search).get("qid");
     if (p) setQid(p);
   }, []);
 
+  // After a failed add re-enables the submit, return focus to it (DEFECT-2). Runs once the
+  // re-render with `submitting === false` has committed, so the button is focusable.
+  useEffect(() => {
+    if (!submitting && refocusOnFail.current) {
+      refocusOnFail.current = false;
+      submitRef.current?.focus();
+    }
+  }, [submitting]);
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (submitting) return; // guard against a double-submit firing two addClips
     setError(null);
+    // Client-side validation stays SYNCHRONOUS, BEFORE the round-trip (design parity).
     const id = qid.trim();
     if (!id) return setError("A topic Wikidata QID is required (e.g. Q146).");
     const parsed = parseVideoUrl(videoUrl);
@@ -54,27 +76,45 @@ export default function ContributePage() {
           : parsed.platform === "instagram"
             ? "Instagram"
             : "Video";
-    await store.upsertTopic({ qid: id, title: id });
-    await store.addClip({
-      topicQid: id,
-      platform: parsed.platform,
-      platformLabel,
-      orientation: "horizontal",
-      watchUrl: videoUrl,
-      embedUrl: parsed.embedUrl,
-      thumbnailUrl: parsed.thumbnailUrl,
-      caption: contextNote.trim().slice(0, 80),
-      creator: {
-        handle: handle.trim() || "@unknown",
-        name: handle.trim() || "Unknown creator",
+
+    setSubmitting(true);
+    setAnnounce("Adding clip…");
+    try {
+      await store.upsertTopic({ qid: id, title: id });
+      await store.addClip({
+        topicQid: id,
         platform: parsed.platform,
-      },
-      contextNote: contextNote.trim(),
-      stance,
-      accuracyFlag,
-      general: true,
-    });
-    setSavedQid(id);
+        platformLabel,
+        orientation: "horizontal",
+        watchUrl: videoUrl,
+        embedUrl: parsed.embedUrl,
+        thumbnailUrl: parsed.thumbnailUrl,
+        caption: contextNote.trim().slice(0, 80),
+        creator: {
+          handle: handle.trim() || "@unknown",
+          name: handle.trim() || "Unknown creator",
+          platform: parsed.platform,
+        },
+        contextNote: contextNote.trim(),
+        stance,
+        accuracyFlag,
+        general: true,
+      });
+      setAnnounce("Clip added.");
+      setSavedQid(id); // success view — only AFTER the server confirms (awaited)
+    } catch {
+      // Write failure (DB down / network / constraint). Keep every typed field, show an
+      // honest error in the same red slot validation uses, re-enable submit as a retry,
+      // and do NOT show the "Clip added." success (no false success, no silent loss).
+      setError("Couldn't save your clip — please try again.");
+      setAnnounce("Couldn't save your clip — please try again.");
+      // Return focus to the submit (re-enabled below) so a keyboard user can retry without
+      // focus dropping to <body> (DEFECT-2). The effect on `submitting` does the focus once
+      // the button re-renders enabled.
+      refocusOnFail.current = true;
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   if (savedQid) {
@@ -164,11 +204,21 @@ export default function ContributePage() {
 
       {error && <p className="text-sm text-red-700">{error}</p>}
 
+      {/* Polite live region (design a11y): announces the awaited write's pending→result
+          transition for AT, mirroring what the sighted user sees on the button + success
+          view. Reuses the project's polite-region pattern (not assertive). */}
+      <p className="sr-only" role="status" aria-live="polite">
+        {announce}
+      </p>
+
       <button
+        ref={submitRef}
         type="submit"
-        className="rounded-lg bg-action px-4 py-2 text-sm font-medium text-white focus:outline-none focus:ring-2 focus:ring-action focus:ring-offset-2"
+        disabled={submitting}
+        aria-busy={submitting}
+        className="rounded-lg bg-action px-4 py-2 text-sm font-medium text-white focus:outline-none focus:ring-2 focus:ring-action focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-70"
       >
-        Add clip
+        {submitting ? "Adding…" : "Add clip"}
       </button>
     </form>
   );

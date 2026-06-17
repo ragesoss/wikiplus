@@ -1,12 +1,20 @@
-# wiki+ prototype stack (issue A.2 / #42) — runs ON the Linode Nanode at /opt/wikiplus.
+# wiki+ prototype stack (issue A.2 / #42; Postgres added in issue B / #45) — runs ON the
+# Linode Nanode at /opt/wikiplus.
 #
 # Scope NOW: app (the Next.js Node SSR server, pulled from GHCR) + caddy (TLS + reverse
-# proxy). Postgres/Redis are deferred to issue B — the `# postgres:` block below is left
-# ready to uncomment so the DB slots in cleanly without restructuring this file.
+# proxy) + postgres (the shared, multi-user data store, issue #45) + a one-shot migrate
+# service that applies Drizzle migrations + the seed on deploy.
 #
 # The box NEVER builds: `app.image` is the prebuilt GHCR image that CI pushes. Deploy is
 # `docker compose pull && docker compose up -d` (run by the SSH deploy job, or by hand from
 # the runbook). See ../Dockerfile and ../.github/workflows/deploy.yml.
+#
+# SECRETS (issue #45 — set on the box once, see docs/ops/vps-setup.md):
+#   - secrets/postgres_password  — the Postgres superuser password (Docker secret, file-based;
+#     NEVER inline in this file). Postgres reads it via POSTGRES_PASSWORD_FILE; the app +
+#     migrate build DATABASE_URL from it.
+# The app's DATABASE_URL is assembled from an env file (.env on the box) so the password is
+# never written into this committed compose file.
 
 services:
   app:
@@ -20,11 +28,34 @@ services:
       NODE_ENV: production
       PORT: "3000"
       HOSTNAME: "0.0.0.0"
+      # The shared Postgres connection (issue #45). Internal compose hostname `postgres:5432`.
+      # The password comes from the .env file on the box (POSTGRES_PASSWORD), keeping it out
+      # of this committed file. DB access is server-only + lazy — the app opens the connection
+      # on first query, never at build/import (so the CI image build needs no DB).
+      DATABASE_URL: "postgres://wikiplus:${POSTGRES_PASSWORD}@postgres:5432/wikiplus"
       # NOTE: NEXT_PUBLIC_YOUTUBE_API_KEY is baked into the client bundle at BUILD time
-      # (in CI, as a --build-arg), so it is intentionally NOT set here at runtime. When the
-      # production read-path moves YouTube search server-side, the key becomes a runtime
-      # secret and would be wired in here (or via Docker secrets). See ARCHITECTURE.
-    # depends_on: [postgres]   # uncomment when the postgres block below is enabled (issue B)
+      # (in CI, as a --build-arg), so it is intentionally NOT set here at runtime.
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+  # --- Migrate one-shot (issue #45): apply Drizzle migrations + seed on every deploy. -------
+  #     Uses the SAME app image, overriding the command to run the bundled migrate entrypoint
+  #     (dist/migrate.cjs — see ../Dockerfile). Idempotent: re-applies only NEW migrations and
+  #     the seed no-ops when present. `restart: "no"` + `depends_on(service_completed_*)` on
+  #     app ensures the schema is migrated BEFORE the server starts (AC15). The 1GB box runs
+  #     this in seconds; it exits 0 on success.
+  migrate:
+    image: ghcr.io/ragesoss/wikiplus:latest
+    restart: "no"
+    command: ["node", "dist/migrate.cjs"]
+    environment:
+      DATABASE_URL: "postgres://wikiplus:${POSTGRES_PASSWORD}@postgres:5432/wikiplus"
+    depends_on:
+      postgres:
+        condition: service_healthy
 
   caddy:
     image: caddy:2
@@ -40,23 +71,38 @@ services:
     depends_on:
       - app
 
-  # --- Issue B (the DB): uncomment to add Postgres. Nothing uses a DB yet (still the -------
-  #     localStorage DataStore), so it is omitted now to keep the 1GB box lean. ------------
-  # postgres:
-  #   image: postgres:16
-  #   restart: unless-stopped
-  #   environment:
-  #     POSTGRES_DB: wikiplus
-  #     POSTGRES_USER: wikiplus
-  #     # Provide via an env file / Docker secret, never inline here:
-  #     POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
-  #   volumes:
-  #     - pgdata:/var/lib/postgresql/data
-  #   # Internal-only; the app reaches it as `postgres:5432`. No published ports.
-  #   expose:
-  #     - "5432"
+  # --- Postgres (issue #45 / #35 B): the shared, multi-user data store. ----------------------
+  #     Internal-only (no published port — reached as `postgres:5432` on the compose network,
+  #     like `app`). Password via a Docker secret FILE (POSTGRES_PASSWORD_FILE), never inline.
+  #     A persistent named volume (`pgdata`) survives restarts/redeploys (durable curations).
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: wikiplus
+      POSTGRES_USER: wikiplus
+      # Read from a Docker secret file (mounted below), NOT inline (AC14).
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+    secrets:
+      - postgres_password
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    # Internal-only; the app/migrate reach it as `postgres:5432`. No published ports.
+    expose:
+      - "5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wikiplus -d wikiplus"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+secrets:
+  # File-based Docker secret. Place the password at /opt/wikiplus/secrets/postgres_password
+  # on the box (see docs/ops/vps-setup.md); it is mounted read-only at /run/secrets/.
+  postgres_password:
+    file: ./secrets/postgres_password
 
 volumes:
   caddy_data:
   caddy_config:
-  # pgdata:   # uncomment with the postgres service (issue B)
+  pgdata:   # the shared, durable Postgres data (issue #45)

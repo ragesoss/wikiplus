@@ -21,8 +21,13 @@ import { PlayerModal } from "@/components/topic/PlayerModal";
 import { Toc, type TocEntry } from "@/components/topic/Toc";
 import { TopicHeader } from "@/components/topic/TopicHeader";
 import { liveCandidatesEnabled } from "@/lib/candidates";
-import { curatedVideoKeys, deriveStats, seedIfEmpty, store } from "@/lib/data";
-import { isDismissed, recordDismissal } from "@/lib/candidates/dismissals";
+import {
+  curatedVideoKeys,
+  deriveStats,
+  dismissedVideoKeys,
+  store,
+} from "@/lib/data";
+import { identityKey, videoIdOf } from "@/lib/candidates/dismissals";
 import type { Candidate, Clip, Topic } from "@/lib/data/types";
 import {
   fetchFullArticle,
@@ -70,7 +75,20 @@ export function TopicView() {
   const [topic, setTopic] = useState<Topic | null>(null);
   const [clips, setClips] = useState<Clip[]>([]);
   const [candidates, setCandidates] = useState<Candidate[]>([]);
+  // In-session optimistic dismissals (by candidate id) — hides a card instantly on dismiss.
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
+  // Persisted, SHARED dismissals for this topic (issue #45): the `platform:videoId` keys
+  // fetched from Postgres through the server boundary. A candidate dismissed by ANYONE
+  // (this or another browser/session) stays gone (AC5) — replaces the per-browser
+  // localStorage `isDismissed` check.
+  const [persistedDismissed, setPersistedDismissed] = useState<Set<string>>(
+    new Set()
+  );
+  // Optimistic-dismissal failure notice (design §"dismissal — optimistic rollback"): a
+  // non-blocking polite line shown when a dismissal write fails and the card reappears.
+  const [dismissError, setDismissError] = useState(false);
+  // Store-read error floor (design §"read failure"): a clip/dismissal read can now fail.
+  const [storeError, setStoreError] = useState(false);
   const [article, setArticle] = useState<FullArticle | null>(null);
   const [fetchState, setFetchState] = useState<FetchState>("loading");
   const [storeReady, setStoreReady] = useState(false);
@@ -98,7 +116,6 @@ export function TopicView() {
     let alive = true;
     setResolveError(false);
     (async () => {
-      await seedIfEmpty();
       if (routeTitle) {
         // `routeTitle` is already the clean space-form title (titleFromPathname
         // maps underscores → spaces), so it flows straight into the store lookup
@@ -110,8 +127,22 @@ export function TopicView() {
         // store title (keeps URL + store key + heading mutually consistent — spec
         // Open question); the store is the fallback when the API resolves nothing
         // (e.g. offline / a seeded topic the API didn't return).
+        //
+        // issue #45: `getTopicByTitle` is now a Server Action that can REJECT when the
+        // DB is down. A rejection must NOT escape to React (→ blank screen, DEFECT-1):
+        // the article + QID resolution are client-side (AC8) and don't need the DB, so
+        // a failed store read degrades to `known = null` (treat as "no seeded topic")
+        // AND sets the store-read error floor so the ＋plus rail shows an honest line
+        // instead of a permanent skeleton (design §"read failure"). Title→QID still
+        // resolves via the client-side Wikipedia call (`resolvePage`), so the article
+        // renders. The separate store-read effect (below) also sets `storeError` once
+        // `qid` is known, but DEFECT-1 was that `getTopic`/`getTopicByTitle` rejecting
+        // HERE meant `qid` never got set, so that guarded effect never ran.
         const [known, page] = await Promise.all([
-          store.getTopicByTitle(routeTitle),
+          store.getTopicByTitle(routeTitle).catch(() => {
+            if (alive) setStoreError(true);
+            return null;
+          }),
           resolvePage(routeTitle),
         ]);
         if (!alive) return;
@@ -143,7 +174,14 @@ export function TopicView() {
         return;
       }
       if (qidParam) {
-        const t = await store.getTopic(qidParam);
+        // issue #45 / DEFECT-1: `getTopic` is a Server Action that can REJECT (DB down).
+        // Degrade to `t = null` + set the store-read floor rather than let the rejection
+        // crash to a blank page; `qidToTitle` (client-side) still resolves the title so
+        // the article renders and the URL canonicalizes.
+        const t = await store.getTopic(qidParam).catch(() => {
+          if (alive) setStoreError(true);
+          return null;
+        });
         const title = t?.title ?? (await qidToTitle(qidParam));
         if (!alive) return;
         if (title) {
@@ -168,21 +206,34 @@ export function TopicView() {
   const resolvedTitle = resolved?.canonicalTitle ?? null;
   const resolvedDisplayTitle = resolved?.displayTitle ?? null;
 
-  // Load store data (keyed by the resolved QID; doesn't gate on the article fetch).
+  // Load store data (keyed by the resolved QID; doesn't gate on the article fetch). All
+  // reads now go through the server boundary to shared Postgres (issue #45) — including the
+  // SHARED dismissed-keys set (AC5). A read can now FAIL (DB down); on failure we set the
+  // store-read error floor and still render the chrome (the article is client-side, AC8).
   useEffect(() => {
     if (!qid) return;
     let alive = true;
+    setStoreError(false);
     (async () => {
-      const [t, cl, ca] = await Promise.all([
-        store.getTopic(qid),
-        store.listClips(qid),
-        store.listCandidates(qid),
-      ]);
-      if (!alive) return;
-      setTopic(t);
-      setClips(cl);
-      setCandidates(ca);
-      setStoreReady(true);
+      try {
+        const [t, cl, ca, dk] = await Promise.all([
+          store.getTopic(qid),
+          store.listClips(qid),
+          store.listCandidates(qid),
+          dismissedVideoKeys(qid),
+        ]);
+        if (!alive) return;
+        setTopic(t);
+        setClips(cl);
+        setCandidates(ca);
+        setPersistedDismissed(dk);
+      } catch {
+        if (alive) setStoreError(true);
+      } finally {
+        // storeReady gates the chrome (infobox/TOC/band); flip it even on error so the page
+        // shows an honest rail line rather than a permanent skeleton (design read-failure floor).
+        if (alive) setStoreReady(true);
+      }
     })();
     return () => {
       alive = false;
@@ -200,11 +251,16 @@ export function TopicView() {
       const full = await fetchFullArticle(resolvedTitle, resolvedDisplayTitle);
       setArticle(full);
       setFetchState("ready");
-      // Keep the store's CANONICAL title in sync with the live article (no-op for
-      // seeded topics whose title already matches). The store keys off canonical, not
-      // the display title.
+      // Keep the store's CANONICAL title in sync with the live article (no-op for seeded
+      // topics whose title already matches). This is now a server-boundary WRITE (issue #45)
+      // and is BEST-EFFORT: a failed title-sync must NOT flip the (successful) article render
+      // into the error state, so it has its own try/catch and is swallowed.
       if (qid && (!topic || topic.title !== full.title)) {
-        await store.upsertTopic({ qid, title: full.title });
+        try {
+          await store.upsertTopic({ qid, title: full.title });
+        } catch {
+          /* title-sync is non-fatal — the article already rendered */
+        }
       }
     } catch {
       setFetchState("error");
@@ -242,6 +298,9 @@ export function TopicView() {
           level: s.level,
         })),
         curatedVideoKeys: curatedVideoKeys(clips),
+        // Shared dismissals (issue #45) feed the pipeline's AC9 dedup — the live pipeline is
+        // pure + client-side, so the (server-fetched) dismissed set is passed in, not read.
+        dismissedVideoKeys: persistedDismissed,
       });
       if (!alive) return;
       if (live) {
@@ -279,13 +338,24 @@ export function TopicView() {
   const displayTitle =
     article?.displayTitle ?? resolvedDisplayTitle ?? canonicalTitle;
 
-  // Displayed candidates exclude both the in-memory dismissals (this session) AND any
-  // persisted dismissal (AC9; design §6.3). The persisted check makes a dismissal sticky
-  // across a reload even on the no-key seeded path, where the pipeline's cache-read filter
-  // never runs — without it, a seeded candidate dismissed before reload would reappear.
+  // Displayed candidates exclude both the in-memory optimistic dismissals (this session) AND
+  // any SHARED persisted dismissal from Postgres (AC5/AC9; design §6.3). The persisted check
+  // keeps a dismissal sticky across reloads and ACROSS BROWSERS — a candidate dismissed by
+  // anyone is filtered out for everyone, matched by the `platform:videoId` identity.
+  const isPersistedDismissed = useCallback(
+    (c: Candidate): boolean => {
+      const videoId = videoIdOf(c);
+      if (!videoId) return false;
+      return persistedDismissed.has(identityKey(c.platform, videoId));
+    },
+    [persistedDismissed]
+  );
   const liveCandidates = useMemo(
-    () => candidates.filter((c) => !dismissed.has(c.id) && !isDismissed(c)),
-    [candidates, dismissed]
+    () =>
+      candidates.filter(
+        (c) => !dismissed.has(c.id) && !isPersistedDismissed(c)
+      ),
+    [candidates, dismissed, isPersistedDismissed]
   );
 
   const stats = useMemo(() => deriveStats(clips), [clips]);
@@ -494,14 +564,43 @@ export function TopicView() {
     heading?.focus();
   }, []);
 
-  // ── Candidate actions. Dismissal is now STICKY (spec AC9; design §6.3): persist
-  // (topicQid, platform, videoId) to localStorage so the candidate does not resurface
-  // on reload/re-fetch, and hide it immediately (count decrements via liveCandidates).
+  // ── Candidate actions. Dismissal is now SHARED + DURABLE (issue #45; AC5) and written
+  // through the server boundary. The write is OPTIMISTIC with ROLLBACK (design §"optimistic
+  // vs awaited"): hide the card instantly (same instant feel as before — count decrements
+  // via liveCandidates), fire the persistence in the background, and if the server write
+  // fails, REVERT the optimistic hide (the card reappears) + show a non-blocking polite
+  // notice. No silent loss; a card is never hidden-but-unsaved beyond the round-trip.
   const dismiss = useCallback(
     (c: Candidate) => {
-      recordDismissal(c);
+      const videoId = videoIdOf(c);
+      // Unparseable id can't be persisted as a dismissal — keep the prior in-session-hide
+      // behavior (no server write to attempt) rather than block the triage action.
       setDismissed((prev) => new Set(prev).add(c.id));
       focusBandHeading();
+      if (!videoId) return;
+      setDismissError(false);
+      void (async () => {
+        try {
+          await store.recordDismissal({
+            topicQid: c.topicQid,
+            platform: c.platform,
+            videoId,
+          });
+          // Reflect the now-persisted, shared dismissal so it stays gone across re-renders.
+          setPersistedDismissed((prev) =>
+            new Set(prev).add(identityKey(c.platform, videoId))
+          );
+        } catch {
+          // Rollback the optimistic hide: the card reappears (the honest "that didn't take"
+          // signal) and a polite notice names why. Focus is NOT stolen back to the card.
+          setDismissed((prev) => {
+            const next = new Set(prev);
+            next.delete(c.id);
+            return next;
+          });
+          setDismissError(true);
+        }
+      })();
     },
     [focusBandHeading]
   );
@@ -644,6 +743,21 @@ export function TopicView() {
         {mode === "empty" ? candidateAnnounce : ""}
       </p>
 
+      {/* Dismissal-failure notice (issue #45; design §"dismissal — optimistic rollback").
+          Non-blocking + polite: the rolled-back card reappearing is the honest signal; this
+          line names why. role="status"/aria-live="polite" — does NOT steal focus or block. */}
+      {dismissError && (
+        <div className="mx-auto max-w-[1200px] px-5">
+          <p
+            role="status"
+            aria-live="polite"
+            className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700"
+          >
+            Couldn&apos;t dismiss that — please try again.
+          </p>
+        </div>
+      )}
+
       {/* Reader: article body sections (left) + the sticky rail (right). */}
       <div className="mx-auto max-w-[1200px] px-5 pb-16">
         <div className="grid grid-cols-1 gap-7 lg:grid-cols-[1fr_360px]">
@@ -666,6 +780,15 @@ export function TopicView() {
             }
             className="space-y-4 lg:sticky lg:top-16 lg:max-h-[calc(100vh-4rem)] lg:overflow-y-auto"
           >
+            {/* Store-read error floor (issue #45; design §"read failure"). If the clip/
+                dismissal read failed (DB down), show an honest line — NOT a permanent
+                skeleton, and NOT routed into ArticleError (which is the Wikipedia fetch).
+                The article (client-side, AC8) still renders on the left. */}
+            {storeError && (
+              <p className="text-sm text-red-700">
+                Couldn&apos;t load curated videos — please refresh.
+              </p>
+            )}
             {/* #14 AC5: the one-time "unvetted set" header introduces the rail
                 candidate list ONCE — replacing v2's per-card "auto-suggested / no
                 context yet" repetition. Names the sources from data; carries no count

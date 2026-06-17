@@ -57,10 +57,12 @@ note below.
 **Provisioned host (issue A.2 / #42 — the prototype is live):** a single **Linode Nanode
 1GB, Ubuntu 24.04 LTS**, serving **`wikiplus.wikiedu.org`**. The deploy files live in
 [`deploy/`](../deploy/) (`docker-compose.yml`, `Caddyfile`) and on the box at `/opt/wikiplus`;
-the box-setup runbook is `docs/ops/vps-setup.md`. Current stack on the box is **`app` +
-`caddy` only** — Postgres/Redis are deferred to issue B (nothing uses a DB yet; the prototype
-still uses the localStorage `DataStore`), with a commented `# postgres:` block in the compose
-file ready to slot in. **Caddy** terminates TLS directly via Let's Encrypt (automatic HTTPS)
+the box-setup runbook is `docs/ops/vps-setup.md`. Stack on the box is **`app` + `caddy` +
+`postgres`** (the shared data store, issue #45 / #35 B) plus a one-shot **`migrate`** service that
+applies Drizzle migrations + the seed on deploy; **Redis is still deferred** to the production
+read-path. Postgres is internal-only (named `pgdata` volume, password via a Docker secret), the app's
+`DATABASE_URL` reaches it on the compose network, and migrations apply automatically on `up -d` (no
+manual SSH). See *Persistence* above + `docs/ops/vps-setup.md`. **Caddy** terminates TLS directly via Let's Encrypt (automatic HTTPS)
 and reverse-proxies the apex → `app:3000`; **Cloudflare edge cache is deferred** to the
 production-MVP — at prototype scale a single box renders per-request fine. (Caveat baked into
 the Caddyfile: `wikiplus.wikiedu.org` is in the `wikiedu.org` zone, which may sit behind
@@ -91,6 +93,16 @@ retrofitting it under load is painful.
 ## Data model (initial)
 
 Keyed on stable identifiers, normalized, minimal.
+
+> **Implemented in issue #45** (`lib/db/schema.ts`, migration `drizzle/0000_*`): `topic`, `clip`,
+> `contributor`, `account`, `dismissed_candidate` — see *Persistence — Drizzle/Postgres behind a
+> server data-access boundary* above for the exact landed shape. Two deliberate deltas from the
+> forward-looking model below, scoped to B: **`topic` has no `article_index`** (the server never
+> fetches Wikipedia in B — that cache belongs to the deferred production read-path), and the **`clip`
+> fields are the app's current `Clip` type** (`lib/data/types.ts`) — `embed_meta`/`timestamp_seconds`
+> are not yet carried, and `section_anchor` is stored as the `section_slug` + `section_label` pair.
+> The `account` table is Auth.js-adapter-shaped but **unused by writes** until issue C; interim writes
+> attribute to a stub `@prototype` contributor.
 
 - **topic**
   - `id` (internal PK)
@@ -389,12 +401,92 @@ Design points:
   Redis rate limits + the `clip.vetted` review hold. *Enforcement* (rate-limit + moderation
   tooling) remains Operations'/Development's to build with auth/persistence.
 
-## Prototype phase (current — client-side, Node SSR server, run locally)
+## Persistence — Drizzle/Postgres behind a server data-access boundary (issue #45 / #35 B)
 
-The prototype is a **client-side SPA** with `localStorage` standing in for the production database.
-This exercises the read + curate UX and the data model without production infra. It does **not** yet
-exercise the production read-path (ISR/Redis) or persistence (Drizzle/Postgres) or real auth, and is
-**single-user** (per-browser, in `localStorage`).
+As of **issue #45** the deployed app's `DataStore` is **Postgres via Drizzle ORM**, reached through
+a **server data-access boundary** — replacing the per-browser `localStorage` store for the deployed
+app. The seeded topics and every curated clip and candidate dismissal now live in **one shared
+database** on the VPS, so everyone on `wikiplus.wikiedu.org` reads and writes the **same data**
+(shared, multi-user, durable across devices/sessions/deploys). This lands the **mechanical** half of
+the Functional-prototype milestone (everything that worked on localStorage now works on shared
+Postgres) and is the foundation **C** (Wikimedia OAuth) and **D** (the curation-action product layer)
+build on additively.
+
+- **Boundary mechanism: Server Actions (not route handlers).** Server Actions are already enabled
+  (#37), are the idiomatic App-Router client→server call, and let the client import the boundary as
+  plain typed async functions — so the call-site rewire from `await store.*` is near drop-in (parity).
+  The boundary (`lib/server/actions.ts`, `"use server"`) is a thin set of **mechanical wrappers** over
+  the store — **no product logic** (auth-gating / the CC-BY-SA agreement are issue D).
+- **Boundary surface is narrower than the store (security, fix round).** The boundary is
+  **unauthenticated** until issue C, so it deliberately does **not** expose every store method. The
+  destructive `updateClip` / `deleteClip` have **no UI caller** and are **not** Server Actions (an
+  anonymous boundary export would let any visitor edit/delete any clip) — they live **only** on
+  `DrizzleDataStore` (for issue D + store-level tests) and are absent from both the boundary and the
+  client-facing `DataStore` interface. A **minimal input stopgap** sits on the public write actions
+  (`addClip`, `upsertTopic`) ahead of D's full validation: a free-text **length cap**
+  (`context_note` / `caption` / `title`) and a **closed-set guard** on the curation enums
+  (`stance` / `accuracy_flag` / `platform`), rejecting out-of-vocabulary values before any DB call.
+  This is a cheap defense, not D's validation/auth layer.
+- **The store.** `DrizzleDataStore` (`lib/db/drizzle-store.ts`) implements the **full** `DataStore`
+  interface server-side. `lib/data/index.ts` remains the **single seam / swap point**: it wires the
+  client to the boundary (DB ops → Server Actions) and keeps the **one client-side method**,
+  `suggestCandidates`, running the live YouTube pipeline in the browser.
+- **Connection.** `lib/db/client.ts` imports **`server-only`** (so the pg driver + `DATABASE_URL`
+  can never enter the client bundle) and opens the **postgres.js** connection **lazily at first
+  query — never at build/import time**. `next build` therefore needs **no** `DATABASE_URL` and the CI
+  image build never connects to a DB.
+- **The read / write / client-Wikipedia flow (the central invariant is unchanged — the server never
+  calls Wikipedia, AC8):**
+  - **Reads (server-DB):** `listTopics`, `getTopic`, `getTopicByTitle`, `listClips`, the persisted
+    `dismissedKeys` — Server Actions → `DrizzleDataStore` → Postgres.
+  - **Writes (server-DB):** `upsertTopic`, `addClip`, `recordDismissal` — same path. (`updateClip` /
+    `deleteClip` exist on the store but are **not** boundary actions — see *Boundary surface* above.)
+    Interim writes are attributed to a single **stub `@prototype` contributor** (see below).
+  - **Client (Wikipedia/YouTube), unchanged:** title→QID resolution, the article-body fetch, the TOC,
+    and the **live YouTube candidate search** all stay **client-side**. `suggestCandidates` runs the
+    pure pipeline in the browser; the (now shared) dismissed-video keys it needs for dedup are fetched
+    via the boundary first and passed in. `listCandidates` is `[]` server-side (candidates are
+    computed + cached, never DB rows — see *Candidate suggestion*); the seeded mock candidate set the
+    prototype carried in localStorage is retired.
+- **Schema (`lib/db/schema.ts`) + migrations (`drizzle/`, generated by `drizzle-kit`).** Tables:
+  `topic` (`wikidata_qid` unique, `title`/`lang`/`description`, timestamps — **no `article_index`**,
+  which belongs to the deferred production read-path), `clip` (**every** field on the app's `Clip`
+  type), `contributor`, `account` (**Auth.js-adapter-shaped** — `unique(provider, provider_account_id)`,
+  FK to contributor — so **C** adopts it without a schema rewrite; unused by writes in B),
+  `dismissed_candidate` (`unique(topic_id, provider, provider_video_id)` — the sticky-dismissal
+  identity; shared so a candidate dismissed by anyone stays dismissed for everyone).
+- **Migration + seed run on DEPLOY, never at build or per-request.** A compose **`migrate` one-shot**
+  (same app image, `command: node dist/migrate.cjs`) applies pending Drizzle migrations then runs the
+  idempotent seed (`lib/db/seed.ts`, ported from the prototype seed) against Postgres **before** the
+  app server starts (`app depends_on migrate: service_completed_successfully`). So a push to `main`
+  that changes the schema lands a migrated + seeded DB with no manual SSH. The migrate entrypoint is
+  bundled (`scripts/build-migrate.mjs` → `dist/migrate.cjs`) so the tiny standalone runtime image runs
+  it with plain `node` (no tsx / drizzle-kit / full `node_modules`).
+- **Interim attribution (stub contributor) until C.** No sign-in is introduced in B. Every write is
+  attributed to a single seeded **`@prototype`** contributor; the `account`↔`contributor` wiring
+  exists in the schema, unused by writes. **C** swaps the stub for real per-user identity additively.
+- **Async-write UX (new in B — localStorage was synchronous and never failed).** The two relocated
+  reader/curate writes get deliberate pending/failure UX (design `docs/design/persistence-postgres.md`):
+  the **contribute add is awaited** (pending/disabled button, fields preserved on failure, honest
+  error + retry, no false success); the **sticky dismissal is optimistic with rollback** (hide
+  instantly, persist in the background, re-show the card + a polite notice on failure). Read failures
+  degrade to an honest line (home: "Couldn't load topics", topic rail: "Couldn't load curated
+  videos"), never an infinite spinner. The cosmetic "synced" label stays a static string (no realtime).
+- **Tests.** `DrizzleDataStore` + the seed are tested against **pglite** (in-memory Postgres, WASM) so
+  the contract runs in CI with **no live DB / no network** (`test/drizzle-store.test.ts`,
+  `test/helpers/pglite-db.ts`). The view/integration tests mock the `@/lib/data` seam to a
+  localStorage-backed double (`test/helpers/data-mock.ts`) — the component state machine is what they
+  exercise; the data backend is incidental.
+- **Still deferred:** ISR + the Redis shared `cacheHandler`, the production read-path caching,
+  `article_index`, moving Wikipedia/QID/YouTube server-side, Cloudflare edge cache, Redis in compose,
+  and real sign-in (**C**) + the curation-action product layer (**D**).
+
+## Prototype phase (current — Node SSR server; shared Postgres data layer as of #45)
+
+The prototype began as a **client-side SPA** with `localStorage` standing in for the production
+database (single-user, per-browser). **As of issue #45 the data layer is shared Postgres via Drizzle**
+(see *Persistence* above) — the deployed app is **multi-user and durable**. It does **not** yet exercise
+the production read-path (ISR/Redis) or real auth (Wikimedia OAuth is **C**).
 
 As of **issue #37** the prototype runs as a **Next.js App Router Node SSR server** — `next build`
 produces a **server build** (`.next/`, no `out/`) and `next start` serves it, rendering Topic titles
@@ -434,19 +526,22 @@ a host is provisioned (issue A.2).
   back to the seeded/empty candidate set), unchanged by the SSR switch. (The now-paused `deploy.yml`
   read it from a GitHub Actions secret; when search moves **server-side** in the production read-path it
   becomes a server secret, not a client-inlined var.)
-- **Data:** all access goes through the `DataStore` interface (`lib/data/store.ts`); the prototype
-  uses `LocalStorageDataStore`. The swap point is the single line in `lib/data/index.ts`.
+- **Data:** all access goes through the `DataStore` interface (`lib/data/store.ts`). **As of #45 the
+  deployed app uses `DrizzleDataStore` (shared Postgres) reached via Server Actions** — see
+  *Persistence — Drizzle/Postgres behind a server data-access boundary* above. `lib/data/index.ts` is
+  the single seam/swap point. `LocalStorageDataStore` is kept as a reference impl + test double, no
+  longer wired for the deployed app.
 - **Wikipedia:** article fetch + DOMPurify sanitize run client-side (as in production); Wikidata
   resolves QID→title. oEmbed is avoided — we store `platform`+`videoId` and build the click-to-load
   facade ourselves.
 - **Auth:** stubbed (reading is anonymous); real Wikimedia OAuth arrives with the server.
-- **Server Actions (enabled, not used — issue #37).** The Node SSR runtime supports Server Actions —
-  the capability the later milestone items (Drizzle persistence, Auth.js, curation write-flows) depend
-  on. A throwaway **smoke artifact** proves it: `lib/server/smoke-action.ts` (`"use server"`) returns a
-  server-confirmation, called once on mount by `components/dev/SmokeActionProbe.tsx` (renders nothing,
-  logs `[wiki+ smoke] Server Action ran on server=…` to the console). **No product write-flow ships**;
-  delete both files when the first real Server Action lands. The server **never** talks to Wikipedia —
-  title→QID, the article body, the TOC, and the candidate search all stay client-side, exactly as before.
+- **Server Actions (enabled #37; now the data-access boundary — issue #45).** The Node SSR runtime
+  supports Server Actions; as of #45 they are the **data-access boundary** for shared Postgres
+  (`lib/server/actions.ts`, `"use server"` — see *Persistence* above). The throwaway #37 smoke artifact
+  (`lib/server/smoke-action.ts` + `components/dev/SmokeActionProbe.tsx`) was its placeholder; it has
+  been **removed** now that the real boundary has landed (its own comments said to delete it when a
+  real action arrives). The server **still never** talks to Wikipedia — title→QID, the article body,
+  the TOC, and the YouTube candidate search all stay client-side, exactly as before (AC8).
 - **Vocabularies:** `stance`/`accuracy_flag` in `lib/data/types.ts` are now the **closed CURATION
   enums** (`docs/CURATION_STANDARD.md` §2/§3, Decisions C2/C4) — no longer provisional. Chip text is
   derived from a single **enum→label/fill map** in `lib/curation/labels.ts` (§4); optional display-only
@@ -557,12 +652,13 @@ a host is provisioned (issue A.2).
 
 **Path to production:** `output:'export'` is **already dropped** (#37 — the prototype is a Node SSR
 server), and the host + auto-deploy are **already provisioned** (A.2 / #42 — Linode VPS + Compose +
-Caddy at `wikiplus.wikiedu.org`, CI→GHCR→SSH on push to `main`; see *Deployment*). Remaining steps: add
-the Drizzle `DataStore` + Server Actions (B/D — Server Actions are already enabled, see *Server
-Actions*), wire Auth.js / Wikimedia OAuth (C), and add the production read-path (ISR + the Redis
-`cacheHandler`, server-side candidate search, the deferred Postgres/Redis compose services + Cloudflare
-edge cache, and a real server-side bare-path HTTP redirect). The components, data model, design
-system, article pipeline, and the title-based URL scheme carry forward unchanged.
+Caddy at `wikiplus.wikiedu.org`, CI→GHCR→SSH on push to `main`; see *Deployment*). The Drizzle
+`DataStore` + Server Actions + shared Postgres are **done** (issue #45 / #35 B — see *Persistence*
+above). Remaining steps: wire Auth.js / Wikimedia OAuth (C), build the curation-action product layer
+(D), and add the production read-path (ISR + the Redis `cacheHandler`, server-side candidate search,
+the deferred Redis compose service + Cloudflare edge cache, `article_index`, and a real server-side
+bare-path HTTP redirect). The components, data model, design system, article pipeline, and the
+title-based URL scheme carry forward unchanged.
 
 ## Testing
 
@@ -576,6 +672,12 @@ Two layers, both run with `yarn` (matches the committed lockfile/CI):
   `DataStore`), the components, and a `TopicView` integration test driving the curated/empty/
   loading/error state machine. **The live MediaWiki + Wikidata fetch is mocked** (cloud/CI sandboxes
   have no network egress and the article fetch is client-side anyway). `yarn test:watch` for dev.
+  **`DrizzleDataStore` + the DB seed are tested against [pglite](https://pglite.dev) (in-memory
+  Postgres compiled to WASM)** — `test/drizzle-store.test.ts` via `test/helpers/pglite-db.ts` applies
+  the **committed Drizzle migrations** to a fresh in-memory DB and runs the full `DataStore` contract
+  (incl. shared dismissals + multi-user sharing) with **no external DB and no network** (issue #45,
+  AC16). The view/integration tests mock the `@/lib/data` seam to a localStorage-backed double
+  (`test/helpers/data-mock.ts`), since the production seam routes through Server Actions → Postgres.
 - **End-to-end — Playwright (`e2e/`).** `yarn test:e2e` builds the **Node server** (`next build`) and
   serves it with `next start` (issue #37 replaced the old `serve -s out` static-export serving), then
   drives the core loop (find topic → read → watch & weigh → contribute) in a real browser. Unseeded
