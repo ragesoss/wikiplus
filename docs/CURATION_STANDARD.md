@@ -362,6 +362,15 @@ standard:
   and sets stance + accuracy to this standard (then it earns its chips). Until then it is a
   suggestion, not an endorsement.
 
+> **A candidate is not the same not-curated thing as a *held* clip (§7.1).** A candidate is
+> auto-found and has *no* human behind it (no note, no chips, no curator) — its honesty is
+> "no one has looked at this." A **held** clip is the reverse: a real curator *did* vouch
+> (it keeps its note, chips, and curator attribution) but the vouch has **not yet been
+> confirmed by a reviewer**. Both are "not yet fully curated," but for opposite reasons, and
+> they must be **distinguishable from each other and from a fully-curated clip** (§7.1, §4).
+> The candidate language below ("Suggested · uncurated") is for candidates **only** — a held
+> clip never uses it.
+
 ---
 
 ## 7. Abuse / spam / moderation policy
@@ -395,6 +404,93 @@ policy level here.)
   User-Agent, respect rate limits / `maxlag`, lazy caching (CLAUDE.md; ARCHITECTURE
   §Wikipedia integration) — abuse of the upstream APIs is also out of bounds.
 
+### 7.1 The review-hold — the "held" third state (Decision C8)
+
+§7's posture ("a light `vetted` hold is **available** to queue a freshly added clip for
+review before it shows as fully curated") is realized as a workflow in milestone D5b (spec
+`docs/specs/vetted-review-hold.md`). This subsection is the **editorial contract** for what a
+held clip *means* and *reads as* — UX renders the weight, Dev/QA know what the state asserts.
+It does not reopen §7's posture (the hold exists; contribution is gated; reading is anonymous)
+or §6 (candidates).
+
+**What "held" means editorially — the third clip-state.** A held clip is a **real curated
+clip whose vouch has not yet been confirmed**. A curator wrote a context note (§1) and set the
+stance/accuracy chips (§2/§3) — so a held clip **keeps all of them**, plus its curator
+attribution (§5.4) — but a **reviewer has not yet approved it**, so it does **not** carry the
+site's full vouch. It is a third state, and its trust weight sits **between** the other two:
+
+| | A fully-curated clip | A **held** clip (§7.1) | An unvetted candidate (§6) |
+|---|---|---|---|
+| Context note | yes | **yes** | no |
+| Stance / accuracy chips | yes | **yes** | no |
+| Named curator behind it | yes | **yes** | no (auto-found) |
+| Reviewer-confirmed vouch | yes | **not yet** | n/a — no vouch to confirm |
+| Honest tell to the reader | "a person vouched for this and it passed review" | "a person vouched for this; **the vouch is still in review**" | "no one has reviewed this yet" |
+
+So a held clip differs from **(a)** a fully-curated clip in *one* thing only — the vouch is
+unconfirmed, not the content — and from **(b)** a candidate in *almost everything* — a held
+clip has a human's full curation; a candidate has none. The reader must be able to tell all
+three apart, **from the text/marking, never color alone** (§4). This is the standard behind
+spec AC1/AC2.
+
+**The held-state marking — canonical microcopy (UX uses verbatim; Dev derives from the held
+flag).** A held clip shows a short, text-labeled, non-alarming marking. It must read as
+"in review," **never** as "this was removed / this is bad" (see the boundary below). It must
+be **distinct from** the §6 candidate language ("Suggested · uncurated"), because a held clip
+is not a candidate.
+
+- **Eyebrow label (the chip/badge text), verbatim:** **"In review · not yet vouched"**
+  — the canonical short marking on the held clip's card and General-band tile. "In review"
+  carries the meaning as a *word* (§4 — not color-alone); "not yet vouched" ties it to the
+  vouch language §6 already uses ("Curate one to vouch for it") and keeps the tone calibrated
+  ("not *yet*"), not punitive.
+- **One-line explainer (where space allows — the held echo of §6's once-per-context line),
+  verbatim:** **"A curator added this and wrote a note, but it hasn't passed review yet —
+  weigh it accordingly."** This is the honest tell from the table above; it states the
+  calibrated-trust value plainly and is the held analogue of §6's "No context notes yet — a
+  human hasn't reviewed these."
+- **Accessible name** for the marking (e.g. `aria-label` / `sr-only`), verbatim:
+  **"In review — not yet vouched for by a reviewer."**
+- **Tone guard:** no alarm words ("flagged," "rejected," "warning," "problem"), no color as
+  the sole signal, gold is not a functional signal (CLAUDE.md). The marking is a *neutral
+  status*, the register of §1.3 (a knowledgeable librarian: "this is still being checked").
+
+**Who may hold / who may approve — the accountability line (confirms spec Decision 3).** This
+split is the right editorial line and follows directly from §7's accountability rationale
+("login gating buys us accountability — an action ties to an identity") and §5.4's
+vouch-is-attributable principle:
+
+- **Hold** (move a clip into review, `vetted → held`) may be done by **a moderator/reviewer on
+  any clip**, **or by the clip's own curator on their own clip**. A curator holding their own
+  clip is the editorial parallel of §5.4/D2's "a curator may revise or retract **their own**
+  vouch" — pulling your own clip into review is a self-limiting act (you can only hold what you
+  authored), so it needs no privileged role.
+- **Approve** (confirm the vouch, `held → fully curated`) is **moderator/reviewer only — a
+  curator may not approve, including their own held clip.** This is the load-bearing editorial
+  rule: **the vouch must be confirmed by someone other than the person who made it.** Approval
+  is the act of granting the site's full vouch; if a curator could clear their own hold, the
+  hold would assert nothing and the "reviewed" signal would be hollow. Independent confirmation
+  is exactly what makes the held → curated transition trustworthy. (A curator who has second
+  thoughts about their own held clip uses D2 edit/delete; *restoring* the full vouch is a
+  reviewer's call.)
+
+**Held is a review pause, not a removal — keep the two editorially distinct.** A hold is
+**not** the §7 "removable content" abuse mechanism (that is milestone D5c). The two must never
+read as the same thing:
+
+- A **hold** is a **reversible review pause**, available for **any reason a reviewer (or the
+  curator) wants a second look** — a fresh add a contributor is unsure of, a clip a reviewer
+  wants to check before it carries the full vouch, a borderline note. It asserts **"not yet
+  confirmed,"** not "this is bad." A held clip stays visible (shown-but-marked, spec Decision
+  3b) and a moderator can flip it live at any time.
+- **Removal** (§7 "Removable content") is for **abuse** — spam, promotion, hate/harassment,
+  §1.2 violations, deceptive media — and is the §7 line "**removal is for abuse, not for
+  disagreement.**" Removal is **not** the hold's job, and a held clip must **never** read as
+  "this was removed/rejected." The marking copy above is chosen specifically so a held clip
+  reads as *in review*, never as *judged and found wanting*. (A clip that is honestly
+  `opinion` / `mixed` / `inaccurate` is **legitimately curatable** — §7 — and being held is
+  about *review status*, not about the accuracy flag's value.)
+
 ---
 
 ## 8. Decisions log (for Product / UX / Dev to react to)
@@ -408,6 +504,7 @@ policy level here.)
 | **C5** | wiki+ **context notes are licensed CC BY-SA 4.0**; the contributor's agreement is a **required precondition of publishing** and is **captured per-submit** (license version + timestamp, bound to this note + contributor). The note-license agreement is the *curator's* act, distinct from *creator* credit (§5.2). | Closes the ARCHITECTURE open question and the "capture arrives with persistence" carry-open. UX uses the §5.3 canonical agreement strings (required control, not a passive line); Dev captures per D1-1 / AC7. |
 | **C6** | Stance/accuracy support an optional **free-form modifier** (≤24 chars) shown after the label, never filtered on. | Reproduces the mockup display strings ("Accurate · fast-paced") without breaking the enum. Dev adds `stance_modifier` / `accuracy_modifier` optional fields; UX renders "Label · modifier". |
 | **C7** | The §5.3 attribution is realized in public as **"context by &lt;username&gt;"** (verbatim), linking IN to the curator's wiki+ profile — **distinct** from the §5.2 creator credit, which links OUT to the platform. The public profile exposes **only** public identity (username + granted avatar), **never email**. A `@prototype` clip shows a non-linked **"seed clip · no curator"** label, no profile link. | Realizes §5.3 / §5.4 for the D3 public attribution + profile (spec #54). UX uses the canonical strings verbatim and keeps curator attribution visually/textually distinct from creator credit; Dev links "context by" to `/contributor/<username>`, suppresses the link for the `@prototype` stub, and ensures the profile read never selects/serializes email (AC2/AC6). |
+| **C8** | The §7 review-hold is defined as the **"held" third clip-state** (§7.1): a real curated clip — note + chips + curator intact — whose **vouch is not yet reviewer-confirmed**; distinct from a fully-curated clip (vouch confirmed) and a §6 candidate (no human behind it). Canonical marking microcopy, verbatim: eyebrow **"In review · not yet vouched"**; explainer **"A curator added this and wrote a note, but it hasn't passed review yet — weigh it accordingly."**; a11y name **"In review — not yet vouched for by a reviewer."** **Hold** = moderator (any clip) OR the curator (own clip); **approve** = moderator-only (no self-approve — the vouch is confirmed by someone other than its author). A hold is a **reversible review pause, not the §7 abuse removal** (that is D5c) — it must never read as "removed/bad." | Realizes §7's review-hold posture + §6's not-vouched-for language for D5b (spec `vetted-review-hold.md`). UX uses the canonical strings verbatim and keeps the held state distinct (by text, never color-alone — §4) from both a curated clip and a §6 candidate; Dev derives the marking from the held flag and gates approve on moderator-only / hold on moderator-or-own-curator server-side; the held marking carries no alarm/removal tone. |
 
 ---
 
@@ -419,12 +516,19 @@ policy level here.)
   creator credit (name + handle + platform, §5.2); the §5.3 **required** submit-time license
   agreement using the canonical strings (license statement + agreement-act label, verbatim);
   the
-  candidate treatment showing `match_reason` + "no context yet" and **no chips** (§6).
+  candidate treatment showing `match_reason` + "no context yet" and **no chips** (§6); and the
+  **held third state** (§7.1) — a curated clip (note + chips + curator intact) marked with the
+  verbatim **"In review · not yet vouched"** eyebrow (+ the explainer / a11y name strings),
+  text-labeled and AA, distinct from both a fully-curated clip and a §6 candidate, with the
+  reviewer-only **Hold** / **Approve** affordances (hold: moderator-or-own-curator; approve:
+  moderator-only).
 - **Development (schema + limits):** encode the §2 stance enum and §3 accuracy enum as the
   controlled vocabulary in `lib/data/types.ts` (replacing the provisional sets), with a single
   enum→label map driving chip text (§4); add optional `*_modifier` fields (C6); enforce the
   note length (C1); ensure candidates carry no stance/accuracy/context (§6); render attribution
-  per §5.
+  per §5; for the **held state** (§7.1) derive the marking from the clip's held flag (the
+  verbatim §7.1 strings), keep the note/chips/curator intact, and gate the two actions
+  server-side — **approve = moderator-only**, **hold = moderator OR the clip's own curator**.
 - **Product (policy → roadmap/criteria):** the moderation policy (§7) and the licensing
   decision (§5.3) become roadmap items when auth/persistence land; the note standard (§1) is
   the **definition of "good curation"** Product/Analytics will later measure against.
