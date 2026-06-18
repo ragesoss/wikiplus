@@ -14,6 +14,15 @@
   --color-bg2: #f0f1f3;
   --color-wikirule: #a2a9b1;
   --color-wikilink: #3366cc;
+
+  /* ── Daylight Projector wordmark tokens (#15; VISUAL_IDENTITY §4.2, design §5.3). ──
+     Gold here is the LIGHTER, DESATURATED daylight gold — NOT the forbidden brand gold
+     #E5AB28, and never a functional/state color (it lives only in the wordmark). */
+  --color-gold-rim: #eece87; /* goldE: beam border, aperture rim stroke, edge-glow, wider bleed */
+  --color-gold-fill: #ffecb2; /* gold: aperture core radial, mixed toward white only */
+  --color-bleed-warm-white: #fffcf6; /* tighter inner bleed "+" */
+  --color-header-field: #fafbfe; /* cool fluorescent header band above the burn boundary */
+  --color-content-white: #ffffff; /* hero surface + beam interior below the burn boundary */
 }
 
 body {
@@ -27,6 +36,45 @@ body {
 .bignum {
   font-family: "Source Sans Pro", "Source Sans 3", ui-sans-serif, system-ui,
     sans-serif;
+}
+
+/* ── Daylight Projector: pinned Tier-A geometry defaults (#15, design §5.2 / AC10). ──
+   These are the "sensible defaults" the HeaderProjector reads as `var(--projector-*)`
+   so the v1 landing render is ONE CONFIGURATION with NO inline geometry magic numbers
+   at the call site. The component's `geometry` prop overrides any of these per-instance
+   (the future shared-header rollout drives them; the dynamic behavior is NOT built — the
+   API shape only). Values map the strip-canvas numbers (VISUAL_IDENTITY §4.3) to the real
+   landing header band, per design §4.2 (OQ-1/OQ-4 resolved to these). */
+.header-projector {
+  --projector-beam-tan: 0.6; /* beamSlope — variant-01 arm angle */
+  --projector-cross-up: 28px; /* beamCrossUp — crossbar height above burnY */
+  --projector-edge-inset: 17px; /* beamEdgeInset — crossbar end inset before off-page */
+  --projector-burn-y: 168px; /* burnY — content boundary where the beam burns to white */
+  --projector-seam-ratio: 0.5; /* seamRatio — 0.5 = centered lockup (single-column hero) */
+  /* projectionX defaults to the content-column center via layout (the lockup is centered
+     as a unit), not a px var — see HeaderProjector (design §4.3). fullBleed = true is the
+     Tier-A default (the gold border runs off both real page edges); expressed by the
+     full-width beam SVG rather than a numeric token. */
+}
+
+/* The serif "Wiki"/"pedia" reuse the article Georgia stack (no new font — VISUAL_IDENTITY
+   §4.1 / §7.5). On web-font failure Georgia is a near-universal system serif. */
+.projector-serif {
+  font-family: Georgia, "Times New Roman", serif;
+}
+
+/* Forced-colors / high-contrast: the burn-to-white + gold treatment cannot survive a forced
+   palette (design §8.5 / VISUAL_IDENTITY §7.5). Force the flat Tier-C lockup so the SHAPE
+   (serif "Wiki" + bordered "+" block) carries recognition; drop the beam/band/lit aperture at
+   every width. Driven purely by the media query — no JS. */
+@media (forced-colors: active) {
+  .forced-colors-flat .tier-a,
+  .forced-colors-flat .tier-b {
+    display: none !important;
+  }
+  .forced-colors-flat .tier-c {
+    display: block !important;
+  }
 }
 .bignum {
   font-weight: 900;
