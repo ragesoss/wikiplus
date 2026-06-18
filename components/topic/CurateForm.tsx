@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState, type RefObject } from "react";
 import {
   ACCURACY_LABEL,
   ACCURACY_ORDER,
@@ -43,6 +43,7 @@ export function CurateFields({
   initialNote = "",
   initialStance = "explainer",
   initialAccuracy = "accurate",
+  noteRef,
 }: {
   sections: { slug: string; title: string }[];
   defaultSection?: string;
@@ -74,6 +75,12 @@ export function CurateFields({
   initialStance?: Stance;
   /** EDIT pre-fill: the clip's current accuracy flag (defaults to the add default). */
   initialAccuracy?: AccuracyFlag;
+  /**
+   * Optional ref onto the Context note textarea so a parent can move focus to it on reveal
+   * (issue #64, design §5/§7/§12.3: AddModal lands focus on the note when a media source resolves
+   * or a placeholder is accepted). Unused by the Promote/Edit flows.
+   */
+  noteRef?: RefObject<HTMLTextAreaElement | null>;
 }) {
   const [note, setNote] = useState(initialNote);
   // The agreement is UNCHECKED ON OPEN every time — a fresh per-submit act (design §3.1 / §4.1,
@@ -118,6 +125,7 @@ export function CurateFields({
     <div className="space-y-4">
       <Field label="Context note">
         <textarea
+          ref={noteRef}
           name="note"
           rows={3}
           maxLength={NOTE_MAX}

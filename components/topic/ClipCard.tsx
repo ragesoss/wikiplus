@@ -94,28 +94,12 @@ export function ClipCard({
 
       <VideoThumb video={clip} onPlay={() => onPlay(clip)} />
 
-      {/* creator credit (CURATION §5.2) */}
-      <a
-        href={clip.creator.url}
-        target="_blank"
-        rel="noopener"
-        className="mt-2 flex items-center gap-2"
-      >
-        <span
-          aria-hidden
-          className={`h-7 w-7 shrink-0 rounded-full border-2 border-ink bg-gradient-to-br ${
-            clip.creator.avatarGrad ?? "from-brand to-violet"
-          }`}
-        />
-        <span className="min-w-0">
-          <span className="block truncate text-[12px] font-bold text-ink">
-            {clip.creator.name}
-          </span>
-          <span className="block truncate text-[11px] text-muted">
-            {clip.creator.handle} · {clip.platformLabel}
-          </span>
-        </span>
-      </a>
+      {/* creator credit (CURATION §5.2 / C10). The credit links OUT to the creator when there is a
+          real `creator.url`. For an UNRESOLVED add-by-link clip (issue #64, C10) `creator.url` is
+          absent — the credit must NOT render a dead/empty outbound link, so it degrades to a
+          non-linked span (the read-path realization of "no fake/dead creator link"; design §7). The
+          handle is shown only when present — an unresolved clip carries none (name-only). */}
+      <CreatorCredit clip={clip} />
 
       {/* Held "in review" marking (D5b, design §3.2 / CURATION §7.1) — ABOVE the chips, so it reads
           as a status banner for the whole vouch. Rendered ONLY when the clip is held; a published
@@ -208,4 +192,50 @@ export function ClipCard({
       />
     </article>
   );
+}
+
+/**
+ * The creator credit (CURATION §5.2 / C10). Links OUT to the creator's platform when `creator.url`
+ * is present; otherwise (an UNRESOLVED add-by-link clip — issue #64) degrades to a NON-LINKED span
+ * so the card never renders a dead/empty outbound link (design §7, the read-path realization of
+ * C10's "no fake/dead creator link"). The "{handle} · {platform}" line drops the handle when it is
+ * absent (an unresolved clip carries no handle — name-only credit, C10), showing the platform alone.
+ */
+function CreatorCredit({ clip }: { clip: Clip }) {
+  const avatar = (
+    <span
+      aria-hidden
+      className={`h-7 w-7 shrink-0 rounded-full border-2 border-ink bg-gradient-to-br ${
+        clip.creator.avatarGrad ?? "from-brand to-violet"
+      }`}
+    />
+  );
+  const text = (
+    <span className="min-w-0">
+      <span className="block truncate text-[12px] font-bold text-ink">
+        {clip.creator.name}
+      </span>
+      <span className="block truncate text-[11px] text-muted">
+        {clip.creator.handle
+          ? `${clip.creator.handle} · ${clip.platformLabel}`
+          : clip.platformLabel}
+      </span>
+    </span>
+  );
+
+  if (clip.creator.url) {
+    return (
+      <a
+        href={clip.creator.url}
+        target="_blank"
+        rel="noopener"
+        className="mt-2 flex items-center gap-2"
+      >
+        {avatar}
+        {text}
+      </a>
+    );
+  }
+  // No outbound link (unresolved credit, C10): a non-linked span, never an empty/dead <a>.
+  return <span className="mt-2 flex items-center gap-2">{avatar}{text}</span>;
 }

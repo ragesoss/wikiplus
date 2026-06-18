@@ -186,21 +186,33 @@ These are decisions the build loop must *land and record* (in this spec and, if 
   `thumbnailUrl` (falling back to the existing `i.ytimg.com/.../hqdefault.jpg` derivation already in
   the parser). This is **independent of** the YouTube Data API search key.
 
-- **D-TikTok — resolve or graceful placeholder.** Dev/UX decide whether TikTok oEmbed
-  (`https://www.tiktok.com/oembed?url=…`) is practical enough to resolve real metadata in this loop.
-  If yes, TikTok resolves like YouTube (AC6 first arm). If not practical (CORS, script/embed
-  fragility, reliability), TikTok lands on the **clearly-labeled graceful placeholder** (AC6 second
-  arm), with the MVP limitation visible to the curator — consistent with TikTok being already
-  partial in the product (auto-suggestion deferred per ARCHITECTURE). **Record which arm was
-  chosen** in this spec or ARCHITECTURE. Either arm satisfies AC6.
+- **D-TikTok — resolve or graceful placeholder. LANDED (issue #64 build loop): the placeholder
+  arm (state G).** Following the UX recommendation (design §8), **only YouTube resolves** this
+  loop; a recognized **TikTok / Instagram / other** link goes straight to the clearly-labeled
+  graceful placeholder (state E) plus an MVP-limitation line — "We don't fetch {Platform} video
+  details yet — you can still add and curate this clip." — and **no "Try again"** (retrying won't
+  help; it is a support limitation, not a transient error). Rationale: TikTok oEmbed is markedly
+  less reliable for our use (CORS posture, `author_url`/thumbnail availability, embed-script
+  fragility — TikTok auto-suggestion is already deferred per ARCHITECTURE for the same reason); a
+  consistent, honest placeholder is a calmer MVP experience than an intermittently-working resolve.
+  The resolver (`lib/embed/oembed.ts` `resolveOEmbedAction`) returns `{ ok: false, reason:
+  "unsupported" }` for any non-YouTube platform and makes **no fetch**. C10's honesty rule
+  guarantees the placeholder reads as unresolved (no fabricated name, no fake link, no false
+  "resolved via oEmbed"). The YouTube *failure* path (state D, "Add anyway") still drops to the same
+  placeholder. Either arm satisfies AC6; this arm is chosen for this loop.
 
 ## Open questions for later refinement
 
-- **Where the fetch runs — client vs. server (CORS).** A browser oEmbed fetch to
-  `youtube.com/oembed` may hit **CORS**; resolving via a small **server action / route handler** is
-  a legitimate option and is the natural place to attach the descriptive User-Agent (AC8). This is a
-  **UX/Dev call** — either is acceptable as long as the ACs hold; it stays a **stateless** change
-  (no schema, no secret). Record the chosen approach.
+- **Where the fetch runs — client vs. server (CORS). LANDED (issue #64 build loop): a server
+  action.** The oEmbed resolve runs in a **Server Action** (`lib/embed/oembed.ts`
+  `resolveOEmbedAction`), not a client fetch. Rationale: YouTube's oEmbed endpoint
+  (`https://www.youtube.com/oembed`) does **not** send `Access-Control-Allow-Origin`, so a browser
+  fetch CORS-fails and would push *every* add into the failure state (state D) — a regression that
+  defeats AC1. A server action sidesteps CORS entirely and is the natural home for the descriptive
+  `User-Agent` (AC8 — browsers forbid setting `User-Agent`; the server can). It stays **stateless**:
+  no schema, no secret, no read-path cache (`cache: "no-store"`), and it is **not** auth-gated /
+  rate-limited (it is a read-only metadata lookup; the *write* — the add — is still gated at
+  `addClipAction`). Recorded in `docs/ARCHITECTURE.md` ("Video handling" / "Prototype phase").
 - **The exact "proceed unresolved" affordance** (AC5): retry-only vs. an explicit "add anyway with
   a labeled placeholder" path, and the precise fallback copy/treatment. UX owns this.
 - **Thumbnail / oEmbed caching & expiry.** Whether to cache resolved metadata (e.g. the deferred

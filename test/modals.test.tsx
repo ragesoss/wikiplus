@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { PlayerModal } from "@/components/topic/PlayerModal";
@@ -6,6 +6,15 @@ import { CurateModal } from "@/components/topic/CurateModal";
 import { AddModal } from "@/components/topic/AddModal";
 import type { SubmitOutcome } from "@/components/topic/useCurateSubmit";
 import type { Candidate, Clip } from "@/lib/data/types";
+
+// The add-by-link metadata resolve runs through a server action (issue #64 — the recorded CORS
+// decision). Mock it so the modal's resolved/failure/unsupported branches are exercised without a
+// live network. Default: a clean YouTube resolve (state C). Per-test `mockResolvedValueOnce` covers
+// the failure (state D) and unsupported (state G) arms.
+const resolveOEmbed = vi.hoisted(() => vi.fn());
+vi.mock("@/lib/embed/oembed", () => ({
+  resolveOEmbedAction: resolveOEmbed,
+}));
 
 const sections = [
   { slug: "glycolysis", title: "Glycolysis" },
@@ -234,7 +243,21 @@ describe("CurateModal — Promote target (AC19 / CURATION §1–§5; D1)", () =>
   });
 });
 
-describe("AddModal — add by link (AC18 / AC19; D1)", () => {
+describe("AddModal — add by link (AC18 / AC19; D1, extended for #64 metadata resolve)", () => {
+  // Default: a clean YouTube resolve (state C). Per-test overrides cover D/G.
+  beforeEach(() => {
+    resolveOEmbed.mockReset();
+    resolveOEmbed.mockResolvedValue({
+      ok: true,
+      meta: {
+        title: "Real Knife Sharpening Guide",
+        authorName: "Sharp Channel",
+        authorUrl: "https://www.youtube.com/@sharpchannel",
+        thumbnailUrl: "https://i.ytimg.com/vi/abc123/hqdefault.jpg",
+      },
+    });
+  });
+
   function renderAdd(onSubmit: ReturnType<typeof makeOk> = makeOk(), onClose = vi.fn()) {
     render(
       <AddModal
@@ -247,22 +270,31 @@ describe("AddModal — add by link (AC18 / AC19; D1)", () => {
     return { onSubmit, onClose };
   }
 
-  it("shows an error alert for an unrecognized link, hiding the curate fields (never persists — AC5)", async () => {
+  it("shows an error alert for an unrecognized link, hiding the curate fields (never persists — AC9)", async () => {
     const onSubmit = makeOk();
     renderAdd(onSubmit);
     await userEvent.type(screen.getByRole("textbox"), "https://evil.test/x");
     await userEvent.click(screen.getByRole("button", { name: "Fetch details" }));
     expect(screen.getByRole("alert")).toHaveTextContent(/Unrecognized link/);
     expect(screen.queryByRole("combobox", { name: "Stance" })).toBeNull();
+    // The metadata resolve must NOT run for an unrecognized link (parse-first — AC9).
+    expect(resolveOEmbed).not.toHaveBeenCalled();
     expect(onSubmit).not.toHaveBeenCalled();
   });
 
-  it("reveals the preview + curate fields (incl. the required agreement) for a recognized YouTube link", async () => {
+  it("resolves real metadata into the preview + reveals curate fields for a recognized YouTube link (AC1/AC3)", async () => {
     renderAdd();
     const input = screen.getByPlaceholderText(/youtu\.be/);
     await userEvent.type(input, "https://youtu.be/abc123");
     await userEvent.click(screen.getByRole("button", { name: "Fetch details" }));
-    expect(screen.getByText("YouTube")).toBeInTheDocument();
+    // Real title + creator land in the preview, with the honest "Resolved via oEmbed" eyebrow (C/AC3).
+    expect(
+      await screen.findByText("Real Knife Sharpening Guide")
+    ).toBeInTheDocument();
+    expect(screen.getByText("Sharp Channel")).toBeInTheDocument();
+    expect(screen.getByText("Resolved via oEmbed")).toBeInTheDocument();
+    // The mock placeholder strings NEVER appear on a resolved clip (AC2).
+    expect(screen.queryByText(/mock preview/i)).toBeNull();
     expect(screen.getByRole("combobox", { name: "Stance" })).toBeInTheDocument();
     expect(
       screen.getByRole("checkbox", {
@@ -272,13 +304,14 @@ describe("AddModal — add by link (AC18 / AC19; D1)", () => {
     expect(screen.getByRole("button", { name: /Add & curate/ })).toBeDisabled();
   });
 
-  it("persists a recognized link: onSubmit gets the parsed-link clip + agreed=true, then closes (AC4)", async () => {
+  it("persists the REAL resolved metadata: onSubmit gets the real caption/creator/thumb, no mock strings (AC1/AC2/AC3)", async () => {
     const onSubmit = makeOk();
     const onClose = vi.fn();
     renderAdd(onSubmit, onClose);
     await userEvent.type(screen.getByPlaceholderText(/youtu\.be/), "https://youtu.be/abc123");
     await userEvent.click(screen.getByRole("button", { name: "Fetch details" }));
-    // Fill the note (revealed after a recognized link) + agree.
+    // Wait for the resolved preview, then fill the note + agree.
+    await screen.findByText("Real Knife Sharpening Guide");
     const note = screen.getByPlaceholderText(/Separate fact/);
     await userEvent.type(note, "A clip the suggester missed.");
     await userEvent.click(
@@ -297,7 +330,19 @@ describe("AddModal — add by link (AC18 / AC19; D1)", () => {
       embedUrl: "https://www.youtube-nocookie.com/embed/abc123",
       watchUrl: "https://youtu.be/abc123",
       contextNote: "A clip the suggester missed.",
+      // The REAL resolved metadata (AC2), not the mock.
+      caption: "Real Knife Sharpening Guide",
+      thumbnailUrl: "https://i.ytimg.com/vi/abc123/hqdefault.jpg",
     });
+    expect(clip.creator).toMatchObject({
+      name: "Sharp Channel",
+      handle: "@sharpchannel", // derived like the candidate pipeline (C10).
+      url: "https://www.youtube.com/@sharpchannel",
+    });
+    // The mock strings must NOT appear on a resolved clip (AC2).
+    expect(clip.caption).not.toBe("Pasted clip (mock preview)");
+    expect(clip.creator.handle).not.toBe("pasted");
+    expect(clip.creator.name).not.toBe("Pasted YouTube clip");
     expect(onClose).toHaveBeenCalled();
   });
 });
