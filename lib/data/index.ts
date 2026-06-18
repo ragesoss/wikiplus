@@ -7,10 +7,12 @@ import {
   getContributorByUsernameAction,
   getTopicAction,
   getTopicByTitleAction,
+  holdClipAction,
   listClipsAction,
   listClipsByContributorAction,
   listTopicsAction,
   recordDismissalAction,
+  reviewClipAction,
   toggleUpvoteAction,
   updateClipAction,
   upsertTopicAction,
@@ -59,6 +61,13 @@ const clientStore: DataStore = {
   updateClip: (id, patch, _agreement, noteLicenseAgreed) =>
     updateClipAction(id, patch as ClipEditPatch, noteLicenseAgreed),
   deleteClip: (id) => deleteClipAction(id),
+  // D5b (issue #58): the review-hold writes. The seam's `setClipVetted(id, vetted)` routes to the
+  // two ROLE-GATED Server Actions — `reviewClipAction` (approve, moderator-only) when setting
+  // vetted=true, `holdClipAction` (hold, moderator-or-own-curator) when setting vetted=false. The
+  // client passes only the clip id + the target state; the server resolves the role and gates the
+  // write (the host's runHold/runApprove call this — never a client role flag).
+  setClipVetted: (id, vetted) =>
+    vetted ? reviewClipAction(id) : holdClipAction(id),
   // Public contributor profile reads (issue #54 / D3) — anonymous, like `listClips`.
   getContributorByUsername: (username) =>
     getContributorByUsernameAction(username),

@@ -93,6 +93,22 @@ export const clip = pgTable("clip", {
   /** Decorative relative-date label carried by the seed (e.g. "2 days ago"). */
   curatedAt: text("curated_at"),
 
+  // ── Review-state / vouch hold (issue #58 / D5b — Decision 1, AC1/AC6) ──────────────────
+  // The "is this clip's vouch reviewer-confirmed?" flag — the THIRD clip-state (CURATION §7.1
+  // / Decision C8). `vetted = true` ≙ PUBLISHED / live / fully curated (carries the site's full
+  // vouch); `vetted = false` ≙ HELD / "in review · not yet vouched" (a real curated clip — note
+  // + chips + curator intact — whose vouch a reviewer has not yet confirmed). This is DISTINCT
+  // from `Candidate.vetted: false` in lib/data/types.ts: a candidate is an auto-suggested
+  // suggestion that is NOT a clip row (no note, no chips, no curator); this is a property of a
+  // real `clip` row. `NOT NULL DEFAULT true` so every NEW add publishes by default (D1 Decision
+  // D1-2 preserved — the hold is an available action, never auto-on) AND every existing/seeded
+  // clip backfills to PUBLISHED when the column lands (the column default + the migration's
+  // non-null backfill) so NO live clip goes dark (AC6). The held-state rides the clip read
+  // (`listClips` → the client `Clip.held` flag — Decision 4); the cached read path does NO
+  // per-user work to render it. Hold/approve are role-gated SERVER-SIDE in lib/server/actions.ts
+  // (hold = moderator OR the clip's own curator; approve = moderator-only — Decision 3 / AC4/AC5).
+  vetted: boolean("vetted").notNull().default(true),
+
   // ── Note-license agreement (issue #52 / D1 — Decision D1-1, AC7) ───────────────
   // The contributor's per-submit CC BY-SA agreement, captured at publish time. A
   // VERSION STRING (not a bare boolean) so a future license bump is expressible
@@ -140,6 +156,19 @@ export const contributor = pgTable("contributor", {
   handle: text("handle").notNull(),
   displayName: text("display_name"),
   avatarUrl: text("avatar_url"),
+  // ── Moderator/reviewer role (issue #58 / D5b — Decision 2, the shared prerequisite D5c reuses) ──
+  // The minimal binary privileged role: `true` ⇒ this contributor is a moderator/reviewer (may
+  // approve a held clip and hold any clip — CURATION §7.1). `NOT NULL DEFAULT false` so EVERY
+  // existing/new contributor is a non-moderator until granted — the safe default; the feature
+  // ships GREEN with NO moderator existing (the role-gate simply rejects everyone until one is
+  // granted). NO in-app admin UI grants this (out of scope). It is granted OUT-OF-BAND, two ways
+  // (either suffices; the action OR-combines them server-side — see lib/auth/moderators.ts):
+  //   (a) a manual DB flag — an owner/ops sets `is_moderator = true` on a `contributor` row
+  //       directly (e.g. `psql`), OR
+  //   (b) the `WIKIPLUS_MODERATORS` env allowlist of Wikimedia usernames, resolved server-side
+  //       into the `isModerator` session claim at login + re-checked at the write boundary.
+  // The role-gate's AUTHORITY is always SERVER-SIDE — never a client-supplied flag (Decision 2).
+  isModerator: boolean("is_moderator").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),

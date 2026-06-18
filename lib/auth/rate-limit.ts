@@ -44,7 +44,12 @@ export type WriteKind =
   | "upvote"
   | "dismiss"
   | "edit"
-  | "delete";
+  | "delete"
+  // D5b (issue #58): the two role-gated review-hold writes. Counted gated writes like the rest —
+  // they draw from the SAME shared per-identity budget; `kind` is recorded so a future per-action
+  // split needs no schema change (the `write_event.kind` column already exists — no migration).
+  | "hold"
+  | "review";
 
 /**
  * The default per-identity cap (Product Decision 2): N writes per window W. Tuned high enough that
