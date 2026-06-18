@@ -60,7 +60,10 @@ revised to embody them. Where a finding overrides a previously committed rule, i
    page only.** The Topic-page tiers in `VISUAL_IDENTITY` are unchanged; this override is scoped to the
    free-standing full-bleed landing header. The mechanism that makes "beam at every width" coherent
    (not a sliver) is the **fluid beam** (§4.7) — it is already a `preserveAspectRatio="none"` full-width
-   SVG, so it scales. → §4.7, §7 (the tier table is rewritten to beam-at-every-width).
+   SVG, so it scales. → §4.7, §7 (the tier table is rewritten to beam-at-every-width). **[Iteration-3
+   correction: the "beam at every width" intent stands, but this `preserveAspectRatio="none"` stretch
+   mechanism is RETRACTED — it caused the underline; see the Iteration-3 note above + §4.7. The beam is
+   instead drawn true-scale with asymmetrical, real-length arms.]**
 4. **Remove the "Contribute" label entirely** from the landing header — gone, not relocated. → §8 (new
    header-chrome section), §11 hand-off.
 5. **Auth chrome must not fold to a second row.** With Contribute gone, the single `AuthControl
@@ -68,6 +71,53 @@ revised to embody them. Where a finding overrides a previously committed rule, i
    lockup. → §8.
 6. **Both auth states must render gracefully** — logged-out ("Log in with Wikipedia") and logged-in
    (the user's identity). → §8.
+
+---
+
+## Iteration 3 — the owner's FINAL beam model (PR #61, 3rd review) — DECISIONS, design to these
+
+The owner reviewed the Iteration-2 build again and the beam **still reads as a flat "gold underline"**
+(`docs/design/landing-page-screenshots/landing-desktop-tierA.png`, `projector-detail.png`) next to the
+mockup (`mockup-reference-solo01.png`). The **root cause is now understood and confirmed in code**, and
+the spec itself prescribed the bug: §4.7 told Dev to draw the beam as **one full-width SVG with
+`preserveAspectRatio="none"` and a fixed `viewBox` width (`VBW=1000`) mapped to 100%**, "so only `cw`
+varies." That mechanism **uniformly stretches the whole beam horizontally** (~2.5× at desktop): the
+narrow stem balloons into a wide blob, and the angled crossbar arms flatten toward horizontal — which is
+*exactly* a flat full-width gold line with a tiny bump = the "underline." **That §4.7 stretch approach is
+RETRACTED.** The correct model — the owner's decisions, spec these exactly:
+
+1. **Apex locked to the aperture.** The beam always originates from the lit "+" cutout, at the cutout's
+   x — wherever the cutout sits. The apex is not an independent coordinate; it *is* the aperture.
+2. **The aperture can be anywhere horizontally — NOT locked to center.** Its x is **layout-driven**:
+   centered on desktop (auth in the corner, one row), left-anchored at narrow widths (auth on the
+   right, one row). The apex tracks it wherever it lands.
+3. **Stem width = the "+" cutout width, drawn at TRUE 1:1 pixel scale.** The central stem + the angled
+   flare up to the crossbar are **never horizontally stretched.** (This replaces the
+   `preserveAspectRatio="none"` whole-shape stretch.)
+4. **Crossbar arms are ASYMMETRICAL.** Each arm runs horizontally from the apex/crossbar out to **its
+   own real page edge**; the left-arm length and right-arm length are **independent**, so an off-center
+   apex yields a short arm on one side and a long arm on the other. **Arm length is the variable
+   parameter that adapts to layout/width** — it is the *only* horizontal thing that changes.
+5. **Angle is fixed** at the mockup's `tan = 0.6` for now (a parameter that *may* vary later — "maybe").
+6. **So the ONLY things that vary by layout are the aperture/apex x and the two (asymmetrical) arm
+   lengths.** Stem width, the flare angle, and all vertical proportions are **FIXED / true-scale.**
+
+Plus two more requirements this iteration locks:
+
+- **Narrow-width = ONE row (this replaces the top-strip).** At narrow widths the lockup and the single
+  `AuthControl` share **one header row** (lockup left, auth right). The beam apex follows the now
+  off-center (left-anchored) aperture, producing a short left arm + a long right arm (decision 4). There
+  is **no top strip and no folded second row at any width.** At desktop the lockup may remain centered
+  with auth in the corner (still one row). → §4.3, §7, §7.5.
+- **Restore the lamp glow.** The lit "+" aperture must read as a **white-hot GLOWING lamp with bloom
+  spilling onto the indigo** (per the mockup's `?solo=01`), **not a flat white cutout.** The build's
+  aperture lost its luminosity, which is part of why the gold edge reads flat. Strengthen the core
+  glow / screen-blend bleed so the lit aperture matches the mockup. → §4.6 (renamed to the lamp section).
+
+These supersede the Iteration-2 §4.7 "fluid beam (stretch)" mechanism wherever they conflict. The
+*intent* of Iteration 2 (beam at every width, tight seam, tight composition, no underline, no
+Contribute, one-row auth, both auth states) is unchanged — only the **mechanism that draws the beam** is
+corrected, plus the aperture is freed from center-lock and the lamp glow is restored.
 
 ---
 
@@ -143,11 +193,15 @@ so the beam reads as projecting *onto* the search (Iteration-2 finding 2). Top t
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
-The crossbar's bracket arms widen off both page edges and **continue past `burnY`** so the
-burnt-to-white region they enclose contains the "Find a topic" label + the search field — the search
-literally sits **inside the projected "+"**, the way the mockup's article hint sits inside the
-brackets immediately below the boundary. That enclosure is what stops the gold edge reading as an
-"underline" (Iteration-2 finding 2).
+The crossbar's bracket arms run horizontally **from the apex out to each real page edge** (each arm an
+independent length — §4.7 / Iteration-3 decision 4) and **continue past `burnY`** so the burnt-to-white
+region they enclose contains the "Find a topic" label + the search field — the search literally sits
+**inside the projected "+"**, the way the mockup's article hint sits inside the brackets immediately
+below the boundary. That enclosure is what stops the gold edge reading as an "underline" (Iteration-2
+finding 2). On desktop the apex is centered, so both arms are roughly equal; at narrow widths the apex
+is off-center (lockup left, §7.5), so one arm is short and the other long — the "+" is asymmetrical but
+still legibly a projected "+" because the **stem and flare angle are true-scale and never stretched**
+(Iteration-3 decision 3/5).
 
 **Hierarchy (what makes search the focus — AC1):**
 
@@ -246,10 +300,10 @@ short cone), `burnY` is the band that puts the search *immediately inside* the b
 | header field → content boundary `pageY` | `150px` of `250` | **`burnY` ≈ `150px`** from the top of the header band (default token `--projector-burn-y`) | Matches the mockup's `pageY=150` directly. Tall enough to flare; short enough that the gold edge isn't a far-off line. The search sits just below it (§4.4). |
 | wordmark row center `cyMid` | `64px` | **`64px`** from header top (matches the mockup) | Lockup sits with its block bottom at ≈`92px`; leaves a **short** cone (≈`86px → crossY`) so the cone reads as a recessed-lamp beam, not a long empty corridor. |
 | block height `bh` | `56px` | **`56px`** (unchanged) | The lockup is identity-fixed; don't scale the block with the header. "Wiki" stays `42px` Georgia 600 / "plus" stays `round(bh·0.46)≈26px`. |
-| beam slope `tan` | `0.6` | **`0.6`** (default token `--projector-beam-tan`) | The variant-01 angle; keep it. At narrow widths the slope is unchanged but the apex→edge distance shrinks, so the cone reaches the edges sooner — the fluid-beam mechanism (§4.7). |
+| beam slope `tan` | `0.6` | **`0.6`** (default token `--projector-beam-tan`) | The variant-01 angle; **FIXED, drawn true-scale, never flattened by width** (Iteration-3 decision 5). At narrow widths the stem + angle are unchanged; only the two arm lengths shrink/grow (asymmetrically) — the true-scale beam mechanism (§4.7). |
 | crossbar inset `eM` | `17px` | **`17px`** (default token) | The crossbar ends sit `17px` from each page edge, then the brackets continue off-page — the off-page gold border (§4.5). |
-| beam horizontal apex (projection x) | `seam` (= `cw/2`) | **the lockup's aperture center** (see §4.3) | The beam projects *from the lamp*, onto the search below. |
-| full page width | `cw` | **live viewport width** (the header is full-bleed) | The gold border must run off *both real page edges*; a boxed header would make it read as an underline. |
+| beam horizontal apex (projection x) | `seam` (= `cw/2`) | **the lockup's aperture x — wherever the aperture sits** (see §4.3; centered on desktop, left at narrow widths) | The beam projects *from the lamp*, onto the search below. Apex is locked to the aperture, not to center (Iteration-3 decision 1/2). |
+| full page width | `cw` | **live viewport width** (the header is full-bleed) | The gold border must run off *both real page edges*; a boxed header would make it read as an underline. **`cw` is read at TRUE 1:1 scale — the beam is NOT a fixed `viewBox` stretched to fit (Iteration-3, §4.7).** The crossbar arms reach the real edges by being drawn the real arm-length, not by scaling the shape. |
 
 **Flare distance + the tight composition (the fix for finding 2).** Beam top `top0 = blockBottom +
 6px`; with `cyMid=64` and `bh=56`, `blockBottom = 92px`, so `top0 = 98px`. The crossbar sits `crossUp`
@@ -262,27 +316,37 @@ cone, crossbar near the boundary, and **the search field's top within ~`16–24p
 "Find a topic" label + field sit *inside* the bracket arms (§4.4). Below `burnY` the beam is pure
 white and *is* the hero/search surface; the clip at `burnY` is invisible because white meets white.
 
-### 4.3 Default seam position for the single-column hero — DECISION
+### 4.3 Aperture/apex position — layout-driven, NOT center-locked (Iteration-3 decisions 1 & 2)
 
-The landing page has **no column divider** to align to, so the seam position is a free choice. **The
-seam (and thus the whole lockup + the beam apex) is placed at the horizontal center of the centered
-content column, NOT the center of the full-bleed viewport.**
+**The apex is locked to the aperture; the aperture's x is driven by the header layout — it is NOT
+hard-locked to center.** Wherever the lit "+" cutout lands in the header row, the beam originates there.
+This replaces the Iteration-2 rule that pinned the apex to the content-column center at every width.
 
-- **Justification.** (a) The search field, the explanation, and the topic list are all centered in
-  the content column; centering the lockup over that column means the **beam projects straight down
-  onto the search field** — the metaphor ("the plus projects onto the front door") lands literally.
-  (b) The gold border still runs off *both viewport edges* (it spans the full-bleed header at
-  `burnY`), so the off-page signal is intact even though the lockup is column-centered. (c) It reads
-  as deliberate composition, not an off-center accident.
-- **Concretely:** `projectionX` (the beam apex x, a geometry prop — §5.2) defaults to the content
-  column's center; the lockup is laid out so its **aperture center** sits at that x. The lockup as a
-  whole is centered as a unit (serif "Wiki" to the left of the seam, the zine block to the right),
-  matching the mockup's `seam = cw/2` *within the content column* rather than the full viewport.
+- **Where the aperture sits, per breakpoint (the layout drives it — §7.5):**
+  - **Desktop (`≥ md`): centered.** The lockup is centered in the header row (auth pinned in the
+    top-right corner, one row), so the aperture sits at the **content-column center** and the apex is
+    centered. Both crossbar arms are then roughly equal length. The metaphor ("the plus projects onto
+    the front door") lands literally because the search column is centered too.
+  - **Narrow (`< md`): left-anchored.** The lockup sits at the **left** of the one header row and the
+    single auth control sits at the right (one row — §7.5). The aperture is therefore **left of center**,
+    and the apex follows it. The crossbar's **left arm is short** (apex→left edge) and the **right arm is
+    long** (apex→right edge) — the asymmetry of Iteration-3 decision 4. This is correct, not an
+    off-center accident.
+- **What stays true at every aperture position:** the gold border still runs off **both real page
+  edges** at `burnY` (`fullBleed=true` always on the landing page), so the off-page signal is intact
+  whether the apex is centered or left. The stem under the lamp and the flare angle are **true-scale and
+  identical** at every position; only the two arm lengths differ (§4.7).
+- **Concretely:** `projectionX` (the beam apex x, a geometry prop — §5.2) **= the live aperture x** for
+  the current layout. It is no longer a static "content-column center" constant; it is resolved from the
+  lockup's actual placement (centered vs. left) — see §4.3-seam for the SSR-safe way to land the apex on
+  the aperture without DOM measurement at first paint. The apex and the aperture are the same point by
+  construction.
 - **Forward note:** on a future two-column Topic page the same prop is driven by the real wiki/plus
-  column divider (a column-ratio, §5.2 / VISUAL_IDENTITY §6.0). On the landing page it is simply
-  "content-column center." Both are *the same prop, different value* — which is the point of AC10.
+  column divider (a column-ratio, §5.2 / VISUAL_IDENTITY §6.0). On the landing page it is driven by the
+  lockup's per-breakpoint anchoring (centered/left). Both are *the same prop, different driver* — which
+  is the point of AC10.
 
-**The tight seam — DECISION (Iteration-2 finding 1, the root-cause fix).** In `buildScene()` the
+<a id="seam"></a>**The tight seam — DECISION (Iteration-2 finding 1, the root-cause fix).** In `buildScene()` the
 block's left edge sits **at the seam** (`bx = seam`), and the seam is "Wiki"'s right edge — so the
 indigo block **butts directly against the serif with no gap**. The build broke this by pinning "Wiki"
 to a fixed `WIKI_W = 110px` over-estimate ("to keep a comfortable gap") that pushed the block right of
@@ -302,14 +366,22 @@ the actual serif glyphs, opening a gap in which the ghost "Wikipedia"'s own "p" 
   *guessed* "Wiki"'s width with a deliberate over-estimate. Use one of (Dev's call, both SSR-safe):
   (a) lay the lockup out as a shrink-to-fit `inline-flex` row — "Wiki" is an unsized inline span, the
   block follows with no left padding — so the seam is tight regardless of the precise glyph width and
-  no constant is load-bearing for the gap; the beam apex then tracks the aperture via the same flow
-  (the aperture's x = "Wiki" intrinsic width + block border + cut inset, resolved by layout, not a
-  magic 110). Or (b) if a concrete apex x is needed for the SSR'd SVG path, anchor the *whole lockup*
-  to the beam apex by centering it as a unit and offsetting by the **measured-once** half-lockup width
-  exposed as a CSS custom property, with a tight Georgia-600-42px "Wiki" estimate (~`95px`, the real
-  glyph advance — **not** an inflated 110) as the no-JS fallback. Approach (a) is preferred: it removes
-  the magic constant entirely and cannot reintroduce a gap. The seam being tight is the hard
-  requirement; how the apex is computed is the implementation detail.
+  no constant is load-bearing for the gap; the aperture's x = (lockup left x) + "Wiki" intrinsic width +
+  block border + cut inset, resolved by layout, not a magic 110. Or (b) if a concrete apex x is needed
+  for the SSR'd SVG path, offset the lockup from its anchor (centered on desktop / left at narrow
+  widths) by the **measured-once** "Wiki"-advance + block-margin + cut-inset exposed as a CSS custom
+  property, with a tight Georgia-600-42px "Wiki" estimate (~`95px`, the real glyph advance — **not** an
+  inflated 110) as the no-JS fallback. Approach (a) is preferred: it removes the magic constant entirely
+  and cannot reintroduce a gap. The seam being tight is the hard requirement; how the apex is computed
+  is the implementation detail.
+- **The apex must reach the aperture x wherever the lockup is anchored (Iteration-3 decision 1/2).**
+  Because the aperture moves between centered (desktop) and left (narrow), the value handed to the beam
+  (`projectionX` / the SVG's apex-x) must be the **live aperture x in the current layout**, not a static
+  half-width. With approach (a) the same flow that places the aperture also yields its x; expose that x
+  to the beam (e.g. a CSS custom property `--projector-apex-x` updated per layout, or read once after
+  layout) and the beam's two arm endpoints are computed from it (left arm: apex→`edgeInset`; right arm:
+  apex→`cw−edgeInset`). The apex-on-aperture alignment is the requirement; the technique is Dev's call,
+  but it must hold at **both** the centered desktop and the left-anchored narrow layouts within ~`2px`.
 
 ### 4.4 The two-temperature surface in the hero
 
@@ -359,59 +431,128 @@ edge-glow (`drop-shadow(0 0 4px …) drop-shadow(0 0 11px …)`) lives **only at
 at `burnY`** so it never bleeds onto the white hero below. This is the single visible light signal;
 the hero interior is plain white.
 
-### 4.6 The aperture, bleed, rim, and "pedia" ghost
+### 4.6 The lit aperture — a GLOWING lamp, not a flat cutout (Iteration-3: restore the glow)
 
-Render per VISUAL_IDENTITY §5.3–§5.5 exactly: white-hot `44×44` radial core; the gold **rim** is an
-SVG stroke on the "+" path clipped to the interior (gold at the edge, clips to white inward — *not* a
-circular glow); the **"+"-outline bleed** is two screen-blended blurred "+" shapes (a no-op over the
-white cut, showing only where it spills onto the indigo); the **"pedia" ghost** is Georgia 600 42px
-`#000` @ `~.24` opacity, `blur 1.45px`, **anchored at the seam behind the cut** (§4.3 — covered by the
-block, glimpsed only through the aperture, never floating in a gap). On the landing page the lockup is
-**centered in the content column** and the block covers the ghost from the seam rightward, so "pedia"
-never clips at the viewport edge regardless of width — it lives entirely behind the block. The ghost
-therefore **renders at every width** (no longer dropped on narrow — see §4.7 / §7).
+The lit "+" aperture must read as a **white-hot lamp glowing through the block, with bloom spilling
+onto the indigo** — matching the mockup's `?solo=01` (`mockup-reference-solo01.png`). The Iteration-2
+build lost this: its aperture reads as a **flat white cutout** with no luminosity, which is part of why
+the gold edge reads flat (the eye gets no "this is a light source" cue at the apex). **Restore the glow
+to the mockup's luminosity.** Render per VISUAL_IDENTITY §5.3–§5.5 and the mockup's `buildScene()`
+*exactly* — these four layers together make the lamp, and **none may be dropped or weakened:**
 
-### 4.7 The fluid beam — present at EVERY width (Iteration-2 finding 3, owner override)
+1. **White-hot radial core** — a `44×44` radial-gradient core behind the cut: `#ffffff` from 0% to 74%,
+   warming only at the very rim (`mix(GOLD_FILL, 0.5)` at 93%, `mix(GOLD_FILL, 0.22)` at 100%). The
+   interior reads as **blown-out white**, brightest at center — an over-exposed lamp, not a paper cutout.
+2. **Gold rim** — an SVG stroke on the "+" path, clipped to the interior and blurred (`stdDeviation
+   0.85`): gold brightest right at the edge, clipping to white inward. **Not** a circular glow.
+3. **The "+"-outline screen-blend bleed (the spill — this is the layer the build under-rendered).** Two
+   blurred "+" shapes drawn **over** the block, `mix-blend-mode: screen`, `blur ~4px`, positioned on the
+   aperture center: a wider gold "+" (`#EECE87` @ `~.46`) and a tighter warm-white "+" (`#FFFCF6` @
+   `~.92`). Over the white cut interior `screen` is a near-no-op; the bleed shows **where it spills onto
+   the indigo block**, tracing the "+" outline. **This spill onto the indigo is the visible "glowing
+   lamp" read and must be present and strong enough to see at desktop scale** — the mockup's `o.glow =
+   0.92`, `o.glowBlur = 4` are the target intensities; do not dim them. If the live render shows a hard
+   white "+" with no warm halation onto the surrounding indigo, the bleed is too weak — strengthen it
+   toward the mockup before considering this section met.
+4. **"pedia" ghost behind the cut** — Georgia 600 42px `#000` @ `~.24` opacity, `blur 1.45px`, anchored
+   at the seam behind the block (covered by the block from the seam rightward, glimpsed only through the
+   aperture, never floating in a gap — §4.3-seam). The blown-out core washes over it so it reads as the
+   faintest dark ghost inside the lit "+".
 
-**Owner decision:** on the landing page the projector **beam is present at all viewport widths**, its
-width fluidly adapting to the viewport so it always flares to both page edges and burns into the
-search. **This overrides VISUAL_IDENTITY §6.2's `md` Tier-B beam-drop and §6.3's "stubby beam → drop"
-/ "gold off-page → full-bleed-only → else Tier B" guidance, for the landing page only.** (The
-Topic-page tiers in VISUAL_IDENTITY are unchanged; the landing header is the free-standing full-bleed
-case the override is scoped to.)
+The lockup as a unit may be **centered (desktop) or left-anchored (narrow)** (§4.3) — but in *either*
+placement the block covers the ghost from the seam rightward, so "pedia" lives entirely behind the block
+and **never clips** at the viewport edge regardless of width. The lit aperture (core + rim + spill +
+ghost) therefore **renders at every width** — no longer dropped on narrow (§4.7 / §7).
 
-**How the beam scales fluidly (the mechanism — already supported, just drive it).** The beam is one
-**full-width inline SVG** rendered with **`preserveAspectRatio="none"`** spanning the live viewport
-width (`width=100%`, `viewBox = 0 0 <cw> <burnY>`). The geometry is parameterized by `beamSlope`
-(`tan=0.6`), `crossUp` (28px), `edgeInset` (17px), `burnY` (150px) — **none of which change with
-width**; only `cw` (the viewport width) changes. The consequence is automatic and correct:
+> **Acceptance cue for the lamp (UX will check this in re-eval).** Side-by-side with
+> `mockup-reference-solo01.png`, the lit "+" must show a **glowing white core with a visible warm bloom
+> bleeding onto the indigo around it** — not a crisp flat white "+". This is the explicit gate this
+> iteration adds for the lamp, paired with the beam gate (OQ-1).
 
-- **The apex is fixed** at the aperture (content-column center). The cone half-width at the crossbar is
-  `crossUp · tan ≈ 17px` regardless of viewport — so the cone is **always a narrow stem under the
-  lamp**, never a sliver and never a wedge. Good at 320px and at 1600px.
-- **The crossbar arms always reach `edgeInset` from both real page edges** (`LX = 17`, `RX = cw-17`),
-  then the brackets turn down-and-out off-page. So the gold edge **always flares to both page edges and
-  always burns into the search** — at a narrow viewport the horizontal crossbar segment is simply
-  *shorter* (fewer px between cone and edge), at a wide viewport it is *longer*. The "+" reads at every
-  width.
-- **The vertical proportions (`burnY`, `crossUp`, cone height) stay constant**, so the beam never
-  becomes a stubby horizontal sliver as the viewport narrows — the thing that VISUAL_IDENTITY §6.3
-  warned about. The narrow case is not a degenerate beam; it is the **same beam, narrower**. This is
-  precisely why the override is safe: the fluid mechanism keeps it a legible projection.
+### 4.7 The beam — true-scale stem + fixed angle + asymmetrical arms to each real edge (Iteration-3, the root-cause fix)
 
-**Coherence at narrow widths.** The **lockup stays tight** (§4.3 — block butts "Wiki", no gap) and
-fully visible; the **aperture/rim/bleed render at every width**; the **"pedia" ghost stays behind the
-block** (§4.6, never clips). If "Wiki" + the block ever can't fit the viewport (very small phones,
-~`< 360px`), the **lockup** may scale down as a unit (font + block proportionally), but the **beam
-stays a beam** — apex on the (now-smaller) aperture, arms still to both edges. The composition
-(lockup → short cone → crossbar → search inside) holds at every width; only the crossbar's horizontal
-length and (at the smallest sizes) the lockup scale change. **No tier-drop on the landing page.**
+> **RETRACTED — the Iteration-2 stretch mechanism.** Iteration-2 §4.7 said the beam was *one full-width
+> SVG with `preserveAspectRatio="none"` and a fixed `viewBox` (`VBW=1000`) mapped to 100%, so only `cw`
+> varies.* That **uniformly stretches the entire beam shape horizontally** (~2.5× at desktop): the narrow
+> stem balloons into a wide blob and the angled arms flatten toward horizontal — producing a flat
+> full-width gold line with a small bump = the "underline." **Do not draw the beam this way. The
+> `preserveAspectRatio="none"` whole-shape stretch is removed.** What follows replaces it.
+
+**The beam is present at all viewport widths** on the landing page (this part of the Iteration-2 owner
+override stands — it still overrides VISUAL_IDENTITY §6.2's `md` Tier-B beam-drop and §6.3's
+stubby-beam/full-bleed guidance, **for the landing page only**; the Topic-page tiers are unchanged). What
+changes is *how* it adapts to width: **not by stretching, but by drawing each crossbar arm its real
+length.** The beam is three conceptually separate things composed at the apex:
+
+1. **The central stem + angled flare — drawn at TRUE 1:1 pixel scale, NEVER horizontally stretched
+   (decision 3/5).** Under the lit "+" the beam is a **narrow stem whose width = the "+" cutout width**,
+   flaring outward at the **fixed angle `beamSlope = tan = 0.6`** up to the crossbar. This is the
+   mockup's `buildScene()` geometry rendered at its real scale: the cone half-width at any height `y` is
+   `(y − apexY) · 0.6`, so at the crossbar (`crossUp = 28px` above `burnY`) the half-width is `≈ 17px` —
+   a genuinely narrow stem, **the same px width at 320px and at 1920px.** Because the stem is true-scale,
+   the flare angle reads as the mockup's ~31° off-vertical at every width — it never flattens.
+2. **The two crossbar arms — horizontal, ASYMMETRICAL, each reaching ITS OWN real page edge (decision
+   4).** From where the flare meets the crossbar, a horizontal segment runs **left** to `edgeInset` (17px)
+   from the **left** page edge, and another runs **right** to `edgeInset` from the **right** page edge.
+   **Left-arm length and right-arm length are independent**, computed from the apex x:
+   - left arm length `≈ apexX − edgeInset`
+   - right arm length `≈ (cw − edgeInset) − apexX`
+   When the apex is centered (desktop) the two are roughly equal; when the apex is left-of-center
+   (narrow, §4.3) the **left arm is short and the right arm is long.** Past `edgeInset` the brackets
+   return to the beam angle and **expand down off-page past `burnY`** (the `dn` downward expansion),
+   enclosing the content region. **Arm length is the ONLY horizontal parameter that varies with layout
+   or width** — everything else (stem width, angle, vertical proportions) is fixed.
+3. **The vertical proportions are FIXED:** `burnY = 150px`, `crossUp = 28px`, the cone height, the `dn`
+   bracket drop. They do not change with width. So the beam is never a stubby horizontal sliver and never
+   a flattened line — it is always a legible projected "+": **narrow true-scale stem under the lamp →
+   crossbar → arms to both real edges → brackets off-page enclosing the search.**
+
+**SSR-safe way to reach the real edges without stretching the stem (the requirement; technique is Dev's
+call).** The hard requirement: **the stem and flare are drawn at true pixel scale and the angle is never
+distorted, while the two horizontal arms still reach the actual viewport edges.** Because horizontal arms
+are *horizontal* — they carry no angle to distort — a horizontally-scaled element can draw them safely; it
+is **only the angled stem/flare that must not be stretched.** Two SSR-safe shapes that satisfy this (Dev
+picks; both avoid DOM measurement at first paint):
+
+- **(a) Split the beam into a true-scale center piece + plain horizontal arm bars.** Draw the central
+  stem + the two short angled flares + the small fixed-width crossbar caps as **one small SVG sized in
+  real px at the apex** (no `preserveAspectRatio` override — `viewBox` width = the element's real px
+  width, 1:1). Then draw the **two horizontal arms** as separate full-bleed elements (e.g. two `2px`-tall
+  gold rules, or a horizontally-scalable SVG that contains *only horizontal* geometry) running from the
+  crossbar caps out to each page edge — the left one `width: apexX − edgeInset`, the right one `width: cw
+  − edgeInset − apexX`, plus the off-page bracket turn-downs. The arms may scale horizontally freely
+  because they're horizontal; the **stem never does.** This is the cleanest expression of "stem true-scale,
+  arms variable-length."
+- **(b) One full-width SVG, but with `preserveAspectRatio` NOT `"none"` and a viewBox whose width = the
+  live `cw` in real px (1:1).** Use `width: 100%; height: burnY; viewBox="0 0 {cw} {burnY}"` with
+  **no** non-uniform scaling — the path coordinates are real pixels, so the apex sits at the real `apexX`,
+  the stem is `± (y−apexY)·0.6` wide in real px, and the arm endpoints are `edgeInset` and `cw − edgeInset`
+  in real px. Since `viewBox` width already equals the rendered width, there is **no horizontal scale
+  factor at all** — nothing stretches. (This is exactly what the *mockup's* `buildScene()` does: its SVG
+  `viewBox="0 0 {cw} {svgH}"` uses the real canvas width with no `preserveAspectRatio` override, so it
+  renders 1:1.) The cost is the SVG must know `cw` (a resize listener / CSS-var width), which is the
+  trade-off vs. (a). Either way: **`cw` enters as a real-px length, never as a stretch ratio.**
+
+The non-negotiable contract for Dev, regardless of technique: **the central stem width = the "+" cutout
+width and the flare angle = `0.6`, both at true 1:1 scale at every viewport width; the two horizontal arms
+are asymmetrical and each reaches `edgeInset` from its own real page edge; arm length is the only thing
+that varies.** If a render shows the stem widened or the angle flattened as the viewport changes, the
+stretch bug is back — reject it.
+
+**Coherence at narrow widths.** The **lockup stays tight** (§4.3-seam — block butts "Wiki", no gap) and
+fully visible; the **lit aperture (glowing lamp + bleed) renders at every width** (§4.6); the **"pedia"
+ghost stays behind the block** (never clips). The apex sits on the (now left-of-center) aperture, so the
+left arm is short and the right arm long — still a legible "+". If "Wiki" + the block + the auth control
+can't all fit one row at the smallest phones (~`< 360px`), the **lockup may scale down as a unit** (font +
+block proportionally, transform-origin at the aperture so the apex stays put) **before** the auth is
+allowed to wrap (§7.5) — but the **beam stays a true-scale beam** (stem width and angle scale *with the
+lockup*, not with the viewport). **No tier-drop, no top strip, no second row, at any width.**
 
 > **Recorded override.** This §4.7 + the §7 tier table replace the landing page's previous tier-drop
 > behavior. VISUAL_IDENTITY §6.2/§6.3 remain authoritative for the **Topic-page** header (shorter
 > sticky header, real two-column divider) — there the beam may still drop to Tier B/C. The two are
-> reconciled by scope: *landing = beam-at-every-width; Topic = tier-aware.* Same component, different
-> driven config (AC10).
+> reconciled by scope: *landing = beam-at-every-width (true-scale, asymmetrical arms); Topic =
+> tier-aware.* Same component, different driven config (AC10).
 
 ---
 
@@ -433,7 +574,7 @@ variant: "projector" | "lockup-lit" | "lockup-flat" | "glyph"
 
 | `variant` | Tier | Renders (per VISUAL_IDENTITY §6.2) |
 |---|---|---|
-| `"projector"` | **A** | Full treatment: lockup + lit aperture + descending beam to the burn boundary + gold border off-page + "+"-bleed + "pedia" ghost. **The landing page uses this at EVERY width** (the beam scales fluidly — §4.7). |
+| `"projector"` | **A** | Full treatment: lockup + lit GLOWING aperture (§4.6) + descending true-scale beam (narrow stem + fixed angle + asymmetrical arms to each real edge — §4.7) to the burn boundary + gold border off-page + "+"-bleed + "pedia" ghost. **The landing page uses this at EVERY width** (apex tracks the aperture; arm length adapts — §4.7). |
 | `"lockup-lit"` | **B** | Lockup + lit aperture (core + gold rim + tight bleed), **no beam** (nowhere to flare). *Topic-page* fallback only — **not used on the landing page.** |
 | `"lockup-flat"` | **C** | Plain lockup: serif "Wiki" + a flat indigo "+" block (a drawn "+" glyph is acceptable — no lamp). No beam, glow, or "pedia". *Topic-page* fallback + `forced-colors` (§8.5) — not the landing default. |
 | `"glyph"` | **D** | A single indigo "+" zine tile (the block alone) for favicon/app-icon/very-small UI. |
@@ -458,18 +599,20 @@ tokens so the call site doesn't carry magic constants):
 
 | Geometry prop | Token | Tier-A landing default | What it varies (future) |
 |---|---|---|---|
-| `beamSlope` | `--projector-beam-tan` | `0.6` | Beam arm angle — steeper/shallower flare. |
-| `beamCrossUp` | `--projector-cross-up` | `28px` | How far above `burnY` the crossbar sits (flare timing). |
-| `beamEdgeInset` | `--projector-edge-inset` | `17px` | Crossbar end inset from the page edge before brackets go off-page. |
-| `burnY` | `--projector-burn-y` | **`150px`** (was 168 — Iteration-2 finding 2, tightened to match the mockup's `pageY`) | The content boundary — where the beam burns to white. On the landing page the search sits just below it (§4.2/§4.4). |
-| `projectionX` | `--projector-projection-x` | content-column center (§4.3) | The beam apex x — **the projection's horizontal position** (page-center vs. offset; future: onto a column). |
-| `seamRatio` | `--projector-seam-ratio` | `0.5` (centered) | **The wiki/plus seam position driven by a column-ratio** — 0.5 = equal; >0.5 = Plus column wider, seam shifts left, etc. On the landing page the lockup is centered as a unit; `seamRatio` is the hook the future two-column header drives from its real column widths. |
-| `fullBleed` | `--projector-full-bleed` | `true` | Whether the gold border runs off real page edges. On the landing page this is **always `true` at every width** (the header is full-bleed; the beam is fluid — §4.7), so it never drops the off-page edge. (The Topic page may set `false` ⇒ Tier B per VISUAL_IDENTITY §6.3.) |
+| `beamSlope` | `--projector-beam-tan` | `0.6` | Beam **flare angle** (the angled stem edges) — **FIXED at every width** (Iteration-3 decision 5; "maybe" varies later). Steeper/shallower flare if ever changed. Never distorted by width. |
+| `beamCrossUp` | `--projector-cross-up` | `28px` | How far above `burnY` the crossbar sits (flare timing). Fixed. |
+| `beamEdgeInset` | `--projector-edge-inset` | `17px` | Each crossbar arm's end inset from **its own** real page edge before the bracket goes off-page. Fixed. |
+| `burnY` | `--projector-burn-y` | **`150px`** (was 168 — Iteration-2 finding 2, tightened to match the mockup's `pageY`) | The content boundary — where the beam burns to white. On the landing page the search sits just below it (§4.2/§4.4). Fixed. |
+| `projectionX` | `--projector-projection-x` | **the live aperture x** (centered on desktop / left-anchored at narrow widths — §4.3) | The beam apex x = **the aperture x** (decision 1/2). The apex is locked to the aperture, not to viewport center; this is the value the layout drives. The two arm lengths are derived from it (`apexX − edgeInset` left, `cw − edgeInset − apexX` right). |
+| `seamRatio` | `--projector-seam-ratio` | `0.5` (centered) | **The wiki/plus seam position driven by a column-ratio** — 0.5 = equal; >0.5 = Plus column wider, seam shifts left, etc. Reserved hook the future two-column header drives from its real column widths. (On the landing page the lockup's *anchor* — centered/left — is what places the aperture, not `seamRatio`.) |
+| `fullBleed` | `--projector-full-bleed` | `true` | Whether the gold border runs off real page edges. On the landing page this is **always `true` at every width** (the header is full-bleed; both arms reach their real edges — §4.7), so it never drops the off-page edge. (The Topic page may set `false` ⇒ Tier B per VISUAL_IDENTITY §6.3.) |
 
-**Note (Iteration 2):** the beam's fluid scaling (§4.7) is **not** a new prop — it falls out of these
-fixed geometry values applied to a `preserveAspectRatio="none"` full-width SVG whose `viewBox` width is
-the live viewport width. No width-dependent prop is needed; the beam adapts because `cw` changes while
-`beamSlope`/`crossUp`/`edgeInset`/`burnY` do not.
+**Note (Iteration 3, replaces the Iteration-2 note):** the beam adapts to width by **drawing each
+crossbar arm its real length** (`apexX − edgeInset` and `cw − edgeInset − apexX`), **NOT** by stretching
+a fixed `viewBox` to fit. The central stem width and `beamSlope` angle are drawn at **true 1:1 pixel
+scale** and never change with width. So the inputs that vary with layout/width are the **apex x
+(`projectionX` = aperture x)** and the **two derived arm lengths** — every other geometry value is fixed.
+The retracted Iteration-2 `preserveAspectRatio="none"` whole-shape stretch is the bug; see §4.7.
 
 **Explicit scope statement for Dev (AC10):** build the component so these are **named props/typed
 config with the defaults above**, such that the landing render is `<HeaderProjector variant="projector"
@@ -528,26 +671,39 @@ them (spec Guardrail). They simply now live under the secondary "Explore example
 
 ## 7. Responsive behavior — the beam is present at EVERY width (AC8 responsive)
 
-Web-first, responsive. **Owner decision (Iteration-2 finding 3, overriding VISUAL_IDENTITY §6.2/§6.3
-for the landing page):** the landing page renders **`variant="projector"` (Tier A) at every viewport
-width** — it does **not** drop the beam to Tier B/C as the viewport narrows. The beam's width scales
-fluidly (§4.7) so it always flares to both page edges and burns into the search. The principle shifts
-from "shed the spectacle as it narrows" to **"keep the projection, scale it fluidly"** — the fluid
-mechanism (constant vertical proportions, viewport-width `viewBox`, `preserveAspectRatio="none"`) is
-what makes that safe rather than producing a sliver.
+Web-first, responsive. **Owner decision (Iteration-2 finding 3, refined by Iteration-3):** the landing
+page renders **`variant="projector"` (Tier A) at every viewport width** — it does **not** drop the beam
+to Tier B/C as the viewport narrows (this overrides VISUAL_IDENTITY §6.2/§6.3 for the landing page only).
+The beam adapts by **drawing each crossbar arm its real length** (asymmetrical; the apex tracks the
+aperture) — **NOT** by stretching a fixed `viewBox` (the retracted Iteration-2 mechanism, §4.7). The
+principle is **"keep the projection, draw it true-scale, vary only the arm lengths"** — the constant
+vertical proportions + true-scale stem + per-edge arm lengths are what keep it a legible projection at
+every width rather than a flattened underline.
+
+**The header is ONE row at every width (Iteration-3, replaces the top-strip).** The lockup and the single
+`AuthControl` share one header row at every width — lockup centered with auth in the corner on desktop;
+lockup left, auth right at narrow widths (§7.5). The beam apex follows the aperture wherever the lockup is
+anchored, so narrow widths produce asymmetrical arms (short left, long right). **No top strip, no folded
+second row, at any width.**
 
 | Breakpoint | Header / projector | Search | Topic list |
 |---|---|---|---|
-| **`≥ lg` (desktop, ~≥1024px)** | **Tier A `"projector"`** — fluid beam to `burnY=150px`, gold border off both edges, lit aperture + bleed + "pedia" (behind the block), tight seam, lockup column-centered (§4.3). The crossbar's horizontal segment is at its widest. | Full-width within the content column (max ~`640px`), `h-11`/`text-base`, visible "Find a topic" label, **sitting inside the projected light** (top within ~16–24px of `burnY`, §4.4). | 2-col grid (`sm:grid-cols-2`). |
-| **`md` (~768–1023px)** | **Tier A `"projector"`** — **same treatment, fluid beam.** The crossbar segment is shorter (apex→edge distance smaller) but the cone, crossbar, off-page brackets, gold edge, lit aperture, tight seam, and "pedia" **all still render** (§4.7). No beam-drop. | Full-width within the column; sits inside the beam. | 2-col grid. |
-| **`< md` (mobile)** | **Tier A `"projector"`** — **same treatment, fluid beam, scaled to the narrow viewport.** Cone + crossbar + off-page gold edge + lit aperture + tight seam + "pedia" all render. If "Wiki" + block can't fit ~`< 360px`, the **lockup scales down as a unit** (font + block proportionally) but the beam stays a beam (§4.7). | **Full-width, never collapsed to an icon** (AC1 — the landing search must stay prominent; the `topic-disclosure` icon variant is for the *Topic* header, never the landing page). Still inside the beam. | Single column (grid reflows to 1-col). |
+| **`≥ md` (desktop/tablet, ~≥768px)** | **Tier A `"projector"`, ONE row** — lockup **centered** in the content column, auth pinned top-right (§7.5). True-scale narrow stem + fixed `0.6` angle + GLOWING lamp (§4.6) + asymmetrical arms each to its real edge (roughly equal here, since the apex is centered) + gold border off both edges + tight seam + "pedia" (behind the block). Beam to `burnY=150px`. | Full-width within the content column (max ~`640px`), `h-11`/`text-base`, visible "Find a topic" label, **sitting inside the projected light** (top within ~16–24px of `burnY`, §4.4). | 2-col grid (`sm:grid-cols-2`). |
+| **`< md` (mobile), one row** | **Tier A `"projector"`, ONE row** — lockup **left-anchored**, auth on the **right** (§7.5). The apex follows the now off-center aperture: **short left arm, long right arm** (§4.7 decision 4). True-scale stem + `0.6` angle + glowing lamp + gold edge to both real edges + tight seam + "pedia" **all still render** (§4.6/§4.7). If "Wiki" + block + auth can't fit one row (~`< 360px`), the **lockup scales down as a unit** (transform-origin at the aperture) **before** the auth wraps — the beam scales *with the lockup*, staying true-scale. **No top strip, no second row.** | **Full-width, never collapsed to an icon** (AC1 — the landing search must stay prominent; the `topic-disclosure` icon variant is for the *Topic* header, never the landing page). Still inside the beam. | Single column (grid reflows to 1-col). |
 
 **What stays constant at every width (the invariants — AC8 verify against these):**
 
-- **The beam is always a legible projected "+":** narrow cone under the lamp → crossbar near `burnY` →
-  brackets off both page edges → search inside. Never a horizontal sliver, never dropped (§4.7).
+- **The beam is always a legible projected "+":** narrow **true-scale** stem under the lamp (never
+  widened) → fixed-`0.6` flare (never flattened) → crossbar arms each reaching its real page edge
+  (asymmetrical when the apex is off-center) → brackets off-page → search inside. **Never a flat
+  full-width line, never a stretched blob, never a sliver, never dropped (§4.7).**
+- **The apex sits on the aperture** wherever the lockup is anchored (centered desktop / left narrow) —
+  decision 1/2. The aperture is never hard-locked to viewport center.
+- **The header is ONE row** — lockup + single auth, never a top strip, never a folded second row (§7.5).
+- **The lit aperture GLOWS** — white-hot core + warm bleed spilling onto the indigo (§4.6), at every
+  width; not a flat cutout.
 - **The seam is always tight** — the block butts "Wiki" with no gap, the ghost glimpsed only through
-  the aperture (§4.3). This is the most-regressed property from the build; check it at all widths.
+  the aperture (§4.3-seam). This is the most-regressed property from the build; check it at all widths.
 - **The gold off-page edge always runs to both real page edges** (`fullBleed=true` always on the
   landing page — the header is full-bleed at every width).
 - **"pedia" never clips** because it lives behind the block (§4.6).
@@ -557,35 +713,40 @@ what makes that safe rather than producing a sliver.
 There is **no tier-drop on the landing page.** (The Tier B/C variants and the VISUAL_IDENTITY §6.2/§6.3
 drop logic remain in force for the future *Topic-page* header, which is out of scope this round — §10.)
 
-### 7.5 Header chrome — auth placement, no "Contribute", both auth states (findings 4, 5, 6)
+### 7.5 Header chrome — ONE row at every width, no "Contribute", both auth states (findings 4, 5, 6 + Iteration-3 one-row)
 
-The header band contains exactly two things: the **`HeaderProjector` lockup** (centered, §4.3) and a
-**single `AuthControl variant="home"`**. Nothing else.
+The header band contains exactly two things: the **`HeaderProjector` lockup** and a **single
+`AuthControl variant="home"`**. Nothing else. **They share ONE header row at every width** (Iteration-3,
+replacing the Iteration-2 narrow "top strip"). The lockup's horizontal anchor is what places the
+aperture, and the beam apex tracks it (§4.3):
 
 **No "Contribute" label (finding 4).** The "Contribute" link is **removed entirely** from the landing
 header — not relocated, not hidden behind a menu, gone. (A curator's contribute path is on the Topic
 page, per the v1 personas §1.3; the landing header's one job is "find a topic" + sign-in.) Dev: delete
 the Contribute link from `app/page.tsx`'s header; do not leave a placeholder slot.
 
-**Auth placement — never a second row (finding 5).** The single `AuthControl variant="home"` sits in
-the header at every width **without ever wrapping to its own row beneath the lockup** (the build let
-it fold to a second row once Contribute was alongside it):
+**One row, never a second row (finding 5 + Iteration-3).** The single `AuthControl variant="home"` sits
+on the **same row** as the lockup at every width — **never** a second row beneath it, and **never** a
+narrow "top strip" with the lockup dropped below (the Iteration-2 approach is retracted):
 
-- **Desktop (`≥ md`):** the header is a single row — the lockup centered in the content column, the
-  `AuthControl` pinned to the **right edge** of the full-bleed header (top-right), vertically aligned
-  with the lockup row. Because the lockup is column-centered (not full-width), there is room on the
-  right for the auth control on the same row. Use a layout that keeps the lockup centered *and* the
-  auth right-anchored without the auth pushing the lockup off-center (e.g. an absolutely/grid-anchored
-  right slot over a centered lockup, so the lockup's centering is independent of the auth width).
-- **Narrow (`< md`):** the auth control stays in the **top-right of the header row** (top bar feel),
-  the lockup below/centered — but the auth must **not** stack into a full second row that pushes the
-  beam/search down. If horizontal room is tight, the **lockup may scale down** (§7) before the auth is
-  allowed to wrap. The auth control is a single compact element; it fits a top-right corner at every
-  width. (`variant="home"` is not `compact`; if the full "Log in with Wikipedia" label is too wide for
-  the smallest phones, that is acceptable to wrap *within the button*, but the **button itself does not
-  become a second header row** — keep it in the top-right.)
+- **Desktop/tablet (`≥ md`): lockup centered, auth top-right, one row.** The lockup is centered in the
+  content column; the `AuthControl` is pinned to the **right edge** of the full-bleed header, vertically
+  aligned with the lockup row. Use a layout that keeps the lockup centered *and* the auth right-anchored
+  without the auth pushing the lockup off-center (e.g. an absolutely/grid-anchored right slot over a
+  centered lockup, so the lockup's centering is independent of the auth width). **The aperture is at the
+  content-column center → the beam apex is centered → arms roughly equal** (§4.3).
+- **Narrow (`< md`): lockup LEFT, auth RIGHT, one row.** The lockup is **left-anchored** and the auth
+  control sits at the **right** of the same row — a normal app top-bar (lockup left, sign-in right). The
+  lockup is **not** dropped below the auth; there is **no top strip and no second row.** Consequently the
+  **aperture is left-of-center → the beam apex is left-of-center → the left crossbar arm is short and the
+  right arm is long** (the asymmetrical-arm model, §4.7 decision 4). If "Wiki" + block + auth can't all
+  fit one row at the smallest phones (~`< 360px`), the **lockup scales down as a unit** (font + block
+  proportionally, transform-origin at the aperture so the apex stays put) **before** the auth is allowed
+  to wrap. `variant="home"` is not `compact`; if the full "Log in with Wikipedia" label is too wide for
+  the smallest phones, it may wrap *within the button*, but the **button stays on the lockup's row** —
+  it never becomes a second header row.
 - The header band height is driven by the projector (`burnY=150px`, §4.2); the auth control sits within
-  that band aligned to the lockup row, never adding a row that increases the band height.
+  that band on the lockup row, never adding a row that increases the band height.
 
 **Both auth states must render gracefully (finding 6).** `AuthControl variant="home"` already encodes
 both; the landing header must render each cleanly in the placement above:
@@ -594,7 +755,7 @@ both; the landing header must render each cleanly in the placement above:
 |---|---|---|
 | **Loading** (`status==="loading"`) | A neutral pulse chip (`h-[34px] w-20`, `bg-ink/10`) — **never** a flash of the signed-out button. | The chip occupies the same right-anchored slot; no layout shift when it resolves. |
 | **Logged-out** | The **"Log in with Wikipedia"** button — `bg-brand text-white`, `border-2 border-ink`, the `WikiGlyph` + word label (AA 4.70, the word carries the label, not color). | Top-right slot, single row. This is the state in the current screenshots. |
-| **Logged-in** | `SignedIn` — avatar/initial + the user's **username** + a Radix disclosure menu (profile link → `/contributor/<username>`, Sign out). | Same top-right slot, single row, at every width. The username text must not force the auth control to wrap to a second row — on the narrowest widths the `SignedIn` component already hides the username behind the avatar (`compact` behavior); on the landing `variant="home"` it shows the username, so ensure the right slot has room or the lockup scales (§7) rather than the auth wrapping. |
+| **Logged-in** | `SignedIn` — avatar/initial + the user's **username** + a Radix disclosure menu (profile link → `/contributor/<username>`, Sign out). | Right of the one header row, at every width. The username text must not force the auth control to wrap to a second row — on the narrowest widths the `SignedIn` component already hides the username behind the avatar (`compact` behavior); on the landing `variant="home"` it shows the username, so ensure the right slot has room or the **lockup scales** (§7.5 narrow) rather than the auth wrapping or the lockup dropping to a second row. |
 
 Dev must capture **both** the logged-out and logged-in header in the post-build screenshots (UX
 re-evaluation needs both — the prior round only showed logged-out). The `onIndigo` skin is **not** used
@@ -731,36 +892,51 @@ that makes the shared-header rollout a configuration change.
 3. **Rebuild `app/page.tsx`** — the single-column hero: `HeaderProjector variant="projector"` →
    `TopicSearch variant="home"` (the focus, AC1, **sitting inside the projected light** — §2/§4.4) →
    the §3 explanation (AC6) → a quiet rule → the **demoted** topic list under "Explore example topics"
-   (AC7, all four states preserved). **Header chrome = the centered lockup + a single `AuthControl
-   variant="home"` only — REMOVE the "Contribute" link entirely (finding 4), and place the auth control
-   so it never folds to a second row (finding 5), rendering both auth states (finding 6) — §7.5.** The
-   search path is **reused unforked** (AC2) — single `TopicSearch` import, no new search component.
-4. **Responsive** per §7 — **`variant="projector"` (Tier A) at EVERY width** with the fluid beam (§4.7);
-   the seam stays tight, the beam never drops, the search stays inside the projected light; search
-   full-width/never collapsed at every width; list reflows 2-col → 1-col. **No tier-drop on the landing
-   page** (finding 3).
-5. **Tests** for: search-to-route (existing seeded title, created-on-demand title, unknown-title Enter
+   (AC7, all four states preserved). **Header chrome = the lockup + a single `AuthControl variant="home"`,
+   sharing ONE row at every width — REMOVE the "Contribute" link entirely (finding 4); on desktop the
+   lockup is centered with auth top-right, at narrow widths the lockup is LEFT and auth is RIGHT (one row,
+   no top strip, no second row — finding 5 + Iteration-3); render both auth states (finding 6) — §7.5.**
+   The search path is **reused unforked** (AC2) — single `TopicSearch` import, no new search component.
+4. **The beam — true-scale stem + fixed `0.6` angle + asymmetrical arms (Iteration-3, §4.7).** Draw the
+   central stem at the "+" cutout width and the flare at the fixed `0.6` angle at **TRUE 1:1 pixel
+   scale — never `preserveAspectRatio="none"` stretched** (the retracted Iteration-2 mechanism that
+   caused the underline). The apex is locked to the **aperture** (centered desktop / left narrow — §4.3);
+   the two crossbar arms are **asymmetrical**, each drawn its real length to its own page edge (`apexX −
+   edgeInset` left, `cw − edgeInset − apexX` right). **Arm length is the only horizontal thing that
+   varies.** Restore the **glowing lamp** at the aperture (white-hot core + warm bleed onto the indigo,
+   §4.6) — not a flat cutout.
+5. **Responsive** per §7 — **`variant="projector"` (Tier A) at EVERY width** with the true-scale beam
+   (§4.7), the apex tracking the aperture, asymmetrical arms; the seam stays tight, the beam never drops,
+   the search stays inside the projected light; one header row at every width; search full-width/never
+   collapsed at every width; list reflows 2-col → 1-col. **No tier-drop, no top strip, on the landing
+   page** (finding 3 + Iteration-3).
+6. **Tests** for: search-to-route (existing seeded title, created-on-demand title, unknown-title Enter
    — these largely assert #12 behavior is unchanged from the landing host); the wordmark accessible
    name (`"wiki+"`) + decorative-layer `aria-hidden` model; the topic-list read-error floor still
    renders. (AC11/AC12.)
-6. **Do NOT** touch `components/topic/TopicHeader.tsx` or the article body (VISUAL_IDENTITY §9.3 / spec
+7. **Do NOT** touch `components/topic/TopicHeader.tsx` or the article body (VISUAL_IDENTITY §9.3 / spec
    Out of scope). **Do NOT** add the v2 video-entry UI (separate spec, design-only this round).
 
 ## 12. Open design questions flagged for Dev
 
-- **OQ-1 — exact `burnY` / header band height (revised Iteration 2).** `burnY=150px` and `cyMid=64px`
-  now match the mockup's strip directly (§4.2). The composition must stay **tight**: short cone, crossbar
-  near `burnY`, the search's top within ~`16–24px` of `burnY` so it sits inside the brackets (§4.4). The
-  failure to avoid is the build's loose ~82px corridor with the search far below the gold edge. Dev maps
-  to the real header band but **must verify, side-by-side against the mockup, that the result reads as a
-  projection onto the search and not an underline** — this side-by-side check is the explicit gate this
-  iteration adds.
+- **OQ-1 — beam fidelity + lamp glow, verified side-by-side against the mockup (Iteration-3, the
+  explicit gate).** Render `mockups/wordmark-projector-illuminate.html?solo=01` and put the live header
+  **next to it** at desktop. The desktop result MUST match the mockup's beam: a **narrow true-scale stem**
+  under the lamp, a **clearly-angled `0.6` flare** (not flattened), crossbar arms to both edges, and a
+  **glowing white-hot lamp with warm bloom onto the indigo** (§4.6) — **not** a flat full-width gold line
+  with a tiny bump (the Iteration-2 underline bug) and **not** a flat white cutout. If the stem looks
+  widened or the angle looks flattened as the viewport changes, the `preserveAspectRatio="none"` stretch
+  is back (§4.7) — reject. `burnY=150px` / `cyMid=64px` match the mockup's strip (§4.2); keep the
+  composition **tight** (short stem, crossbar near `burnY`, search top within ~`16–24px` of `burnY`,
+  §4.4). The side-by-side check (beam shape + lamp glow) is the gate.
 - **OQ-2 — perf of the live mark (spec A3).** If the CSS `filter`/`mix-blend-mode` + SVG causes jank,
   ship Tier A as a **pre-rendered static SVG/PNG asset** (the mark is static) — Dev's call at build,
-  not a blocker. **Caveat (Iteration 2):** a static asset must still scale fluidly to viewport width
-  (§4.7) and keep the gold edge to both page edges; a fixed-width PNG would reintroduce the
-  underline/boxed problem at off-design widths. If pre-rendering, render the *lockup* statically but keep
-  the *beam* as the fluid full-width SVG. The accessible-name/`aria-hidden` model still applies.
+  not a blocker. **Caveat (Iteration 3):** the beam can NOT be a single fixed-width raster — its arm
+  lengths are asymmetrical and width-driven (§4.7), so a fixed-width PNG would reintroduce the
+  underline/boxed problem at off-design widths. If pre-rendering, render the **lockup + glowing lamp**
+  statically but keep the **beam as the true-scale SVG** (real-px coordinates, apex on the aperture, arms
+  drawn to the real edges — never a stretched fixed `viewBox`). The accessible-name/`aria-hidden` model
+  still applies.
 - **OQ-3 — page `<h1>` for landmarks.** The hero uses the search's visible "Find a topic" label as the
   heading and no visible `<h1>`. If a screen-reader landmark audit wants a top-level heading, add a
   visually-hidden `<h1>wiki+</h1>` (§2) rather than visible prose above the search.
