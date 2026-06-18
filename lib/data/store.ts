@@ -92,12 +92,38 @@ export interface DataStore {
     noteLicenseAgreed?: boolean
   ): Promise<Clip>;
 
-  // NOTE (issue #45 fix round): `updateClip` / `deleteClip` are intentionally NOT on the
-  // client-facing seam. They are DESTRUCTIVE and have no UI caller; with no auth until
-  // issue C, exposing them anonymously would let any visitor edit/delete any clip. The
-  // methods still exist on `DrizzleDataStore` (lib/db/drizzle-store.ts) for issue D + the
-  // store-level tests, but they are NOT reachable through this boundary. When D adds
-  // auth-gating + ownership, it can surface gated edit/delete actions then.
+  /**
+   * Owner-only edit of a clip's curator-authored fields (issue #53 / D2, AC1). Surfaced on the
+   * seam now that ownership exists (it was off the boundary pre-C, when an anonymous export
+   * would have been edit-any). The client facade (lib/data/index.ts) routes it to the
+   * auth-gated `updateClipAction`, which runs `requireContributor()` THEN the id-based ownership
+   * gate (`clip.curatorId === session contributor id`), narrows the patch to the editable set
+   * (Decision 2), and re-stamps the §5.3 note license only on a material note change (Decision
+   * 3). The `patch` is the editable set only; `noteLicenseAgreed` is the client's consent signal
+   * (the server decides whether to stamp). `curatorId`/`patch`/`agreement` are server-internal
+   * on the store impl; the optional shape keeps the store-level tests + reference impl callable.
+   */
+  updateClip(
+    id: string,
+    patch: Partial<Omit<Clip, "id">>,
+    /**
+     * SERVER-STAMPED §5.3 re-affirmation capture, used by the DrizzleDataStore only — built by
+     * the boundary when the note changed materially (mirrors `addClip`'s `agreement`). The
+     * client never passes this; it cannot mint a license version or timestamp.
+     */
+    agreement?: { noteLicense: string; noteLicenseAgreedAt: Date },
+    /**
+     * The CLIENT-FACING consent boolean (mirrors `addClip`'s `noteLicenseAgreed`). The facade
+     * forwards it to `updateClipAction`, which converts consent → a stamped re-affirmation
+     * server-side IFF the note changed materially. The server store ignores it.
+     */
+    noteLicenseAgreed?: boolean
+  ): Promise<Clip>;
+  /**
+   * Owner-only HARD delete of a clip (issue #53 / D2, AC3, Decision 4). Routed to the auth-gated,
+   * owner-only `deleteClipAction` (same id-based gate as `updateClip`). No soft-delete / undo.
+   */
+  deleteClip(id: string): Promise<void>;
 
   // ── Sticky candidate dismissals (issue #45). ─────────────────────────────────────
   // Moved behind the store boundary so a dismissal is SHARED + DURABLE like a clip:

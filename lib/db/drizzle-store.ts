@@ -160,11 +160,22 @@ export class DrizzleDataStore implements DataStore {
     return rowToClip(rows[0], input.topicQid);
   }
 
-  async updateClip(id: string, patch: Partial<Omit<Clip, "id">>): Promise<Clip> {
+  async updateClip(
+    id: string,
+    patch: Partial<Omit<Clip, "id">>,
+    /**
+     * The §5.3 re-affirmation re-stamp (issue #53 / D2, AC9), built by the auth-gated
+     * boundary when the note text changed materially. Present ⇒ re-stamp `note_license` +
+     * `note_license_agreed_at`; absent ⇒ leave both untouched (a chip/section-only or
+     * whitespace-only edit — AC10). The store never decides materiality (the boundary does);
+     * it only writes the capture it is handed. Never read off the client patch.
+     */
+    agreement?: { noteLicense: string; noteLicenseAgreedAt: Date }
+  ): Promise<Clip> {
     const numId = Number(id);
     const rows = await this.db
       .update(clip)
-      .set(clipPatchToUpdate(patch))
+      .set(clipPatchToUpdate(patch, agreement))
       .where(eq(clip.id, numId))
       .returning();
     if (!rows[0]) throw new Error(`Clip ${id} not found`);
@@ -179,6 +190,23 @@ export class DrizzleDataStore implements DataStore {
 
   async deleteClip(id: string): Promise<void> {
     await this.db.delete(clip).where(eq(clip.id, Number(id)));
+  }
+
+  /**
+   * Load just the ownership key + the stored note for a clip (issue #53 / D2). The auth-gated
+   * boundary uses this to (a) evaluate the id-based ownership gate (`curatorId === session
+   * contributor id`) and (b) recompute §5.3 materiality from the stored note vs. the patch —
+   * both SERVER-SIDE, never trusting a client flag. Returns null when the clip does not exist.
+   */
+  async clipOwnership(
+    id: string
+  ): Promise<{ curatorId: number | null; contextNote: string } | null> {
+    const rows = await this.db
+      .select({ curatorId: clip.curatorId, contextNote: clip.contextNote })
+      .from(clip)
+      .where(eq(clip.id, Number(id)))
+      .limit(1);
+    return rows[0] ?? null;
   }
 
   // ── Sticky dismissals (shared + durable — AC5) ─────────────────────────────────────

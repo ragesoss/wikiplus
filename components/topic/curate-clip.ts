@@ -67,3 +67,44 @@ export function clipFromForm(
     accuracyFlag,
   };
 }
+
+/** The editable-set patch the Edit modal sends (issue #53 / D2, Decision 2). */
+export interface ClipEditFormPatch {
+  contextNote: string;
+  stance: Stance;
+  accuracyFlag: AccuracyFlag;
+  general: boolean;
+  sectionSlug?: string;
+  sectionLabel?: string;
+}
+
+/**
+ * Read ONLY the curator-authored fields off the edit form into the editable-set patch (issue
+ * #53 / D2, Decision 2). The media/creator/attribution fields are NOT read here — they are not
+ * editable (changing the video is delete + add, not edit), so the patch the boundary receives
+ * never carries them. `stanceModifier` / `accuracyModifier` are deliberately omitted (D2 adds no
+ * modifier UI): an absent key in the patch leaves the stored modifier untouched server-side
+ * (the store only writes `!== undefined` keys), so a chip edit never wipes a modifier.
+ */
+export function patchFromForm(
+  form: HTMLFormElement,
+  sections: { slug: string; title: string }[] = []
+): ClipEditFormPatch {
+  const data = new FormData(form);
+  const note = String(data.get("note") ?? "").trim();
+  const stance = String(data.get("stance") ?? "explainer") as Stance;
+  const accuracyFlag = String(data.get("accuracy") ?? "accurate") as AccuracyFlag;
+  const sectionValue = String(data.get("section") ?? "__general");
+  const general = sectionValue === "__general";
+  const sectionLabel = general
+    ? undefined
+    : sections.find((s) => s.slug === sectionValue)?.title;
+  return {
+    contextNote: note,
+    stance,
+    accuracyFlag,
+    general,
+    sectionSlug: general ? undefined : sectionValue,
+    sectionLabel,
+  };
+}

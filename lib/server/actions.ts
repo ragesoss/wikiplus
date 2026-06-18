@@ -4,6 +4,7 @@ import { DrizzleDataStore } from "@/lib/db/drizzle-store";
 import type { Clip, Platform, Topic } from "@/lib/data/types";
 import { ACCURACY_ORDER, STANCE_ORDER } from "@/lib/curation/labels";
 import { NOTE_LICENSE } from "@/lib/curation/note-license";
+import { isMaterialNoteChange } from "@/lib/curation/note-text";
 import { requireContributor } from "@/lib/auth/require-session";
 
 // The server data-access boundary (issue #45 — deliverable 1/4).
@@ -155,12 +156,128 @@ export async function addClipAction(
   );
 }
 
-// NOT exposed at the boundary (issue #45 fix round): `updateClip` / `deleteClip` are
-// DESTRUCTIVE and have NO UI caller. With no auth until issue C, a boundary export would
-// let any anonymous visitor edit or delete ANY clip — an over-broad capability. The
-// methods stay on `DrizzleDataStore` (for issue D + the store-level tests), but the
-// anonymous Server-Action boundary deliberately does NOT surface them. When D adds
-// auth-gating + ownership checks, it can add gated actions then.
+// ── Owner-only edit / delete (issue #53 / D2 — AC1–AC12, Decisions 1–6) ──────────────────
+// `updateClip` / `deleteClip` were deliberately OFF the boundary until ownership existed (issue
+// #45 fix round): with no auth, an anonymous boundary export would let any visitor edit/delete
+// ANY clip. C supplied the missing half — a stable owner per clip (`clip.curatorId`) — so D2
+// surfaces both as AUTH-GATED, OWNER-ONLY actions. The gate is server-side and ID-BASED
+// (Decision 6, fixed): `requireContributor()` FIRST, then the loaded clip's `curatorId` must
+// equal the session contributor id — NEVER by username, NEVER trusting a client "isOwner" flag.
+// A non-owner / anonymous / legacy-`@prototype`-clip call is rejected and writes nothing.
+
+/**
+ * The editable set (Decision 2): ONLY the curator-authored fields a vouch comprises — the note,
+ * the stance/accuracy assessment (+ their display modifiers), and the section placement. The
+ * clip's IDENTITY is intentionally absent (video/embed/watch URLs, platform, creator,
+ * orientation, thumbnail, parent `topicQid`, `curatorId`/`curatedBy`, `createdAt`, `upvotes`):
+ * changing the video would make it a different clip — that is delete + add, not an edit. A patch
+ * is narrowed to exactly these keys at the boundary (`pickEditable`), so a FORGED patch carrying
+ * any other field is ignored (AC1) and can never change attribution/provenance.
+ */
+export type ClipEditPatch = {
+  contextNote?: string;
+  stance?: Clip["stance"];
+  stanceModifier?: string;
+  accuracyFlag?: Clip["accuracyFlag"];
+  accuracyModifier?: string;
+  general?: boolean;
+  sectionSlug?: string;
+  sectionLabel?: string;
+};
+
+/**
+ * Narrow an incoming patch to the editable set (Decision 2). Anything outside it — even on a
+ * forged patch trying to set `curatorId`/`curatedBy`/`createdAt`/video/creator/`upvotes`/
+ * `topicQid`/`noteLicense*` — is dropped here, so it can never reach the row (AC1). The closed
+ * stance/accuracy enums + the free-text length cap (the D1 stopgap) are applied on the named
+ * fields only. The stance/accuracy MODIFIERS are PRESERVED, not cleared (D2 adds no modifier
+ * UI): an absent modifier on the patch leaves the stored value untouched (the store's
+ * `clipPatchToUpdate` only writes `!== undefined` keys), so a chip change never wipes a modifier.
+ */
+function pickEditable(patch: ClipEditPatch): ClipEditPatch {
+  const out: ClipEditPatch = {};
+  if (patch.contextNote !== undefined) {
+    out.contextNote = capText(patch.contextNote, "contextNote");
+  }
+  if (patch.stance !== undefined) {
+    if (!STANCES.has(patch.stance)) {
+      throw new Error(`Unknown stance: ${patch.stance}`);
+    }
+    out.stance = patch.stance;
+  }
+  if (patch.stanceModifier !== undefined) out.stanceModifier = patch.stanceModifier;
+  if (patch.accuracyFlag !== undefined) {
+    if (!ACCURACY.has(patch.accuracyFlag)) {
+      throw new Error(`Unknown accuracy flag: ${patch.accuracyFlag}`);
+    }
+    out.accuracyFlag = patch.accuracyFlag;
+  }
+  if (patch.accuracyModifier !== undefined) {
+    out.accuracyModifier = patch.accuracyModifier;
+  }
+  if (patch.general !== undefined) out.general = patch.general;
+  if (patch.sectionSlug !== undefined) out.sectionSlug = patch.sectionSlug;
+  if (patch.sectionLabel !== undefined) out.sectionLabel = patch.sectionLabel;
+  return out;
+}
+
+/**
+ * Owner-only edit of the curator-authored fields (AC1/AC2/AC4/AC6/AC9/AC10). The order is the
+ * security contract: GATE (auth) → LOAD owner → OWNERSHIP CHECK (id-based) → narrow patch →
+ * decide §5.3 re-stamp from the STORED note → write.
+ */
+export async function updateClipAction(
+  clipId: string,
+  patch: ClipEditPatch,
+  /**
+   * The client's §5.3 re-agreement signal (mirrors `addClipAction`'s consent boolean). The
+   * client sets it true only when it revealed the required agreement on a material note change
+   * (design §4). The SERVER independently recomputes materiality from the stored note vs. the
+   * patch and is the authority on whether to re-stamp — this boolean is a necessary consent
+   * signal, never the trigger by itself (a material change with no consent does not re-stamp).
+   */
+  noteLicenseAgreed = false
+): Promise<Clip> {
+  // GATE FIRST (AC6): an anonymous caller is rejected before the ownership check even runs.
+  const { contributorId } = await requireContributor();
+  const s = store();
+  const owner = await s.clipOwnership(clipId);
+  if (!owner) throw new Error(`Clip ${clipId} not found`);
+  // OWNERSHIP GATE (Decision 6, AC4/AC8): id-based, server-side. A legacy `@prototype` clip has
+  // a `curatorId` matching no current contributor, so this fails for everyone (correct, AC8).
+  if (owner.curatorId !== contributorId) {
+    throw new Error("Not your clip to edit.");
+  }
+  const editable = pickEditable(patch);
+  // §5.3 re-affirmation (Decision 3, AC9/AC10): the SERVER decides materiality from the STORED
+  // note vs. the (narrowed) incoming note. Re-stamp ONLY when the note text changed materially
+  // AND the client signalled consent; a chip/section-only or whitespace-only edit re-stamps
+  // nothing (the existing license/timestamp are left untouched).
+  const noteChangedMaterially =
+    editable.contextNote !== undefined &&
+    isMaterialNoteChange(owner.contextNote, editable.contextNote);
+  const agreement =
+    noteChangedMaterially && noteLicenseAgreed
+      ? { noteLicense: NOTE_LICENSE, noteLicenseAgreedAt: new Date() }
+      : undefined;
+  return s.updateClip(clipId, editable, agreement);
+}
+
+/**
+ * Owner-only HARD delete (AC3/AC5/AC6/AC8, Decision 4). Same gate as edit; on pass the row is
+ * removed (no soft-delete / undo — Decision 4). A non-owner / anonymous / legacy-clip call is
+ * rejected and removes nothing.
+ */
+export async function deleteClipAction(clipId: string): Promise<void> {
+  const { contributorId } = await requireContributor(); // GATE FIRST (AC6)
+  const s = store();
+  const owner = await s.clipOwnership(clipId);
+  if (!owner) throw new Error(`Clip ${clipId} not found`);
+  if (owner.curatorId !== contributorId) {
+    throw new Error("Not your clip to delete.");
+  }
+  await s.deleteClip(clipId);
+}
 
 // ── Sticky dismissals (shared + durable — AC5) ──────────────────────────────────────────
 export async function recordDismissalAction(input: {

@@ -2,13 +2,16 @@ import { runCandidatePipeline } from "@/lib/candidates";
 import { identityKey, videoIdOf } from "@/lib/candidates/dismissals";
 import {
   addClipAction,
+  deleteClipAction,
   dismissedKeysAction,
   getTopicAction,
   getTopicByTitleAction,
   listClipsAction,
   listTopicsAction,
   recordDismissalAction,
+  updateClipAction,
   upsertTopicAction,
+  type ClipEditPatch,
 } from "@/lib/server/actions";
 import type { DataStore } from "./store";
 import type { ArticleSection, Candidate, Clip, TopicStats } from "./types";
@@ -46,6 +49,12 @@ const clientStore: DataStore = {
   // `curatorId` / server-`agreement` params of the seam are server-internal and unused here.
   addClip: (clip, _curatorId, _agreement, noteLicenseAgreed) =>
     addClipAction(clip, noteLicenseAgreed),
+  // Client → boundary: pass the clip id, the editable-set patch, and ONLY the consent boolean
+  // (issue #53 / D2). The server gates ownership + decides the §5.3 re-stamp; the client never
+  // mints a license. The seam's server-`agreement` param is server-internal and unused here.
+  updateClip: (id, patch, _agreement, noteLicenseAgreed) =>
+    updateClipAction(id, patch as ClipEditPatch, noteLicenseAgreed),
+  deleteClip: (id) => deleteClipAction(id),
   recordDismissal: (input) => recordDismissalAction(input),
   dismissedKeys: (topicQid) => dismissedKeysAction(topicQid),
 };

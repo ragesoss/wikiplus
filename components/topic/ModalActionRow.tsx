@@ -16,17 +16,20 @@ export function ModalActionRow({
   canPublish,
   pending,
   error,
+  errorMessage = "Couldn't publish — please try again.",
   licenseStatementId,
   onCancel,
 }: {
-  /** e.g. "✓ Publish curation" / "＋ Add & curate". */
+  /** e.g. "✓ Publish curation" / "＋ Add & curate" / "✓ Save changes". */
   publishIdleLabel: string;
-  /** e.g. "Publishing…" / "Adding…" (present-progressive busy WORD — §5, not a spinner alone). */
+  /** e.g. "Publishing…" / "Adding…" / "Saving…" (present-progressive busy WORD — §5). */
   publishBusyLabel: string;
   /** Preconditions met (note + agreement + any flow gate). When false, publish is disabled. */
   canPublish: boolean;
   pending: boolean;
   error: boolean;
+  /** The §6 server-error alert text (design §6 / §5). Defaults to the D1 publish wording. */
+  errorMessage?: string;
   /** The always-visible license statement's id — the publish button's `aria-describedby`. */
   licenseStatementId: string;
   onCancel: () => void;
@@ -50,7 +53,7 @@ export function ModalActionRow({
           tabIndex={-1}
           className="border-2 border-accred bg-[#FDEDED] px-3 py-2 text-[12px] font-semibold text-accred"
         >
-          Couldn&apos;t publish — please try again.
+          {errorMessage}
         </div>
       )}
       <div className="flex flex-wrap gap-2">

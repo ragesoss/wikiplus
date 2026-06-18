@@ -5,17 +5,33 @@ import { AccuracyChip, StanceChip } from "./Chips";
 import { VideoThumb } from "./VideoThumb";
 
 // Anchored clip card in the plus rail (design §5.9, AC9/AC10/AC12/AC13).
+//
+// D2 (issue #53, design §3): when the signed-in viewer OWNS this clip, an additive owner-only
+// Edit/Delete action row renders below the provenance footer. `owned` is decided by the host
+// (TopicView) by comparing `clip.curatorId` to the session contributor id (Decision 6 (a)) — a
+// convenience/clarity layer, NOT the security control (the server-side id-based gate is). When
+// `owned` is false (a clip you don't own, logged out, or a legacy `@prototype` clip) the row is
+// absent and the card is byte-for-byte its D1 self.
 export function ClipCard({
   clip,
   active,
+  owned = false,
   onPlay,
   onGoToSection,
+  onEdit,
+  onDelete,
   cardRef,
 }: {
   clip: Clip;
   active: boolean;
+  /** The signed-in viewer owns this clip → show the Edit/Delete row (design §3.1). */
+  owned?: boolean;
   onPlay: (clip: Clip) => void;
   onGoToSection: (slug: string | undefined) => void;
+  /** Open the Edit modal for this clip (owner only — design §2.1). */
+  onEdit?: (clip: Clip) => void;
+  /** Open the Delete confirm dialog for this clip (owner only — design §2.2). */
+  onDelete?: (clip: Clip) => void;
   cardRef?: (el: HTMLElement | null) => void;
 }) {
   return (
@@ -93,6 +109,35 @@ export function ClipCard({
           {clip.curatedAt ?? ""}
         </span>
       </footer>
+
+      {/* Owner-only manage row (D2, design §3.2/§3.3) — additive, below the footer, rendered
+          ONLY for the signed-in owner. Both are text-labeled native <button>s (the WORD is the
+          signal, never color-alone — §10): "Edit" is the `.srcbtn` secondary; "Delete" carries
+          the `accred` destructive border + text (one step from a confirm, not the destroy). */}
+      {owned && (
+        <div
+          role="group"
+          aria-label="Manage your curated clip"
+          className="mt-2 flex flex-wrap gap-2 border-t border-ink/15 pt-2"
+        >
+          <button
+            type="button"
+            onClick={() => onEdit?.(clip)}
+            aria-label={`Edit your curation: ${clip.caption}`}
+            className="border-2 border-ink bg-white px-2.5 py-1 text-[12px] font-bold text-ink hover:shadow-[2px_2px_0_#2C2C2C]"
+          >
+            Edit
+          </button>
+          <button
+            type="button"
+            onClick={() => onDelete?.(clip)}
+            aria-label={`Delete your curation: ${clip.caption}`}
+            className="border-2 border-accred bg-white px-2.5 py-1 text-[12px] font-bold text-accred hover:bg-accred hover:text-white"
+          >
+            Delete
+          </button>
+        </div>
+      )}
     </article>
   );
 }

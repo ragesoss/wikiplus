@@ -95,3 +95,49 @@ describe("ClipCard — anchored clip content (AC9)", () => {
     expect(container.querySelector(".vcard")?.className).toMatch(/active-glow/);
   });
 });
+
+describe("ClipCard — owner-only Edit/Delete affordances (issue #53 / D2, AC7)", () => {
+  function setup(over: Partial<Clip> = {}, owned = false) {
+    const onEdit = vi.fn();
+    const onDelete = vi.fn();
+    render(
+      <ClipCard
+        clip={{ ...baseClip, ...over }}
+        active={false}
+        owned={owned}
+        onPlay={vi.fn()}
+        onGoToSection={vi.fn()}
+        onEdit={onEdit}
+        onDelete={onDelete}
+      />
+    );
+    return { onEdit, onDelete };
+  }
+
+  it("shows NO Edit/Delete affordance when not owned (a different contributor / logged out)", () => {
+    setup({}, false);
+    expect(screen.queryByRole("button", { name: /Edit your curation/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Delete your curation/ })).toBeNull();
+  });
+
+  it("shows text-labeled Edit + Delete buttons when owned, in a labeled group", () => {
+    setup({}, true);
+    expect(
+      screen.getByRole("group", { name: "Manage your curated clip" })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Edit your curation: Photosynthesis explained" })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Delete your curation: Photosynthesis explained" })
+    ).toBeInTheDocument();
+  });
+
+  it("invokes onEdit / onDelete with the clip when the owner activates them", async () => {
+    const { onEdit, onDelete } = setup({}, true);
+    await userEvent.click(screen.getByRole("button", { name: /Edit your curation/ }));
+    expect(onEdit).toHaveBeenCalledWith(expect.objectContaining({ id: "c1" }));
+    await userEvent.click(screen.getByRole("button", { name: /Delete your curation/ }));
+    expect(onDelete).toHaveBeenCalledWith(expect.objectContaining({ id: "c1" }));
+  });
+});
