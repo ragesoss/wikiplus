@@ -274,6 +274,22 @@ export function TopicView() {
     };
   }, [qid]);
 
+  // The STABLE identity of the visible clip set — the comma-joined ids in render order. The
+  // voted-state hydration keys off THIS, not the whole `clips` array: an optimistic upvote toggle
+  // mutates a clip's `upvotes` count (a new `clips` array ref) but NOT the id set, so it must not
+  // re-fire the read mid-flight (design §8 — "a quiet correction, never a flash of wrong state").
+  // A genuine change to the visible set (navigating, a clip added/removed) DOES change this key
+  // and correctly re-hydrates. `useMemo` recomputes the joined string every render, but the value
+  // is referentially equal when the id set is unchanged, so the effect below does not re-fire.
+  const clipIdsKey = useMemo(() => clips.map((c) => c.id).join(","), [clips]);
+  // The id array the read consumes, recomputed only when the STABLE key changes (an empty key
+  // means no clips). Keying off `clipIdsKey` keeps this array referentially stable across a
+  // count-only `clips` mutation, so neither it nor the effect below re-fires mid-toggle.
+  const clipIds = useMemo(
+    () => (clipIdsKey === "" ? [] : clipIdsKey.split(",")),
+    [clipIdsKey]
+  );
+
   // ── Per-viewer voted-state hydration (issue #55 / D4, Decision 6 / design §8). ─────────────
   // OFF the cached read path: this runs ONLY in the already-authenticated client session, AFTER
   // the clips (and thus the public derived counts) have loaded — never baked into `listClips` or
@@ -282,15 +298,19 @@ export function TopicView() {
   // form. For a signed-in viewer it reads WHICH of the visible clips they have voted on (a small
   // viewer-scoped read of their own votes), then the controls show the voted cue — a quiet
   // correction, never a flash of a wrong "voted" before it is confirmed (it only ADDS the cue).
+  // It depends on `clipIds` (the STABLE id-set identity, a memo keyed off `clipIdsKey`), NOT
+  // `clips`, so an in-flight optimistic toggle's ±1 count mutation cannot re-fire this read and
+  // clobber the optimistic voted-state flip with a stale pre-write server read (the D4 flicker
+  // fix — design §8).
   useEffect(() => {
-    if (typeof myContributorId !== "number" || clips.length === 0) {
+    if (typeof myContributorId !== "number" || clipIds.length === 0) {
       setVotedClipIds(new Set());
       return;
     }
     let alive = true;
     (async () => {
       try {
-        const ids = await store.votedClipIds(clips.map((c) => c.id));
+        const ids = await store.votedClipIds(clipIds);
         if (alive) setVotedClipIds(new Set(ids));
       } catch {
         // A failed voted-state read is non-fatal: leave the controls in the not-voted default
@@ -301,7 +321,10 @@ export function TopicView() {
     return () => {
       alive = false;
     };
-  }, [myContributorId, clips]);
+    // Depends on `clipIds` (a memo keyed off the STABLE `clipIdsKey`), NOT `clips`: it is
+    // referentially stable across a count-only `clips` mutation, so an in-flight optimistic
+    // upvote does not re-fire this read and clobber the optimistic voted-state flip.
+  }, [myContributorId, clipIds]);
 
   const loadArticle = useCallback(async () => {
     if (!resolvedTitle) return;
