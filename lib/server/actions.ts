@@ -14,6 +14,7 @@ import { NOTE_LICENSE } from "@/lib/curation/note-license";
 import { isMaterialNoteChange } from "@/lib/curation/note-text";
 import { requireContributor } from "@/lib/auth/require-session";
 import { checkWriteRateLimit, recordWriteEvent } from "@/lib/auth/rate-limit";
+import { isModeratorContributor } from "@/lib/auth/moderators";
 import { getDb } from "@/lib/db/client";
 
 // The server data-access boundary (issue #45 — deliverable 1/4).
@@ -320,6 +321,72 @@ export async function deleteClipAction(clipId: string): Promise<void> {
   }
   await s.deleteClip(clipId);
   await recordWriteEvent(db, contributorId, "delete");
+}
+
+// ── Review-hold: hold / approve (issue #58 / D5b — AC1/AC3/AC3a/AC4/AC5, Decision 3) ─────────
+// The §7 review-hold's two role-gated writes — the FIRST privileged actions in the product, and
+// the minimal role model D5c reuses. Both slot into the established gate→limit→role→write order:
+// `requireContributor()` FIRST (reject anonymous — the C/D1 gate), THEN the D5a rate-limit (both
+// are counted gated writes), THEN the SERVER-SIDE role/ownership check, THEN the write. A failing
+// role/ownership check rejects and writes NOTHING (AC4/AC5). The role is resolved SERVER-SIDE
+// (`isModeratorContributor` — the DB column OR the env allowlist; lib/auth/moderators.ts) — NEVER a
+// client "isModerator" flag and NEVER a hidden button. **This rejection at the action, on the role,
+// is the load-bearing security behavior of D5b.**
+
+/**
+ * Put a clip into review (publish → held, `vetted = false`). Allowed for a MODERATOR (any clip)
+ * OR the clip's OWN CURATOR (their own clip only — Decision 3, the D2 "revise/retract my own vouch"
+ * parallel). A signed-in contributor who is neither, and an anonymous caller, are rejected
+ * server-side and the clip stays published (AC5). Returns the updated `Clip` (with `held = true`)
+ * so the client reflects the held marking with no reload (AC1).
+ */
+export async function holdClipAction(clipId: string): Promise<Clip> {
+  // GATE FIRST (AC5): an anonymous caller is rejected before the rate-limit or role check.
+  const { contributorId } = await requireContributor();
+  // LIMIT SECOND (D5a, gate→limit→role→write): reject + write nothing if over cap (a pure read).
+  const db = getDb();
+  await checkWriteRateLimit(db, contributorId);
+  // ROLE/OWNERSHIP CHECK THIRD (Decision 3 / AC5): load the clip's owner, then allow iff the actor
+  // is a moderator OR the clip's own curator. Server-side, id-based — never a client flag. A
+  // non-authorized (non-moderator, non-owner) caller is rejected and writes nothing.
+  const s = store();
+  const owner = await s.clipOwnership(clipId);
+  if (!owner) throw new Error(`Clip ${clipId} not found`);
+  const isModerator = await isModeratorContributor(db, contributorId);
+  const ownsClip = owner.curatorId === contributorId;
+  if (!isModerator && !ownsClip) {
+    throw new Error("Not authorized to hold this clip.");
+  }
+  const result = await s.setClipVetted(clipId, false);
+  await recordWriteEvent(db, contributorId, "hold");
+  return result;
+}
+
+/**
+ * Approve a held clip back to live (held → published, `vetted = true`). MODERATOR-ONLY (Decision 3
+ * / CURATION §7.1): a curator may NOT self-approve — not even their own held clip — because the
+ * vouch must be confirmed by someone OTHER than its author. A non-moderator (INCLUDING the clip's
+ * own curator) and an anonymous caller are rejected server-side and the clip stays held. **This
+ * rejection, at the action, on the role resolved server-side, is the load-bearing role-gate of
+ * D5b (AC4).** Returns the updated `Clip` (with `held` cleared) so the client restores the full
+ * vouch with no reload (AC3).
+ */
+export async function reviewClipAction(clipId: string): Promise<Clip> {
+  const { contributorId } = await requireContributor(); // GATE FIRST (AC5)
+  const db = getDb();
+  await checkWriteRateLimit(db, contributorId); // LIMIT SECOND (D5a)
+  const s = store();
+  const owner = await s.clipOwnership(clipId);
+  if (!owner) throw new Error(`Clip ${clipId} not found`);
+  // ROLE CHECK THIRD — MODERATOR-ONLY (AC4, the load-bearing security test): a curator (even the
+  // clip's own) is rejected here. No self-approve. Resolved server-side, never a client flag.
+  const isModerator = await isModeratorContributor(db, contributorId);
+  if (!isModerator) {
+    throw new Error("Not authorized to approve this clip.");
+  }
+  const result = await s.setClipVetted(clipId, true);
+  await recordWriteEvent(db, contributorId, "review");
+  return result;
 }
 
 // ── Public contributor profile reads (issue #54 / D3 — AC1–AC4) ──────────────────────────

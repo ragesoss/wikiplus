@@ -43,6 +43,11 @@ export function rowToClip(row: ClipRow, topicQid: string): Clip {
     // by no current user → undefined → no affordance to anyone (AC8). NOT the security gate.
     curatorId: row.curatorId ?? undefined,
     curatedAt: row.curatedAt ?? undefined,
+    // D5b (issue #58): the held marking flag, DERIVED from the clip's review-state column —
+    // `held === (vetted === false)`. Rides `listClips` (Decision 4 / AC7) so every viewer sees
+    // the same marking with no per-user work; only surfaced when held (omitted on a published
+    // clip so a fully-curated clip is byte-for-byte its pre-D5b self — AC6/AC2).
+    held: row.vetted ? undefined : true,
     // Note-license agreement (issue #52 / D1, AC7). Surfaced read-side so QA can confirm a
     // D1 clip carries the captured license version + timestamp and a seed/stub clip does not.
     noteLicense: row.noteLicense ?? undefined,
@@ -177,7 +182,12 @@ export function clipPatchToUpdate(
  * `account`; this mapper additionally guarantees the shape carries nothing beyond the three
  * public fields.
  */
-export function rowToPublicContributor(row: ContributorRow): PublicContributor {
+export function rowToPublicContributor(
+  // Only the PUBLIC fields are needed — the caller selects exactly these (never `account.email`,
+  // and the D5b `is_moderator` role is intentionally NOT exposed on a public profile either). The
+  // narrow `Pick` keeps that boundary honest as `contributor` grows new (private) columns.
+  row: Pick<ContributorRow, "id" | "handle" | "avatarUrl">
+): PublicContributor {
   return {
     id: row.id,
     username: row.handle,

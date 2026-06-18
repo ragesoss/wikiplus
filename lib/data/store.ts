@@ -133,6 +133,17 @@ export interface DataStore {
    */
   deleteClip(id: string): Promise<void>;
 
+  /**
+   * D5b (issue #58): set a clip's review-state and return the updated clip — the persistence behind
+   * the role-gated hold / approve actions. `vetted = false` ⇒ HELD (in review); `vetted = true` ⇒
+   * PUBLISHED (fully curated). The ROLE/OWNERSHIP gate lives in the Server Actions
+   * (`holdClipAction`/`reviewClipAction`): this store method only writes the flag it is handed
+   * (mirroring how `updateClip` only writes the patch the auth-gated boundary narrowed). It leaves
+   * the note, chips, curator attribution, and every other field untouched. Returns the re-mapped
+   * `Clip` (with its `held` flag updated) so the client reflects the new state with no reload (AC1/AC3).
+   */
+  setClipVetted(id: string, vetted: boolean): Promise<Clip>;
+
   // ── Public contributor profile reads (issue #54 / D3 — anonymous, no auth gate). ────
   // Both are READS, reached through read-only Server Actions with NO `requireContributor`
   // gate (like `listClips`): a public profile is browsable logged-out (AC1). They run ONLY

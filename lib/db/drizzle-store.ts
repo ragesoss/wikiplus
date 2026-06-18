@@ -246,6 +246,25 @@ export class DrizzleDataStore implements DataStore {
     await this.db.delete(clip).where(eq(clip.id, Number(id)));
   }
 
+  async setClipVetted(id: string, vetted: boolean): Promise<Clip> {
+    const numId = Number(id);
+    // Write ONLY the review-state flag (+ updatedAt) — the note, chips, curator attribution, and
+    // every other field are left untouched (CURATION §7.1: a held clip keeps everything but its
+    // confirmed vouch). The role/ownership gate ran already in the Server Action; this just persists.
+    const rows = await this.db
+      .update(clip)
+      .set({ vetted, updatedAt: new Date() })
+      .where(eq(clip.id, numId))
+      .returning();
+    if (!rows[0]) throw new Error(`Clip ${id} not found`);
+    const t = await this.db
+      .select({ qid: topic.wikidataQid })
+      .from(topic)
+      .where(eq(topic.id, rows[0].topicId))
+      .limit(1);
+    return rowToClip(rows[0], t[0]?.qid ?? "");
+  }
+
   /**
    * Load just the ownership key + the stored note for a clip (issue #53 / D2). The auth-gated
    * boundary uses this to (a) evaluate the id-based ownership gate (`curatorId === session

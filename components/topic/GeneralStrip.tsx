@@ -4,6 +4,8 @@ import type { Candidate, Clip } from "@/lib/data/types";
 import { pluralize } from "@/lib/format";
 import { CandidateActions, MatchReason } from "./CandidateBits";
 import { ContextByLink } from "./ContextByLink";
+import { HeldPill } from "./HeldMarking";
+import { ReviewRow } from "./ReviewRow";
 import { UpvoteControl } from "./UpvoteControl";
 import { VideoThumb } from "./VideoThumb";
 
@@ -29,6 +31,11 @@ export function GeneralStrip({
   signedIn = false,
   votedClip,
   onUpvote,
+  canHold,
+  canApprove,
+  reviewInFlight,
+  onHold,
+  onApprove,
   bandRef,
 }: {
   mode: "curated" | "empty";
@@ -70,6 +77,20 @@ export function GeneralStrip({
   votedClip?: (clip: Clip) => boolean;
   /** D4 (issue #55): activate the upvote control on a General clip (host's toggle / gate route). */
   onUpvote?: (clip: Clip) => void;
+  /**
+   * D5b (issue #58, design §4.1): the reviewer-affordance predicates, computed in the already-
+   * authenticated client session (off the read path, like `ownsClip`/`votedClip`). `canHold` →
+   * show "Hold for review" (moderator-any OR own-curator, published clip); `canApprove` → show
+   * "Approve" (moderator only, held clip). Default `() => false` so an anonymous / non-moderator
+   * tile shows no reviewer affordance and the read-path render is byte-for-byte unchanged (AC7).
+   */
+  canHold?: (clip: Clip) => boolean;
+  canApprove?: (clip: Clip) => boolean;
+  /** D5b (issue #58, §5.2): is a hold/approve for this clip in flight → busy word + disable. */
+  reviewInFlight?: (clip: Clip) => boolean;
+  /** D5b (issue #58): activate Hold / Approve on a General clip (host's runHold / runApprove). */
+  onHold?: (clip: Clip) => void;
+  onApprove?: (clip: Clip) => void;
   bandRef?: (el: HTMLElement | null) => void;
 }) {
   // Empty-mode runtime faces (design §5): loading (skeleton), zero-results (honest
@@ -199,6 +220,14 @@ export function GeneralStrip({
                 return (
                 <li key={clip.id} role="listitem" className="w-44 shrink-0">
                   <VideoThumb video={clip} variant="strip" onPlay={() => onPlay(clip)} />
+                  {/* D5b (design §3.3): the compact held marking — eyebrow-only on a white-fill pill
+                      (AA on the indigo band), ABOVE the caption so the status reads first. Shown
+                      only when held; never the empty-band "uncurated" pill. */}
+                  {clip.held && (
+                    <p className="mt-1">
+                      <HeldPill />
+                    </p>
+                  )}
                   <p className="mt-1 line-clamp-2 text-[12px] font-bold leading-snug text-white">
                     {clip.caption}
                   </p>
@@ -257,6 +286,19 @@ export function GeneralStrip({
                       </button>
                     </div>
                   )}
+                  {/* D5b (design §4): the reviewer-only Hold/Approve row on the tile, parallel to the
+                      owner row, wrapping within the w-44 tile. White-fill Hold + action-blue Approve
+                      are legible on indigo; the word is the signal. Rendered only for the authorized
+                      viewer; the server-side role-gate is the security control. */}
+                  <ReviewRow
+                    clip={clip}
+                    canHold={canHold?.(clip) ?? false}
+                    canApprove={canApprove?.(clip) ?? false}
+                    inFlight={reviewInFlight?.(clip) ?? false}
+                    onHold={onHold}
+                    onApprove={onApprove}
+                    size="tile"
+                  />
                 </li>
                 );
               })

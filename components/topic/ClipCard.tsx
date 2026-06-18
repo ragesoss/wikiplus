@@ -3,6 +3,8 @@
 import type { Clip } from "@/lib/data/types";
 import { AccuracyChip, StanceChip } from "./Chips";
 import { ContextByLink } from "./ContextByLink";
+import { HeldMarking } from "./HeldMarking";
+import { ReviewRow } from "./ReviewRow";
 import { UpvoteControl } from "./UpvoteControl";
 import { VideoThumb } from "./VideoThumb";
 
@@ -25,6 +27,11 @@ export function ClipCard({
   onGoToSection,
   onEdit,
   onDelete,
+  canHold = false,
+  canApprove = false,
+  reviewInFlight = false,
+  onHold,
+  onApprove,
   cardRef,
 }: {
   clip: Clip;
@@ -43,6 +50,16 @@ export function ClipCard({
   onEdit?: (clip: Clip) => void;
   /** Open the Delete confirm dialog for this clip (owner only — design §2.2). */
   onDelete?: (clip: Clip) => void;
+  /** D5b (issue #58, design §4.1): show "Hold for review" (moderator-any OR own-curator, published). */
+  canHold?: boolean;
+  /** D5b (issue #58, design §4.1): show "Approve" (moderator only, held clip). */
+  canApprove?: boolean;
+  /** D5b (issue #58, design §5.2): a hold/approve for THIS clip is in flight → busy word + disable. */
+  reviewInFlight?: boolean;
+  /** D5b (issue #58): activate Hold (host's runHold → role-gated holdClipAction). */
+  onHold?: (clip: Clip) => void;
+  /** D5b (issue #58): activate Approve (host's runApprove → role-gated reviewClipAction). */
+  onApprove?: (clip: Clip) => void;
   cardRef?: (el: HTMLElement | null) => void;
 }) {
   return (
@@ -93,6 +110,11 @@ export function ClipCard({
           </span>
         </span>
       </a>
+
+      {/* Held "in review" marking (D5b, design §3.2 / CURATION §7.1) — ABOVE the chips, so it reads
+          as a status banner for the whole vouch. Rendered ONLY when the clip is held; a published
+          clip is byte-for-byte its pre-D5b self. The chips/note/curator below stay intact. */}
+      {clip.held && <HeldMarking />}
 
       {/* chips row */}
       <div className="mt-2 flex flex-wrap gap-1.5">
@@ -163,6 +185,19 @@ export function ClipCard({
           </button>
         </div>
       )}
+
+      {/* Reviewer-only Hold/Approve manage-row (D5b, design §4) — a SECOND group, parallel to and
+          below the owner row, rendered ONLY for the authorized viewer. The server-side role-gate is
+          the security control; this row mirrors but never replaces it. */}
+      <ReviewRow
+        clip={clip}
+        canHold={canHold}
+        canApprove={canApprove}
+        inFlight={reviewInFlight}
+        onHold={onHold}
+        onApprove={onApprove}
+        size="rail"
+      />
     </article>
   );
 }

@@ -113,6 +113,18 @@ export class LocalStorageDataStore implements DataStore {
     );
   }
 
+  // D5b (issue #58): set the review-state (reference impl). `vetted=false` ⇒ held; the client `Clip`
+  // carries `held` (derived from `vetted` on the DrizzleDataStore), so the reference impl mirrors
+  // that mapping — set `held: true` when held, clear it when published.
+  async setClipVetted(id: string, vetted: boolean): Promise<Clip> {
+    const clips = read<Clip>(CLIPS_KEY);
+    const i = clips.findIndex((c) => c.id === id);
+    if (i < 0) throw new Error(`Clip ${id} not found`);
+    clips[i] = { ...clips[i], held: vetted ? undefined : true };
+    write(CLIPS_KEY, clips);
+    return clips[i];
+  }
+
   // ── Public contributor profile reads (issue #54 / D3 — reference impl over `curatedBy`). ──
   // The localStorage store has no `contributor` table — clips carry only the `curatedBy` handle
   // string. The reference impl therefore derives a STABLE synthetic id from the sorted set of

@@ -136,10 +136,20 @@ Keyed on stable identifiers, normalized, minimal.
     displayed count is **derived** = `(clip.upvotes ?? 0) + COUNT(distinct clip_vote rows)`; a real
     vote is a `clip_vote` row, never a write to this column (so the count can't drift). See
     **clip_vote** below + *Prototype phase* → D4.
-  - `vetted` (boolean) — light moderation flag. A `clip` row exists only once a human has acted
-    (promote or add-by-link), so clips are curated by construction; auto-suggested candidates
-    are **not** clip rows (see *Candidate suggestion*). `vetted` remains so we can hold a freshly
-    added clip for review if needed.
+  - `vetted` (boolean, `NOT NULL DEFAULT true`) — **the review-hold flag, AS-BUILT as of issue #58
+    / D5b** (migration `drizzle/0006_useful_the_phantom.sql`). `vetted = true` ≙ **published / live
+    / fully curated** (carries the site's full vouch); `vetted = false` ≙ **held / "in review · not
+    yet vouched"** — a real curated clip (note + chips + curator intact) whose vouch a reviewer has
+    not yet confirmed (Curation Standard §7.1 / Decision C8 — the THIRD clip-state, distinct from a
+    fully-curated clip and from a §6 candidate). **New adds publish by default** (`true` — Decision
+    D1-2 preserved; the hold is an available action, never auto-on) and **all existing/seeded clips
+    backfilled to `true`** when the column landed (the `NOT NULL DEFAULT true` default), so no live
+    clip went dark. This is the **clip** review-state — distinct from the `Candidate.vetted: false`
+    discriminant in `lib/data/types.ts` (an auto-suggested non-clip), never conflated with it. The
+    held-state **rides the clip read** (`listClips` → the client `Clip.held` flag) so every viewer
+    sees the same marking with **no per-user work** on the cached read path (D5b Decision 4). Set by
+    the two role-gated Server Actions (`holdClipAction` / `reviewClipAction` — see *Boundary
+    surface*); see *Prototype phase* → **D5b**.
   - `curator_id` → contributor (who promoted/added it)
   - `note_license`, `note_license_agreed_at` (both nullable) — the **per-submit CC BY-SA
     note-license agreement** captured at publish (issue #52 / D1, Curation Standard §5.3 /
@@ -153,6 +163,25 @@ Keyed on stable identifiers, normalized, minimal.
 - **contributor** (the wiki+ curator — distinct from the external **creator** referenced above)
   - `id` (internal PK), `handle` (display only — **non-unique**), `display_name`, `avatar_url`,
     `created_at`
+  - `is_moderator` (boolean, `NOT NULL DEFAULT false`) — **the minimal binary moderator/reviewer
+    role, AS-BUILT as of issue #58 / D5b** (migration `drizzle/0006_useful_the_phantom.sql`; the
+    shared prerequisite **D5c** reuses). `true` ⇒ this contributor is a moderator/reviewer (may
+    **approve** a held clip and **hold** any clip — Curation Standard §7.1). `DEFAULT false` so
+    every existing/new contributor is a non-moderator until granted — the safe default; the feature
+    ships **green with no moderator existing** (the role-gate simply rejects everyone until one is
+    granted). **How a moderator is granted — OUT-OF-BAND, no in-app admin UI** (two ways, either
+    suffices; the server-side resolver `lib/auth/moderators.ts` OR-combines them):
+    - **(a) the DB flag** — an owner/ops sets the column directly on the box, e.g.
+      `psql … -c "UPDATE contributor SET is_moderator = true WHERE handle = 'Username';"`; or
+    - **(b) the `WIKIPLUS_MODERATORS` env allowlist** — a comma-separated list of Wikimedia
+      usernames; a contributor whose handle appears in it (case-insensitively) is a moderator
+      (cleaner for staging — set the env + redeploy; self-heals if the DB column was never set).
+
+    **Granting a LIVE moderator is a separate owner/ops action** — a runbook step, not part of the
+    D5b build's deploy. The role-gate's **authority is always server-side** (the action re-resolves
+    the role from the DB column / allowlist), and a JWT `isModerator` session claim (resolved the
+    same way at login — *Authentication & identity*) is the **affordance layer only**, never the
+    security control. See *Prototype phase* → **D5b**.
   - identity comes from OAuth — the durable trust anchor is the linked **account** row's
     `(provider, provider_account_id)`, **not** the mutable/reusable `handle`; see
     **Authentication & identity** below
@@ -358,7 +387,12 @@ multi-provider OAuth support, so launching single-provider costs us nothing late
   JWT cookie with **no per-read DB hit** (read-path-efficiency principle preserved). The
   **only** DB write a login makes is the find-or-create identity mapping, run once in the `jwt`
   callback on sign-in; the resolved `contributorId` + Wikimedia `username` are stashed on the
-  token and surfaced via the `session` callback.
+  token and surfaced via the `session` callback. **As of issue #58 / D5b** the `jwt` callback also
+  resolves an **`isModerator`** claim server-side on the sign-in pass (the DB `is_moderator` column
+  OR the `WIKIPLUS_MODERATORS` allowlist — `lib/auth/moderators.ts`) and stashes it on the token, so
+  ordinary reads stay JWT-only (no per-read role query). That claim drives only the **off-read-path
+  reviewer affordances** (which clips show Hold/Approve); the **write boundary re-resolves the role
+  server-side**, so the claim never authorizes a write — it is the affordance layer, not the gate.
 - **Reading is anonymous; contributing requires login.** The three persisted write Server
   Actions — `addClipAction`, `upsertTopicAction`, `recordDismissalAction` — are **auth-gated at
   the boundary** (`lib/auth/require-session.ts` `requireContributor()` throws `AuthRequiredError`
@@ -511,8 +545,15 @@ multi-provider OAuth support, so launching single-provider costs us nothing late
   introduced); D5a must not stand up a Redis service ahead of that need — a `COUNT(... WHERE
   contributor_id = ? AND created_at > now() - W)` over the indexed slice is trivially cheap at
   prototype scale, and the ledger doubles as the §7 audit trail. See *Prototype phase* → **D5a**. The
-  **`clip.vetted` review hold + the role model is D5b**; **moderator removal is D5c** — both still to
-  build. *Anti-gaming beyond a single-identity cap* (sockpuppets, vote-fraud) stays **post-MVP**.
+  **`clip.vetted` review hold + the minimal moderator/reviewer role model is now BUILT (issue #58 /
+  D5b)** — additive migration `drizzle/0006_useful_the_phantom.sql` adds `clip.vetted` (boolean, the
+  held/published review-state, all existing clips backfilled published) + `contributor.is_moderator`
+  (the binary role, granted out-of-band: the DB flag or the `WIKIPLUS_MODERATORS` allowlist — no
+  admin UI). Two role-gated Server Actions (`holdClipAction` = moderator-OR-own-curator;
+  `reviewClipAction` / approve = moderator-only, no self-approve) slot into the gate→limit→role→write
+  order; a held clip renders the calm "in review · not yet vouched" marking, distinct from a curated
+  clip and a §6 candidate. **Moderator removal is D5c** (reuses this role model) — still to build.
+  *Anti-gaming beyond a single-identity cap* (sockpuppets, vote-fraud) stays **post-MVP**.
 
 ## Persistence — Drizzle/Postgres behind a server data-access boundary (issue #45 / #35 B)
 
@@ -583,8 +624,12 @@ build on additively.
     contributor id` (id-based, server-side); delete is hard; see *Boundary surface* above. **As of
     issue #57 / D5a every counted gated write also passes a per-identity rate-limit check** (gate →
     `checkWriteRateLimit` → write → `recordWriteEvent`; over cap → `RateLimitedError`, writes nothing
-    — see *Open questions* → Abuse/spam + *Prototype phase* → D5a). Migrations through
-    `drizzle/0005_broken_barracuda.sql` (the `write_event` ledger).
+    — see *Open questions* → Abuse/spam + *Prototype phase* → D5a). **As of issue #58 / D5b two
+    role-gated review-hold writes** (`holdClipAction` = moderator-OR-own-curator; `reviewClipAction` /
+    approve = moderator-only) slot into the same gate→limit→**role**→write order, the role resolved
+    server-side (`lib/auth/moderators.ts`); they set `clip.vetted` (held/published) and append `hold`
+    / `review` `write_event` kinds. Migrations through `drizzle/0006_useful_the_phantom.sql` (the
+    `clip.vetted` review-state + the `contributor.is_moderator` role column).
   - **Client (Wikipedia/YouTube), unchanged:** title→QID resolution, the article-body fetch, the TOC,
     and the **live YouTube candidate search** all stay **client-side**. `suggestCandidates` runs the
     pure pipeline in the browser; the (now shared) dismissed-video keys it needs for dedup are fetched
@@ -604,7 +649,12 @@ build on additively.
   `clip_vote` (**issue #55 / D4**, migration `0004_perpetual_fat_cobra.sql` — `unique(clip_id,
   contributor_id)` is the one-per-user upvote invariant, FKs to `clip`/`contributor` both
   `onDelete: cascade`; a clean **additive** migration — no drop/rename/backfill of `clip.upvotes`,
-  which is kept as the frozen seed baseline).
+  which is kept as the frozen seed baseline). **`write_event`** (**issue #57 / D5a**, migration
+  `0005_broken_barracuda.sql` — the per-identity rate-limit ledger). **As of issue #58 / D5b**
+  (migration `0006_useful_the_phantom.sql`) two **additive columns** land — `clip.vetted` (boolean
+  `NOT NULL DEFAULT true`, the review-hold state, existing rows backfilled published) and
+  `contributor.is_moderator` (boolean `NOT NULL DEFAULT false`, the binary reviewer role) — a clean
+  additive, non-destructive change (no drop, no type change, no data loss).
 - **Migration + seed run on DEPLOY, never at build or per-request.** A compose **`migrate` one-shot**
   (same app image, `command: node dist/migrate.cjs`) applies pending Drizzle migrations then runs the
   idempotent seed (`lib/db/seed.ts`, ported from the prototype seed) against Postgres **before** the
@@ -825,8 +875,42 @@ a host is provisioned (issue A.2).
   ledger carries **`kind`** so a future per-action budget split needs **no** schema change; a periodic
   prune of aged rows is an **Ops follow-up**, not required for correctness. A clean **additive**
   migration (`drizzle/0005_broken_barracuda.sql`) adds the table — no drop/rename/backfill. **Not** in
-  D5a: the `vetted` review hold + role model (**D5b**), moderator removal (**D5c**), and
-  sockpuppet/vote-fraud heuristics (post-MVP). **No** ISR/Redis (still deferred).
+  D5a: the `vetted` review hold + role model (**D5b**, now built — below), moderator removal
+  (**D5c**), and sockpuppet/vote-fraud heuristics (post-MVP). **No** ISR/Redis (still deferred).
+- **The `vetted` review-hold + the minimal moderator/reviewer role model (issue #58 / D5b).** The §7
+  review-hold posture ("a light `vetted` hold is **available** to queue a freshly added clip for
+  review before it shows as fully curated") + §6's not-vouched-for language are now ENFORCED as a
+  **third clip-state** (Curation Standard §7.1 / Decision C8). **Additive migration**
+  (`drizzle/0006_useful_the_phantom.sql`) — **no** new infra, **no** new secret, **no** Redis: it
+  adds `clip.vetted` (boolean `NOT NULL DEFAULT true` — `false` ≙ held / in review, `true` ≙
+  published; **new adds publish by default**, D1-2 preserved; **all existing/seeded clips backfilled
+  to published** so no live clip went dark) and `contributor.is_moderator` (boolean `NOT NULL DEFAULT
+  false` — the binary role). The held-state is a property of the **clip**, so it **rides the clip
+  read** (`listClips` → the client `Clip.held` flag, derived in `rowToClip`); the cached read path
+  does **no** per-user work to render the held marking (Decision 4). Two **role-gated Server Actions**
+  in `lib/server/actions.ts`, both in the established **gate→limit→role→write** order
+  (`requireContributor()` FIRST → the D5a rate-limit → the **server-side** role/ownership check →
+  write; the role check rejects + writes nothing otherwise — the load-bearing security behavior):
+  - **`holdClipAction`** (publish → held, `vetted=false`): allowed for **a moderator (any clip)** OR
+    **the clip's own curator (own clip only)** — Decision 3.
+  - **`reviewClipAction`** / approve (held → published, `vetted=true`): **moderator-only** — a curator
+    may **not** self-approve, not even their own held clip (the vouch is confirmed by someone other
+    than its author — §7.1).
+
+    The role is resolved **server-side** (`lib/auth/moderators.ts` — the DB `is_moderator` column OR
+    the `WIKIPLUS_MODERATORS` env allowlist), **never** a client flag; a matching JWT `isModerator`
+    session claim (resolved the same way at login) drives only the off-read-path reviewer affordances
+    (the D2/D4 owner-affordance pattern). The held clip renders a calm, text-labeled **"In review ·
+    not yet vouched"** marking (the verbatim §7.1 strings) on the `ClipCard` (solid ink left-rule,
+    above the chips) and the `GeneralStrip` tile (a white-fill pill for AA on the indigo band),
+    **keeping** its note/chips/curator — distinct from a fully-curated clip and from a §6 candidate.
+    The two new `write_event` `kind`s (`hold` / `review`) need **no** ledger schema change. **How a
+    moderator is granted** is OUT-OF-BAND (no admin UI — see *Data model* → `contributor`); **granting
+    a live moderator is a separate owner/ops runbook step**, and the feature ships **green without
+    one** (the gate rejects everyone until granted; the workflow is proven in CI with a stubbed
+    moderator). **Not** in D5b: moderator *removal* of abusive clips (**D5c** — reuses this role
+    model), an admin UI to grant roles, appeals, auto-hold heuristics. **No** ISR/Redis (still
+    deferred).
 - **Server Actions (enabled #37; now the data-access boundary — issue #45).** The Node SSR runtime
   supports Server Actions; as of #45 they are the **data-access boundary** for shared Postgres
   (`lib/server/actions.ts`, `"use server"` — see *Persistence* above). The throwaway #37 smoke artifact

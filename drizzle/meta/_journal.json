@@ -43,6 +43,13 @@
       "when": 1781794474252,
       "tag": "0005_broken_barracuda",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1781800839683,
+      "tag": "0006_useful_the_phantom",
+      "breakpoints": true
     }
   ]
 }
