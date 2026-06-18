@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, asc, count, desc, eq, inArray, ne, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, isNull, ne, sql } from "drizzle-orm";
 import type { DataStore } from "@/lib/data/store";
 import type {
   ArticleSection,
@@ -106,10 +106,18 @@ export class DrizzleDataStore implements DataStore {
   async listClips(topicQid: string): Promise<Clip[]> {
     const topicId = await this.topicIdForQid(topicQid);
     if (topicId === null) return [];
+    // Issue #59 / D5c (Decision 1 / AC1/AC7): a REMOVED clip leaves the read. The query gains a
+    // `removed_at IS NULL` predicate alongside the `topicId` filter, so a moderator-removed clip is
+    // NOT returned to readers — it disappears from the Topic page, the General band, and the topic
+    // counts. The removed-state rides the read as an EXCLUSION (a property of the clip, the same for
+    // every viewer), so the cached read path does NO per-user work for it (AC7). The row persists in
+    // the DB (the tombstone audit trail); it is simply filtered out here. This is DISTINCT from the
+    // D5b held filter: a HELD clip (`vetted = false`, `removed_at IS NULL`) STILL lists (shown-but-
+    // marked); only a REMOVED clip (`removed_at` set) is excluded (AC5).
     const rows = await this.db
       .select()
       .from(clip)
-      .where(eq(clip.topicId, topicId))
+      .where(and(eq(clip.topicId, topicId), isNull(clip.removedAt)))
       .orderBy(desc(clip.createdAt));
     // Issue #55 / D4: the DISPLAYED count is DERIVED (Decision 2) — the frozen `clip.upvotes`
     // seed baseline PLUS the count of distinct real `clip_vote` rows. It is PUBLIC (the same for
@@ -246,6 +254,60 @@ export class DrizzleDataStore implements DataStore {
     await this.db.delete(clip).where(eq(clip.id, Number(id)));
   }
 
+  async setClipVetted(id: string, vetted: boolean): Promise<Clip> {
+    const numId = Number(id);
+    // Write ONLY the review-state flag (+ updatedAt) — the note, chips, curator attribution, and
+    // every other field are left untouched (CURATION §7.1: a held clip keeps everything but its
+    // confirmed vouch). The role/ownership gate ran already in the Server Action; this just persists.
+    const rows = await this.db
+      .update(clip)
+      .set({ vetted, updatedAt: new Date() })
+      .where(eq(clip.id, numId))
+      .returning();
+    if (!rows[0]) throw new Error(`Clip ${id} not found`);
+    const t = await this.db
+      .select({ qid: topic.wikidataQid })
+      .from(topic)
+      .where(eq(topic.id, rows[0].topicId))
+      .limit(1);
+    return rowToClip(rows[0], t[0]?.qid ?? "");
+  }
+
+  async removeClip(
+    id: string,
+    removedBy?: number,
+    reason?: string | null
+  ): Promise<Clip> {
+    const numId = Number(id);
+    // The boundary (`removeClipAction`) always passes the acting MODERATOR's contributor id after
+    // its server-side role-gate; the optional shape only keeps the store-level tests callable. A
+    // removal MUST be attributable (the §7 audit trail anchors on `removed_by`), so refuse a
+    // store-level call with no remover rather than write a removerless tombstone.
+    if (removedBy === undefined) {
+      throw new Error("removeClip: no moderator to attribute the removal to.");
+    }
+    // Issue #59 / D5c (Decision 1): the SOFT-REMOVAL write — mirrors `setClipVetted` (a column-flip-
+    // and-return), NOT `deleteClip` (a hard `db.delete`). Set the tombstone (`removed_at = now()`,
+    // `removed_by` = the acting moderator, the OPTIONAL `removed_reason`) + `updatedAt`; every other
+    // field — the note, chips, curator, `vetted` — is left UNTOUCHED, so the row persists as the §7
+    // audit trail and a removed clip is independent of its held state (AC5). The MODERATOR-ONLY
+    // role-gate already ran in `removeClipAction` (no own-curator arm — Decision 2); this just
+    // persists. Returns the re-mapped `Clip` so the action's caller has the removed row's shape;
+    // the client drops it from the in-memory set for the no-reload reflect (the read excludes it).
+    const rows = await this.db
+      .update(clip)
+      .set({ removedAt: new Date(), removedBy, removedReason: reason ?? null, updatedAt: new Date() })
+      .where(eq(clip.id, numId))
+      .returning();
+    if (!rows[0]) throw new Error(`Clip ${id} not found`);
+    const t = await this.db
+      .select({ qid: topic.wikidataQid })
+      .from(topic)
+      .where(eq(topic.id, rows[0].topicId))
+      .limit(1);
+    return rowToClip(rows[0], t[0]?.qid ?? "");
+  }
+
   /**
    * Load just the ownership key + the stored note for a clip (issue #53 / D2). The auth-gated
    * boundary uses this to (a) evaluate the id-based ownership gate (`curatorId === session
@@ -304,7 +366,10 @@ export class DrizzleDataStore implements DataStore {
       .select({ clip, topicQid: topic.wikidataQid, topicTitle: topic.title })
       .from(clip)
       .innerJoin(topic, eq(clip.topicId, topic.id))
-      .where(eq(clip.curatorId, contributorId))
+      // Issue #59 / D5c: a removed clip leaves the read on the profile too (`removed_at IS NULL`),
+      // same as `listClips` — a clip a moderator removed is gone from its curator's public profile,
+      // consistent with the Topic page. The tombstone row persists; it is filtered from the read.
+      .where(and(eq(clip.curatorId, contributorId), isNull(clip.removedAt)))
       .orderBy(desc(clip.createdAt));
     return rows.map((r) => ({
       ...rowToClip(r.clip, r.topicQid),

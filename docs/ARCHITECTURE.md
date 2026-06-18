@@ -136,10 +136,41 @@ Keyed on stable identifiers, normalized, minimal.
     displayed count is **derived** = `(clip.upvotes ?? 0) + COUNT(distinct clip_vote rows)`; a real
     vote is a `clip_vote` row, never a write to this column (so the count can't drift). See
     **clip_vote** below + *Prototype phase* → D4.
-  - `vetted` (boolean) — light moderation flag. A `clip` row exists only once a human has acted
-    (promote or add-by-link), so clips are curated by construction; auto-suggested candidates
-    are **not** clip rows (see *Candidate suggestion*). `vetted` remains so we can hold a freshly
-    added clip for review if needed.
+  - `vetted` (boolean, `NOT NULL DEFAULT true`) — **the review-hold flag, AS-BUILT as of issue #58
+    / D5b** (migration `drizzle/0006_useful_the_phantom.sql`). `vetted = true` ≙ **published / live
+    / fully curated** (carries the site's full vouch); `vetted = false` ≙ **held / "in review · not
+    yet vouched"** — a real curated clip (note + chips + curator intact) whose vouch a reviewer has
+    not yet confirmed (Curation Standard §7.1 / Decision C8 — the THIRD clip-state, distinct from a
+    fully-curated clip and from a §6 candidate). **New adds publish by default** (`true` — Decision
+    D1-2 preserved; the hold is an available action, never auto-on) and **all existing/seeded clips
+    backfilled to `true`** when the column landed (the `NOT NULL DEFAULT true` default), so no live
+    clip went dark. This is the **clip** review-state — distinct from the `Candidate.vetted: false`
+    discriminant in `lib/data/types.ts` (an auto-suggested non-clip), never conflated with it. The
+    held-state **rides the clip read** (`listClips` → the client `Clip.held` flag) so every viewer
+    sees the same marking with **no per-user work** on the cached read path (D5b Decision 4). Set by
+    the two role-gated Server Actions (`holdClipAction` / `reviewClipAction` — see *Boundary
+    surface*); see *Prototype phase* → **D5b**.
+  - `removed_at`, `removed_by`, `removed_reason` (all nullable) — **the soft-removal tombstone,
+    AS-BUILT as of issue #59 / D5c** (migration `drizzle/0007_regular_scorpion.sql`). The §7
+    moderation enforcement: a **moderator** removing an **abusive** clip (Curation Standard §7.2 /
+    Decision C9). `removed_at` (timestamptz) is the **single removed/live discriminant** — `NULL` ≙
+    live, non-null ≙ removed (the removal timestamp); `removed_by` (integer → `contributor.id`, `ON
+    DELETE SET NULL` so the audit trail outlives the moderator's account) is the removing moderator;
+    `removed_reason` (text) is the **optional, audit-only** reason (the C9 §7-category enum and/or a
+    free-text note, composed into one string — `lib/curation/removal-reason.ts`). **All three default
+    `NULL`; no backfill marks any clip removed**, so every existing/seeded clip landed **live**
+    (`removed_at IS NULL`) when the columns landed — no live clip went dark (AC6). Removal is a
+    **SOFT tombstone, NOT a hard delete** — the row **persists** as the §7 audit trail (a privileged
+    act on another person's work must be auditable + attributable) and the **clip read excludes
+    `removed_at IS NULL`** (`listClips` + `listClipsByContributor` gain the predicate), so a removed
+    clip simply **stops showing** with **no per-user work** on the cached read path (AC7) — there is
+    **no reader-facing removed marker**. **Distinct from `vetted`** (an INDEPENDENT column): a *held*
+    clip (`vetted = false`, `removed_at IS NULL`) **still lists** (shown-but-marked "in review"); a
+    *removed* clip (`removed_at` set) is **excluded** regardless of its `vetted` value — the two never
+    collide (AC5). **Distinct from D2's owner hard-delete** (`deleteClipAction` — the row is GONE;
+    here the row persists). Set by the moderator-only `removeClipAction` (see *Boundary surface*).
+    **Restore is DEFERRED but TRIVIAL** given the tombstone (clear `removed_at`/`removed_by`); D5c
+    builds removal only. See *Prototype phase* → **D5c**.
   - `curator_id` → contributor (who promoted/added it)
   - `note_license`, `note_license_agreed_at` (both nullable) — the **per-submit CC BY-SA
     note-license agreement** captured at publish (issue #52 / D1, Curation Standard §5.3 /
@@ -153,6 +184,25 @@ Keyed on stable identifiers, normalized, minimal.
 - **contributor** (the wiki+ curator — distinct from the external **creator** referenced above)
   - `id` (internal PK), `handle` (display only — **non-unique**), `display_name`, `avatar_url`,
     `created_at`
+  - `is_moderator` (boolean, `NOT NULL DEFAULT false`) — **the minimal binary moderator/reviewer
+    role, AS-BUILT as of issue #58 / D5b** (migration `drizzle/0006_useful_the_phantom.sql`; the
+    shared prerequisite **D5c** reuses). `true` ⇒ this contributor is a moderator/reviewer (may
+    **approve** a held clip and **hold** any clip — Curation Standard §7.1). `DEFAULT false` so
+    every existing/new contributor is a non-moderator until granted — the safe default; the feature
+    ships **green with no moderator existing** (the role-gate simply rejects everyone until one is
+    granted). **How a moderator is granted — OUT-OF-BAND, no in-app admin UI** (two ways, either
+    suffices; the server-side resolver `lib/auth/moderators.ts` OR-combines them):
+    - **(a) the DB flag** — an owner/ops sets the column directly on the box, e.g.
+      `psql … -c "UPDATE contributor SET is_moderator = true WHERE handle = 'Username';"`; or
+    - **(b) the `WIKIPLUS_MODERATORS` env allowlist** — a comma-separated list of Wikimedia
+      usernames; a contributor whose handle appears in it (case-insensitively) is a moderator
+      (cleaner for staging — set the env + redeploy; self-heals if the DB column was never set).
+
+    **Granting a LIVE moderator is a separate owner/ops action** — a runbook step, not part of the
+    D5b build's deploy. The role-gate's **authority is always server-side** (the action re-resolves
+    the role from the DB column / allowlist), and a JWT `isModerator` session claim (resolved the
+    same way at login — *Authentication & identity*) is the **affordance layer only**, never the
+    security control. See *Prototype phase* → **D5b**.
   - identity comes from OAuth — the durable trust anchor is the linked **account** row's
     `(provider, provider_account_id)`, **not** the mutable/reusable `handle`; see
     **Authentication & identity** below
@@ -377,7 +427,12 @@ multi-provider OAuth support, so launching single-provider costs us nothing late
   JWT cookie with **no per-read DB hit** (read-path-efficiency principle preserved). The
   **only** DB write a login makes is the find-or-create identity mapping, run once in the `jwt`
   callback on sign-in; the resolved `contributorId` + Wikimedia `username` are stashed on the
-  token and surfaced via the `session` callback.
+  token and surfaced via the `session` callback. **As of issue #58 / D5b** the `jwt` callback also
+  resolves an **`isModerator`** claim server-side on the sign-in pass (the DB `is_moderator` column
+  OR the `WIKIPLUS_MODERATORS` allowlist — `lib/auth/moderators.ts`) and stashes it on the token, so
+  ordinary reads stay JWT-only (no per-read role query). That claim drives only the **off-read-path
+  reviewer affordances** (which clips show Hold/Approve); the **write boundary re-resolves the role
+  server-side**, so the claim never authorizes a write — it is the affordance layer, not the gate.
 - **Reading is anonymous; contributing requires login.** The three persisted write Server
   Actions — `addClipAction`, `upsertTopicAction`, `recordDismissalAction` — are **auth-gated at
   the boundary** (`lib/auth/require-session.ts` `requireContributor()` throws `AuthRequiredError`
@@ -530,8 +585,28 @@ multi-provider OAuth support, so launching single-provider costs us nothing late
   introduced); D5a must not stand up a Redis service ahead of that need — a `COUNT(... WHERE
   contributor_id = ? AND created_at > now() - W)` over the indexed slice is trivially cheap at
   prototype scale, and the ledger doubles as the §7 audit trail. See *Prototype phase* → **D5a**. The
-  **`clip.vetted` review hold + the role model is D5b**; **moderator removal is D5c** — both still to
-  build. *Anti-gaming beyond a single-identity cap* (sockpuppets, vote-fraud) stays **post-MVP**.
+  **`clip.vetted` review hold + the minimal moderator/reviewer role model is now BUILT (issue #58 /
+  D5b)** — additive migration `drizzle/0006_useful_the_phantom.sql` adds `clip.vetted` (boolean, the
+  held/published review-state, all existing clips backfilled published) + `contributor.is_moderator`
+  (the binary role, granted out-of-band: the DB flag or the `WIKIPLUS_MODERATORS` allowlist — no
+  admin UI). Two role-gated Server Actions (`holdClipAction` = moderator-OR-own-curator;
+  `reviewClipAction` / approve = moderator-only, no self-approve) slot into the gate→limit→role→write
+  order; a held clip renders the calm "in review · not yet vouched" marking, distinct from a curated
+  clip and a §6 candidate. **Moderator removal is now BUILT (issue #59 / D5c)** — additive migration
+  `drizzle/0007_regular_scorpion.sql` adds the `clip.removed_at`/`removed_by`/`removed_reason`
+  **soft-removal tombstone** (all nullable, all-live backfill — no clip went dark). A third role-gated
+  Server Action **`removeClipAction`** (reusing the SAME D5b `isModeratorContributor` resolver, but
+  **moderator-only — NO own-curator arm**) slots into the same gate→limit→role→write order and
+  appends a `remove` `write_event` kind; it **soft-removes** any clip (sets the tombstone, the row
+  persists as the §7 audit trail, the read excludes `removed_at IS NULL`), **distinct from** D2's
+  owner-gated **hard** delete and from the D5b hold (an independent `removed_at` column — a held clip
+  still lists, a removed clip does not). It **never** classifies by `accuracy_flag` (a human moderator
+  judges abuse — Curation §7.2 / "removal is for abuse, not disagreement"); the optional reason is the
+  C9 §7-category set + free-text, **audit-only, never reader-facing** (no reader-facing removed
+  marker). **Restore is deferred but trivial** given the tombstone (clear `removed_at`/`removed_by`);
+  D5c builds removal only (no restore UI, no appeals workflow, no moderation dashboard, no admin-grant
+  UI). **This closes the §7 enforcement layer (D5a rate-limit + D5b hold + D5c removal) and Milestone
+  D.** *Anti-gaming beyond a single-identity cap* (sockpuppets, vote-fraud) stays **post-MVP**.
 
 ## Persistence — Drizzle/Postgres behind a server data-access boundary (issue #45 / #35 B)
 
@@ -602,8 +677,21 @@ build on additively.
     contributor id` (id-based, server-side); delete is hard; see *Boundary surface* above. **As of
     issue #57 / D5a every counted gated write also passes a per-identity rate-limit check** (gate →
     `checkWriteRateLimit` → write → `recordWriteEvent`; over cap → `RateLimitedError`, writes nothing
-    — see *Open questions* → Abuse/spam + *Prototype phase* → D5a). Migrations through
-    `drizzle/0005_broken_barracuda.sql` (the `write_event` ledger).
+    — see *Open questions* → Abuse/spam + *Prototype phase* → D5a). **As of issue #58 / D5b two
+    role-gated review-hold writes** (`holdClipAction` = moderator-OR-own-curator; `reviewClipAction` /
+    approve = moderator-only) slot into the same gate→limit→**role**→write order, the role resolved
+    server-side (`lib/auth/moderators.ts`); they set `clip.vetted` (held/published) and append `hold`
+    / `review` `write_event` kinds. **As of issue #59 / D5c a third role-gated write** —
+    **`removeClipAction`** — slots into the same gate→limit→**role**→write order, reusing the SAME
+    server-side `isModeratorContributor` resolver, but **MODERATOR-ONLY with NO own-curator arm** (the
+    key contrast with `holdClipAction`): removal of *anyone's* clip is the privileged reach, and a
+    non-moderator (including the clip's own curator) is rejected at the action on the role. It is a
+    **SOFT removal** — sets the `removed_at`/`removed_by`/optional-`removed_reason` tombstone (the row
+    persists; the read excludes `removed_at IS NULL`) and appends a `remove` `write_event` kind —
+    **distinct from D2's owner-gated `deleteClipAction` HARD delete** and from D5b's hold/approve (an
+    independent `removed_at` column). It **never** gates on or reads `accuracy_flag` (a human moderator
+    judges abuse — Curation §7.2). Migrations through `drizzle/0007_regular_scorpion.sql` (the
+    `clip.removed_at`/`removed_by`/`removed_reason` soft-removal tombstone columns).
   - **Client (Wikipedia/YouTube), unchanged:** title→QID resolution, the article-body fetch, the TOC,
     and the **live YouTube candidate search** all stay **client-side**. `suggestCandidates` runs the
     pure pipeline in the browser; the (now shared) dismissed-video keys it needs for dedup are fetched
@@ -623,7 +711,12 @@ build on additively.
   `clip_vote` (**issue #55 / D4**, migration `0004_perpetual_fat_cobra.sql` — `unique(clip_id,
   contributor_id)` is the one-per-user upvote invariant, FKs to `clip`/`contributor` both
   `onDelete: cascade`; a clean **additive** migration — no drop/rename/backfill of `clip.upvotes`,
-  which is kept as the frozen seed baseline).
+  which is kept as the frozen seed baseline). **`write_event`** (**issue #57 / D5a**, migration
+  `0005_broken_barracuda.sql` — the per-identity rate-limit ledger). **As of issue #58 / D5b**
+  (migration `0006_useful_the_phantom.sql`) two **additive columns** land — `clip.vetted` (boolean
+  `NOT NULL DEFAULT true`, the review-hold state, existing rows backfilled published) and
+  `contributor.is_moderator` (boolean `NOT NULL DEFAULT false`, the binary reviewer role) — a clean
+  additive, non-destructive change (no drop, no type change, no data loss).
 - **Migration + seed run on DEPLOY, never at build or per-request.** A compose **`migrate` one-shot**
   (same app image, `command: node dist/migrate.cjs`) applies pending Drizzle migrations then runs the
   idempotent seed (`lib/db/seed.ts`, ported from the prototype seed) against Postgres **before** the
@@ -844,8 +937,87 @@ a host is provisioned (issue A.2).
   ledger carries **`kind`** so a future per-action budget split needs **no** schema change; a periodic
   prune of aged rows is an **Ops follow-up**, not required for correctness. A clean **additive**
   migration (`drizzle/0005_broken_barracuda.sql`) adds the table — no drop/rename/backfill. **Not** in
-  D5a: the `vetted` review hold + role model (**D5b**), moderator removal (**D5c**), and
-  sockpuppet/vote-fraud heuristics (post-MVP). **No** ISR/Redis (still deferred).
+  D5a: the `vetted` review hold + role model (**D5b**, now built — below), moderator removal
+  (**D5c**), and sockpuppet/vote-fraud heuristics (post-MVP). **No** ISR/Redis (still deferred).
+- **The `vetted` review-hold + the minimal moderator/reviewer role model (issue #58 / D5b).** The §7
+  review-hold posture ("a light `vetted` hold is **available** to queue a freshly added clip for
+  review before it shows as fully curated") + §6's not-vouched-for language are now ENFORCED as a
+  **third clip-state** (Curation Standard §7.1 / Decision C8). **Additive migration**
+  (`drizzle/0006_useful_the_phantom.sql`) — **no** new infra, **no** new secret, **no** Redis: it
+  adds `clip.vetted` (boolean `NOT NULL DEFAULT true` — `false` ≙ held / in review, `true` ≙
+  published; **new adds publish by default**, D1-2 preserved; **all existing/seeded clips backfilled
+  to published** so no live clip went dark) and `contributor.is_moderator` (boolean `NOT NULL DEFAULT
+  false` — the binary role). The held-state is a property of the **clip**, so it **rides the clip
+  read** (`listClips` → the client `Clip.held` flag, derived in `rowToClip`); the cached read path
+  does **no** per-user work to render the held marking (Decision 4). Two **role-gated Server Actions**
+  in `lib/server/actions.ts`, both in the established **gate→limit→role→write** order
+  (`requireContributor()` FIRST → the D5a rate-limit → the **server-side** role/ownership check →
+  write; the role check rejects + writes nothing otherwise — the load-bearing security behavior):
+  - **`holdClipAction`** (publish → held, `vetted=false`): allowed for **a moderator (any clip)** OR
+    **the clip's own curator (own clip only)** — Decision 3.
+  - **`reviewClipAction`** / approve (held → published, `vetted=true`): **moderator-only** — a curator
+    may **not** self-approve, not even their own held clip (the vouch is confirmed by someone other
+    than its author — §7.1).
+
+    The role is resolved **server-side** (`lib/auth/moderators.ts` — the DB `is_moderator` column OR
+    the `WIKIPLUS_MODERATORS` env allowlist), **never** a client flag; a matching JWT `isModerator`
+    session claim (resolved the same way at login) drives only the off-read-path reviewer affordances
+    (the D2/D4 owner-affordance pattern). The held clip renders a calm, text-labeled **"In review ·
+    not yet vouched"** marking (the verbatim §7.1 strings) on the `ClipCard` (solid ink left-rule,
+    above the chips) and the `GeneralStrip` tile (a white-fill pill for AA on the indigo band),
+    **keeping** its note/chips/curator — distinct from a fully-curated clip and from a §6 candidate.
+    The two new `write_event` `kind`s (`hold` / `review`) need **no** ledger schema change. **How a
+    moderator is granted** is OUT-OF-BAND (no admin UI — see *Data model* → `contributor`); **granting
+    a live moderator is a separate owner/ops runbook step**, and the feature ships **green without
+    one** (the gate rejects everyone until granted; the workflow is proven in CI with a stubbed
+    moderator). **Not** in D5b: moderator *removal* of abusive clips (**D5c** — reuses this role
+    model), an admin UI to grant roles, appeals, auto-hold heuristics. **No** ISR/Redis (still
+    deferred).
+- **Moderator removal of abusive clips — the soft-removal tombstone (issue #59 / D5c).** The §7
+  "removable content" rule + §7.1's removal-vs-hold distinction are now ENFORCED as a **moderator-only
+  soft removal** (Curation Standard §7.2 / Decision C9) — the **final Milestone D run**, closing the §7
+  enforcement layer (D5a rate-limit + D5b hold + D5c removal). **Additive migration**
+  (`drizzle/0007_regular_scorpion.sql`) — **no** new infra, **no** new secret, **no** Redis: it adds
+  `clip.removed_at` (timestamptz nullable — the single removed/live discriminant, `NULL` ≙ live),
+  `clip.removed_by` (integer → `contributor.id`, `ON DELETE SET NULL`), and `clip.removed_reason` (text
+  nullable). **All default `NULL`; no backfill marks any clip removed**, so every existing/seeded clip
+  landed **live** (`removed_at IS NULL`) — **no live clip went dark** (AC6). Removal is a **SOFT
+  tombstone, NOT a hard delete** (Decision 1): the row **persists** with who/when/optional-why as the
+  §7 audit trail (a privileged act on another person's work must be auditable + attributable), and the
+  clip **stops showing** because the **clip read excludes `removed_at IS NULL`** — `listClips` AND
+  `listClipsByContributor` gained the predicate, so the removed-state rides the read as an
+  **exclusion** (a property of the clip, the same for every viewer) with **no per-user work** on the
+  cached read path (AC7). There is **no reader-facing removed marker** (the deliberate contrast with
+  the D5b *shown-but-marked* held state — a removed clip is simply filtered out). One **role-gated
+  Server Action** `removeClipAction` in the established **gate→limit→role→write** order
+  (`requireContributor()` FIRST → the D5a rate-limit → the **server-side** role check → the
+  soft-remove; appends a `remove` `write_event` kind, no ledger schema change). The role check is
+  **MODERATOR-ONLY** — it reuses the SAME D5b resolver (`isModeratorContributor` — the DB
+  `is_moderator` column OR the `WIKIPLUS_MODERATORS` allowlist, server-side, never a client flag) but
+  has **NO own-curator OR-arm** (the key contrast with `holdClipAction`): removal of *anyone's* clip is
+  the privileged reach, and a non-moderator — **including the clip's own curator acting as a
+  non-moderator** — is rejected **at the action on the role** and the clip stays (AC2; an anonymous
+  caller is rejected by the gate FIRST — AC3; these are the load-bearing security tests, not a hidden
+  button). It **never** gates on or reads `accuracy_flag` — a human moderator judges abuse; an honest
+  `opinion`/`mixed`/`inaccurate` clip with a fair note is legitimately curatable, NOT removable
+  ("removal is for abuse, not disagreement" — §7.2 / Decision 2). The optional **`removed_reason`** is
+  the C9 §7-category set + optional free-text (centralized in `lib/curation/removal-reason.ts`),
+  **both optional** (a removal needs no reason — the reason NEVER gates removal), **audit-only, NEVER
+  reader-facing**. **Distinct from D2's owner-gated `deleteClipAction` HARD delete** (the row is GONE
+  there; here it persists — AC4) and from the D5b hold (an INDEPENDENT `removed_at` column: a held clip
+  `vetted=false`,`removed_at IS NULL` still lists; a removed clip is excluded regardless of `vetted` —
+  AC5). The client reflects a removal by **filtering the clip out of the in-memory `clips` set** (no
+  reload; counts drop; the last clip flips curated→empty), through the `RemoveConfirmDialog` (parallel
+  to D2's `DeleteConfirmDialog` — Cancel-default, the soft/reversible copy, the optional reason, the
+  three-arm catch); focus moves to `focusBandHeading()` (the removed-node anchor, like D2 Delete). The
+  moderator-only **Remove (moderator)** affordance joins the D5b `ReviewRow` (last, after
+  Hold/Approve, restrained `accred`) on the rail card + the General tile, computed from the
+  off-read-path `isModerator` claim (NO own-curator arm — the convenience layer; the server gate is
+  the security control). **Restore is DEFERRED but TRIVIAL** given the soft tombstone (a near-mirror
+  action: clear `removed_at`/`removed_by`) — D5c builds removal only. **Not** in D5c: a restore /
+  un-remove UI, an appeals workflow, a moderation dashboard / removal-log UI, auto-classification of
+  abuse, an admin-grant UI, hard-deleting others' clips. **No** ISR/Redis (still deferred). **Closing
+  D5c closes Milestone D.**
 - **Server Actions (enabled #37; now the data-access boundary — issue #45).** The Node SSR runtime
   supports Server Actions; as of #45 they are the **data-access boundary** for shared Postgres
   (`lib/server/actions.ts`, `"use server"` — see *Persistence* above). The throwaway #37 smoke artifact

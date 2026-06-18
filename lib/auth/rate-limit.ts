@@ -44,7 +44,16 @@ export type WriteKind =
   | "upvote"
   | "dismiss"
   | "edit"
-  | "delete";
+  | "delete"
+  // D5b (issue #58): the two role-gated review-hold writes. Counted gated writes like the rest —
+  // they draw from the SAME shared per-identity budget; `kind` is recorded so a future per-action
+  // split needs no schema change (the `write_event.kind` column already exists — no migration).
+  | "hold"
+  | "review"
+  // D5c (issue #59): the moderator-only soft-removal write. A counted gated write like the rest —
+  // same shared per-identity budget; `kind` is recorded so a future per-action split / a moderation
+  // surface's removal-rate read needs no schema change (the column already exists — no migration).
+  | "remove";
 
 /**
  * The default per-identity cap (Product Decision 2): N writes per window W. Tuned high enough that

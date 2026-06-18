@@ -362,6 +362,15 @@ standard:
   and sets stance + accuracy to this standard (then it earns its chips). Until then it is a
   suggestion, not an endorsement.
 
+> **A candidate is not the same not-curated thing as a *held* clip (§7.1).** A candidate is
+> auto-found and has *no* human behind it (no note, no chips, no curator) — its honesty is
+> "no one has looked at this." A **held** clip is the reverse: a real curator *did* vouch
+> (it keeps its note, chips, and curator attribution) but the vouch has **not yet been
+> confirmed by a reviewer**. Both are "not yet fully curated," but for opposite reasons, and
+> they must be **distinguishable from each other and from a fully-curated clip** (§7.1, §4).
+> The candidate language below ("Suggested · uncurated") is for candidates **only** — a held
+> clip never uses it.
+
 ---
 
 ## 7. Abuse / spam / moderation policy
@@ -395,6 +404,180 @@ policy level here.)
   User-Agent, respect rate limits / `maxlag`, lazy caching (CLAUDE.md; ARCHITECTURE
   §Wikipedia integration) — abuse of the upstream APIs is also out of bounds.
 
+### 7.1 The review-hold — the "held" third state (Decision C8)
+
+§7's posture ("a light `vetted` hold is **available** to queue a freshly added clip for
+review before it shows as fully curated") is realized as a workflow in milestone D5b (spec
+`docs/specs/vetted-review-hold.md`). This subsection is the **editorial contract** for what a
+held clip *means* and *reads as* — UX renders the weight, Dev/QA know what the state asserts.
+It does not reopen §7's posture (the hold exists; contribution is gated; reading is anonymous)
+or §6 (candidates).
+
+**What "held" means editorially — the third clip-state.** A held clip is a **real curated
+clip whose vouch has not yet been confirmed**. A curator wrote a context note (§1) and set the
+stance/accuracy chips (§2/§3) — so a held clip **keeps all of them**, plus its curator
+attribution (§5.4) — but a **reviewer has not yet approved it**, so it does **not** carry the
+site's full vouch. It is a third state, and its trust weight sits **between** the other two:
+
+| | A fully-curated clip | A **held** clip (§7.1) | An unvetted candidate (§6) |
+|---|---|---|---|
+| Context note | yes | **yes** | no |
+| Stance / accuracy chips | yes | **yes** | no |
+| Named curator behind it | yes | **yes** | no (auto-found) |
+| Reviewer-confirmed vouch | yes | **not yet** | n/a — no vouch to confirm |
+| Honest tell to the reader | "a person vouched for this and it passed review" | "a person vouched for this; **the vouch is still in review**" | "no one has reviewed this yet" |
+
+So a held clip differs from **(a)** a fully-curated clip in *one* thing only — the vouch is
+unconfirmed, not the content — and from **(b)** a candidate in *almost everything* — a held
+clip has a human's full curation; a candidate has none. The reader must be able to tell all
+three apart, **from the text/marking, never color alone** (§4). This is the standard behind
+spec AC1/AC2.
+
+**The held-state marking — canonical microcopy (UX uses verbatim; Dev derives from the held
+flag).** A held clip shows a short, text-labeled, non-alarming marking. It must read as
+"in review," **never** as "this was removed / this is bad" (see the boundary below). It must
+be **distinct from** the §6 candidate language ("Suggested · uncurated"), because a held clip
+is not a candidate.
+
+- **Eyebrow label (the chip/badge text), verbatim:** **"In review · not yet vouched"**
+  — the canonical short marking on the held clip's card and General-band tile. "In review"
+  carries the meaning as a *word* (§4 — not color-alone); "not yet vouched" ties it to the
+  vouch language §6 already uses ("Curate one to vouch for it") and keeps the tone calibrated
+  ("not *yet*"), not punitive.
+- **One-line explainer (where space allows — the held echo of §6's once-per-context line),
+  verbatim:** **"A curator added this and wrote a note, but it hasn't passed review yet —
+  weigh it accordingly."** This is the honest tell from the table above; it states the
+  calibrated-trust value plainly and is the held analogue of §6's "No context notes yet — a
+  human hasn't reviewed these."
+- **Accessible name** for the marking (e.g. `aria-label` / `sr-only`), verbatim:
+  **"In review — not yet vouched for by a reviewer."**
+- **Tone guard:** no alarm words ("flagged," "rejected," "warning," "problem"), no color as
+  the sole signal, gold is not a functional signal (CLAUDE.md). The marking is a *neutral
+  status*, the register of §1.3 (a knowledgeable librarian: "this is still being checked").
+
+**Who may hold / who may approve — the accountability line (confirms spec Decision 3).** This
+split is the right editorial line and follows directly from §7's accountability rationale
+("login gating buys us accountability — an action ties to an identity") and §5.4's
+vouch-is-attributable principle:
+
+- **Hold** (move a clip into review, `vetted → held`) may be done by **a moderator/reviewer on
+  any clip**, **or by the clip's own curator on their own clip**. A curator holding their own
+  clip is the editorial parallel of §5.4/D2's "a curator may revise or retract **their own**
+  vouch" — pulling your own clip into review is a self-limiting act (you can only hold what you
+  authored), so it needs no privileged role.
+- **Approve** (confirm the vouch, `held → fully curated`) is **moderator/reviewer only — a
+  curator may not approve, including their own held clip.** This is the load-bearing editorial
+  rule: **the vouch must be confirmed by someone other than the person who made it.** Approval
+  is the act of granting the site's full vouch; if a curator could clear their own hold, the
+  hold would assert nothing and the "reviewed" signal would be hollow. Independent confirmation
+  is exactly what makes the held → curated transition trustworthy. (A curator who has second
+  thoughts about their own held clip uses D2 edit/delete; *restoring* the full vouch is a
+  reviewer's call.)
+
+**Held is a review pause, not a removal — keep the two editorially distinct.** A hold is
+**not** the §7 "removable content" abuse mechanism (that is milestone D5c). The two must never
+read as the same thing:
+
+- A **hold** is a **reversible review pause**, available for **any reason a reviewer (or the
+  curator) wants a second look** — a fresh add a contributor is unsure of, a clip a reviewer
+  wants to check before it carries the full vouch, a borderline note. It asserts **"not yet
+  confirmed,"** not "this is bad." A held clip stays visible (shown-but-marked, spec Decision
+  3b) and a moderator can flip it live at any time.
+- **Removal** (§7 "Removable content") is for **abuse** — spam, promotion, hate/harassment,
+  §1.2 violations, deceptive media — and is the §7 line "**removal is for abuse, not for
+  disagreement.**" Removal is **not** the hold's job, and a held clip must **never** read as
+  "this was removed/rejected." The marking copy above is chosen specifically so a held clip
+  reads as *in review*, never as *judged and found wanting*. (A clip that is honestly
+  `opinion` / `mixed` / `inaccurate` is **legitimately curatable** — §7 — and being held is
+  about *review status*, not about the accuracy flag's value.)
+
+### 7.2 The removal mechanism — soft-removal accountability + the reason vocabulary (Decision C9)
+
+§7's removable-content rule and §7.1's removal-vs-hold distinction are realized as a workflow in
+milestone D5c (spec `docs/specs/moderator-removal.md`). This subsection is the **editorial
+contract** for what a *removal* asserts and how it must be **accountable** — it does not reopen
+§7 (the removable list, the abuse-not-disagreement boundary) or §7.1 (removal ≠ hold). It records
+the two editorial calls D5c surfaced: the **soft-removal accountability posture** and the
+**removal-reason vocabulary**.
+
+**The removable set is unchanged — §7 binds what removal is *for*.** D5c enforces the **§7
+removable list verbatim** (spam / self-affiliate promotion; no-genuine-relevance clips;
+§1.2-violating notes; hateful/harassing/illegal content; manipulated/deceptive media presented as
+genuine; copyright-circumventing embeds) and **nothing beyond it**. Removal is a **capability — a
+human moderator judges** whether a clip is §7 abuse; the mechanism does **not** auto-classify and
+must **never** make a clip removable *by its `accuracy_flag` value*. The load-bearing boundary
+holds at full force: an honestly-flagged `opinion` / `mixed` / `inaccurate` clip whose context
+note does the §3 work of weighing it is **legitimately curatable — NOT removable.** Removal is for
+**abuse**, never for **disagreement**; a moderator who merely disagrees with a fair note has no
+removal warrant. This is the editorial line a moderator (and QA/UX) judges against.
+
+**Soft-removal is the §7-aligned accountability posture — removing someone else's work leaves a
+record.** A moderator removing *another contributor's* clip is a **privileged act on another
+person's work**, on an **abuse judgment**. §7's "removal is for abuse, not for disagreement"
+implies an act that is **auditable and attributable** — *who* removed it, *when*, and (optionally)
+*why* — so the moderation itself can be held to the same standard it enforces. The standard
+therefore requires removal to be a **soft removal / tombstone**, not a destructive erase: the clip
+**stops showing to readers**, but the row **persists** with the removal recorded against the
+removing moderator. This is **distinct from D2's owner hard-delete**: a curator deleting **their
+own** clip is retracting *their own* vouch (no third party's work is touched, no accountability gap
+— a hard delete is right *there*), whereas a moderator removing *someone else's* work must leave a
+trace. The two acts therefore leave **different traces by design** — D2 erases, D5c tombstones —
+and must never be conflated.
+
+| | Owner delete (D2) | **Moderator removal (D5c)** |
+|---|---|---|
+| Who acts | the clip's **own curator** | a **moderator**, on **any** clip |
+| On whose work | their **own** | **someone else's** (the point) — or own (trivial subset) |
+| For what | retracting *their own vouch* (any reason) | **§7 abuse** only — not disagreement |
+| Persistence | **hard delete** — the row is gone | **soft tombstone** — row persists (who/when/why) |
+| Why this trace | no third party's work touched | a privileged act on another's work must be **auditable + attributable** |
+
+**The removal-reason vocabulary — a small §7-aligned category set + optional free-text (Decision
+C9).** The optional removal reason (Decision 4 of the spec) is captured for the audit trail. The
+standard's recommendation is a **fixed, §7-aligned category set** plus an **optional free-text
+note** — *not* free-text alone and *not* a category alone:
+
+- A **category set** keeps the audit trail consistent and (later) aggregable — a future moderation
+  surface / Analytics read can report a **removal-reason distribution** ("which §7 categories
+  dominate" — the signal of what abuse the product actually attracts), exactly as the closed
+  `stance` / `accuracy` enums (C2) enable filtering. Free-text alone would not aggregate.
+- **Optional free-text** alongside it lets a moderator record the specifics a category cannot
+  ("affiliate links in the note to *vendor X*"), which is what makes the trace legible for a future
+  appeal.
+- **Both optional, not required** (matching spec Decision 4): the facts that matter most — *who* +
+  *when* — are captured regardless; a removal with **no** reason is valid. Requiring a reason would
+  add friction to the confirm step for marginal MVP benefit.
+
+The **canonical category labels** — one per item on the §7 removable list, so the vocabulary *is*
+the §7 list, kept consistent by construction — are, verbatim (UX uses these strings; Dev encodes as
+the enum values; each maps to its §7 clause):
+
+| Value (enum) | Label (UX text) | Covers (§7 removable list) |
+|---|---|---|
+| `spam` | **Spam** | Spam / bulk or junk submissions. |
+| `promotion` | **Self/affiliate promotion** | Self-promotion, affiliate or commercial promotion. |
+| `off_topic` | **No genuine relevance** | Clips with no genuine topical relevance to the article. |
+| `note_violation` | **Note violates the standard** | A context note that violates §1.2 (hype, personal attacks, unsupported curator claims, copied metadata). |
+| `hateful_or_illegal` | **Hateful, harassing, or illegal** | Hateful, harassing, or illegal content. |
+| `deceptive_media` | **Deceptive / manipulated media** | Manipulated or deceptive media presented as genuine without disclosure. |
+| `copyright` | **Copyright-circumventing embed** | An embed that circumvents copyright (we embed official sources only). |
+| `other` | **Other (see note)** | Abuse on the §7 list not captured above — pair with the free-text note. |
+
+The reason vocabulary is **display + audit metadata only** — it does **not** gate or auto-trigger
+removal (a human moderator judges), and it is **never shown to readers** (a removed clip simply
+stops showing; the tombstone is for the moderator audit trail / a future moderation surface, not a
+public "this was removed for X" notice). `other` exists so the set need never block a legitimate
+§7 removal that does not fit a category, while still steering moderators to the specific reason
+when one fits.
+
+**Removal stays editorially distinct from the hold (confirms §7.1).** Nothing here softens §7.1's
+line: a **removal** (abuse — takes the clip *down*, it stops showing) and a **D5b hold** (a
+reversible "not yet vouched" review pause — the clip *stays visible*, marked "in review") are
+**different acts with different meanings**. A held clip must **never** read as "removed," and a
+removed clip is **not** merely "held." They ride **independent** state (the hold's review-status vs.
+the removal tombstone); a moderator may *hold-then-remove*, but those are two distinct acts, never
+one.
+
 ---
 
 ## 8. Decisions log (for Product / UX / Dev to react to)
@@ -408,6 +591,8 @@ policy level here.)
 | **C5** | wiki+ **context notes are licensed CC BY-SA 4.0**; the contributor's agreement is a **required precondition of publishing** and is **captured per-submit** (license version + timestamp, bound to this note + contributor). The note-license agreement is the *curator's* act, distinct from *creator* credit (§5.2). | Closes the ARCHITECTURE open question and the "capture arrives with persistence" carry-open. UX uses the §5.3 canonical agreement strings (required control, not a passive line); Dev captures per D1-1 / AC7. |
 | **C6** | Stance/accuracy support an optional **free-form modifier** (≤24 chars) shown after the label, never filtered on. | Reproduces the mockup display strings ("Accurate · fast-paced") without breaking the enum. Dev adds `stance_modifier` / `accuracy_modifier` optional fields; UX renders "Label · modifier". |
 | **C7** | The §5.3 attribution is realized in public as **"context by &lt;username&gt;"** (verbatim), linking IN to the curator's wiki+ profile — **distinct** from the §5.2 creator credit, which links OUT to the platform. The public profile exposes **only** public identity (username + granted avatar), **never email**. A `@prototype` clip shows a non-linked **"seed clip · no curator"** label, no profile link. | Realizes §5.3 / §5.4 for the D3 public attribution + profile (spec #54). UX uses the canonical strings verbatim and keeps curator attribution visually/textually distinct from creator credit; Dev links "context by" to `/contributor/<username>`, suppresses the link for the `@prototype` stub, and ensures the profile read never selects/serializes email (AC2/AC6). |
+| **C8** | The §7 review-hold is defined as the **"held" third clip-state** (§7.1): a real curated clip — note + chips + curator intact — whose **vouch is not yet reviewer-confirmed**; distinct from a fully-curated clip (vouch confirmed) and a §6 candidate (no human behind it). Canonical marking microcopy, verbatim: eyebrow **"In review · not yet vouched"**; explainer **"A curator added this and wrote a note, but it hasn't passed review yet — weigh it accordingly."**; a11y name **"In review — not yet vouched for by a reviewer."** **Hold** = moderator (any clip) OR the curator (own clip); **approve** = moderator-only (no self-approve — the vouch is confirmed by someone other than its author). A hold is a **reversible review pause, not the §7 abuse removal** (that is D5c) — it must never read as "removed/bad." | Realizes §7's review-hold posture + §6's not-vouched-for language for D5b (spec `vetted-review-hold.md`). UX uses the canonical strings verbatim and keeps the held state distinct (by text, never color-alone — §4) from both a curated clip and a §6 candidate; Dev derives the marking from the held flag and gates approve on moderator-only / hold on moderator-or-own-curator server-side; the held marking carries no alarm/removal tone. |
+| **C9** | The §7 removal mechanism (§7.2) is a **soft removal / tombstone**: removing **someone else's** abusive work is **auditable + attributable** (who/when/optional-why persists; the clip stops showing, the row is kept) — **distinct** from D2's owner **hard-delete** of one's *own* clip. Removal enforces the **§7 removable list verbatim** and the **"abuse, not disagreement"** boundary (an honest `opinion`/`mixed`/`inaccurate` clip with a fair note is **not** removable; the mechanism never classifies by `accuracy_flag`). The optional **removal reason** is a **fixed §7-aligned category set + optional free-text** (both optional; a removal needs no reason): `spam` (**Spam**), `promotion` (**Self/affiliate promotion**), `off_topic` (**No genuine relevance**), `note_violation` (**Note violates the standard**), `hateful_or_illegal` (**Hateful, harassing, or illegal**), `deceptive_media` (**Deceptive / manipulated media**), `copyright` (**Copyright-circumventing embed**), `other` (**Other (see note)**). The reason is **audit metadata only — never shown to readers**. Removal stays distinct from the D5b hold (§7.1). | Realizes §7's removable-content rule for D5c (spec `moderator-removal.md`). UX uses the category labels verbatim if it prompts for a reason in the confirm step (optional), keeps Remove distinct from D2 Edit/Delete and D5b Hold/Approve, and never surfaces the reason to readers; Dev may encode the reason as the §7-category enum + optional free-text (or free-text — the captured fact is "an optional reason"), captures `removed_by` / `removed_at`, and never gates removal on the reason or on `accuracy_flag`. |
 
 ---
 
@@ -419,12 +604,26 @@ policy level here.)
   creator credit (name + handle + platform, §5.2); the §5.3 **required** submit-time license
   agreement using the canonical strings (license statement + agreement-act label, verbatim);
   the
-  candidate treatment showing `match_reason` + "no context yet" and **no chips** (§6).
+  candidate treatment showing `match_reason` + "no context yet" and **no chips** (§6); and the
+  **held third state** (§7.1) — a curated clip (note + chips + curator intact) marked with the
+  verbatim **"In review · not yet vouched"** eyebrow (+ the explainer / a11y name strings),
+  text-labeled and AA, distinct from both a fully-curated clip and a §6 candidate, with the
+  reviewer-only **Hold** / **Approve** affordances (hold: moderator-or-own-curator; approve:
+  moderator-only); and the **moderator-only Remove** affordance + confirm step (§7.2 / C9) —
+  visually/textually distinct from D2 Edit/Delete and D5b Hold/Approve, shown only to a moderator,
+  with the **optional** removal-reason capture using the C9 category labels verbatim (a reason is
+  optional, never required) and **never** surfacing the reason to readers.
 - **Development (schema + limits):** encode the §2 stance enum and §3 accuracy enum as the
   controlled vocabulary in `lib/data/types.ts` (replacing the provisional sets), with a single
   enum→label map driving chip text (§4); add optional `*_modifier` fields (C6); enforce the
   note length (C1); ensure candidates carry no stance/accuracy/context (§6); render attribution
-  per §5.
+  per §5; for the **held state** (§7.1) derive the marking from the clip's held flag (the
+  verbatim §7.1 strings), keep the note/chips/curator intact, and gate the two actions
+  server-side — **approve = moderator-only**, **hold = moderator OR the clip's own curator**; for
+  **removal** (§7.2 / C9) make it a **soft tombstone** (who/when/optional-why persist; the clip is
+  excluded from the read, never hard-deleted), **moderator-only** (no own-curator arm), encode the
+  optional reason as the C9 §7-category set + optional free-text (or free-text — the captured fact
+  is "an optional reason"), and **never** gate removal on the reason or on `accuracy_flag`.
 - **Product (policy → roadmap/criteria):** the moderation policy (§7) and the licensing
   decision (§5.3) become roadmap items when auth/persistence land; the note standard (§1) is
   the **definition of "good curation"** Product/Analytics will later measure against.

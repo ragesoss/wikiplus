@@ -142,6 +142,17 @@ export interface Clip extends VideoBase {
   /** Relative date label (decorative). */
   curatedAt?: string;
   /**
+   * D5b (issue #58 / CURATION §7.1): is this clip HELD for review — the third clip-state? `true`
+   * ⇒ the clip's vouch is not yet reviewer-confirmed (`clip.vetted === false` server-side), so it
+   * renders the calm "In review · not yet vouched" marking (ClipCard / GeneralStrip) while KEEPING
+   * its note, chips, and curator attribution. `false`/undefined ⇒ published / fully curated (the
+   * site's full vouch). It is a property of the CLIP (the same for every viewer), so it rides
+   * `listClips` and the cached read path does NO per-user work to render it (Decision 4 / AC7).
+   * This is the clip review-state — DISTINCT from the `Candidate.vetted: false` discriminant below
+   * (a candidate is an auto-suggested non-clip with no note/chips/curator), never conflated with it.
+   */
+  held?: boolean;
+  /**
    * The note-license version the contributor agreed to release this note under, captured
    * at publish (CURATION §5.3 / Decision D1-1). `"CC-BY-SA-4.0"` for a D1-published clip;
    * undefined for seed/stub clips that predate the captured agreement (AC7). A version

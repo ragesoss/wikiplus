@@ -5,6 +5,8 @@ import NextAuth, {
 } from "next-auth";
 import Wikimedia, { type WikimediaProfile } from "next-auth/providers/wikimedia";
 import { findOrCreateContributor } from "./contributor";
+import { isModeratorContributor } from "./moderators";
+import { getDb } from "@/lib/db/client";
 
 // ── Auth.js (NextAuth v5) — Wikimedia OAuth 2.0, JWT sessions (issue C). ──────────────────
 // Spec: docs/specs/wikimedia-oauth.md (AC1–AC14); ARCHITECTURE "Authentication & identity".
@@ -28,6 +30,16 @@ declare module "next-auth" {
       contributorId?: number;
       /** Wikimedia username the header shows (AC2). */
       username?: string;
+      /**
+       * D5b (issue #58): is this signed-in viewer a moderator/reviewer? Resolved SERVER-SIDE in
+       * the `jwt` callback (the DB `contributor.is_moderator` column OR the `WIKIPLUS_MODERATORS`
+       * allowlist — lib/auth/moderators.ts), carried on the JWT, and exposed read-only here so the
+       * Topic page can decide which clips show the reviewer Hold/Approve affordances. This is the
+       * AFFORDANCE predicate ONLY (the D2/D4 off-read-path pattern); the SECURITY control is the
+       * server-side role-gate inside `holdClipAction`/`reviewClipAction`, which re-resolves the
+       * role and never trusts this claim. Default false (logged-out + every non-moderator).
+       */
+      isModerator?: boolean;
     } & DefaultSession["user"];
   }
 }
@@ -35,6 +47,7 @@ declare module "@auth/core/jwt" {
   interface JWT {
     contributorId?: number;
     username?: string;
+    isModerator?: boolean;
   }
 }
 
@@ -91,6 +104,16 @@ export const authConfig: NextAuthConfig = {
         });
         token.contributorId = resolved.contributorId;
         token.username = resolved.handle;
+        // D5b (issue #58): resolve the moderator role SERVER-SIDE once at sign-in and stamp it on
+        // the JWT (the DB `is_moderator` column OR the `WIKIPLUS_MODERATORS` allowlist — never a
+        // client flag). This is the AFFORDANCE claim only; the write boundary re-resolves the role
+        // server-side, so a stale/forged claim never authorizes a write. Resolving it in the
+        // sign-in pass (alongside the one find-or-create write) keeps ordinary reads JWT-only (AC4
+        // / read-path discipline): no per-read role query.
+        token.isModerator = await isModeratorContributor(
+          getDb(),
+          resolved.contributorId
+        );
       }
       return token;
     },
@@ -99,6 +122,7 @@ export const authConfig: NextAuthConfig = {
       if (session.user) {
         session.user.contributorId = token.contributorId;
         session.user.username = token.username;
+        session.user.isModerator = token.isModerator ?? false;
         // Keep `name` aligned with the Wikimedia username for any default rendering.
         if (token.username) session.user.name = token.username;
       }

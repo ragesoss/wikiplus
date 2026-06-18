@@ -133,6 +133,33 @@ export interface DataStore {
    */
   deleteClip(id: string): Promise<void>;
 
+  /**
+   * D5b (issue #58): set a clip's review-state and return the updated clip — the persistence behind
+   * the role-gated hold / approve actions. `vetted = false` ⇒ HELD (in review); `vetted = true` ⇒
+   * PUBLISHED (fully curated). The ROLE/OWNERSHIP gate lives in the Server Actions
+   * (`holdClipAction`/`reviewClipAction`): this store method only writes the flag it is handed
+   * (mirroring how `updateClip` only writes the patch the auth-gated boundary narrowed). It leaves
+   * the note, chips, curator attribution, and every other field untouched. Returns the re-mapped
+   * `Clip` (with its `held` flag updated) so the client reflects the new state with no reload (AC1/AC3).
+   */
+  setClipVetted(id: string, vetted: boolean): Promise<Clip>;
+
+  /**
+   * D5c (issue #59 / CURATION §7.2): MODERATOR-ONLY soft-removal of a clip — set the tombstone
+   * (`removed_at`/`removed_by`/optional `removed_reason`) so the clip stops showing (the read
+   * filters `removed_at IS NULL`) while the row PERSISTS as the §7 audit trail. DISTINCT from
+   * `deleteClip` (D2's owner-gated HARD delete — the row is gone) and from `setClipVetted` (the
+   * D5b reversible hold — the clip stays visible). The MODERATOR-ONLY role-gate (NO own-curator
+   * arm — Decision 2) lives in the Server Action (`removeClipAction`): the store method only
+   * persists the tombstone it is handed. `removedBy` is the acting moderator's contributor id;
+   * `reason` is the OPTIONAL audit-only reason (never gates the removal, never shown to readers).
+   * Returns the re-mapped `Clip` (the removed row) so the action resolves; the client filters the
+   * clip out of the in-memory set for the no-reload reflect. `removedBy`/`reason` are
+   * server-internal on the store impl — the client facade (lib/data/index.ts) routes the seam's
+   * `removeClip(id, reason)` to the role-gated `removeClipAction`, which resolves `removedBy`.
+   */
+  removeClip(id: string, removedBy?: number, reason?: string | null): Promise<Clip>;
+
   // ── Public contributor profile reads (issue #54 / D3 — anonymous, no auth gate). ────
   // Both are READS, reached through read-only Server Actions with NO `requireContributor`
   // gate (like `listClips`): a public profile is browsable logged-out (AC1). They run ONLY

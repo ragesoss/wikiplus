@@ -15,6 +15,7 @@ import { CitationLayer } from "@/components/topic/CitationLayer";
 import { ClipCard } from "@/components/topic/ClipCard";
 import { CurateModal } from "@/components/topic/CurateModal";
 import { DeleteConfirmDialog } from "@/components/topic/DeleteConfirmDialog";
+import { RemoveConfirmDialog } from "@/components/topic/RemoveConfirmDialog";
 import { EditModal } from "@/components/topic/EditModal";
 import type { ClipEditFormPatch } from "@/components/topic/curate-clip";
 import type { SubmitOutcome } from "@/components/topic/useCurateSubmit";
@@ -67,6 +68,13 @@ export function TopicView() {
   // authenticated session, on data already loaded; an anonymous render reads no session here).
   const { data: session } = useSession();
   const myContributorId = session?.user?.contributorId;
+  // D5b (issue #58, design §4.1): the moderator/reviewer predicate, resolved the SAME off-read-path
+  // way as `myContributorId` — from the authenticated client session claim Dev derived server-side
+  // (the DB column OR the env allowlist, lib/auth/config.ts), NEVER a client-typed flag. Default
+  // false (logged-out + every non-moderator). It decides which clips show the reviewer Hold/Approve
+  // affordances; the SECURITY control is the server-side role-gate inside the two actions. An
+  // anonymous reader does ZERO role work and the read-path render is byte-for-byte unchanged (AC7).
+  const isModerator = session?.user?.isModerator === true;
   const pathname = usePathname();
   const qidParam = useSearchParams().get("qid");
 
@@ -127,6 +135,17 @@ export function TopicView() {
   // Per-clip in-flight guard (design §2.4.5): a second activation for the same clip is ignored
   // until the first resolves, so a double-click can't desync the optimistic count.
   const upvoteInFlight = useRef<Set<string>>(new Set());
+  // ── Review-hold (issue #58 / D5b). ───────────────────────────────────────────────────────
+  // The set of clip ids with a hold/approve IN FLIGHT (drives the busy word + disable; the per-clip
+  // double-submit guard — design §5.2). A `useState` (not a ref) so the busy word re-renders. The
+  // reason-aware notice mirrors `upvoteNotice`/`dismissNotice`: `null` = none; "generic" = the red
+  // "couldn't hold/approve" failure; "limited" = the calm D5a rate-limit notice (design §6).
+  const [reviewInFlightIds, setReviewInFlightIds] = useState<Set<string>>(
+    new Set()
+  );
+  const [reviewNotice, setReviewNotice] = useState<
+    null | { reason: "generic" | "limited"; verb: "hold" | "approve" }
+  >(null);
   // Store-read error floor (design §"read failure"): a clip/dismissal read can now fail.
   const [storeError, setStoreError] = useState(false);
   const [article, setArticle] = useState<FullArticle | null>(null);
@@ -148,6 +167,10 @@ export function TopicView() {
   // D2 (issue #53): the clip currently being edited / the clip pending delete-confirmation.
   const [editClip, setEditClip] = useState<Clip | null>(null);
   const [deleteFor, setDeleteFor] = useState<Clip | null>(null);
+  // D5c (issue #59): the clip pending the moderator Remove-confirmation (the RemoveConfirmDialog
+  // target — set by the Remove affordance, cleared on cancel/success). Distinct from `deleteFor`
+  // (the D2 owner-delete confirm) — a separate dialog, action, and persistence (soft vs. hard).
+  const [removeFor, setRemoveFor] = useState<Clip | null>(null);
 
   const [activeSlug, setActiveSlug] = useState<string | null>(null);
 
@@ -902,6 +925,105 @@ export function TopicView() {
     [myContributorId]
   );
 
+  // ── Review-hold affordances + actions (issue #58 / D5b, design §4/§5/§6). ──────────────────
+  // The AFFORDANCE predicates (design §4.1) — computed in the already-authenticated client session,
+  // off the read path (like `ownsClip`). NOT the security control: the server re-resolves the role
+  // and gates the write regardless of any button (AC4/AC5).
+  //   - Hold renders iff (moderator OR own-curator) AND the clip is PUBLISHED (!held).
+  //   - Approve renders iff MODERATOR AND the clip is HELD. No one else — not the curator.
+  const canHold = useCallback(
+    (clip: Clip): boolean =>
+      !clip.held && (isModerator || ownsClip(clip)),
+    [isModerator, ownsClip]
+  );
+  const canApprove = useCallback(
+    (clip: Clip): boolean => Boolean(clip.held) && isModerator,
+    [isModerator]
+  );
+  // D5c (issue #59, design §4.1): the Remove-affordance predicate — MODERATOR-ONLY, on ANY clip,
+  // with NO own-curator OR-arm (the KEY contrast with `canHold`). A curator who is not a moderator
+  // never sees Remove, even on their own clip (they have D2 Delete for that). Off the read path
+  // (the `isModerator` claim is already read for D5b) — no read-path cost (AC7). NOT the security
+  // control: `removeClipAction` re-resolves the role server-side and rejects a non-moderator (incl.
+  // the clip's own curator) regardless of any button (AC2/AC3). `_clip` is unused — Remove renders
+  // for a moderator on every clip, never gated by the clip's chips/owner/held state.
+  const canRemove = useCallback(
+    (_clip: Clip): boolean => isModerator,
+    [isModerator]
+  );
+  const reviewInFlight = useCallback(
+    (clip: Clip): boolean => reviewInFlightIds.has(clip.id),
+    [reviewInFlightIds]
+  );
+
+  // Focus after the action (design §5.3, binding a11y): neither hold nor approve REMOVES the card,
+  // so focus must NOT be lost to <body> and must NOT jump to `focusBandHeading()` (that anchor is
+  // for the removed-node case). Move focus to the SWAPPED control on the SAME card (the reviewer
+  // row's button), or — the curator-hold edge, where the curator's only affordance disappears —
+  // to a stable same-card anchor (the card's section link). Scheduled post-render via rAF so the
+  // row has re-rendered with the swapped button.
+  const focusAfterReview = useCallback((clipId: string) => {
+    const run = () => {
+      const card = cardEls.current.get(clipId);
+      if (!card) return;
+      // Prefer a control inside the reviewer row ("Review this clip"); else the card's first
+      // interactive element (the section link). NEVER <body>.
+      const target =
+        card.querySelector<HTMLElement>(
+          '[aria-label="Review this clip"] button'
+        ) ?? card.querySelector<HTMLElement>("button, a");
+      target?.focus();
+    };
+    if (typeof requestAnimationFrame !== "undefined") requestAnimationFrame(run);
+    else run();
+  }, []);
+
+  // The awaited busy-state hold/approve (design §5.2 — NOT optimistic: infrequent, deliberate
+  // reviewer acts). Disable + busy word, fire the role-gated action, and on SUCCESS flip the
+  // in-memory `clips` clip's `held` flag (no reload — §5.1) and move focus per §5.3; on ERROR
+  // leave the clip UNCHANGED and surface the THREE-ARM catch (§6): isAuthRequired → the expired
+  // gate; isRateLimited → the calm rateLimit.notice; else the polite red notice. A per-clip
+  // in-flight guard blocks a double-submit.
+  const runReview = useCallback(
+    (clip: Clip, verb: "hold" | "approve") => {
+      const id = clip.id;
+      if (reviewInFlightIds.has(id)) return; // double-submit guard (§5.2)
+      setReviewNotice(null);
+      setReviewInFlightIds((prev) => new Set(prev).add(id));
+      void (async () => {
+        try {
+          // setClipVetted routes to the role-gated action: approve → vetted=true; hold → false.
+          const updated = await store.setClipVetted(id, verb === "approve");
+          // No-reload flag flip: replace the clip object by id so the marking + the row's
+          // Hold↔Approve swap re-render in place (§5.1). No other field changes.
+          setClips((prev) => prev.map((c) => (c.id === id ? updated : c)));
+          focusAfterReview(id);
+        } catch (err) {
+          // Three-arm catch (§6 — mutually exclusive); the clip is left UNCHANGED (no false success).
+          if (isAuthRequired(err)) showExpiredGate();
+          else if (isRateLimited(err)) setReviewNotice({ reason: "limited", verb });
+          else setReviewNotice({ reason: "generic", verb });
+        } finally {
+          setReviewInFlightIds((prev) => {
+            const next = new Set(prev);
+            next.delete(id);
+            return next;
+          });
+        }
+      })();
+    },
+    [reviewInFlightIds, focusAfterReview, showExpiredGate]
+  );
+
+  const runHold = useCallback(
+    (clip: Clip) => runReview(clip, "hold"),
+    [runReview]
+  );
+  const runApprove = useCallback(
+    (clip: Clip) => runReview(clip, "approve"),
+    [runReview]
+  );
+
   // ── Upvote toggle (issue #55 / D4, design §2.4 — clones the `runDismiss` posture). ─────────
   // OPTIMISTIC-WITH-ROLLBACK (not an awaited spinner): on a signed-in activation flip the
   // per-viewer voted-state AND adjust the displayed count by ±1 IMMEDIATELY (in `clips`, the same
@@ -1072,6 +1194,48 @@ export function TopicView() {
     })();
   }, [deleteFor, focusBandHeading, showExpiredGate]);
 
+  // Remove confirm (issue #59 / D5c, design §5.5 / §6). MIRRORS `onDeleteConfirm`: the
+  // RemoveConfirmDialog runs this with the OPTIONAL audit-only reason; the host calls the
+  // role-gated `removeClipAction` (server re-resolves the moderator role — no own-curator arm),
+  // then FILTERS the clip out of the in-memory `clips` set so it disappears with NO reload (counts
+  // drop; the last clip flips curated→empty via the existing `mode = clips.length > 0` switch). The
+  // SERVER soft-remove (`removed_at` set) + the `removed_at IS NULL` read filter are the durable
+  // truth; this in-memory filter is the no-reload reflect (the clip leaves the read either way).
+  // Because the card is REMOVED, focus must not be lost to <body>: move it to `focusBandHeading()`
+  // (the same removed-node anchor D2 Delete uses — §6.2) after the shell's `prevActive` fires (the
+  // rAF pattern). The THREE-ARM catch (§5.5, mutually exclusive): isAuthRequired → the expired gate
+  // (dialog closes via "expired"); isRateLimited → the calm limit notice in the dialog (it stays
+  // open via "limited"); else throw (the dialog keeps open with its role="alert"). No false success
+  // — the clip only leaves the page on a real server success.
+  const onRemoveConfirm = useCallback(
+    (reason: string | null): Promise<SubmitOutcome> => {
+      const target = removeFor;
+      if (!target) return Promise.resolve<SubmitOutcome>({ outcome: "added" });
+      return (async () => {
+        try {
+          await store.removeClip(target.id, undefined, reason);
+          setClips((prev) => prev.filter((c) => c.id !== target.id));
+          if (typeof requestAnimationFrame !== "undefined") {
+            requestAnimationFrame(() => focusBandHeading());
+          } else {
+            focusBandHeading();
+          }
+          return { outcome: "added" } satisfies SubmitOutcome;
+        } catch (err) {
+          if (isAuthRequired(err)) {
+            showExpiredGate();
+            return { outcome: "expired" } satisfies SubmitOutcome;
+          }
+          if (isRateLimited(err)) {
+            return { outcome: "limited" } satisfies SubmitOutcome;
+          }
+          throw err;
+        }
+      })();
+    },
+    [removeFor, focusBandHeading, showExpiredGate]
+  );
+
   const sectionList = useMemo(
     () => (article?.sections ?? []).map((s) => ({ slug: s.slug, title: s.title })),
     [article]
@@ -1169,6 +1333,18 @@ export function TopicView() {
           signedIn={signedIn}
           votedClip={votedClip}
           onUpvote={upvote}
+          /* D5b (issue #58, design §4): the reviewer-only Hold/Approve affordances on General tiles,
+             reusing the SAME off-read-path predicates + the SAME runHold/runApprove the rail uses. */
+          canHold={canHold}
+          canApprove={canApprove}
+          reviewInFlight={reviewInFlight}
+          onHold={runHold}
+          onApprove={runApprove}
+          /* D5c (issue #59, design §4.2): the moderator-only Remove affordance on General tiles,
+             reusing the SAME off-read-path `canRemove` predicate + the SAME setRemoveFor the rail
+             uses. The server-side role-gate is the security control; this affordance mirrors it. */
+          canRemove={canRemove}
+          onRemove={(c) => setRemoveFor(c)}
         />
       )}
 
@@ -1219,6 +1395,31 @@ export function TopicView() {
             {upvoteNotice === "limited"
               ? AUTH_COPY.rateLimit.notice
               : "Couldn't record your upvote — please try again."}
+          </p>
+        </div>
+      )}
+
+      {/* Review-hold notice (issue #58 / D5b; design §6). NON-BLOCKING + POLITE (role="status"
+          aria-live="polite"). REASON-AWARE, mirroring the upvote/dismiss surface: "limited" = the
+          CALM (non-red, ink-on-bg2, border-l-4 border-brand) D5a rate-limit notice; "generic" = the
+          polite red failure, verb-specific ("hold" vs. "approve"). On failure the clip is unchanged
+          (no false success — the marking only changes on a real server success). */}
+      {reviewNotice && (
+        <div className="mx-auto max-w-[1200px] px-5">
+          <p
+            role="status"
+            aria-live="polite"
+            className={
+              reviewNotice.reason === "limited"
+                ? "rounded-md border-l-4 border-brand bg-bg2 px-3 py-2 text-sm text-ink"
+                : "rounded-md bg-red-50 px-3 py-2 text-sm text-red-700"
+            }
+          >
+            {reviewNotice.reason === "limited"
+              ? AUTH_COPY.rateLimit.notice
+              : reviewNotice.verb === "approve"
+                ? "Couldn't approve that — please try again."
+                : "Couldn't hold that — please try again."}
           </p>
         </div>
       )}
@@ -1276,6 +1477,15 @@ export function TopicView() {
                     onGoToSection={(slug) => slug && goTo(slug)}
                     onEdit={(c) => setEditClip(c)}
                     onDelete={(c) => setDeleteFor(c)}
+                    /* D5b (issue #58, design §4): reviewer-only Hold/Approve on the rail card. */
+                    canHold={canHold(clip)}
+                    canApprove={canApprove(clip)}
+                    reviewInFlight={reviewInFlight(clip)}
+                    onHold={runHold}
+                    onApprove={runApprove}
+                    /* D5c (issue #59, design §4.2): moderator-only Remove on the rail card. */
+                    canRemove={canRemove(clip)}
+                    onRemove={(c) => setRemoveFor(c)}
                     cardRef={(el) => {
                       if (el) cardEls.current.set(clip.id, el);
                       else cardEls.current.delete(clip.id);
@@ -1391,6 +1601,19 @@ export function TopicView() {
           clip={deleteFor}
           onClose={() => setDeleteFor(null)}
           onConfirm={onDeleteConfirm}
+        />
+      )}
+
+      {/* Moderator-only Remove confirm dialog (D5c, design §5). Cancel-as-default; the destructive
+          confirm runs the role-gated removeClipAction with the OPTIONAL audit-only reason. On
+          success the host filters the clip out of `clips` (no reload — soft-removed server-side; the
+          read excludes it) and moves focus to the band heading (§6.2). Distinct from the D2 Delete
+          confirm above (soft tombstone vs. hard delete; "Remove clip" vs. "Delete clip"). */}
+      {removeFor && (
+        <RemoveConfirmDialog
+          clip={removeFor}
+          onClose={() => setRemoveFor(null)}
+          onConfirm={onRemoveConfirm}
         />
       )}
 
