@@ -36,6 +36,8 @@ vi.mock("@/lib/auth/config", () => ({
 import {
   addClipAction,
   deleteClipAction,
+  dismissedKeysAction,
+  recordDismissalAction,
   updateClipAction,
   upsertTopicAction,
 } from "@/lib/server/actions";
@@ -200,6 +202,32 @@ describe("AC3 — an owner can delete their own clip; it is gone", () => {
     expect(await h.db.select().from(clip).where(eq(clip.id, Number(id)))).toHaveLength(1);
     await deleteClipAction(id);
     expect(await h.db.select().from(clip).where(eq(clip.id, Number(id)))).toHaveLength(0);
+  });
+});
+
+describe("Decision 4 — a hard delete leaves candidate dismissals untouched (keyed independently)", () => {
+  it("deleting a clip does NOT clear a dismissal for the same topic (dismissals are keyed by topic+provider+videoId, not the clip row)", async () => {
+    // QA-added (issue #53 / D2): the spec's Decision 4 asserts the clip row is the ONLY thing
+    // removed — `dismissed_candidate` is keyed (topicId, provider, providerVideoId) + references
+    // its OWN contributor, never the clip row, so a deleted clip's video stops being deduped
+    // against but a previously-dismissed candidate stays dismissed. This pins that behavior.
+    const clipId = await seedOwnedClip(); // signs in as Owner + upserts Q11982
+    // Record a dismissal for the SAME topic (an unrelated candidate video).
+    await recordDismissalAction({
+      topicQid: "Q11982",
+      platform: "youtube",
+      videoId: "dismissed-vid",
+    });
+    expect(await dismissedKeysAction("Q11982")).toContain("youtube:dismissed-vid");
+
+    // Hard-delete the owned clip.
+    await deleteClipAction(clipId);
+    expect(
+      await h.db.select().from(clip).where(eq(clip.id, Number(clipId)))
+    ).toHaveLength(0);
+
+    // The dismissal is UNAFFECTED — still sticky for the topic (Decision 4).
+    expect(await dismissedKeysAction("Q11982")).toContain("youtube:dismissed-vid");
   });
 });
 
