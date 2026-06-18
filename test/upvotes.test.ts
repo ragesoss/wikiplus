@@ -328,3 +328,82 @@ describe("seeded DB — deleting a clip cascades its votes (FK onDelete cascade)
     expect(result.voted).toBe(true);
   });
 });
+
+// ── QA extension tests (issue #55 / D4 review — non-author, fresh eyes). ──────────────────────
+// The committed suite proves the load-bearing invariants on a SINGLE clip. These harden the
+// GROUPED derivation (`voteCountsForClips`) across MANY clips with mixed seed/vote states — the
+// real `listClips` read path — plus the count-rendering edge cases (AC8 / Decision 2) and the FK
+// cascade actually REMOVING vote rows on a clip delete (the committed cascade test votes but never
+// deletes the clip to observe the cascade).
+
+describe("QA-AC8 — the grouped count derivation is correct across MANY clips (no cross-clip bleed)", () => {
+  it("each clip's derived count = its own seed baseline + its own distinct vote rows", async () => {
+    // Four clips on one topic, every seed/vote combination:
+    //   A: seed 5, +1 real vote  → 6      C: seed 5, no real vote → 5 (baseline only)
+    //   B: no seed, +1 real vote → 1      D: no seed, no vote     → undefined (no number)
+    const a = await seedClip("Marcus", "sub-marcus", { upvotes: 5 });
+    const b = await seedClip("Marcus", "sub-marcus", { upvotes: undefined });
+    const c = await seedClip("Marcus", "sub-marcus", { upvotes: 5 });
+    const d = await seedClip("Marcus", "sub-marcus", { upvotes: undefined });
+
+    // Marcus votes A and B only (one vote row each) — C and D get NO real vote.
+    await toggleUpvoteAction(a);
+    await toggleUpvoteAction(b);
+
+    const clips = await listClipsAction("Q11982");
+    const upvotesOf = (id: string) => clips.find((cl) => cl.id === id)?.upvotes;
+    // The grouped COUNT(... GROUP BY clip_id) attributes each vote to its OWN clip — a wrong join
+    // (or a Map keyed off the wrong column) would bleed A's vote onto C or smear the baseline.
+    expect(upvotesOf(a)).toBe(6); // seed 5 + 1 vote
+    expect(upvotesOf(b)).toBe(1); // seed 0 + 1 vote
+    expect(upvotesOf(c)).toBe(5); // seed 5 + 0 votes — baseline only, NOT inflated by A/B's votes
+    expect(upvotesOf(d)).toBeUndefined(); // never seeded, never voted → no count shown
+  });
+
+  it("the count-rendering rule: seeded-0 shows 0; never-seeded-never-voted shows undefined", async () => {
+    const seededZero = await seedClip("Marcus", "sub-marcus", { upvotes: 0 });
+    const bare = await seedClip("Marcus", "sub-marcus", { upvotes: undefined });
+    const clips = await listClipsAction("Q11982");
+    // A clip explicitly seeded 0 is a real (if empty) count → render 0 (NOT hidden).
+    expect(clips.find((cl) => cl.id === seededZero)?.upvotes).toBe(0);
+    // A never-seeded, never-voted clip renders no number (the pre-D4 "no count" affordance).
+    expect(clips.find((cl) => cl.id === bare)?.upvotes).toBeUndefined();
+  });
+
+  it("an un-vote drops a never-seeded clip back to no-number (undefined), not to 0", async () => {
+    const id = await seedClip("Marcus", "sub-marcus", { upvotes: undefined });
+    await toggleUpvoteAction(id); // 1
+    let clips = await listClipsAction("Q11982");
+    expect(clips.find((cl) => cl.id === id)?.upvotes).toBe(1);
+    await toggleUpvoteAction(id); // back to no real votes, no seed
+    clips = await listClipsAction("Q11982");
+    expect(clips.find((cl) => cl.id === id)?.upvotes).toBeUndefined();
+  });
+});
+
+describe("QA-AC3/cascade — deleting a clip REMOVES its vote rows (FK onDelete cascade)", () => {
+  it("a clip's clip_vote rows are gone after the clip is hard-deleted", async () => {
+    const id = await seedClip("Marcus", "sub-marcus");
+    await toggleUpvoteAction(id);
+    await signInAs("Priya", "sub-priya");
+    await toggleUpvoteAction(id);
+    expect(await voteRows(id)).toHaveLength(2);
+
+    // Hard-delete the clip directly (the D2 delete path) and confirm the votes cascade away —
+    // a vote against a deleted clip is meaningless (schema: clip_vote.clip_id ON DELETE cascade).
+    await h.db.delete(clip).where(eq(clip.id, Number(id)));
+    expect(await voteRows(id)).toHaveLength(0);
+  });
+});
+
+describe("QA-AC4/store — the store's votedClipIds never queries per-user state without a contributor", () => {
+  it("votedClipIds with no contributorId returns [] (the logged-out floor, never a per-user query)", async () => {
+    const id = await seedClip("Marcus", "sub-marcus");
+    await toggleUpvoteAction(id); // a real vote exists
+    const { DrizzleDataStore } = await import("@/lib/db/drizzle-store");
+    const s = new DrizzleDataStore(h.db);
+    // No contributor id (the boundary passes none for an unauthenticated caller) → empty set,
+    // NOT every voter's votes — the store-level guard backing the action's gate (AC7).
+    expect(await s.votedClipIds([id])).toEqual([]);
+  });
+});
