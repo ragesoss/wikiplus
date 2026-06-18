@@ -10,6 +10,16 @@ vi.mock("@/lib/auth/config", () => ({
   auth: async () => ({ user: { contributorId: 1, username: "QaCurator" } }),
 }));
 
+// Issue #57 / D5a: the write actions now run a per-identity rate-limit check (gate → LIMIT →
+// validation → write) that touches the DB via `getDb()` BEFORE the input-stopgap validation. So
+// the boundary's DB must resolve to the per-test pglite handle here (these characterization tests
+// previously never reached a store method). Mock `getDb` to the current handle, assigned per test.
+let currentDb: import("@/lib/db/client").Db | undefined;
+vi.mock("@/lib/db/client", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/db/client")>();
+  return { ...actual, getDb: () => currentDb ?? actual.getDb() };
+});
+
 import {
   DrizzleDataStore,
   getStubContributorId,
@@ -57,9 +67,11 @@ beforeEach(async () => {
   _resetStubContributorCache();
   h = await makeTestDb();
   store = new DrizzleDataStore(h.db);
+  currentDb = h.db; // the rate-limit check (D5a) reads getDb() — point it at this handle.
 });
 afterEach(async () => {
   await h.close();
+  currentDb = undefined;
 });
 
 describe("AC11 — shared persistence across store instances (one DB = two sessions)", () => {

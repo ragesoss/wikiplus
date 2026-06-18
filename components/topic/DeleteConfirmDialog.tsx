@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import type { Clip } from "@/lib/data/types";
+import { AUTH_COPY } from "@/lib/auth/microcopy";
 import { ModalShell } from "./ModalShell";
 import type { SubmitOutcome } from "./useCurateSubmit";
 
@@ -39,7 +40,11 @@ export function DeleteConfirmDialog({
 }) {
   const titleId = useId();
   const [pending, setPending] = useState(false);
-  const [error, setError] = useState(false);
+  // Which notice is showing (issue #57 / D5a §5.3): "none", the generic red failure, or the calm
+  // rate-limit notice. The dialog renders the limit calmly (non-red role="status") per its surface.
+  const [noticeKind, setNoticeKind] = useState<"none" | "generic" | "limited">(
+    "none"
+  );
   const alertRef = useRef<HTMLDivElement>(null);
   // `alive` guard (design §9.3 / §5): a resolve after the dialog is gone (cancelled mid-flight)
   // must not flip state. Mirrors useCurateSubmit's pattern.
@@ -51,26 +56,35 @@ export function DeleteConfirmDialog({
     };
   }, []);
 
-  // On a server error, send focus to the alert (announced via role="alert"); the focus trap
-  // keeps the keyboard/SR user inside the dialog.
+  // On a GENERIC server error, send focus to the alert (announced via role="alert"); the focus
+  // trap keeps the keyboard/SR user inside the dialog. The "limited" notice is informational +
+  // polite (role="status") and does NOT steal focus (design §7) — the user stays on the controls.
   useEffect(() => {
-    if (error) alertRef.current?.focus();
-  }, [error]);
+    if (noticeKind === "generic") alertRef.current?.focus();
+  }, [noticeKind]);
 
   async function confirm() {
     if (pending) return; // double-submit guard (§9.3)
-    setError(false);
+    setNoticeKind("none");
     setPending(true);
     try {
       const res = await onConfirm();
       if (!alive.current) return; // cancelled mid-flight — ignore the late resolve (§9.3)
-      // Both success and the expired-session route close the dialog (the host removed the clip
-      // or showed the expired gate). A generic error throws → caught below, dialog stays open.
-      if (res.outcome === "added" || res.outcome === "expired") onClose();
+      if (res.outcome === "added" || res.outcome === "expired") {
+        // Both success and the expired-session route close the dialog (the host removed the clip
+        // or showed the expired gate).
+        onClose();
+      } else {
+        // res.outcome === "limited" (D5a §5.3): the delete is a counted gated write and hit the
+        // per-identity cap. KEEP the dialog open with the CALM limit notice; the confirm returns
+        // to idle so the owner can wait a moment and retry. Nothing was deleted (AC2).
+        setPending(false);
+        setNoticeKind("limited");
+      }
     } catch {
       if (!alive.current) return;
       setPending(false);
-      setError(true);
+      setNoticeKind("generic");
     }
   }
 
@@ -102,7 +116,7 @@ export function DeleteConfirmDialog({
             This permanently removes your context note, the stance and accuracy
             assessment, and this clip from the topic. This can&apos;t be undone.
           </p>
-          {error && (
+          {noticeKind === "generic" && (
             <div
               ref={alertRef}
               role="alert"
@@ -110,6 +124,17 @@ export function DeleteConfirmDialog({
               className="border-2 border-accred bg-[#FDEDED] px-3 py-2 text-[12px] font-semibold text-accred"
             >
               Couldn&apos;t delete — please try again.
+            </div>
+          )}
+          {/* D5a §5.3/§5.4: the calm, non-red rate-limit notice — a NOTE, not an alarm. role="status"
+              polite, ink-on-bg2, brand border. NO red, NO gold. The words carry the meaning (AC3). */}
+          {noticeKind === "limited" && (
+            <div
+              role="status"
+              aria-live="polite"
+              className="border-2 border-brand bg-bg2 px-3 py-2 text-[12px] font-semibold text-ink"
+            >
+              {AUTH_COPY.rateLimit.notice}
             </div>
           )}
           <div className="flex flex-wrap gap-2">

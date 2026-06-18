@@ -2,6 +2,7 @@
 
 import { useId } from "react";
 import type { Candidate, Clip } from "@/lib/data/types";
+import { AUTH_COPY } from "@/lib/auth/microcopy";
 import { CurateFields } from "./CurateForm";
 import { ModalActionRow } from "./ModalActionRow";
 import { ModalShell } from "./ModalShell";
@@ -97,6 +98,14 @@ export function CurateModal({
             }
             pending={submit.pending}
             error={submit.error}
+            // D5a (design §5.1): on the rate-limit outcome render the calm limit notice + copy;
+            // otherwise the D1 generic red error (the default message).
+            variant={submit.errorKind === "limited" ? "limit" : "error"}
+            errorMessage={
+              submit.errorKind === "limited"
+                ? AUTH_COPY.rateLimit.notice
+                : undefined
+            }
             licenseStatementId={licenseStatementId}
             onCancel={onClose}
           />

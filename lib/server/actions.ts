@@ -13,6 +13,8 @@ import { ACCURACY_ORDER, STANCE_ORDER } from "@/lib/curation/labels";
 import { NOTE_LICENSE } from "@/lib/curation/note-license";
 import { isMaterialNoteChange } from "@/lib/curation/note-text";
 import { requireContributor } from "@/lib/auth/require-session";
+import { checkWriteRateLimit, recordWriteEvent } from "@/lib/auth/rate-limit";
+import { getDb } from "@/lib/db/client";
 
 // The server data-access boundary (issue #45 — deliverable 1/4).
 //
@@ -27,15 +29,23 @@ import { requireContributor } from "@/lib/auth/require-session";
 //     they call imports `server-only`, so neither the pg driver nor DATABASE_URL can reach
 //     the client bundle (AC7).
 //
-// Each READ here is a thin wrapper over one DrizzleDataStore method. The three WRITE actions
-// (`upsertTopicAction`, `addClipAction`, `recordDismissalAction`) are AUTH-GATED as of issue C
-// (AC7/AC8, Decision D1): they resolve the signed-in contributor via `requireContributor()`
-// and REJECT (throw `AuthRequiredError`) when there is no session — the gate is in the Server
-// Action, not only a hidden client button — then attribute the write to the REAL contributor
-// (no more `@prototype` for new writes). Reads stay anonymous (no `requireContributor`), so the
-// cached read path adds no per-user/auth work (AC11). Full validation/ownership/agreement
-// capture is still issue D. The store is instantiated lazily per call; the underlying DB
-// connection is opened lazily + memoized in lib/db/client.
+// Each READ here is a thin wrapper over one DrizzleDataStore method. The WRITE actions
+// (`upsertTopicAction`, `addClipAction`, `recordDismissalAction`, `toggleUpvoteAction`,
+// `updateClipAction`, `deleteClipAction`) are AUTH-GATED as of issue C (AC7/AC8, Decision D1):
+// they resolve the signed-in contributor via `requireContributor()` and REJECT (throw
+// `AuthRequiredError`) when there is no session — the gate is in the Server Action, not only a
+// hidden client button — then attribute the write to the REAL contributor (no more `@prototype`
+// for new writes). Reads stay anonymous (no `requireContributor`), so the cached read path adds no
+// per-user/auth work (AC11).
+//
+// RATE LIMIT (issue #57 / D5a): every COUNTED gated write passes a per-identity window check
+// (`checkWriteRateLimit`) AFTER the auth gate and BEFORE any persisting DB write — the
+// gate→limit→write contract. Over the cap (default N=60 / W=60s per `contributor.id`, env-
+// overridable) it throws `RateLimitedError` with NO side effect, so the write does not happen (AC2);
+// under the cap the write proceeds and `recordWriteEvent` appends ONE `write_event` ledger row AFTER
+// it lands (counting only successful writes). Reads are NEVER limited and write no ledger row (AC6).
+// Full validation/ownership/agreement capture is issue D. The store is instantiated lazily per
+// call; the underlying DB connection is opened lazily + memoized in lib/db/client.
 //
 // NOT here (stays client-side, AC8): title→QID resolution, the article body/TOC fetch, and
 // the live YouTube `suggestCandidates` pipeline. The server never calls Wikipedia/YouTube.
@@ -111,9 +121,16 @@ export async function upsertTopicAction(topic: Topic): Promise<Topic> {
   // GATE FIRST (AC7): `upsertTopic` is a write and is the PREREQUISITE of `addClip` in the
   // contribute flow (a logged-out user must not create a topic-as-a-side-effect-of-adding).
   // An unauthenticated call is rejected before any validation or DB touch.
-  await requireContributor();
+  const { contributorId } = await requireContributor();
+  // LIMIT SECOND (issue #57 / D5a — the gate→limit→write contract): reject + write nothing if this
+  // identity is over its per-window cap (AC2). The check is a pure read with no side effect; the
+  // event is recorded after the write lands. One shared per-identity budget across all kinds.
+  const db = getDb();
+  await checkWriteRateLimit(db, contributorId);
   const valid = validateTopicInput(topic);
-  return store().upsertTopic(valid);
+  const result = await store().upsertTopic(valid);
+  await recordWriteEvent(db, contributorId, "upsert");
+  return result;
 }
 
 // ── Clips ──────────────────────────────────────────────────────────────────────────────
@@ -138,6 +155,11 @@ export async function addClipAction(
   // curator count reflects real contributors). A caller-supplied `curatedBy` is overridden —
   // attribution is the boundary's call, not the client's.
   const { contributorId, username } = await requireContributor();
+  // LIMIT SECOND (issue #57 / D5a): reject + write NO clip row if this identity is over its
+  // per-window cap (AC2). add is one of the two load-bearing spam vectors (Decision 2). Pure-read
+  // check; the event is recorded after the clip lands.
+  const db = getDb();
+  await checkWriteRateLimit(db, contributorId);
   const valid = validateClipInput(input);
   // Strip any client-supplied license fields: the agreement record is the boundary's to
   // stamp, never trusted off the wire (mirrors the `curatedBy` override above). The client's
@@ -156,11 +178,13 @@ export async function addClipAction(
   const agreement = noteLicenseAgreed
     ? { noteLicense: NOTE_LICENSE, noteLicenseAgreedAt: new Date() }
     : undefined;
-  return store().addClip(
+  const result = await store().addClip(
     { ...rest, curatedBy: username },
     contributorId,
     agreement
   );
+  await recordWriteEvent(db, contributorId, "add");
+  return result;
 }
 
 // ── Owner-only edit / delete (issue #53 / D2 — AC1–AC12, Decisions 1–6) ──────────────────
@@ -247,6 +271,11 @@ export async function updateClipAction(
 ): Promise<Clip> {
   // GATE FIRST (AC6): an anonymous caller is rejected before the ownership check even runs.
   const { contributorId } = await requireContributor();
+  // LIMIT SECOND (issue #57 / D5a): an edit is a counted gated write (Decision 2 — included for
+  // budget consistency; not the load-bearing spam vector). Reject + write nothing if over cap (AC2);
+  // the check is a pure read before the ownership check. The event is recorded after the update.
+  const db = getDb();
+  await checkWriteRateLimit(db, contributorId);
   const s = store();
   const owner = await s.clipOwnership(clipId);
   if (!owner) throw new Error(`Clip ${clipId} not found`);
@@ -267,7 +296,9 @@ export async function updateClipAction(
     noteChangedMaterially && noteLicenseAgreed
       ? { noteLicense: NOTE_LICENSE, noteLicenseAgreedAt: new Date() }
       : undefined;
-  return s.updateClip(clipId, editable, agreement);
+  const result = await s.updateClip(clipId, editable, agreement);
+  await recordWriteEvent(db, contributorId, "edit");
+  return result;
 }
 
 /**
@@ -277,6 +308,10 @@ export async function updateClipAction(
  */
 export async function deleteClipAction(clipId: string): Promise<void> {
   const { contributorId } = await requireContributor(); // GATE FIRST (AC6)
+  // LIMIT SECOND (issue #57 / D5a): a delete is a counted gated write (Decision 2). Reject + remove
+  // nothing if over cap (AC2) — a pure read before the ownership check. Event recorded after delete.
+  const db = getDb();
+  await checkWriteRateLimit(db, contributorId);
   const s = store();
   const owner = await s.clipOwnership(clipId);
   if (!owner) throw new Error(`Clip ${clipId} not found`);
@@ -284,6 +319,7 @@ export async function deleteClipAction(clipId: string): Promise<void> {
     throw new Error("Not your clip to delete.");
   }
   await s.deleteClip(clipId);
+  await recordWriteEvent(db, contributorId, "delete");
 }
 
 // ── Public contributor profile reads (issue #54 / D3 — AC1–AC4) ──────────────────────────
@@ -330,7 +366,14 @@ export async function toggleUpvoteAction(
   clipId: string
 ): Promise<UpvoteToggle> {
   const { contributorId } = await requireContributor();
-  return store().toggleUpvote(clipId, contributorId);
+  // LIMIT SECOND (issue #57 / D5a): upvote-toggle is the other load-bearing spam vector
+  // (high-frequency by nature — Decision 2). Reject + write NO clip_vote row if over cap (AC2). A
+  // toggle (insert OR delete) is one counted write; the event is recorded after the toggle lands.
+  const db = getDb();
+  await checkWriteRateLimit(db, contributorId);
+  const result = await store().toggleUpvote(clipId, contributorId);
+  await recordWriteEvent(db, contributorId, "upvote");
+  return result;
 }
 
 /**
@@ -356,7 +399,13 @@ export async function recordDismissalAction(input: {
   // GATE FIRST (AC8): an unauthenticated dismiss is rejected before any DB write (no
   // `dismissed_candidate` row); a signed-in one is attributed to the real contributor.
   const { contributorId } = await requireContributor();
-  return store().recordDismissal(input, contributorId);
+  // LIMIT SECOND (issue #57 / D5a): a dismiss is a counted gated write (Decision 2 — a dismiss is a
+  // write and a dismiss-flood is undesirable; not a high-value vector). Reject if over cap (AC2);
+  // pure-read check, the event recorded after the dismissal lands.
+  const db = getDb();
+  await checkWriteRateLimit(db, contributorId);
+  await store().recordDismissal(input, contributorId);
+  await recordWriteEvent(db, contributorId, "dismiss");
 }
 
 export async function dismissedKeysAction(topicQid: string): Promise<string[]> {
