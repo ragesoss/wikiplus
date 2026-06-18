@@ -1,6 +1,14 @@
 import { runCandidatePipeline } from "@/lib/candidates";
+import { STUB_HANDLE } from "@/lib/curation/curator-attribution";
 import type { DataStore } from "./store";
-import type { ArticleSection, Candidate, Clip, Topic } from "./types";
+import type {
+  ArticleSection,
+  Candidate,
+  Clip,
+  ContributorClip,
+  PublicContributor,
+  Topic,
+} from "./types";
 
 const TOPICS_KEY = "wikiplus.topics";
 const CLIPS_KEY = "wikiplus.clips";
@@ -101,6 +109,50 @@ export class LocalStorageDataStore implements DataStore {
       CLIPS_KEY,
       read<Clip>(CLIPS_KEY).filter((c) => c.id !== id)
     );
+  }
+
+  // ── Public contributor profile reads (issue #54 / D3 — reference impl over `curatedBy`). ──
+  // The localStorage store has no `contributor` table — clips carry only the `curatedBy` handle
+  // string. The reference impl therefore derives a STABLE synthetic id from the sorted set of
+  // distinct real (non-`@prototype`) handles, so `getContributorByUsername` and
+  // `listClipsByContributor` round-trip consistently with each other. The PRODUCTION path uses
+  // `DrizzleDataStore` (real `contributor.id` + the privacy projection + the Decision-1 tie-break);
+  // this exists only for parity in the reference impl / non-DB tests.
+  private distinctHandles(): string[] {
+    const set = new Set<string>();
+    for (const c of read<Clip>(CLIPS_KEY)) {
+      if (c.curatedBy && c.curatedBy !== STUB_HANDLE) set.add(c.curatedBy);
+    }
+    return [...set].sort();
+  }
+
+  async getContributorByUsername(
+    username: string
+  ): Promise<PublicContributor | null> {
+    // `@prototype` is never a browsable profile (Decision 4).
+    if (username === STUB_HANDLE) return null;
+    const handles = this.distinctHandles();
+    const i = handles.indexOf(username);
+    if (i < 0) return null;
+    // Synthetic but stable id (1-based) so listClipsByContributor can reverse it.
+    return { id: i + 1, username };
+  }
+
+  async listClipsByContributor(
+    contributorId: number
+  ): Promise<ContributorClip[]> {
+    const handles = this.distinctHandles();
+    const username = handles[contributorId - 1];
+    if (!username) return [];
+    const topics = read<Topic>(TOPICS_KEY);
+    return read<Clip>(CLIPS_KEY)
+      .filter((c) => c.curatedBy === username)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+      .map((c) => ({
+        ...c,
+        topicTitle:
+          topics.find((t) => t.qid === c.topicQid)?.title ?? c.topicQid,
+      }));
   }
 
   // ── Sticky dismissals (issue #45). Ported from lib/candidates/dismissals.ts so the

@@ -72,6 +72,23 @@ export function topicHref(title: string, opts?: { withBase?: boolean }): string 
 }
 
 /**
+ * Build the navigable href for a CONTRIBUTOR profile, by username (issue #54 / D3). The
+ * public profile lives at `/contributor/<username>` (Decision 1), paralleling the title-based
+ * Topic route + Wikipedia's `Special:Contributions/<user>`. A Wikimedia username can contain a
+ * space (which Wikipedia renders as `_`), so we reuse the SAME title-slug encoding (`titleToSlug`:
+ * spaces → `_`, reserved chars percent-encoded) for a single, unambiguous path segment, plus the
+ * trailing slash to match `trailingSlash: true`. `withBase` mirrors `topicHref` (raw `<a>` vs
+ * Next `<Link>`). The route's param is decoded back via `slugToTitle` (underscores → spaces).
+ */
+export function contributorHref(
+  username: string,
+  opts?: { withBase?: boolean }
+): string {
+  const path = `/contributor/${titleToSlug(username)}/`;
+  return opts?.withBase ? `${BASE_PATH}${path}` : path;
+}
+
+/**
  * Parse a Topic title out of a pathname (the SPA 404 fallback re-routes from
  * `location.pathname`). Strips the basePath, matches `/topic/<Title>(/)?`, and
  * decodes the segment via {@link slugToTitle} (underscores → spaces; legacy `%20`

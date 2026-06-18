@@ -1,4 +1,11 @@
-import type { ArticleSection, Candidate, Clip, Topic } from "./types";
+import type {
+  ArticleSection,
+  Candidate,
+  Clip,
+  ContributorClip,
+  PublicContributor,
+  Topic,
+} from "./types";
 
 // The `DataStore` interface — the data-access seam. `./index.ts` is the single place that
 // wires the concrete implementation: as of issue #45 that's `DrizzleDataStore` (shared
@@ -124,6 +131,33 @@ export interface DataStore {
    * owner-only `deleteClipAction` (same id-based gate as `updateClip`). No soft-delete / undo.
    */
   deleteClip(id: string): Promise<void>;
+
+  // ── Public contributor profile reads (issue #54 / D3 — anonymous, no auth gate). ────
+  // Both are READS, reached through read-only Server Actions with NO `requireContributor`
+  // gate (like `listClips`): a public profile is browsable logged-out (AC1). They run ONLY
+  // on the `/contributor/<username>` route — never on the cached Topic read path (AC9).
+  /**
+   * Resolve a Wikimedia username to its PUBLIC-SAFE identity (id + username + granted avatar),
+   * or null when no contributor presents that handle (drives the not-found state, AC3). NEVER
+   * returns `email` or any non-public `account` field (AC2 — the privacy boundary).
+   *
+   * `contributor.handle` is a NON-UNIQUE display column (issue C: two distinct Wikimedia subjects
+   * may present the same username string and get distinct contributors). The lookup resolves
+   * deterministically to a SINGLE identity by the lowest/earliest `contributor.id` for that handle
+   * (Decision 1), so `/contributor/<username>` always maps to exactly one profile + clip list.
+   *
+   * The seeded `@prototype` STUB (`STUB_HANDLE`) is NOT a real person to profile (Decision 4 / C
+   * Decision D6): it resolves to null (treated as not-found), so the stub has no browsable
+   * profile (AC4).
+   */
+  getContributorByUsername(username: string): Promise<PublicContributor | null>;
+  /**
+   * The clips a contributor (by their resolved internal id) curated, joined to their parent topic
+   * so each carries the topic title + QID for the profile row's "On <Topic>" link (AC1). Mapped
+   * via `rowToClip`, newest-first (`createdAt` desc, the same order the topic list uses). Scoped
+   * to exactly this contributor's `curatorId` — a clip curated by anyone else is excluded.
+   */
+  listClipsByContributor(contributorId: number): Promise<ContributorClip[]>;
 
   // ── Sticky candidate dismissals (issue #45). ─────────────────────────────────────
   // Moved behind the store boundary so a dismissal is SHARED + DURABLE like a clip:

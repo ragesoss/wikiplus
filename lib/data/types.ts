@@ -69,6 +69,26 @@ export interface Topic {
 }
 
 /**
+ * A contributor's PUBLIC-SAFE identity (issue #54 / D3, AC2). The ONLY fields a public profile
+ * surface (`/contributor/<username>`) and the `getContributorByUsername` read may expose:
+ * the stable internal id (used only to scope the clip list + the owner compare), the public
+ * Wikimedia handle/username, and the granted avatar URL (may be absent — C is identify-scope).
+ *
+ * BINDING (AC2 / CURATION §5.4): the contributor's `email` and any other non-public `account`
+ * field are NEVER selected, serialized, or carried here — this projection is the privacy
+ * boundary. The mapper that builds it (`lib/db/mappers.ts` `rowToPublicContributor`) selects
+ * only `contributor` columns; the `account.email` column is never read on this path.
+ */
+export interface PublicContributor {
+  /** Stable internal `contributor.id` — scopes the clip list + the owner-affordance compare. */
+  id: number;
+  /** The Wikimedia username (the `contributor.handle`) — the public identity + the URL key. */
+  username: string;
+  /** Granted avatar URL, if the contributor granted one (C is identify-scope, so may be absent). */
+  avatarUrl?: string;
+}
+
+/**
  * Media + creator fields shared by curated clips and unvetted candidates.
  * (A candidate is "the same video, before a human has vouched for it".)
  */
@@ -132,6 +152,19 @@ export interface Clip extends VideoBase {
   /** ISO timestamp of the per-submit agreement (paired with `noteLicense`; D1-1/AC7). */
   noteLicenseAgreedAt?: string;
   createdAt: string;
+}
+
+/**
+ * A clip as listed on a contributor's PUBLIC PROFILE (issue #54 / D3, AC1). It is an ordinary
+ * `Clip` carried OUT of its Topic-page setting, so it additionally names its parent topic for
+ * the profile row's "On <Topic>" link (design §5.1): the topic title (display) drives the link
+ * text + the canonical `/topic/<Title>/` href; `topicQid` is already on `Clip`. The clip's
+ * `curatedBy` is the profile owner's handle (the per-row "context by" attribution is suppressed
+ * on the profile — design §5.4 — but the field still rides along on the clip).
+ */
+export interface ContributorClip extends Clip {
+  /** Parent Wikipedia article title (display) — the profile row's "On <Topic>" link text/href. */
+  topicTitle: string;
 }
 
 /**

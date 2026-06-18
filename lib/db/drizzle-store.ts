@@ -1,18 +1,22 @@
 import "server-only";
 
-import { desc, eq, sql } from "drizzle-orm";
+import { and, asc, desc, eq, ne, sql } from "drizzle-orm";
 import type { DataStore } from "@/lib/data/store";
 import type {
   ArticleSection,
   Candidate,
   Clip,
+  ContributorClip,
+  PublicContributor,
   Topic,
 } from "@/lib/data/types";
+import { STUB_HANDLE } from "@/lib/curation/curator-attribution";
 import { getDb, type Db } from "./client";
 import {
   clipPatchToUpdate,
   clipToInsert,
   rowToClip,
+  rowToPublicContributor,
   rowToTopic,
 } from "./mappers";
 import { clip, contributor, dismissedCandidate, topic } from "./schema";
@@ -209,6 +213,55 @@ export class DrizzleDataStore implements DataStore {
     return rows[0] ?? null;
   }
 
+  // ── Public contributor profile reads (issue #54 / D3 — anonymous; AC1–AC4) ──────────
+  async getContributorByUsername(
+    username: string
+  ): Promise<PublicContributor | null> {
+    // The seeded `@prototype` stub is not a real person to profile (Decision 4 / AC4): treat it
+    // as not-found BEFORE any DB read, so `/contributor/@prototype` never resolves to a browsable
+    // profile of the stub's clips. (The stub also never receives a "context by" link — its clips
+    // show the non-linked `seed clip · no curator` label client-side.)
+    if (username === STUB_HANDLE) return null;
+    // Resolve the NON-UNIQUE handle to a SINGLE identity deterministically: the lowest/earliest
+    // `contributor.id` for that handle (Decision 1). The stub handle is excluded defensively
+    // (`ne(...)`) so a real contributor who somehow shares the stub string is never silently
+    // shadowed and the stub can never be the resolved identity. SELECT only `contributor` columns
+    // — `account.email` (a different table) is never touched on this path, the AC2 privacy boundary.
+    const rows = await this.db
+      .select({
+        id: contributor.id,
+        handle: contributor.handle,
+        avatarUrl: contributor.avatarUrl,
+        displayName: contributor.displayName,
+        createdAt: contributor.createdAt,
+      })
+      .from(contributor)
+      .where(
+        and(eq(contributor.handle, username), ne(contributor.handle, STUB_HANDLE))
+      )
+      .orderBy(asc(contributor.id))
+      .limit(1);
+    return rows[0] ? rowToPublicContributor(rows[0]) : null;
+  }
+
+  async listClipsByContributor(
+    contributorId: number
+  ): Promise<ContributorClip[]> {
+    // Exactly this contributor's clips, joined to their parent topic for the "On <Topic>" link
+    // context (the topic title + QID), newest-first (`createdAt` desc — same order as `listClips`).
+    // The `curatorId` filter scopes it to this contributor; another contributor's clips are excluded.
+    const rows = await this.db
+      .select({ clip, topicQid: topic.wikidataQid, topicTitle: topic.title })
+      .from(clip)
+      .innerJoin(topic, eq(clip.topicId, topic.id))
+      .where(eq(clip.curatorId, contributorId))
+      .orderBy(desc(clip.createdAt));
+    return rows.map((r) => ({
+      ...rowToClip(r.clip, r.topicQid),
+      topicTitle: r.topicTitle,
+    }));
+  }
+
   // ── Sticky dismissals (shared + durable — AC5) ─────────────────────────────────────
   async recordDismissal(
     input: {
@@ -260,8 +313,9 @@ export class DrizzleDataStore implements DataStore {
 // ── Stub contributor (interim attribution until issue C — AC13) ───────────────────────
 // Until real sign-in lands, every write is attributed to a single seeded "prototype"
 // contributor. Its id is resolved lazily and memoized per process; the seed (scripts/
-// seed.ts) inserts it, but this also self-heals if the row is missing.
-const STUB_HANDLE = "@prototype";
+// seed.ts) inserts it, but this also self-heals if the row is missing. `STUB_HANDLE` is the
+// canonical client-safe constant (lib/curation/curator-attribution.ts), shared with the seed
+// + the client `ContextByLink` so the stub handle is defined once.
 let stubId: number | null = null;
 
 /** Reset the memoized stub-contributor id. TEST-ONLY: each fresh pglite DB needs a clean id. */

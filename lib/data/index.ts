@@ -4,9 +4,11 @@ import {
   addClipAction,
   deleteClipAction,
   dismissedKeysAction,
+  getContributorByUsernameAction,
   getTopicAction,
   getTopicByTitleAction,
   listClipsAction,
+  listClipsByContributorAction,
   listTopicsAction,
   recordDismissalAction,
   updateClipAction,
@@ -55,6 +57,11 @@ const clientStore: DataStore = {
   updateClip: (id, patch, _agreement, noteLicenseAgreed) =>
     updateClipAction(id, patch as ClipEditPatch, noteLicenseAgreed),
   deleteClip: (id) => deleteClipAction(id),
+  // Public contributor profile reads (issue #54 / D3) — anonymous, like `listClips`.
+  getContributorByUsername: (username) =>
+    getContributorByUsernameAction(username),
+  listClipsByContributor: (contributorId) =>
+    listClipsByContributorAction(contributorId),
   recordDismissal: (input) => recordDismissalAction(input),
   dismissedKeys: (topicQid) => dismissedKeysAction(topicQid),
 };
