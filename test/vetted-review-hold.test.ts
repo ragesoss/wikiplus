@@ -25,7 +25,7 @@ import { makeTestDb, type TestDb } from "./helpers/pglite-db";
 
 let currentDb: Db;
 let currentSession:
-  | { user: { contributorId?: number; username?: string } }
+  | { user: { contributorId?: number; username?: string; isModerator?: boolean } }
   | null = null;
 
 vi.mock("@/lib/db/client", async (importOriginal) => {
@@ -333,5 +333,95 @@ describe("AC7 — the held-state rides listClips; an anonymous read returns the 
     const listed = await listClipsAction(QID);
     expect(listed).toHaveLength(1);
     expect(listed[0]!.held).toBe(true);
+  });
+});
+
+// ── QA-added: the role-gate ignores a client-FORGED `isModerator` session claim (the security heart).
+// The session is client-derived (JWT); the role-gate must NOT trust it. A non-moderator whose stubbed
+// session CLAIMS isModerator=true (no DB column, no allowlist) is still rejected — the action
+// re-resolves the role server-side via isModeratorContributor (DB OR env), never the session claim.
+describe("QA — the role-gate re-resolves server-side and ignores a forged session isModerator claim", () => {
+  it("a forged session.isModerator=true does NOT let a non-moderator approve (server re-resolves)", async () => {
+    const c = await seedTopicAndClip("Marcus", "sub-marcus");
+    const mod = await signInAs("Mod", "sub-mod");
+    await grantModeratorById(mod.contributorId);
+    await holdClipAction(c.id);
+
+    // A different signed-in contributor who is NOT a moderator (no DB column, not on the allowlist),
+    // but whose (client-derived) session falsely asserts the moderator claim.
+    const random = await signInAs("Random", "sub-random");
+    currentSession = {
+      user: {
+        contributorId: random.contributorId,
+        username: random.handle,
+        isModerator: true, // forged — never set server-side for this contributor
+      },
+    };
+    await expect(reviewClipAction(c.id)).rejects.toThrow(/Not authorized/);
+    expect(await vettedOf(c.id)).toBe(false); // still held — the forged claim authorized nothing
+  });
+
+  it("a forged session.isModerator=true does NOT let a non-owner non-moderator hold", async () => {
+    const c = await seedTopicAndClip("Marcus", "sub-marcus");
+    const random = await signInAs("Random", "sub-random");
+    currentSession = {
+      user: {
+        contributorId: random.contributorId,
+        username: random.handle,
+        isModerator: true, // forged
+      },
+    };
+    await expect(holdClipAction(c.id)).rejects.toThrow(/Not authorized/);
+    expect(await vettedOf(c.id)).toBe(true); // unchanged — still published
+  });
+});
+
+// ── QA-added: AC1+AC3 full round-trip — hold then approve by a moderator lands published. ──────────
+describe("QA — AC1/AC3 round-trip: a moderator holds then approves; the clip ends published", () => {
+  it("published → hold (held) → approve (published), each step persisted and read back", async () => {
+    const c = await seedTopicAndClip("Marcus", "sub-marcus");
+    expect(await vettedOf(c.id)).toBe(true);
+
+    const mod = await signInAs("Mod", "sub-mod");
+    await grantModeratorById(mod.contributorId);
+
+    const held = await holdClipAction(c.id);
+    expect(held.held).toBe(true);
+    expect(await vettedOf(c.id)).toBe(false);
+
+    const approved = await reviewClipAction(c.id);
+    expect(approved.held).toBeUndefined();
+    expect(await vettedOf(c.id)).toBe(true);
+    // The full cycle leaves only the review-state changed — the curated content is intact.
+    expect(approved.contextNote).toBe(c.contextNote);
+    expect(approved.curatorId).toBe(c.curatorId);
+  });
+});
+
+// ── QA-added: the limit arm of gate→limit→role — an over-cap hold/approve writes nothing (AC5/D5a). ─
+// D5b's two actions are counted gated writes that slot into the D5a gate→limit→role→write order. The
+// LIMIT runs BEFORE the role check, so an over-cap call is rejected with RateLimitedError and writes
+// nothing — even for an otherwise-authorized actor — and never reaches the role/write step.
+describe("QA — hold/approve are counted gated writes: an over-cap call is rate-limited, writes nothing", () => {
+  it("a moderator over the per-identity cap is rejected on hold and the clip stays published", async () => {
+    const c = await seedTopicAndClip("Marcus", "sub-marcus");
+    const mod = await signInAs("Mod", "sub-mod");
+    await grantModeratorById(mod.contributorId);
+
+    // Tighten the cap to 1 and burn the budget with one counted write, so the next is over-cap.
+    process.env.WRITE_RATE_LIMIT_MAX = "1";
+    await holdClipAction(c.id); // counts as one write; clip now held
+    expect(await vettedOf(c.id)).toBe(false);
+
+    // The next gated write by this identity is over the cap → RateLimitedError, no role check, no write.
+    let thrown: unknown;
+    try {
+      await reviewClipAction(c.id);
+    } catch (err) {
+      thrown = err;
+    }
+    expect(isRateLimited(thrown)).toBe(true);
+    expect(isAuthRequired(thrown)).toBe(false);
+    expect(await vettedOf(c.id)).toBe(false); // unchanged — the over-cap approve wrote nothing
   });
 });
