@@ -124,6 +124,31 @@ suggestions are **never interleaved**. The band heading is **`＋ General`** whe
 leads (mixed + fully-curated) and **`＋ Suggested videos`** only at 0 curated. See §"Three states"
 below for the full model.
 
+**Curated-tile anatomy (issue #63).** A curated General tile carries the same trust signals the
+section-anchored rail card does, so a reader can weigh it where they meet it first. Top-to-bottom:
+thumbnail → held marking (only when held) → caption → creator handle · platform → **stance +
+accuracy chips** → a **2-line context-note preview** → `context by <curator>` → upvote → owner/
+reviewer manage rows. The chips are the standard fact-vs-opinion chips (see §"Fact-vs-opinion
+signal" and `lib/curation/labels.ts` for their labels/colors — not restated here); they carry their
+own AA-safe fills, so the indigo band behind them never touches the chip text. The note preview is
+**clamped to two lines on a white panel with a 2px ink border** so its small body text clears AA
+over the indigo `#676EB4` band (the same white-panel treatment the held pill and candidate
+match-line use) — small note body text is **never** placed directly on the bare indigo band. The
+preview is a hook only: the **full, untruncated note lives in the opened player**, and the whole
+tile thumbnail is already the click-to-open affordance (no separate "read more" control). Candidate
+tiles are unaffected — they carry no note and no chips (CURATION §6).
+
+**Curated player anatomy (issue #63).** Opening a curated clip — General **or** section-anchored —
+opens the blocking `PlayerModal`, which now renders a **curation block beneath the video frame**:
+creator credit (links out) → held marking (only when held) → **stance + accuracy chips** → the
+**full context-note text** → `context by <curator>` (links in to the curator profile; the
+`@prototype` stub shows the non-linked "seed clip · no curator" label). The block sits on a light
+surface inside the existing dialog focus trap, mirroring the rail card's reading order so the same
+curated clip carries identical trust signals wherever a reader opens it (the parity goal). The video
+frame's own states (autoplay-on-open iframe, the "can't be embedded" fallback) are unchanged; the
+curation block renders below it either way. (This is distinct from the candidate **pinned** player
+in §"The pinned candidate player" — candidates have no note/chips, so that player gains nothing.)
+
 ## Clip placement: General vs. section-anchored
 
 Curated videos divide into two buckets:

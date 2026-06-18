@@ -31,15 +31,39 @@ type OnSubmit = (
 // need error/expired behavior pass their own typed stub.
 const makeOk = () => vi.fn<OnSubmit>(async () => ({ outcome: "added" }));
 
+// A full curated `Clip` fixture. `PlayerModal`'s prop type widened to the full `Clip` (issue #63 —
+// the player now renders the curation block below the frame), so these tests build a complete clip;
+// the per-test override sets the embed/caption/orientation the assertion reads.
+function makeClip(over: Partial<Clip> = {}): Clip {
+  return {
+    id: "clip1",
+    topicQid: "Q189603",
+    platform: "youtube",
+    platformLabel: "YouTube",
+    orientation: "horizontal",
+    watchUrl: "https://www.youtube.com/watch?v=abc",
+    embedUrl: "https://www.youtube-nocookie.com/embed/abc",
+    caption: "Clip",
+    creator: { handle: "@x", name: "Creator X", platform: "youtube" },
+    general: true,
+    contextNote: "Solid explainer; minor caveat.",
+    stance: "explainer",
+    accuracyFlag: "accurate",
+    curatedBy: "curatorX",
+    createdAt: "2026-01-01T00:00:00Z",
+    ...over,
+  };
+}
+
 describe("PlayerModal (AC11 — embedded player, no host)", () => {
   it("creates the iframe ON OPEN with the youtube-nocookie src + autoplay", () => {
     render(
       <PlayerModal
-        clip={{
+        clip={makeClip({
           embedUrl: "https://www.youtube-nocookie.com/embed/abc",
           caption: "Clip",
           orientation: "horizontal",
-        }}
+        })}
         onClose={vi.fn()}
       />
     );
@@ -54,7 +78,7 @@ describe("PlayerModal (AC11 — embedded player, no host)", () => {
     const onClose = vi.fn();
     render(
       <PlayerModal
-        clip={{ embedUrl: "https://www.youtube-nocookie.com/embed/x", caption: "C", orientation: "horizontal" }}
+        clip={makeClip({ embedUrl: "https://www.youtube-nocookie.com/embed/x", caption: "C", orientation: "horizontal" })}
         onClose={onClose}
       />
     );
