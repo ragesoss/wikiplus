@@ -30,13 +30,26 @@ export function PlayerModal({
   const src = clip.embedUrl
     ? clip.embedUrl + (clip.embedUrl.includes("?") ? "&" : "?") + "autoplay=1"
     : undefined;
+  // Frame height cap (§9 responsive). For a 9:16 vertical clip the frame is height-capped so a
+  // tall clip can't consume the whole dialog and push the curation block off-screen. We cap it to
+  // ~60vh (was 80vh) so the frame + close bar + the start of the curation block fit, and the rest
+  // scrolls — see the `max-h-[90vh] overflow-y-auto` wrapper below (DEFECT 1 fix, #63).
   const frame =
     clip.orientation === "vertical"
-      ? "aspect-[9/16] max-h-[80vh] mx-auto"
+      ? "aspect-[9/16] max-h-[60vh] mx-auto"
       : "aspect-video w-full";
 
+  // The dialog content is wrapped in a single VIEWPORT-CAPPED, SCROLLABLE column so that when the
+  // video frame + curation block together exceed a short viewport (the reported case: 390×620 with
+  // a 9:16 clip), the dialog SCROLLS instead of centering-and-clipping (design §4.1 / §9). This
+  // keeps the ✕ close button and the full note + "context by" reachable by scroll. The scroll
+  // container lives INSIDE ModalShell's dialog (children), so the focus trap / Esc / backdrop /
+  // focus-return contract is untouched, and DOM order is unchanged: close button first, "context
+  // by" link last (the focus-model tests stay green). On open ModalShell focuses the close button,
+  // which the browser scrolls into view, so the reader always starts at the top of the frame.
   return (
     <ModalShell onClose={onClose} ariaLabel="Video player" dark className="w-full max-w-3xl">
+      <div className="max-h-[90vh] overflow-y-auto">
       <div className="border-2 border-ink bg-black">
         <div className="flex justify-end p-2">
           <button
@@ -109,6 +122,7 @@ export function PlayerModal({
         <p className="mt-2 text-[11px]">
           <ContextByLink curatedBy={clip.curatedBy} surface="light" />
         </p>
+      </div>
       </div>
     </ModalShell>
   );
