@@ -481,7 +481,10 @@ multi-provider OAuth support, so launching single-provider costs us nothing late
   keeps us compatible with the surrounding Wikipedia content). Capture contributor agreement
   to that license at submission time.
 - **Embedded video** remains under its original platform/creator terms; we link out and rely
-  on official embeds rather than redistributing.
+  on official embeds rather than redistributing. **Creator credit on oEmbed-resolved clips**
+  (add-by-link, issue #64): the minimum is real `author_name` + a working link to `author_url`
+  (handle derived per the candidate pipeline, or omitted; never a placeholder masquerading as a real
+  creator) — see `docs/CURATION_STANDARD.md` §5.5 / Decision C10.
 
 ## Open questions (to resolve before/while building)
 
