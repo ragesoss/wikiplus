@@ -174,6 +174,19 @@ Keyed on stable identifiers, normalized, minimal.
     frozen `clip.upvotes` seed baseline **+** `COUNT(clip_vote rows)`, so it can never drift from the
     set of distinct real voters; `clip.upvotes` is never mutated by a vote. A viewer's "have I
     voted?" state comes **only** from `clip_vote` (never the seed). See *Prototype phase* → D4.
+- **write_event** (the per-identity write rate-limit ledger — issue #57 / D5a; migration
+  `drizzle/0005_broken_barracuda.sql`)
+  - `id`, `contributor_id` → contributor (`onDelete: cascade`), `kind` (`add` | `upsert` | `upvote`
+    | `dismiss` | `edit` | `delete`), `created_at`
+  - **`index(contributor_id, created_at)`** — supports the hot window check
+    `COUNT(... WHERE contributor_id = ? AND created_at > now() - W)`. One row per **successful**
+    counted gated write; the per-identity cap (default **N=60 / W=60s**, env-overridable) is enforced
+    in `lib/server/actions.ts` AFTER the auth gate, BEFORE the write (over cap → `RateLimitedError`,
+    writes nothing). **One shared per-identity budget** across all kinds (`kind` carried so a future
+    per-action split needs no migration). **Postgres-backed, NOT Redis** (Redis stays reserved for
+    the deferred read-path ISR cacheHandler). Append-mostly + self-bounding for the window
+    (`created_at > now() - W` ignores aged rows); a periodic prune is an Ops follow-up, not required
+    for correctness. See *Open questions* → Abuse/spam + *Prototype phase* → **D5a**.
 
 > Auto-suggested **candidates are not stored as rows** — they're computed and cached per topic
 > (see *Candidate suggestion*). Only a **promote** (→ `clip`) or **dismiss** (→
@@ -482,8 +495,24 @@ multi-provider OAuth support, so launching single-provider costs us nothing late
   stamped server-side by `addClipAction` (see *Data model* → `clip` and *Prototype phase*).
 - ~~Abuse/spam handling for open contribution.~~ **Policy resolved** (Curation Standard §7):
   login-gated contribution, defined removable content, honest flagging allowed, per-identity
-  Redis rate limits + the `clip.vetted` review hold. *Enforcement* (rate-limit + moderation
-  tooling) remains Operations'/Development's to build with auth/persistence.
+  rate limits + the `clip.vetted` review hold. **Per-identity write rate-limiting is now ENFORCED
+  (issue #57 / D5a)** — and the **backing is Postgres, NOT Redis**: a small **`write_event`** ledger
+  table (migration `drizzle/0005_broken_barracuda.sql`) backs a per-`contributor.id` window check
+  wired into every counted gated write in `lib/server/actions.ts` (`addClipAction`,
+  `upsertTopicAction`, `toggleUpvoteAction`, `recordDismissalAction`, `updateClipAction`,
+  `deleteClipAction`). After the auth gate and before any persisting write, the action throws
+  `RateLimitedError` (a distinct `name` + the stable `RATE_LIMITED` `code`, client-detected by
+  `isRateLimited` beside `isAuthRequired`) if the identity is over its cap, writing nothing.
+  **Default cap N=60 writes / W=60s** (env-overridable: `WRITE_RATE_LIMIT_MAX`,
+  `WRITE_RATE_LIMIT_WINDOW_SECONDS`; no runtime admin UI), drawn from **one shared per-identity
+  budget** (the ledger carries `kind` so a future per-action split needs no migration). **Reads are
+  never limited and write no ledger row.** *Why Postgres, not the §7-anticipated Redis:* ARCHITECTURE
+  reserves the deferred read-path Redis for the ISR `cacheHandler` + cached candidate sets (not yet
+  introduced); D5a must not stand up a Redis service ahead of that need — a `COUNT(... WHERE
+  contributor_id = ? AND created_at > now() - W)` over the indexed slice is trivially cheap at
+  prototype scale, and the ledger doubles as the §7 audit trail. See *Prototype phase* → **D5a**. The
+  **`clip.vetted` review hold + the role model is D5b**; **moderator removal is D5c** — both still to
+  build. *Anti-gaming beyond a single-identity cap* (sockpuppets, vote-fraud) stays **post-MVP**.
 
 ## Persistence — Drizzle/Postgres behind a server data-access boundary (issue #45 / #35 B)
 
@@ -551,7 +580,11 @@ build on additively.
     of issue C** (rejected when anonymous; attributed to the real signed-in contributor). **As of
     issue #53 / D2 `updateClip` / `deleteClip` are also boundary actions** (`updateClipAction` /
     `deleteClipAction`) — **auth-gated + owner-only**, the gate `clip.curatorId === session
-    contributor id` (id-based, server-side); delete is hard; see *Boundary surface* above.
+    contributor id` (id-based, server-side); delete is hard; see *Boundary surface* above. **As of
+    issue #57 / D5a every counted gated write also passes a per-identity rate-limit check** (gate →
+    `checkWriteRateLimit` → write → `recordWriteEvent`; over cap → `RateLimitedError`, writes nothing
+    — see *Open questions* → Abuse/spam + *Prototype phase* → D5a). Migrations through
+    `drizzle/0005_broken_barracuda.sql` (the `write_event` ledger).
   - **Client (Wikipedia/YouTube), unchanged:** title→QID resolution, the article-body fetch, the TOC,
     and the **live YouTube candidate search** all stay **client-side**. `suggestCandidates` runs the
     pure pipeline in the browser; the (now shared) dismissed-video keys it needs for dedup are fetched
@@ -762,6 +795,38 @@ a host is provisioned (issue A.2).
   migration (`drizzle/0004_perpetual_fat_cobra.sql`) adds the table — no drop/rename/backfill of
   `clip.upvotes`. **No** downvotes/ranking/rate-limits (D5); **no** ISR/Redis (still deferred — but
   D4 plants no per-user state where the future cache will live).
+- **Per-identity write rate-limit enforcement (issue #57 / D5a).** The §7 posture
+  ("per-identity write limits to blunt spam floods; contribution is gated, reading is anonymous") is
+  now ENFORCED. A signed-in identity may make at most **N=60 writes per W=60s** (default;
+  env-overridable via `WRITE_RATE_LIMIT_MAX` / `WRITE_RATE_LIMIT_WINDOW_SECONDS`, **no** runtime admin
+  UI) across the counted gated writes, keyed by **`contributor.id`** (Decision 4 — not global, not
+  per-IP; the gate runs first so the limiter only ever sees an authenticated identity). The limited
+  set is **every gated write** (Decision 2): `addClipAction` + its prerequisite `upsertTopicAction`,
+  `toggleUpvoteAction`, `recordDismissalAction`, and the owner `updateClipAction` /
+  `deleteClipAction` — all drawing from **one shared per-identity budget**. **Backing: Postgres — a
+  small `write_event` ledger** (Decision 1), **NOT Redis**: ARCHITECTURE reserves the deferred
+  read-path Redis for the ISR `cacheHandler` + cached candidate sets (not yet introduced), and D5a
+  must not stand up a Redis service ahead of that need; a `COUNT(... WHERE contributor_id = ? AND
+  created_at > now() - W)` over the indexed `(contributor_id, created_at)` slice is trivially cheap +
+  correct at prototype scale, and the ledger doubles as the §7 audit trail. The **order is
+  gate→limit→write** (`lib/auth/rate-limit.ts`): `requireContributor()` FIRST, then
+  `checkWriteRateLimit` (a **pure read** — over the cap throws **`RateLimitedError`** with NO side
+  effect, so the rejected write writes nothing — AC2), then validation + the write, then
+  `recordWriteEvent` appends ONE ledger row AFTER the write lands (counting only **successful**
+  writes — a validation failure consumes no budget). `RateLimitedError` mirrors `AuthRequiredError`
+  (distinct `name` + stable **`RATE_LIMITED`** `code`, surviving Next.js prod message redaction); the
+  client-safe **`isRateLimited`** detector sits beside `isAuthRequired` in `lib/auth/auth-error.ts`.
+  Each gated-write call-site (`runUpvote`, `runDismiss`, the modal submit, edit/delete in `TopicView`
+  + `ProfileView`) widens its catch to **three mutually-exclusive arms**: `isAuthRequired →`
+  expired-session gate; `isRateLimited →` a **calm, non-red `role="status"`** "too fast" notice (the
+  new verbatim `AUTH_COPY.rateLimit.notice`, distinct from the gates + the generic red errors);
+  `else →` the generic error. The optimistic-write **rollback** (D4/#45) is unchanged. **Reads are
+  never limited and write no ledger row** (AC6); a normal-speed human never trips it (AC1). The
+  ledger carries **`kind`** so a future per-action budget split needs **no** schema change; a periodic
+  prune of aged rows is an **Ops follow-up**, not required for correctness. A clean **additive**
+  migration (`drizzle/0005_broken_barracuda.sql`) adds the table — no drop/rename/backfill. **Not** in
+  D5a: the `vetted` review hold + role model (**D5b**), moderator removal (**D5c**), and
+  sockpuppet/vote-fraud heuristics (post-MVP). **No** ISR/Redis (still deferred).
 - **Server Actions (enabled #37; now the data-access boundary — issue #45).** The Node SSR runtime
   supports Server Actions; as of #45 they are the **data-access boundary** for shared Postgres
   (`lib/server/actions.ts`, `"use server"` — see *Persistence* above). The throwaway #37 smoke artifact

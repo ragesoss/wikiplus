@@ -4,6 +4,7 @@ import { useSession } from "next-auth/react";
 import { useId, useState } from "react";
 import { parseVideoUrl, type ParsedVideo } from "@/lib/embed/facade";
 import type { Clip, Platform } from "@/lib/data/types";
+import { AUTH_COPY } from "@/lib/auth/microcopy";
 import { CurateFields } from "./CurateForm";
 import { ModalActionRow } from "./ModalActionRow";
 import { ModalShell } from "./ModalShell";
@@ -206,6 +207,14 @@ export function AddModal({
                 }
                 pending={submit.pending}
                 error={submit.error}
+                // D5a (design §5.1): calm limit notice on the rate-limit outcome (covers a limited
+                // `upsertTopic` sub-step too — one string, one treatment for "you're going too fast").
+                variant={submit.errorKind === "limited" ? "limit" : "error"}
+                errorMessage={
+                  submit.errorKind === "limited"
+                    ? AUTH_COPY.rateLimit.notice
+                    : undefined
+                }
                 licenseStatementId={licenseStatementId}
                 onCancel={onClose}
               />

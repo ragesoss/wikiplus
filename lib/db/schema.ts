@@ -241,6 +241,48 @@ export const clipVote = pgTable(
   ]
 );
 
+/**
+ * The per-identity write rate-limit ledger (issue #57 / D5a — Decision 1). One row per COUNTED
+ * gated write by a signed-in contributor; the limiter's window check is a
+ * `COUNT(... WHERE contributor_id = ? AND created_at > now() - W)` over this table — NOT a Redis
+ * counter (ARCHITECTURE reserves the deferred read-path Redis for the ISR cacheHandler; D5a must
+ * not pull it forward). Postgres is already the shared store behind the Server Actions seam, so a
+ * small indexed time-bounded slice is trivially cheap + correct at prototype scale, and the ledger
+ * doubles as the §7 audit trail a future D5b/D5c or Analytics can read.
+ *
+ * The limit is keyed by `contributor.id` (Decision 4) — never global, never per-IP; the gate runs
+ * first so the limiter only ever sees an authenticated identity. `kind` records WHICH gated write
+ * each event was (`add` | `upsert` | `upvote` | `dismiss` | `edit` | `delete`) so a future
+ * per-action budget split (Decision 2) needs NO schema change — the current limit draws from ONE
+ * shared per-identity budget across all kinds. Append-mostly + self-bounding for the window check
+ * (`created_at > now() - W` ignores old rows); a periodic prune of aged rows is an Ops follow-up,
+ * not a correctness requirement.
+ */
+export const writeEvent = pgTable(
+  "write_event",
+  {
+    id: serial("id").primaryKey(),
+    contributorId: integer("contributor_id")
+      .notNull()
+      // Cascade (matches clip_vote): a removed contributor's events go with them; the limit only
+      // ever counts a live identity's recent writes.
+      .references(() => contributor.id, { onDelete: "cascade" }),
+    /** Which counted gated write this was (Decision 2 — carried so a future per-action split is free). */
+    kind: text("kind").notNull(), // add | upsert | upvote | dismiss | edit | delete
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    // The hot path: the window `COUNT(... WHERE contributor_id = ? AND created_at > ?)`. A composite
+    // index on (contributor_id, created_at) lets the count scan only this identity's recent slice.
+    index("write_event_contributor_created_idx").on(
+      t.contributorId,
+      t.createdAt
+    ),
+  ]
+);
+
 // ── Relations (typed joins; Drizzle relational queries) ─────────────────────────────
 export const topicRelations = relations(topic, ({ many }) => ({
   clips: many(clip),
@@ -260,6 +302,14 @@ export const contributorRelations = relations(contributor, ({ many }) => ({
   accounts: many(account),
   clips: many(clip),
   votes: many(clipVote),
+  writeEvents: many(writeEvent),
+}));
+
+export const writeEventRelations = relations(writeEvent, ({ one }) => ({
+  contributor: one(contributor, {
+    fields: [writeEvent.contributorId],
+    references: [contributor.id],
+  }),
 }));
 
 export const clipVoteRelations = relations(clipVote, ({ one }) => ({
@@ -299,3 +349,4 @@ export type ClipRow = typeof clip.$inferSelect;
 export type ContributorRow = typeof contributor.$inferSelect;
 export type DismissedCandidateRow = typeof dismissedCandidate.$inferSelect;
 export type ClipVoteRow = typeof clipVote.$inferSelect;
+export type WriteEventRow = typeof writeEvent.$inferSelect;

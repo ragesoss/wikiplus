@@ -2,6 +2,7 @@
 
 import { useId } from "react";
 import type { Clip } from "@/lib/data/types";
+import { AUTH_COPY } from "@/lib/auth/microcopy";
 import { CurateFields } from "./CurateForm";
 import { ModalActionRow } from "./ModalActionRow";
 import { ModalShell } from "./ModalShell";
@@ -103,7 +104,14 @@ export function EditModal({
             canPublish={submit.hasNote && (!submit.materialNote || submit.agreed)}
             pending={submit.pending}
             error={submit.error}
-            errorMessage="Couldn't save — please try again."
+            // D5a (design §5.1/§5.3): the edit modal is a counted gated write — on the rate-limit
+            // outcome show the calm limit notice; otherwise the D2 generic "Couldn't save" red error.
+            variant={submit.errorKind === "limited" ? "limit" : "error"}
+            errorMessage={
+              submit.errorKind === "limited"
+                ? AUTH_COPY.rateLimit.notice
+                : "Couldn't save — please try again."
+            }
             licenseStatementId={licenseStatementId}
             onCancel={onClose}
           />

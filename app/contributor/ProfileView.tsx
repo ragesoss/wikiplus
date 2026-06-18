@@ -12,7 +12,7 @@ import { PlayerModal } from "@/components/topic/PlayerModal";
 import { ProfileClipRow } from "@/components/profile/ProfileClipRow";
 import type { ClipEditFormPatch } from "@/components/topic/curate-clip";
 import type { SubmitOutcome } from "@/components/topic/useCurateSubmit";
-import { isAuthRequired } from "@/lib/auth/auth-error";
+import { isAuthRequired, isRateLimited } from "@/lib/auth/auth-error";
 import { store } from "@/lib/data";
 import type { Clip, ContributorClip, PublicContributor } from "@/lib/data/types";
 import { pluralize } from "@/lib/format";
@@ -144,6 +144,10 @@ export function ProfileView() {
             showExpiredGate();
             return { outcome: "expired" } satisfies SubmitOutcome;
           }
+          // D5a §5.3: a rate-limited edit keeps the modal open with the calm limit notice.
+          if (isRateLimited(err)) {
+            return { outcome: "limited" } satisfies SubmitOutcome;
+          }
           throw err;
         }
       })();
@@ -175,6 +179,10 @@ export function ProfileView() {
         if (isAuthRequired(err)) {
           showExpiredGate();
           return { outcome: "expired" } satisfies SubmitOutcome;
+        }
+        // D5a §5.3: a rate-limited delete keeps the confirm dialog open with the calm limit notice.
+        if (isRateLimited(err)) {
+          return { outcome: "limited" } satisfies SubmitOutcome;
         }
         throw err;
       }

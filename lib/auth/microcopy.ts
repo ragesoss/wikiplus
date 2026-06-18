@@ -42,6 +42,17 @@ export const AUTH_COPY = {
     provider: "Couldn't sign in just now — please try again.",
     expiredSession: "Your session ended — please log in again.",
   },
+
+  // Issue #57 / D5a (design §3 — VERBATIM). The per-identity write rate-limit notice. A SIBLING of
+  // `gates.*` (login prompts) and `errors.*` (failures), distinct from both: this user IS signed in
+  // (so it is NOT a login gate) and nothing is broken (so it is NOT a generic failure) — a calm,
+  // momentary "too fast" signal that tells the (almost always honest) contributor the benign truth
+  // and the action: wait a moment, then retry. Reused on every gated-write surface (the in-modal
+  // calm notice + the polite page-level notice). The WORDS carry the meaning + the distinctness
+  // (AC3 / CURATION §4) — never color: it says neither "log in" nor "error/failed/blocked".
+  rateLimit: {
+    notice: "You're doing that a bit too fast — give it a moment, then try again.",
+  },
 } as const;
 
 export type GateKind = keyof typeof AUTH_COPY.gates;

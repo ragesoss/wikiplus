@@ -27,3 +27,29 @@ export function isAuthRequired(err: unknown): boolean {
   }
   return false;
 }
+
+// ── The per-identity write rate-limit signal (issue #57 / D5a, design §2/§4). ──────────────
+// The boundary throws `RateLimitedError` (lib/auth/rate-limit.ts) when a signed-in contributor
+// exceeds their per-identity write window. This detector MIRRORS `isAuthRequired` exactly: it is
+// client-safe (imports no server-only code, only inspects a caught error), and matches on the
+// distinct `name` / stable `code` marker — the SAME channel that survives Next.js's production
+// Server-Action message redaction (a message-substring fallback covers dev). The three-arm catch
+// at each gated-write call-site uses it to surface the calm "too fast" notice instead of the login
+// gate (the user IS signed in) or the generic write error (nothing is broken) — AC3.
+
+/** Stable marker the boundary's RateLimitedError carries in its `code` + message. */
+export const RATE_LIMITED_MARKER = "RATE_LIMITED";
+
+export function isRateLimited(err: unknown): boolean {
+  if (!err) return false;
+  if (typeof err === "object") {
+    const e = err as { name?: string; code?: string; message?: string };
+    if (e.name === "RateLimitedError" || e.code === RATE_LIMITED_MARKER) {
+      return true;
+    }
+    if (typeof e.message === "string" && e.message.includes(RATE_LIMITED_MARKER)) {
+      return true;
+    }
+  }
+  return false;
+}

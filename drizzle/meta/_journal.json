@@ -36,6 +36,13 @@
       "when": 1781752391283,
       "tag": "0004_perpetual_fat_cobra",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1781794474252,
+      "tag": "0005_broken_barracuda",
+      "breakpoints": true
     }
   ]
 }

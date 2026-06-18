@@ -26,7 +26,8 @@ import { Toc, type TocEntry } from "@/components/topic/Toc";
 import { TopicHeader } from "@/components/topic/TopicHeader";
 import { useRequireLogin } from "@/components/auth/useRequireLogin";
 import { useSession } from "next-auth/react";
-import { isAuthRequired } from "@/lib/auth/auth-error";
+import { isAuthRequired, isRateLimited } from "@/lib/auth/auth-error";
+import { AUTH_COPY } from "@/lib/auth/microcopy";
 import { liveCandidatesEnabled } from "@/lib/candidates";
 import {
   curatedVideoKeys,
@@ -100,9 +101,13 @@ export function TopicView() {
   const [persistedDismissed, setPersistedDismissed] = useState<Set<string>>(
     new Set()
   );
-  // Optimistic-dismissal failure notice (design §"dismissal — optimistic rollback"): a
-  // non-blocking polite line shown when a dismissal write fails and the card reappears.
-  const [dismissError, setDismissError] = useState(false);
+  // Optimistic-dismissal notice REASON (design §"dismissal — optimistic rollback"; D5a §5.3): a
+  // non-blocking polite line shown when a dismissal write is rolled back and the card reappears.
+  // `null` = no notice; "generic" = the red "couldn't dismiss" failure; "limited" = the calm D5a
+  // rate-limit notice. One surface, reason-aware (the optimistic rollback is unchanged).
+  const [dismissNotice, setDismissNotice] = useState<
+    null | "generic" | "limited"
+  >(null);
   // ── Upvotes (issue #55 / D4). ──────────────────────────────────────────────────────────
   // The PER-VIEWER voted-state — the set of clip ids THIS viewer has upvoted — resolved in the
   // ALREADY-AUTHENTICATED client session, OFF the cached read path (Decision 6 / design §8). It
@@ -112,9 +117,13 @@ export function TopicView() {
   // same in-memory clip-state the add/edit/delete paths mutate), reconciled to the server's
   // authoritative `{ voted, count }` on the toggle's return.
   const [votedClipIds, setVotedClipIds] = useState<Set<string>>(new Set());
-  // Non-blocking polite notice when a non-auth toggle write fails (design §6.4). The rolled-back
-  // count/state is the honest signal; this line names why.
-  const [upvoteError, setUpvoteError] = useState(false);
+  // Non-blocking polite notice REASON when a non-auth toggle write is rolled back (design §6.4;
+  // D5a §5.2). `null` = no notice; "generic" = the red "couldn't record your upvote" failure;
+  // "limited" = the calm D5a rate-limit notice. The rolled-back count/state is the honest signal;
+  // this line names why. One surface, reason-aware (the optimistic rollback is unchanged).
+  const [upvoteNotice, setUpvoteNotice] = useState<
+    null | "generic" | "limited"
+  >(null);
   // Per-clip in-flight guard (design §2.4.5): a second activation for the same clip is ignored
   // until the first resolves, so a double-click can't desync the optimistic count.
   const upvoteInFlight = useRef<Set<string>>(new Set());
@@ -669,7 +678,7 @@ export function TopicView() {
       setDismissed((prev) => new Set(prev).add(c.id));
       focusBandHeading();
       if (!videoId) return;
-      setDismissError(false);
+      setDismissNotice(null);
       void (async () => {
         try {
           await store.recordDismissal({
@@ -689,11 +698,12 @@ export function TopicView() {
             next.delete(c.id);
             return next;
           });
-          // Defense in depth (design §2d/§4): a session that expired between render and click
-          // is rejected at the boundary — surface the expired-session login gate rather than
-          // the generic "couldn't dismiss" notice.
+          // Three-arm catch (D5a §2 — mutually exclusive): an expired session → the login gate
+          // (D1); the per-identity write cap (RateLimitedError) → the CALM limit notice; any other
+          // failure → the generic red "couldn't dismiss" notice. The rollback above already ran.
           if (isAuthRequired(err)) showExpiredGate();
-          else setDismissError(true);
+          else if (isRateLimited(err)) setDismissNotice("limited");
+          else setDismissNotice("generic");
         }
       })();
     },
@@ -806,6 +816,12 @@ export function TopicView() {
           showExpiredGate();
           return { outcome: "expired" };
         }
+        // D5a §5.1: the per-identity write cap was hit (RateLimitedError). The modal STAYS OPEN
+        // with the note + fields intact and shows the CALM limit notice (publish to idle) — NOT
+        // the gate (the user is signed in) and NOT the generic red error (nothing is broken).
+        if (isRateLimited(err)) {
+          return { outcome: "limited" };
+        }
         throw err; // generic server/boundary error → the modal keeps open + shows its §6 alert
       }
     },
@@ -907,7 +923,7 @@ export function TopicView() {
       const willVote = !wasVoted;
       const delta = willVote ? 1 : -1;
 
-      setUpvoteError(false);
+      setUpvoteNotice(null);
       // Optimistic apply (instant): flip the voted-state + the displayed count by ±1.
       setVotedClipIds((prev) => {
         const next = new Set(prev);
@@ -948,10 +964,13 @@ export function TopicView() {
               c.id === id ? { ...c, upvotes: (c.upvotes ?? 0) - delta } : c
             )
           );
-          // Expired session (valid at render, gone at click) → the expired-session gate, not a
-          // generic error (the D1 path); else the polite non-blocking notice (§6.4 / S32).
+          // Three-arm catch (D5a §2 — mutually exclusive): an expired session → the expired-session
+          // gate (the D1 path); the per-identity write cap (RateLimitedError) → the CALM limit
+          // notice; any other failure → the generic red §6.4 notice. The rollback above already ran,
+          // so the control shows the truth (the vote did not happen — AC2).
           if (isAuthRequired(err)) showExpiredGate();
-          else setUpvoteError(true);
+          else if (isRateLimited(err)) setUpvoteNotice("limited");
+          else setUpvoteNotice("generic");
         } finally {
           upvoteInFlight.current.delete(id);
         }
@@ -1006,6 +1025,11 @@ export function TopicView() {
             showExpiredGate();
             return { outcome: "expired" } satisfies SubmitOutcome;
           }
+          // D5a §5.3: the edit is a counted gated write — on the rate-limit cap keep the modal open
+          // with the edits intact + the calm limit notice (not the gate, not the generic red error).
+          if (isRateLimited(err)) {
+            return { outcome: "limited" } satisfies SubmitOutcome;
+          }
           throw err; // generic error → the modal keeps open + shows its §6 alert
         }
       })();
@@ -1037,6 +1061,11 @@ export function TopicView() {
         if (isAuthRequired(err)) {
           showExpiredGate();
           return { outcome: "expired" } satisfies SubmitOutcome;
+        }
+        // D5a §5.3: a delete is a counted gated write — on the rate-limit cap keep the confirm
+        // dialog open with the calm limit notice (the dialog renders it per its surface).
+        if (isRateLimited(err)) {
+          return { outcome: "limited" } satisfies SubmitOutcome;
         }
         throw err;
       }
@@ -1148,33 +1177,48 @@ export function TopicView() {
         {mode === "empty" ? candidateAnnounce : ""}
       </p>
 
-      {/* Dismissal-failure notice (issue #45; design §"dismissal — optimistic rollback").
-          Non-blocking + polite: the rolled-back card reappearing is the honest signal; this
-          line names why. role="status"/aria-live="polite" — does NOT steal focus or block. */}
-      {dismissError && (
+      {/* Dismissal notice (issue #45; design §"dismissal — optimistic rollback"; D5a §5.3).
+          Non-blocking + polite: the rolled-back card reappearing is the honest signal; this line
+          names why. role="status"/aria-live="polite" — does NOT steal focus or block. REASON-AWARE:
+          "generic" = the red failure; "limited" = the CALM (non-red, ink-on-bg2) D5a limit notice. */}
+      {dismissNotice && (
         <div className="mx-auto max-w-[1200px] px-5">
           <p
             role="status"
             aria-live="polite"
-            className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700"
+            className={
+              dismissNotice === "limited"
+                ? "rounded-md border-l-4 border-brand bg-bg2 px-3 py-2 text-sm text-ink"
+                : "rounded-md bg-red-50 px-3 py-2 text-sm text-red-700"
+            }
           >
-            Couldn&apos;t dismiss that — please try again.
+            {dismissNotice === "limited"
+              ? AUTH_COPY.rateLimit.notice
+              : "Couldn't dismiss that — please try again."}
           </p>
         </div>
       )}
 
-      {/* Upvote-failure notice (issue #55 / D4; design §6.4). NON-BLOCKING + POLITE (role="status"
-          aria-live="polite", NOT alert/assertive — an upvote failure is informational, not urgent,
-          and must not interrupt the reader). After it shows, the optimistic vote is already rolled
-          back (the control shows the truth); this line names why. Verbatim §6.4 copy. */}
-      {upvoteError && (
+      {/* Upvote notice (issue #55 / D4; design §6.4; D5a §5.2). NON-BLOCKING + POLITE (role="status"
+          aria-live="polite", NOT alert/assertive — informational, not urgent, must not interrupt the
+          reader). After it shows, the optimistic vote is already rolled back (the control shows the
+          truth — AC2); this line names why. REASON-AWARE: "generic" = the red §6.4 failure copy;
+          "limited" = the CALM (non-red, ink-on-bg2) D5a limit notice (the same surface, the words
+          switch). Announced ONCE on appearance (the reason flip), never per render (§7). */}
+      {upvoteNotice && (
         <div className="mx-auto max-w-[1200px] px-5">
           <p
             role="status"
             aria-live="polite"
-            className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700"
+            className={
+              upvoteNotice === "limited"
+                ? "rounded-md border-l-4 border-brand bg-bg2 px-3 py-2 text-sm text-ink"
+                : "rounded-md bg-red-50 px-3 py-2 text-sm text-red-700"
+            }
           >
-            Couldn&apos;t record your upvote — please try again.
+            {upvoteNotice === "limited"
+              ? AUTH_COPY.rateLimit.notice
+              : "Couldn't record your upvote — please try again."}
           </p>
         </div>
       )}
