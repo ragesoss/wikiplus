@@ -123,6 +123,27 @@ describe("the demoted topic list preserves its states", () => {
   });
 });
 
+// ── Header chrome — no "Contribute", a single AuthControl (Iteration-2 findings 4–6, §7.5). ──
+describe("the landing header chrome", () => {
+  it("renders NO 'Contribute' link (removed entirely — finding 4)", async () => {
+    render(<HomePage />);
+    await screen.findByRole("combobox", { name: /find a topic/i });
+    // The "Contribute" link is gone from the landing header — not relocated, not hidden.
+    expect(screen.queryByRole("link", { name: /contribute/i })).toBeNull();
+    expect(screen.queryByText(/^contribute$/i)).toBeNull();
+  });
+
+  it("renders a SINGLE AuthControl in the header (the global setup stubs it authenticated — finding 6)", async () => {
+    render(<HomePage />);
+    await screen.findByRole("combobox", { name: /find a topic/i });
+    // The shared test setup mocks useSession → authenticated "TestCurator", so AuthControl
+    // renders the logged-in account disclosure. There is exactly ONE such control (no second
+    // row, no duplicate auth — finding 5): the account trigger carries the username.
+    const accounts = screen.getAllByRole("button", { name: /account: TestCurator/i });
+    expect(accounts).toHaveLength(1);
+  });
+});
+
 // ── The Daylight Projector accessibility model (AC11). ────────────────────────
 describe("HeaderProjector accessible name + decorative layers", () => {
   it("the wordmark exposes the accessible name 'wiki+'", () => {

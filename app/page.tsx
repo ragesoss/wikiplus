@@ -10,12 +10,20 @@ import { AuthControl } from "@/components/auth/AuthControl";
 import { HeaderProjector } from "@/components/wordmark/HeaderProjector";
 
 // The landing page (#15) — the product's FRONT DOOR. A single centered column (design §2):
-//   Daylight Projector header (Tier A) → "Find a topic" search (the dominant focus, AC1) →
-//   the concise VISION-sourced explanation (AC6) → a quiet rule → the DEMOTED topic list under
-//   "Explore example topics" (AC7, all four states preserved).
-// The search is REUSED unforked (one TopicSearch import, variant="home" — AC2). The projector
-// owns its responsive tier degradation (Tier A ≥ lg / B md / C < md, design §7) via CSS media
-// queries — SSR-safe. See docs/specs/landing-page.md + docs/design/landing-page.md.
+//   Daylight Projector header (Tier A, the fluid beam at EVERY width) → "Find a topic" search
+//   (the dominant focus, AC1, sitting INSIDE the projected light) → the concise VISION-sourced
+//   explanation (AC6) → a quiet rule → the DEMOTED topic list under "Explore example topics"
+//   (AC7, all four states preserved).
+// The search is REUSED unforked (one TopicSearch import, variant="home" — AC2).
+//
+// ── Iteration 2 (PR #61 owner findings — design §7.5): ──
+//   • The projector renders Tier A at EVERY width (no tier-drop, design §4.7) — so the header
+//     is a SINGLE row at every width: the column-centered lockup + a single right-anchored
+//     AuthControl. The auth control NEVER folds to a second row (finding 5).
+//   • The "Contribute" link is REMOVED entirely (finding 4) — gone, not relocated.
+//   • The hero (search) is pulled UP so its top sits just below the burn boundary (burnY=150px),
+//     INSIDE the bracket arms — the beam burns into the search, not a far-off underline (§4.4).
+// See docs/specs/landing-page.md + docs/design/landing-page.md.
 
 export default function HomePage() {
   const [topics, setTopics] = useState<Topic[] | null>(null);
@@ -47,39 +55,31 @@ export default function HomePage() {
       <h1 className="sr-only">wiki+</h1>
 
       {/* ── The Daylight Projector header (full-bleed so the gold border runs off both real
-          page edges — VISUAL_IDENTITY §6.3 / design §4.5). The header chrome (Contribute +
-          AuthControl) sits at the right, kept as today.
-          - ≥ lg (Tier A): the band is tall, so the chrome is ABSOLUTELY positioned in the cool
-            fluorescent field, top-right, beside the projector (no collision with the beam).
-          - < lg (Tier B/C): the band is short, so the chrome flows on the SAME ROW as the
-            (left-aligned) lockup — a normal header bar — never overlapping the wordmark. ── */}
-      <div className="relative">
+          page edges). The projector renders Tier A at EVERY width (the fluid beam — design §4.7),
+          so the band is tall (burnY=150px) at every width and the header chrome is a SINGLE row:
+          the column-centered lockup + a single AuthControl right-anchored over the cool field.
+          The auth slot is ABSOLUTELY positioned top-right so it never pushes the column-centered
+          lockup off-center and NEVER folds to its own row under the lockup (§7.5, findings 4–6). ── */}
+      <div className="relative bg-[var(--color-header-field)]">
         <HeaderProjector variant="projector" />
-        {/* ≥ lg (Tier A): the tall fluorescent band has room for the chrome ABSOLUTELY placed
-            top-right, beside the projector (clear of the centered beam). */}
-        <div className="absolute right-0 top-0 z-10 hidden items-center gap-4 px-4 py-3 lg:flex">
-          <Link href="/contribute" className="text-sm text-action hover:underline">
-            Contribute
-          </Link>
+        {/* The single AuthControl, right-anchored top-right of the full-bleed header, on the same
+            row as the lockup, at every width. No "Contribute" link (finding 4). The slot sits in
+            the cool fluorescent band above the burn boundary. It is absolutely positioned so it
+            never pushes the column-centered lockup off-center and NEVER folds to its own row
+            beneath the lockup (§7.5). On narrow viewports the lockup scales down
+            (`.projector-lockup-fit`) so the two coexist on one row without overlap. */}
+        <div className="auth-slot absolute right-0 top-0 z-10 flex items-start px-3 py-2.5 sm:items-center sm:px-4 sm:py-3">
           <AuthControl variant="home" />
         </div>
       </div>
-      {/* < lg (Tier B/C): the short band can't safely host the chrome over the lockup at narrow
-          widths, so the chrome FLOWS on its own header row directly under the lockup (right-
-          aligned), on the same cool fluorescent field — one continuous header, never overlapping
-          the wordmark, and the search below is never pushed off-screen. */}
-      <div className="flex items-center justify-end gap-3 bg-[var(--color-header-field)] px-4 pb-3 lg:hidden">
-        <Link href="/contribute" className="text-sm text-action hover:underline">
-          Contribute
-        </Link>
-        <AuthControl variant="home" />
-      </div>
 
       {/* ── The hero — paints --content-white so the beam's burn-to-white resolves into it
-          (design §4.4). The search is the dominant, full-width focus (AC1); the explanation
-          sits directly under it (AC6). ── */}
+          (design §4.4). The hero is pulled UP (small top padding) so the search field sits just
+          below the burn boundary, INSIDE the projected light (§2/§4.4) — not a far-off divider.
+          The search is the dominant, full-width focus (AC1); the explanation sits directly under
+          it (AC6). ── */}
       <div className="bg-[var(--color-content-white)]">
-        <div className="mx-auto max-w-[640px] px-4 pb-10 pt-2 lg:pt-0">
+        <div className="mx-auto max-w-[640px] px-4 pb-10 pt-4">
           <TopicSearch variant="home" />
           <p className="mt-4 max-w-[60ch] text-center text-[0.95rem] text-ink2">
             <span className="font-medium text-ink">

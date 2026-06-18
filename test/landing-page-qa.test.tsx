@@ -53,7 +53,8 @@ afterEach(() => {
 describe("AC8 — the projector variant renders the full Tier-A treatment", () => {
   it("renders the Tier-A band container and the descending beam (the projector chrome)", () => {
     const { container } = render(<HeaderProjector variant="projector" />);
-    // The Tier-A block exists (the ≥lg full projector), distinct from the B/C fallbacks.
+    // The Tier-A block exists (the full projector). The B/C wrappers remain DEFINED (for the
+    // future Topic-page shared header + forced-colors) but are hidden on the landing page.
     expect(container.querySelector(".tier-a")).toBeTruthy();
     expect(container.querySelector(".tier-b")).toBeTruthy();
     expect(container.querySelector(".tier-c")).toBeTruthy();
@@ -65,6 +66,22 @@ describe("AC8 — the projector variant renders the full Tier-A treatment", () =
     expect(beam).toBeTruthy();
     // The gold border/glow signal: a stroked path in #EECE87 (rgb 238,206,135).
     expect(beam?.querySelector('path[stroke="rgb(238,206,135)"]')).toBeTruthy();
+  });
+
+  it("the beam is present at EVERY width — the Tier-A wrapper is NOT gated behind `lg:block` (no tier-drop)", () => {
+    // Iteration-2 finding 3 / design §4.7 / §7: the landing page renders Tier A at all widths.
+    // The previous build hid the full projector behind `hidden lg:block` and dropped to Tier B/C
+    // as the viewport narrowed; that responsive drop is REMOVED. The Tier-A wrapper must not carry
+    // the `hidden` / `lg:block` drop classes — it shows the beam at every width (the beam scales
+    // fluidly via the preserveAspectRatio="none" SVG, not by swapping tiers).
+    const { container } = render(<HeaderProjector variant="projector" />);
+    const tierA = container.querySelector(".tier-a");
+    expect(tierA).toBeTruthy();
+    expect(tierA?.classList.contains("hidden")).toBe(false);
+    expect(tierA?.classList.contains("lg:block")).toBe(false);
+    // The B/C wrappers are hidden on the landing page (no responsive drop reveals them).
+    expect(container.querySelector(".tier-b")?.classList.contains("hidden")).toBe(true);
+    expect(container.querySelector(".tier-c")?.classList.contains("hidden")).toBe(true);
   });
 
   it("the lit aperture (even-odd knockout + radial core) renders for the projector, not for the flat tier", () => {
@@ -94,14 +111,21 @@ describe("AC10 — the geometry is parameterized, not baked constants", () => {
     const ovBeam = overridden.container.querySelector('svg[preserveAspectRatio="none"]');
     const ovViewBox = ovBeam?.getAttribute("viewBox");
 
-    // The default burnY (168) and the override (240) produce DIFFERENT beam canvases —
-    // proving the value flows from the prop, not a hardcoded inline constant.
-    expect(defViewBox).toContain("168");
+    // The default burnY (150 — Iteration 2, tightened from 168 to match the mockup's pageY so
+    // the search sits just below the boundary, inside the projected light) and the override
+    // (240) produce DIFFERENT beam canvases — proving the value flows from the prop, not a
+    // hardcoded inline constant. The default MUST stay in sync with the `--projector-burn-y`
+    // token in globals.css (AC10).
+    expect(defViewBox).toContain("150");
     expect(ovViewBox).toContain("240");
     expect(ovViewBox).not.toEqual(defViewBox);
   });
 
-  it("fullBleed=false drops the beam (the Tier-B threshold gate is a real prop)", () => {
+  it("fullBleed is a real prop gate on the beam (the future Topic-page Tier-B lever)", () => {
+    // The landing page NEVER sets fullBleed=false (Iteration-2 finding 3 / design §4.7: the
+    // beam is present at EVERY width on the landing page). This asserts the PROP GATE itself
+    // still works — it is the lever the FUTURE Topic-page shared header uses to drop to Tier B
+    // (VISUAL_IDENTITY §6.3), not landing behavior.
     const withBeam = render(<HeaderProjector variant="projector" />);
     expect(withBeam.container.querySelector('svg[preserveAspectRatio="none"]')).toBeTruthy();
     withBeam.unmount();

@@ -1,3 +1,5 @@
+"use client";
+
 // HeaderProjector — the "Daylight Projector" wordmark (#15), the first implementation of
 // the LOCKED identity in docs/VISUAL_IDENTITY.md (variant 01, Tier A). One reusable,
 // tier-aware, PARAMETERIZED component (AC9/AC10). Bespoke Tailwind + inline SVG — no
@@ -5,27 +7,38 @@
 // the Source Sans Pro stack via `.plus-disp`).
 //
 // Design contract: docs/design/landing-page.md §4 (Tier-A geometry mapped to the hero),
-// §5 (this API: §5.1 tiers, §5.2 geometry props/tokens, §5.3 tokens), §7 (responsive
-// tiers), §8 (a11y). Geometry source of truth:
+// §5 (this API: §5.1 tiers, §5.2 geometry props/tokens, §5.3 tokens), §7 (responsive),
+// §8 (a11y). Geometry source of truth:
 // mockups/wordmark-projector-illuminate.html buildScene() (variant 01).
+//
+// ── Iteration 2 (PR #61, owner findings — design "Iteration 2" note + revised §4.3/§4.7/§7): ──
+//   1. TIGHT SEAM. The lockup is laid out as a shrink-to-fit inline-flex row: "Wiki" takes its
+//      INTRINSIC width (no fixed WIKI_W) and the zine block butts immediately against "Wiki"'s
+//      right edge (no gap). The ghost "Wikipedia"/"pedia" is covered by the block from the seam
+//      rightward and is glimpsed ONLY through the lit "+" aperture — never floating in a gap.
+//   2. burnY 168 → 150 (matches the mockup's pageY); cyMid 52 → 64 (matches the mockup) so the
+//      composition is TIGHT (short cone, crossbar near burnY) and reads as a projection landing
+//      ON the search, not a far-off underline.
+//   3. BEAM AT EVERY WIDTH (fluid). The landing page renders Tier A "projector" at ALL widths —
+//      no tier-drop. The beam is a preserveAspectRatio="none" full-width SVG whose viewBox width
+//      is a fixed canvas mapped to 100%, so the brackets always reach both real page edges and
+//      the beam scales fluidly (design §4.7). The Tier B/C/D variants remain DEFINED for the
+//      future Topic-page shared header, but the landing call (variant="projector") shows the full
+//      projector at every viewport.
 //
 // SCOPE (AC10): the geometry below is exposed as named props/typed config with the Tier-A
 // landing defaults pinned as CSS variables (`--projector-*`, app/globals.css `.header-projector`).
 // The landing render is ONE configuration — `<HeaderProjector variant="projector" />` with NO
 // inline geometry numbers at the call site. The DYNAMIC behavior (live column-ratio measurement,
 // runtime re-projection) is NOT implemented this round — only the API shape.
-//
-// SSR-SAFE responsive degradation (design §7): the tier is chosen by CSS media queries, NOT JS
-// viewport detection, so it is correct on the first SSR paint. The component renders all needed
-// tiers and shows the right one per breakpoint:
-//   ≥ lg → Tier A "projector"  ·  md → Tier B "lockup-lit"  ·  < md → Tier C "lockup-flat".
-// `forced-colors: active` forces the flat Tier-C lockup (design §8.5).
+
+import { useEffect, useId, useRef, useState } from "react";
 
 // ── The four tiers (design §5.1 / VISUAL_IDENTITY §6.2). ──────────────────────
 export type HeaderProjectorVariant =
-  | "projector" // Tier A — full treatment (the landing page uses this)
-  | "lockup-lit" // Tier B — lockup + lit aperture, no beam
-  | "lockup-flat" // Tier C — plain lockup, flat "+" block
+  | "projector" // Tier A — full treatment; the LANDING page uses this at EVERY width
+  | "lockup-lit" // Tier B — lockup + lit aperture, no beam (future Topic-page fallback)
+  | "lockup-flat" // Tier C — plain lockup, flat "+" block (future Topic-page + forced-colors)
   | "glyph"; // Tier D — the "+" zine tile alone (favicon/app-icon scale)
 
 // ── Parameterized geometry (design §5.2 / AC10). Optional per-prop overrides; any value
@@ -38,7 +51,7 @@ export interface ProjectorGeometry {
   beamCrossUp?: number;
   /** beamEdgeInset(px) — crossbar end inset before brackets go off-page. Token: --projector-edge-inset (17). */
   beamEdgeInset?: number;
-  /** burnY(px) — content boundary where the beam burns to white. Token: --projector-burn-y (168). */
+  /** burnY(px) — content boundary where the beam burns to white. Token: --projector-burn-y (150). */
   burnY?: number;
   /** projectionX — beam apex x (0..1 of width). Default: the lockup aperture center (content-column center, §4.3). */
   projectionX?: number;
@@ -72,6 +85,18 @@ const ARM_A = 8; // "+" arm half-thickness
 const ARM_B = Math.min(BH * 0.32, 18); // "+" arm reach
 const CORE = 44; // white-hot aperture core box
 const PEDIA_OPACITY = 0.24; // halation ghost (VISUAL_IDENTITY §2.8 / o.pedia)
+const CUT_CX = 27; // aperture x within the block (mockup cutCx clamp → ~27 at this scale)
+
+// SSR-safe tight estimate of the "Wiki" serif advance (Georgia 600 42px). The mockup measures
+// `crisp.offsetWidth` (~95px); we use that REAL advance — NOT the old inflated 110 that opened a
+// gap (Iteration-2 finding 1). It is only the no-JS fallback for the beam apex x; the tight seam
+// itself comes from the shrink-to-fit inline-flex layout (no fixed width on "Wiki"), so this
+// constant never opens a gap. The live aperture x is measured once and exposed as a CSS var.
+const WIKI_W_EST = 95;
+// SSR fallback for the aperture center's x within the full lockup, from the lockup's left edge:
+// "Wiki" advance + the block's 2px margin + the cut inset. Used to land the aperture (not the
+// lockup midpoint) on the beam apex (= content-column center, §4.3) before the measure resolves.
+const APERTURE_X_EST = WIKI_W_EST + 2 + CUT_CX;
 
 // 12-point "+" polygon (mockup plusPath). Used for the aperture knockout, the gold rim,
 // and the screen-blend bleed.
@@ -92,23 +117,13 @@ function mix(c: [number, number, number], t: number): string {
 const GOLD_FILL: [number, number, number] = [255, 236, 178]; // #FFECB2 (mixed toward white)
 const GOLD_RIM_RGB = "238,206,135"; // #EECE87 — the single signal-carrying edge gold
 
-// Estimate the "Wiki" serif width so the lockup can be laid out without DOM measurement
-// (SSR-safe — design §7). Georgia 600 42px "Wiki" ≈ 110px; the value only positions the
-// block beside the serif, it is not load-bearing for meaning (the beam apex is the aperture
-// center regardless). A small over-estimate keeps a comfortable gap.
-const WIKI_W = 110;
-// Horizontal offset of the APERTURE center within the full lockup, from the lockup's left
-// edge: "Wiki" width + the block's 2px margin + the cut's x within the block (cutCx=27). Used
-// to land the aperture (not the lockup midpoint) on the beam apex / content-column center (§4.3).
-const APERTURE_X = WIKI_W + 2 + 27;
-
 // ── The indigo "+" zine block (VISUAL_IDENTITY §5.3): even-odd knockout, 2px ink border,
 // hard offset shadow arms, white "plus", with the lit aperture (core + gold rim + bleed) for
 // Tiers A/B, or a flat drawn "+" for Tier C/D. Rendered as a fixed-size inline SVG so it never
 // stretches. ──────────────────────────────────────────────────────────────────
 function ZineBlock({ lit, uid }: { lit: boolean; uid: string }) {
   // Block width: room for the cut + "plus" text (mockup bw formula, fixed scale).
-  const cutCx = 27; // aperture x within the block (mockup cutCx clamp → ~27 at this scale)
+  const cutCx = CUT_CX; // aperture x within the block
   const bw = cutCx + ARM_B + 13 + 64;
   const cy = BH / 2;
   const plus = plusPath(cutCx, cy, ARM_A, ARM_B);
@@ -225,7 +240,11 @@ function ApertureBleed() {
 // (preserveAspectRatio="none") so the straight bracket arms reach BOTH real page edges and the
 // 2px gold border runs off-page. Clipped at burnY so the gold edge-glow stays in the header and
 // the beam burns to white into the hero below. SSR-safe: a fixed viewBox, no measurement.
-// fullBleed=false ⇒ no beam (Tier B threshold). ───────────────────────────────
+//
+// FLUID at every width (Iteration-2 finding 3 / design §4.7): VBW is a fixed canvas mapped to
+// 100% width, so as the viewport narrows the crossbar's horizontal segment simply shortens — the
+// cone stays a narrow stem, the brackets always reach both edges, the beam never becomes a sliver.
+// fullBleed=false ⇒ no beam (the future Tier-B threshold; never used on the landing page).
 function Beam({
   burnY,
   apexY,
@@ -300,12 +319,25 @@ function Beam({
 }
 
 // ── The lockup unit: ghost "Wikipedia" + crisp "Wiki" + "pedia" halation + the zine block.
-// Laid out as a fixed-pixel inline-flex row so it never stretches and the aperture center can
-// be placed at the content-column center (the beam apex). ──────────────────────
-function Lockup({ lit, uid }: { lit: boolean; uid: string }) {
+// Laid out as a SHRINK-TO-FIT inline-flex row (Iteration-2 finding 1): "Wiki" is an UNSIZED
+// inline span (intrinsic width) and the block follows with no left padding, so the seam is
+// tight at every width and NO magic width is load-bearing for the gap.
+//
+// `wikiRef` (optional) lets the parent measure "Wiki"'s real advance ONCE (a useLayoutEffect)
+// to land the beam apex on the aperture; the seam tightness does not depend on that measure.
+function Lockup({
+  lit,
+  uid,
+  wikiRef,
+}: {
+  lit: boolean;
+  uid: string;
+  wikiRef?: React.Ref<HTMLSpanElement>;
+}) {
   return (
     <span className="relative inline-flex items-center" style={{ height: BH, lineHeight: 1 }}>
-      {/* Ghost full "Wikipedia" (Wikipedia persists) — left-anchored under crisp "Wiki". */}
+      {/* Ghost full "Wikipedia" (Wikipedia persists) — left-anchored under crisp "Wiki", so it
+          sits BEHIND the block from the seam rightward (covered; glimpsed only through the cut). */}
       <span
         aria-hidden="true"
         className="projector-serif pointer-events-none absolute left-0 top-1/2 -translate-y-1/2 whitespace-nowrap"
@@ -313,18 +345,22 @@ function Lockup({ lit, uid }: { lit: boolean; uid: string }) {
       >
         Wikipedia
       </span>
-      {/* Crisp "Wiki" (the source serif). REAL text — meets AA (~17:1 on the header field). */}
+      {/* Crisp "Wiki" (the source serif). REAL text — meets AA (~17:1 on the header field).
+          NO fixed width: it takes its intrinsic advance so the block butts tight at the seam. */}
       <span
+        ref={wikiRef}
         aria-hidden="true"
         className="projector-serif relative whitespace-nowrap"
-        style={{ fontWeight: 600, fontSize: FS, color: "#1b1b1b", width: WIKI_W }}
+        style={{ fontWeight: 600, fontSize: FS, color: "#1b1b1b" }}
       >
         Wiki
       </span>
-      {/* The zine block (+ aperture/bleed when lit), straddling the seam. */}
+      {/* The zine block (+ aperture/bleed when lit), butting the seam (only the block's own 2px
+          ink border as margin — NOT a gap; the mockup's bx = seam). */}
       <span className="relative inline-flex items-center" style={{ marginLeft: 2 }}>
         <ZineBlock lit={lit} uid={uid} />
-        {/* "pedia" halation ghost printed BEHIND the cut — faintest dark ghost, never read. */}
+        {/* "pedia" halation ghost printed BEHIND the cut — faintest dark ghost, never read,
+            anchored at the seam so it lives entirely behind the block (covered; never floats). */}
         <span
           aria-hidden="true"
           className="projector-serif pointer-events-none absolute left-0 top-1/2 -translate-y-1/2 whitespace-nowrap"
@@ -337,7 +373,7 @@ function Lockup({ lit, uid }: { lit: boolean; uid: string }) {
           <span
             aria-hidden="true"
             className="pointer-events-none absolute top-1/2"
-            style={{ left: 27 /* cutCx */ }}
+            style={{ left: CUT_CX }}
           >
             <ApertureBleed />
           </span>
@@ -358,11 +394,12 @@ export function HeaderProjector({
   // Stable id for SVG defs (avoids collisions if two instances ever render). Derived from the
   // accessible name + variant — deterministic, so SSR and client markup match.
   const uid = `${variant}-${accessibleName}`.replace(/[^a-zA-Z0-9]/g, "");
+  const reactId = useId().replace(/[^a-zA-Z0-9]/g, "");
 
-  // Resolve geometry: explicit prop > pinned token default (read on the client via CSS var;
-  // for the SSR-rendered SVG paths we need concrete numbers, so the JS defaults mirror the
-  // pinned `--projector-*` tokens in globals.css — they are kept in sync intentionally, AC10).
-  const burnY = geometry?.burnY ?? 168;
+  // Resolve geometry: explicit prop > pinned token default. For the SSR-rendered SVG paths we
+  // need concrete numbers, so the JS defaults MIRROR the pinned `--projector-*` tokens in
+  // globals.css — kept in sync intentionally (AC10). burnY default = 150 (Iteration 2, design §4.2).
+  const burnY = geometry?.burnY ?? 150;
   const beamSlope = geometry?.beamSlope ?? 0.6;
   const crossUp = geometry?.beamCrossUp ?? 28;
   const edgeInset = geometry?.beamEdgeInset ?? 17;
@@ -371,7 +408,24 @@ export function HeaderProjector({
   const apexXFrac = geometry?.projectionX ?? 0.5; // beam apex x; content-column center on landing
   void seamRatio; // API-shape only this round (AC10) — no dynamic re-seam; documented, unused.
 
-  const cyMid = 52; // wordmark row center from header top (design §4.2)
+  const cyMid = 64; // wordmark row center from header top (design §4.2; matches the mockup)
+
+  // ── Tight seam + apex tracking (Iteration-2 finding 1 / OQ-4). The seam tightness is layout
+  // (the shrink-to-fit Lockup), needing no measure. To LAND the beam apex on the aperture we
+  // measure "Wiki"'s real advance ONCE on the client and offset the lockup so its aperture
+  // center sits at the content-column center (= the beam apex). SSR/first paint uses the tight
+  // WIKI_W_EST (~95px) estimate so it is correct without JS; the measure refines it within ~1px. ──
+  const wikiRef = useRef<HTMLSpanElement>(null);
+  const [apertureX, setApertureX] = useState<number>(APERTURE_X_EST);
+  // useEffect (not useLayoutEffect) is SSR-safe (no SSR warning) and sufficient here: the
+  // first paint already uses the tight WIKI_W_EST estimate, so there is no apex jump — the
+  // measure only refines it to the real Georgia advance.
+  useEffect(() => {
+    if (wikiRef.current) {
+      const w = wikiRef.current.getBoundingClientRect().width;
+      if (w > 0) setApertureX(w + 2 + CUT_CX); // "Wiki" advance + block margin + cut inset
+    }
+  }, []);
 
   // ── Tier D — the glyph tile alone (favicon/app-icon scale). Defined-but-minimal. ──
   if (variant === "glyph") {
@@ -402,14 +456,13 @@ export function HeaderProjector({
     );
   }
 
-  // ── Tier A — the full projector, which OWNS the responsive degradation (design §7): the
-  // component sheds spectacle as the viewport narrows. The tier shown is gated by CSS media
-  // queries (NOT JS viewport detection), so it is correct on the first SSR paint:
-  //   ≥ lg → full projector (band + beam + lit lockup)
-  //    md → Tier B (lit lockup, no beam — nowhere to flare)
-  //   < md → Tier C (flat lockup)
-  // and `forced-colors: active` forces the flat Tier-C lockup at every width (design §8.5).
-  // The `forced-colors-flat` class (globals.css) flips the tiers under a forced palette.
+  // ── Tier A — the full projector. On the LANDING page this renders at EVERY width (no
+  // tier-drop — Iteration-2 finding 3 / design §4.7); the beam scales fluidly via the
+  // preserveAspectRatio="none" full-width SVG. The Tier B/C wrappers below remain DEFINED for
+  // the future Topic-page shared header (and forced-colors, §8.5), but on the landing page the
+  // full projector (`.tier-a`) shows at every viewport. `forced-colors: active` still forces the
+  // flat Tier-C lockup (the burn-to-white/gold cannot survive a forced palette) via the
+  // `forced-colors-flat` class (globals.css).
   return (
     <Container
       as={as}
@@ -417,8 +470,15 @@ export function HeaderProjector({
       accessibleName={accessibleName}
       className={`header-projector forced-colors-flat ${className}`}
     >
-      {/* ≥ lg: the full projector with the two-temperature band + beam. */}
-      <div className="tier-a hidden lg:block">
+      {/* The full projector with the two-temperature band + fluid beam — shown at EVERY width
+          on the landing page (no `hidden lg:block` drop). On NARROW viewports `.tier-a` gets a
+          top inset (globals.css) so the whole projector (lamp + beam + boundary, which all sit
+          inside `.projector-band` and move together) drops below the absolutely-positioned
+          top-right AuthControl — the "top bar feel, lockup below" of design §7.5. The auth is
+          absolute to the page wrapper (not the band), so it stays put; only the projector moves,
+          keeping the lamp on the beam apex. This grows the header a little on phones (a thin top
+          strip), never a "full second row," and never overlaps. */}
+      <div className="tier-a block">
         {/* The full-bleed two-temperature header band. min-height holds the flare room. */}
         <div className="projector-band relative w-full" style={{ minHeight: burnY }}>
           {/* cool fluorescent field above the burn boundary */}
@@ -440,26 +500,36 @@ export function HeaderProjector({
 
           {/* The lockup, placed so its APERTURE CENTER sits at the content-column center =
               the beam apex (design §4.3) — the beam projects straight down from the lamp onto
-              the search. The aperture x within the lockup is WIKI_W + the block margin + cutCx;
-              we translate the lockup left by that so the aperture (not the lockup midpoint)
-              lands at left:50%. */}
+              the search. The aperture x within the lockup is "Wiki" advance + block margin + cut
+              inset; we translate the lockup left by that (measured once; SSR-safe estimate) so
+              the aperture (not the lockup midpoint) lands at left:50%.
+              The inner `.projector-lockup-fit` SCALES the lockup down on narrow viewports
+              (design §7 / §4.7 / §7.5: "the lockup may scale down as a unit before the auth is
+              allowed to wrap") — its transform-origin is the aperture so the apex stays put. */}
           <div
             className="absolute left-1/2"
-            style={{ top: cyMid, transform: `translate(${-APERTURE_X}px, -50%)` }}
+            style={{ top: cyMid, transform: `translate(${-apertureX}px, -50%)` }}
           >
-            <Lockup lit={true} uid={`${uid}-a`} />
+            <span
+              className="projector-lockup-fit block"
+              style={{ transformOrigin: `${apertureX}px center` }}
+            >
+              <Lockup lit={true} uid={`${uid}-a-${reactId}`} wikiRef={wikiRef} />
+            </span>
           </div>
         </div>
       </div>
 
-      {/* md: Tier B — lit lockup, no beam. Left-aligned on the cool fluorescent field; the
-          chrome flows on its own row below (the page owns that, < lg). */}
-      <div className="tier-b hidden bg-[var(--color-header-field)] px-4 pb-1 pt-3 md:block lg:hidden">
+      {/* Tier B — lit lockup, no beam. DEFINED for the future Topic-page shared header; the
+          landing page does NOT show this (it stays Tier A at every width). Hidden except under
+          forced-colors-flat's flip (which forces Tier C). */}
+      <div className="tier-b hidden bg-[var(--color-header-field)] px-4 pb-1 pt-3">
         <Lockup lit={true} uid={`${uid}-b`} />
       </div>
 
-      {/* < md: Tier C — flat lockup, left-aligned on the cool fluorescent field. */}
-      <div className="tier-c bg-[var(--color-header-field)] px-4 pb-1 pt-3 md:hidden">
+      {/* Tier C — flat lockup. DEFINED for the future Topic-page shared header + the
+          forced-colors fallback. Hidden on the landing page except under forced-colors. */}
+      <div className="tier-c hidden bg-[var(--color-header-field)] px-4 pb-1 pt-3">
         <Lockup lit={false} uid={`${uid}-c`} />
       </div>
     </Container>
