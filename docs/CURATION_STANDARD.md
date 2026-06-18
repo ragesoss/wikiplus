@@ -263,8 +263,52 @@ CC BY-SA 4.0** — the same license as the surrounding Wikipedia content.
   agreement is the **curator's** act over **their own note**; it is **not** a creator
   attribution and must never be conflated with crediting the video's creator. The creator
   agreed to nothing here: we reference and credit them (§5.2); the curator licenses their note
-  (this section). The build should be ready to show "context by <curator>" even if the
-  prototype's stubbed identity makes it implicit.
+  (this section). The public realization of this attribution is the **"context by &lt;curator&gt;"**
+  line specified in **§5.4**.
+
+### 5.4 Public "context by &lt;curator&gt;" attribution — **Decision C7** (realizes §5.3 in public)
+
+§5.3 said the build should be "ready to show 'context by &lt;curator&gt;'." With a real
+contributor identity now persisted, that attribution becomes **public, visible, and browsable**.
+This subsection fixes the editorial contract UX and Development implement against; it does not
+reopen §5.2/§5.3.
+
+- **Canonical microcopy.** The curator attribution on a curated clip reads exactly:
+  **"context by &lt;username&gt;"** — lowercase "context by", followed by the curator's public
+  Wikimedia username (`clip.curatedBy`). The username is the link target/text; "context by" is
+  the fixed, always-present label. Use this string verbatim (UX writes no alternate phrasing).
+  The word "context" carries the meaning, never color alone (§4); the link is keyboard-operable
+  with an accessible name (e.g. "context by &lt;username&gt;, view their curations").
+
+- **The load-bearing rule — curator attribution and creator credit must stay distinct.** On every
+  public surface (the clip card, the General-band tile, the profile), the **curator attribution**
+  and the **creator credit** are two separate, non-mergeable things, and a reader must never
+  conflate "who made the video" with "who wrote the note":
+  - **Creator credit (§5.2)** names the *video's maker* (display name + handle + platform) and
+    **links OUT** to that creator on their platform. It is unchanged by D3.
+  - **Curator attribution (§5.3, this section)** names the *wiki+ curator who wrote the note* and
+    **links IN** to that curator's wiki+ profile (`/contributor/<username>`).
+  - **Direction is the editorial tell:** creator credit points *out* to the platform; curator
+    attribution points *in* to wiki+. The two must be **visually and textually distinct** and
+    must never be merged into one line, share one link, or imply the creator wrote the note (or
+    the curator made the video). The "context by" wording does this work textually; UX places
+    them so the distinction is also visual.
+
+- **Public profile exposes only public identity.** A curator's profile (`/contributor/<username>`)
+  is a **public attribution surface**: it may show only what the contributor presents publicly —
+  their **Wikimedia username** (the public handle) and their **avatar if one was granted**. It must
+  **never** expose non-public profile data — in particular **email**, or any other private OAuth
+  profile field — in the page, the read's return shape, or the client bundle. A public attribution
+  page asserts "here is a curator and the clips they vouched for," not the person's contact
+  details. (This is the editorial basis for the spec's AC2.)
+
+- **Legacy `@prototype` provenance label.** The seeded `@prototype` stub is a placeholder, not a
+  real curator with a voice or a browsable profile (C Decision D6; spec Decision 4). A clip
+  attributed to it must **not** show a linked "context by" attribution implying a real author.
+  Instead it shows a **non-linked** provenance label, verbatim: **"seed clip · no curator"**. This
+  is honest about provenance (it was seeded, not vouched for by a person), implies no real curator
+  or voice, and carries **no link** (no dead or misleading profile link). It is plainly distinct
+  from a real "context by &lt;username&gt;" attribution.
 - *Contributor agreement — required and captured (resolves the C5 "capture arrives with
   persistence" carry-open):* a contributor must **affirmatively agree to release their context
   note under CC BY-SA 4.0 at the moment they publish**. This is a **required precondition of
@@ -363,6 +407,7 @@ policy level here.)
 | **C4** | The provisional `primary-source` becomes the **`demonstration` stance** and the **`primary_source` accuracy** value. | A primary clip is *a kind of clip* (stance) and *a reliability mode* (accuracy); the mockup's "Demonstration · primary" + "Real footage" needs both. Dev updates `lib/data/types.ts`. |
 | **C5** | wiki+ **context notes are licensed CC BY-SA 4.0**; the contributor's agreement is a **required precondition of publishing** and is **captured per-submit** (license version + timestamp, bound to this note + contributor). The note-license agreement is the *curator's* act, distinct from *creator* credit (§5.2). | Closes the ARCHITECTURE open question and the "capture arrives with persistence" carry-open. UX uses the §5.3 canonical agreement strings (required control, not a passive line); Dev captures per D1-1 / AC7. |
 | **C6** | Stance/accuracy support an optional **free-form modifier** (≤24 chars) shown after the label, never filtered on. | Reproduces the mockup display strings ("Accurate · fast-paced") without breaking the enum. Dev adds `stance_modifier` / `accuracy_modifier` optional fields; UX renders "Label · modifier". |
+| **C7** | The §5.3 attribution is realized in public as **"context by &lt;username&gt;"** (verbatim), linking IN to the curator's wiki+ profile — **distinct** from the §5.2 creator credit, which links OUT to the platform. The public profile exposes **only** public identity (username + granted avatar), **never email**. A `@prototype` clip shows a non-linked **"seed clip · no curator"** label, no profile link. | Realizes §5.3 / §5.4 for the D3 public attribution + profile (spec #54). UX uses the canonical strings verbatim and keeps curator attribution visually/textually distinct from creator credit; Dev links "context by" to `/contributor/<username>`, suppresses the link for the `@prototype` stub, and ensures the profile read never selects/serializes email (AC2/AC6). |
 
 ---
 

@@ -3,6 +3,7 @@
 import type { Candidate, Clip } from "@/lib/data/types";
 import { pluralize } from "@/lib/format";
 import { CandidateActions, MatchReason } from "./CandidateBits";
+import { ContextByLink } from "./ContextByLink";
 import { VideoThumb } from "./VideoThumb";
 
 // Full-bleed indigo band after the lead — the one crossover (design §5.5 / §6.3).
@@ -21,6 +22,9 @@ export function GeneralStrip({
   onPromote,
   onDismiss,
   onAdd,
+  ownsClip,
+  onEdit,
+  onDelete,
   bandRef,
 }: {
   mode: "curated" | "empty";
@@ -40,6 +44,18 @@ export function GeneralStrip({
   onPromote: (c: Candidate) => void;
   onDismiss: (c: Candidate) => void;
   onAdd: () => void;
+  /**
+   * D3 (issue #54, design §9.2): the owner-affordance predicate — true iff the signed-in viewer
+   * owns this General-band clip (`clip.curatorId === session contributor id`, the SAME
+   * already-authenticated client-session compare the rail uses, never the security control).
+   * Default `() => false` so logged-out / others' / `@prototype` tiles show no affordance and the
+   * read-path render is byte-for-byte unchanged for an anonymous reader (AC9).
+   */
+  ownsClip?: (clip: Clip) => boolean;
+  /** Open D2's Edit modal for an owned General clip (owner only — design §9.2). */
+  onEdit?: (clip: Clip) => void;
+  /** Open D2's Delete confirm dialog for an owned General clip (owner only — design §9.2). */
+  onDelete?: (clip: Clip) => void;
   bandRef?: (el: HTMLElement | null) => void;
 }) {
   // Empty-mode runtime faces (design §5): loading (skeleton), zero-results (honest
@@ -164,17 +180,58 @@ export function GeneralStrip({
         {!showLoading && !showZero && (
         <ul role="list" className="mt-4 flex gap-3 overflow-x-auto pb-2">
           {mode === "curated"
-            ? generalClips.map((clip) => (
+            ? generalClips.map((clip) => {
+                const owned = ownsClip?.(clip) ?? false;
+                return (
                 <li key={clip.id} role="listitem" className="w-44 shrink-0">
                   <VideoThumb video={clip} variant="strip" onPlay={() => onPlay(clip)} />
                   <p className="mt-1 line-clamp-2 text-[12px] font-bold leading-snug text-white">
                     {clip.caption}
                   </p>
+                  {/* §5.2 creator credit (text-only on the tile, unchanged — links OUT is the
+                      rail card's job; the tile's subline is acceptable text-only per design §6.3). */}
                   <p className="truncate text-[11px] text-white/70">
                     {clip.creator.handle} · {clip.platformLabel}
                   </p>
+                  {/* D3 §6.3: the linked "context by <curator>" attribution (white + underline on
+                      the indigo band — the underline carries "link", AA-safe). `@prototype` →
+                      the non-linked "seed clip · no curator" label. Distinct from the creator
+                      subline above (which is the video's maker, not the note's author). */}
+                  <p className="mt-0.5 truncate text-[11px]">
+                    <ContextByLink curatedBy={clip.curatedBy} surface="indigo" />
+                  </p>
+                  {/* D3 §9.2: owner-only Edit/Delete on the General tile — closes the D2 gap.
+                      Rendered ONLY for the signed-in owner; reuses D2's EditModal /
+                      DeleteConfirmDialog via the host's onEdit/onDelete. White-fill buttons +
+                      2px ink border match the band's existing controls (legible on indigo); the
+                      WORD is the signal (never color-alone). They wrap within the w-44 tile. */}
+                  {owned && (
+                    <div
+                      role="group"
+                      aria-label="Manage your curated clip"
+                      className="mt-1.5 flex flex-wrap gap-1.5"
+                    >
+                      <button
+                        type="button"
+                        onClick={() => onEdit?.(clip)}
+                        aria-label={`Edit your curation: ${clip.caption}`}
+                        className="border-2 border-ink bg-white px-2 py-1 text-[11px] font-bold text-ink hover:shadow-[2px_2px_0_#2C2C2C]"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onDelete?.(clip)}
+                        aria-label={`Delete your curation: ${clip.caption}`}
+                        className="border-2 border-accred bg-white px-2 py-1 text-[11px] font-bold text-accred hover:bg-accred hover:text-white"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  )}
                 </li>
-              ))
+                );
+              })
             : generalCandidates.map((c) => (
                 // #14: candidate tile on a candcard surface (dashed/unvetted retained,
                 // AC8). No per-tile "SUGGESTED" badge (AC1); the compact match line

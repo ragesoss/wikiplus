@@ -1,5 +1,5 @@
-import type { Candidate, Clip, Topic } from "@/lib/data/types";
-import type { ClipRow, TopicRow } from "./schema";
+import type { Candidate, Clip, PublicContributor, Topic } from "@/lib/data/types";
+import type { ClipRow, ContributorRow, TopicRow } from "./schema";
 
 // Row ⇄ domain mappers (issue #45). The DB rows are normalized/snake_case with a numeric
 // PK + topic_id FK; the app's domain types (lib/data/types.ts) are the flat shapes the
@@ -164,6 +164,25 @@ export function clipPatchToUpdate(
   }
   out.updatedAt = new Date();
   return out;
+}
+
+/**
+ * A `contributor` row → the PUBLIC-SAFE projection (issue #54 / D3, AC2 — the privacy boundary).
+ *
+ * Takes a `ContributorRow` (the `contributor` table only) and exposes id + handle (as `username`)
+ * + the granted avatar. The `account.email` column is on a DIFFERENT table and is NEVER joined or
+ * read on this path — so email (or any other non-public `account` field) can never reach the
+ * profile page markup, the read's return shape, or the client bundle. The caller
+ * (`getContributorByUsername`) must pass a `contributor` row it selected without touching
+ * `account`; this mapper additionally guarantees the shape carries nothing beyond the three
+ * public fields.
+ */
+export function rowToPublicContributor(row: ContributorRow): PublicContributor {
+  return {
+    id: row.id,
+    username: row.handle,
+    avatarUrl: row.avatarUrl ?? undefined,
+  };
 }
 
 /** A `Candidate`-shaped video → its `(provider, providerVideoId)` for dismissal rows. */

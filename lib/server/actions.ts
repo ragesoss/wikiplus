@@ -1,7 +1,13 @@
 "use server";
 
 import { DrizzleDataStore } from "@/lib/db/drizzle-store";
-import type { Clip, Platform, Topic } from "@/lib/data/types";
+import type {
+  Clip,
+  ContributorClip,
+  Platform,
+  PublicContributor,
+  Topic,
+} from "@/lib/data/types";
 import { ACCURACY_ORDER, STANCE_ORDER } from "@/lib/curation/labels";
 import { NOTE_LICENSE } from "@/lib/curation/note-license";
 import { isMaterialNoteChange } from "@/lib/curation/note-text";
@@ -277,6 +283,28 @@ export async function deleteClipAction(clipId: string): Promise<void> {
     throw new Error("Not your clip to delete.");
   }
   await s.deleteClip(clipId);
+}
+
+// ── Public contributor profile reads (issue #54 / D3 — AC1–AC4) ──────────────────────────
+// Both are READS and are deliberately ANONYMOUS — NO `requireContributor()` gate, exactly like
+// `listClips`/`getTopic` above. A public profile is browsable logged-out (AC1); gating it would
+// be wrong. They run only on the `/contributor/<username>` route, so the cached Topic read path
+// gains no per-user work (AC9). The DrizzleDataStore enforces the AC2 privacy boundary (the
+// projection selects only `contributor` columns — email is never read), the Decision-1 handle
+// tie-break, and the Decision-4 `@prototype` not-found — see drizzle-store.ts.
+
+/** Resolve a Wikimedia username → the public-safe identity (id/username/avatar), or null. */
+export async function getContributorByUsernameAction(
+  username: string
+): Promise<PublicContributor | null> {
+  return store().getContributorByUsername(username);
+}
+
+/** A contributor's curated clips (by resolved id), joined to topic context, newest-first. */
+export async function listClipsByContributorAction(
+  contributorId: number
+): Promise<ContributorClip[]> {
+  return store().listClipsByContributor(contributorId);
 }
 
 // ── Sticky dismissals (shared + durable — AC5) ──────────────────────────────────────────

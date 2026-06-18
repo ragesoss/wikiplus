@@ -1,6 +1,7 @@
 import { relations, sql } from "drizzle-orm";
 import {
   boolean,
+  index,
   integer,
   pgTable,
   serial,
@@ -117,7 +118,14 @@ export const clip = pgTable("clip", {
   updatedAt: timestamp("updated_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
-});
+}, (t) => [
+  // Additive, non-destructive index (issue #54 / D3, optional): the contributor profile's
+  // `listClipsByContributor` query filters `clip.curator_id` (and the topic read filters
+  // `clip.topic_id`). At prototype scale neither is required; these are cheap insurance for
+  // the new by-contributor query as the clip set grows. No data migration / column change.
+  index("clip_curator_id_idx").on(t.curatorId),
+  index("clip_topic_id_idx").on(t.topicId),
+]);
 
 /** A wiki+ curator (distinct from the external creator referenced on a clip). */
 export const contributor = pgTable("contributor", {
@@ -135,7 +143,11 @@ export const contributor = pgTable("contributor", {
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
-});
+}, (t) => [
+  // Additive index for the `getContributorByUsername` handle lookup (issue #54 / D3, optional;
+  // the handle is non-unique → a plain index, not a UNIQUE). Non-destructive.
+  index("contributor_handle_idx").on(t.handle),
+]);
 
 /**
  * An OAuth identity linked to a contributor — Auth.js-adapter-shaped so issue C adopts it

@@ -969,6 +969,13 @@ export function TopicView() {
           onPromote={promote}
           onDismiss={dismiss}
           onAdd={openAdd}
+          /* D3 (issue #54, design §9.2): the owner-only Edit/Delete affordance now reaches
+             General-band clips too — closing the D2 gap — reusing the SAME `ownsClip` compare
+             and the SAME `setEditClip`/`setDeleteFor` handlers (and the SAME EditModal /
+             DeleteConfirmDialog) the rail card uses. The server gate is unchanged (AC8). */
+          ownsClip={ownsClip}
+          onEdit={(c) => setEditClip(c)}
+          onDelete={(c) => setDeleteFor(c)}
         />
       )}
 

@@ -20,12 +20,20 @@ vi.mock("next-auth/react", () => ({
   SessionProvider: ({ children }: { children: unknown }) => children,
 }));
 
+// D3 (issue #54): SignedIn now navigates to the viewer's own profile via useRouter().push
+// for the "My curations" entry. Mock next/navigation's router so the menu item is testable.
+const routerPush = vi.fn();
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: routerPush, replace: vi.fn() }),
+}));
+
 import { AuthControl } from "@/components/auth/AuthControl";
 import { LoginPromptPanel } from "@/components/auth/LoginPrompt";
 
 beforeEach(() => {
   signIn.mockReset();
   signOut.mockReset();
+  routerPush.mockReset();
   Object.defineProperty(window, "location", {
     value: { pathname: "/topic/Cat/", search: "" },
     writable: true,
@@ -104,6 +112,33 @@ describe("AuthControl — signed-in (AC2 / AC5)", () => {
     await waitFor(() =>
       expect(signOut).toHaveBeenCalledWith({ callbackUrl: "/" })
     );
+  });
+
+  // D3 (issue #54, AC5): the SignedIn menu offers "My curations" → the viewer's OWN profile.
+  it("opening the menu and activating 'My curations' navigates to the viewer's own profile (AC5)", async () => {
+    render(<AuthControl variant="home" />);
+    const trigger = screen.getByRole("button", { name: "Account: Ragesoss" });
+    fireEvent.keyDown(trigger, { key: "Enter" });
+    const item = await screen.findByText("My curations");
+    fireEvent.click(item);
+    await waitFor(() => expect(routerPush).toHaveBeenCalledTimes(1));
+    // In-SPA navigation to the viewer's own /contributor/<own-username> (slash-tolerant).
+    expect(routerPush.mock.calls[0][0]).toMatch(/^\/contributor\/Ragesoss\/?$/);
+  });
+});
+
+describe("AuthControl — signed-out has NO 'My curations' entry (AC5)", () => {
+  beforeEach(() => {
+    sessionState = { data: null, status: "unauthenticated" };
+  });
+  it("renders no account menu (so no My curations) when signed out", () => {
+    render(<AuthControl variant="home" />);
+    // Signed-out renders the login button, not the account trigger — the menu (and its
+    // "My curations" item) only mounts for a signed-in user (it needs the username).
+    expect(screen.queryByText("My curations")).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: /^Account:/ })
+    ).toBeNull();
   });
 });
 

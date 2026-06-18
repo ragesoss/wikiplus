@@ -2,8 +2,10 @@
 
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { signIn, signOut, useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { currentCallbackUrl } from "@/lib/auth/callback-url";
+import { contributorHref } from "@/lib/wiki/topicRoute";
 import { WikiGlyph } from "./WikiGlyph";
 
 // ── AuthControl (issue C, design §1 / §9). ────────────────────────────────────────────────
@@ -89,6 +91,7 @@ function SignedIn({
   onIndigo: boolean;
   compact: boolean;
 }) {
+  const router = useRouter();
   const initial = username.slice(0, 1).toUpperCase();
   const textColor = onIndigo ? "text-white" : "text-ink";
   const ring = onIndigo ? "border-white" : "border-ink";
@@ -121,6 +124,18 @@ function SignedIn({
           sideOffset={6}
           className="z-50 min-w-[10rem] border-2 border-ink bg-white p-1 text-ink shadow-[3px_3px_0_#2C2C2C]"
         >
+          {/* D3 (issue #54, design §7): "My curations" → the viewer's OWN public profile, reached
+              as the owner. Signed-in only (the SignedIn component only mounts then — AC5). In-SPA
+              navigation to `/contributor/<own-username>` (Decision 1's deterministic resolve maps
+              this username to one profile, the viewer's own). Above "Sign out", with a hairline
+              divider so the exit action stays last. The WORD is the label (never an icon alone). */}
+          <DropdownMenu.Item
+            onSelect={() => router.push(contributorHref(username))}
+            className="cursor-pointer select-none px-3 py-2 text-sm font-bold outline-none data-[highlighted]:bg-bg2"
+          >
+            My curations
+          </DropdownMenu.Item>
+          <DropdownMenu.Separator className="my-1 h-px bg-ink/15" />
           <DropdownMenu.Item
             onSelect={() => void signOut({ callbackUrl: "/" })}
             className="cursor-pointer select-none px-3 py-2 text-sm font-bold outline-none data-[highlighted]:bg-bg2"

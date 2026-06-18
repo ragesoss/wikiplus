@@ -2,6 +2,7 @@
 
 import type { Clip } from "@/lib/data/types";
 import { AccuracyChip, StanceChip } from "./Chips";
+import { ContextByLink } from "./ContextByLink";
 import { VideoThumb } from "./VideoThumb";
 
 // Anchored clip card in the plus rail (design §5.9, AC9/AC10/AC12/AC13).
@@ -99,14 +100,22 @@ export function ClipCard({
         </p>
       </div>
 
-      {/* provenance footer (decorative) */}
-      <footer className="mt-2 flex items-center justify-between text-[11px] text-muted">
-        {typeof clip.upvotes === "number" && (
+      {/* Provenance footer — D3 (issue #54, design §6.2): the bare `{curatedBy}` text evolved
+          into the linked "context by <curator>" attribution (links IN to the curator's profile;
+          distinct from the creator credit above which links OUT). Upvote count stays on the left;
+          the attribution sits on the right (where `curatedBy` was), with the relative `curatedAt`
+          as trailing muted text. No read-path cost — static markup from `clip.curatedBy`. */}
+      <footer className="mt-2 flex items-center justify-between gap-2 text-[11px]">
+        {typeof clip.upvotes === "number" ? (
           <span className="font-bold text-brand">▲ {clip.upvotes}</span>
+        ) : (
+          <span />
         )}
-        <span className="truncate">
-          {clip.curatedBy ? `${clip.curatedBy} · ` : ""}
-          {clip.curatedAt ?? ""}
+        <span className="min-w-0 truncate text-right">
+          <ContextByLink curatedBy={clip.curatedBy} surface="light" />
+          {clip.curatedAt ? (
+            <span className="text-muted"> · {clip.curatedAt}</span>
+          ) : null}
         </span>
       </footer>
 

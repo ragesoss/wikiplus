@@ -360,7 +360,19 @@ multi-provider OAuth support, so launching single-provider costs us nothing late
   applied cleanly on top of #45 with the `@prototype` stub preserved (AC9).
 - **The `@prototype` stub is superseded for new writes.** The seeded stub contributor stays as
   attribution for clips curated **before** C (no retro-rewrite — Decision D6); only new writes
-  attribute to the real signed-in contributor.
+  attribute to the real signed-in contributor. The stub has **no browsable public profile** (issue
+  #54 / D3, Decision 4): `/contributor/@prototype` resolves to not-found, and a `@prototype` clip's
+  curator attribution is the non-linked `seed clip · no curator` label.
+- **Public identity is browsable; non-public identity is never exposed (issue #54 / D3).** A
+  contributor has a **public profile at `/contributor/<username>`** exposing **only** the Wikimedia
+  username (`contributor.handle`) + the **granted avatar** — **never `email`** or any non-public
+  `account` field. The two profile reads (`getContributorByUsername` / `listClipsByContributor`) are
+  **anonymous** (no auth gate, like the topic reads) and run **only** on the profile route, so they
+  add **no per-user work to the cached topic read path**. The privacy boundary is the public-safe
+  projection (`rowToPublicContributor`) — `account.email` is never selected on this path. The
+  **non-unique `contributor.handle`** is resolved to a **single** identity deterministically (lowest
+  `contributor.id` — Decision 1). **"My curations"** is the **owner-view** of that same public route
+  (no separate private surface — Decision 2). See *Prototype phase* for the as-built detail.
 - **Secrets:** the Wikimedia consumer key/secret live in env under the owner-confirmed names
   **`wikimedia_oauth_client_key`** / **`wikimedia_oauth_client_secret`** (read explicitly as the
   provider's `clientId`/`clientSecret`); Auth.js's session-signing **`AUTH_SECRET`** is also a
@@ -430,6 +442,13 @@ multi-provider OAuth support, so launching single-provider costs us nothing late
   Only space↔underscore is special-cased; underscore and space are interchangeable in titles
   (Wikipedia parity — an accepted collision, not a defect). Issues #12 (navbar search) and #13
   (bare-path redirect) reuse these helpers.
+  *Contributor profile route (#54 / D3):* the public profile lives at **`/contributor/<username>`**
+  (`app/contributor/[username]/page.tsx`, `dynamicParams = true` — on-demand, no caching), keyed on
+  the Wikimedia username and **slug-encoded with the SAME `titleToSlug`/`slugToTitle` seam** (a
+  username with a space round-trips as `_`, like a title). `contributorHref(username)` in
+  `lib/wiki/topicRoute.ts` builds it; `ProfileView` parses the username back via `slugToTitle`. It
+  exposes only public identity (never email) and is browsable anonymously — see *Authentication &
+  identity* + *Prototype phase*.
 - What scopes/claims we request from Wikimedia (e.g. username, edit count — also a moderation signal).
 - YouTube search credentials: keep the **referrer-restricted client key** (prototype) or move search
   behind a **server proxy** in the production read-path — so the key isn't browser-exposed and the
@@ -660,6 +679,43 @@ a host is provisioned (issue A.2).
   to `session.user.contributorId` (no read-path cost; mirrors but never replaces the server gate).
   **No migration** (the columns + store methods already existed). Moderator removal of *anyone's*
   clip is **D5**.
+- **Public contributor profiles + "context by &lt;curator&gt;" attribution (issue #54 / D3).** A new
+  **public profile route `/contributor/<username>`** (`app/contributor/[username]/page.tsx` +
+  `app/contributor/ProfileView.tsx`, paralleling the title-based Topic catch-all and Wikipedia's
+  `Special:Contributions/<user>`) lists a contributor's curated clips with topic context. It
+  exposes **only public identity** — the Wikimedia **username** (`contributor.handle`) + the
+  **granted avatar** — and **NEVER `email`** or any non-public `account` field (the privacy
+  boundary is the **public-safe projection** `rowToPublicContributor` in `lib/db/mappers.ts`, which
+  selects only `contributor` columns; `account.email` is never joined or read on this path —
+  `PublicContributor` carries `{id, username, avatarUrl}` only). Reading any profile is
+  **anonymous** (no session). **"My curations" is the owner-view of that same route** (Decision 2):
+  a signed-in viewer reaches their own `/contributor/<own-username>` via the header account menu
+  ("My curations", above "Sign out"), and when the viewer **is** the owner the page reframes to "My
+  curations" + surfaces the owner Edit/Delete affordances — **no** separate private route or
+  private data. Two new **read** methods on the seam (`lib/data/store.ts` → read-only Server Actions
+  `getContributorByUsernameAction` / `listClipsByContributorAction`, **no `requireContributor`
+  gate** — public like `listClips`, over `DrizzleDataStore`): **`getContributorByUsername`** resolves
+  a username to the public-safe projection, returning **null** for unknown; **`listClipsByContributor`**
+  returns exactly that contributor's clips joined to their parent topic (title + QID for the "On
+  &lt;Topic&gt;" link), newest-first. Because `contributor.handle` is **non-unique**, the lookup
+  resolves deterministically to a **single** identity by the **lowest/earliest `contributor.id`**
+  for that handle (Decision 1), so `/contributor/<username>` always maps to one profile. The seeded
+  **`@prototype` stub resolves to null** (not-found / non-profile state — Decision 4): it is not a
+  real person to profile. The public **"context by &lt;username&gt;"** attribution (a shared
+  `ContextByLink` element, strings in `lib/curation/curator-attribution.ts`) links **IN** to
+  `/contributor/<username>` on the curated `ClipCard` footer + the curated `GeneralStrip` tile —
+  **distinct** from the §5.2 creator credit, which links **OUT** to the platform (direction is the
+  editorial tell, CURATION §5.4); a `@prototype`/no-curator clip shows the **non-linked**
+  `seed clip · no curator` label. The D2 owner Edit/Delete affordance now also reaches **General-band
+  clips** (the `GeneralStrip` tile, closing the D2 gap) and the profile clip list, reusing D2's
+  `EditModal`/`DeleteConfirmDialog` + `ownsClip()` over the **unchanged** server-side ownership gate.
+  **No per-user work is added to the cached topic read path** (Decision 5): the attribution is static
+  markup from `clip.curatedBy` (already on every clip), the owner-affordance is the
+  already-authenticated client-session compare, and the profile reads run **only** on the profile
+  route. The profile route is a **plain dynamic read page** — no ISR/Redis caching (deferred). An
+  **optional additive index** migration (`drizzle/0003_*`) adds non-unique btree indexes on
+  `clip.curator_id`, `clip.topic_id`, and `contributor.handle` (insurance for the new by-contributor
+  + handle queries at scale; non-destructive, no data migration).
 - **Server Actions (enabled #37; now the data-access boundary — issue #45).** The Node SSR runtime
   supports Server Actions; as of #45 they are the **data-access boundary** for shared Postgres
   (`lib/server/actions.ts`, `"use server"` — see *Persistence* above). The throwaway #37 smoke artifact

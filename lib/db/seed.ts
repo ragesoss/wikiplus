@@ -1,5 +1,6 @@
 import { eq } from "drizzle-orm";
 import { seedClips } from "@/lib/data/seed";
+import { STUB_HANDLE } from "@/lib/curation/curator-attribution";
 import type { Db } from "./client";
 import { clipToInsert } from "./mappers";
 import { clip, contributor, topic } from "./schema";
@@ -13,8 +14,9 @@ import { clip, contributor, topic } from "./schema";
 // replacing the retired per-browser `seedIfEmpty`. IDEMPOTENT: it checks for the seed marker
 // (the stub contributor + the seed clips) and no-ops if already present, so re-running on
 // every deploy is safe.
-
-const STUB_HANDLE = "@prototype";
+//
+// `STUB_HANDLE` is the canonical client-safe constant (lib/curation/curator-attribution.ts),
+// shared with the store + the client `ContextByLink` so the stub handle is defined once.
 
 // The three seeded topics — kept in sync with the prototype seed (lib/data/seed.ts +
 // SEEDED_TITLES). Photosynthesis is fully curated; the other two render the empty state.
