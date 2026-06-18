@@ -12,6 +12,7 @@ during the build loop.
 | Script | What it does | Mutates? | Allowlisted? | Needs SSH key? |
 |---|---|---|---|---|
 | `scripts/ops/verify-live.sh` | Post-deploy health check of the live site (read path + auth endpoints); exits non-zero on failure | no (GET) | ✅ yes | no — any session |
+| `scripts/ops/wait-deploy.sh` | Poll the `main` deploy run (`deploy.yml`) for a commit to completion, then chain `verify-live.sh` on success | no (gh + GET) | ✅ yes | no — any session |
 | `scripts/ops/box-status.sh` | `docker compose ps` + migrate-one-shot health on the box | no | ✅ yes | yes (local) |
 | `scripts/ops/box-logs.sh` | Recent container logs (default: app, 30m, tail 200) | no | ✅ yes (no-arg form) | yes (local) |
 | `scripts/ops/box-secrets-check.sh` | Confirm required runtime secrets are present+non-empty (counts only, never values) | no | ✅ yes | yes (local) |

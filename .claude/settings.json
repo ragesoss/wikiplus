@@ -77,7 +77,23 @@
       "Bash(scripts/dev/test-db.sh up)",
       "Bash(scripts/dev/test-db.sh down)",
       "Bash(./scripts/dev/test-db.sh up)",
-      "Bash(./scripts/dev/test-db.sh down)"
+      "Bash(./scripts/dev/test-db.sh down)",
+      "Bash(scripts/dev/qa-gate.sh)",
+      "Bash(./scripts/dev/qa-gate.sh)",
+      "Bash(scripts/dev/qa-gate.sh *)",
+      "Bash(./scripts/dev/qa-gate.sh *)",
+      "Bash(scripts/dev/qa-gate.sh:*)",
+      "Bash(./scripts/dev/qa-gate.sh:*)",
+      "Bash(scripts/dev/shoot.sh *)",
+      "Bash(./scripts/dev/shoot.sh *)",
+      "Bash(scripts/dev/shoot.sh:*)",
+      "Bash(./scripts/dev/shoot.sh:*)",
+      "Bash(scripts/ops/wait-deploy.sh)",
+      "Bash(./scripts/ops/wait-deploy.sh)",
+      "Bash(scripts/ops/wait-deploy.sh *)",
+      "Bash(./scripts/ops/wait-deploy.sh *)",
+      "Bash(scripts/ops/wait-deploy.sh:*)",
+      "Bash(./scripts/ops/wait-deploy.sh:*)"
     ]
   }
 }
