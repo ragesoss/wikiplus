@@ -481,7 +481,7 @@ function PlaceholderPreview({
       <span className="inline-block bg-ink px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
         {platformLabel}
       </span>
-      <p className="mt-1 text-[10px] font-bold uppercase tracking-wide text-muted">
+      <p className="mt-1 text-[10px] font-bold uppercase tracking-wide text-ink2">
         Not resolved
       </p>
       <p className="text-[13px] font-bold text-ink">
