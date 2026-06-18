@@ -37,11 +37,9 @@ const generalClip: Clip = {
 function renderStrip(props: Partial<React.ComponentProps<typeof GeneralStrip>> = {}) {
   return render(
     <GeneralStrip
-      mode="curated"
       topicTitle="Photosynthesis"
       generalClips={[generalClip]}
       generalCandidates={[]}
-      totalGeneral={1}
       onPlay={vi.fn()}
       onPromote={vi.fn()}
       onDismiss={vi.fn()}

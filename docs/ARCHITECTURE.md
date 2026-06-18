@@ -306,8 +306,10 @@ endpoint was chosen for better completions + descriptions. Etiquette is binding:
 **degrades silently to `[]`** on any error/timeout/abort (never an error UI). Selecting a suggestion
 or submitting raw text is a **pure navigation** — `router.push(topicHref(<raw title>))` (reusing the
 #11 `titleToSlug` encoding) — with **no write, no `/contribute` coupling, and no QID in the URL**;
-`TopicView` resolves title→QID under the hood and renders the curated **or** empty state (the
-create-on-demand behavior that already existed for typed/pasted `/topic/<Title>/` URLs). One
+`TopicView` resolves title→QID under the hood and renders the topic in whichever of its three
+states applies — **empty / mixed / fully-curated** (issue #60 coexistence; see
+`docs/TOPIC_PAGE_DESIGN.md` §"Three states") — via the create-on-demand behavior that already
+existed for typed/pasted `/topic/<Title>/` URLs. One
 reusable component is placed on both the home header (always-visible full-width) and the Topic
 header (inline compact on the Wiki side ≥ md; a labeled magnifier icon-disclosure < md, so the
 tight two-world header is not crowded). Accessibility follows the WAI-ARIA APG **editable combobox +
@@ -341,7 +343,12 @@ facade where possible — this protects the read path's speed and the page's pri
 
 Every topic begins with zero curations. To stay useful and seed the curation flywheel, the empty
 state bootstraps the plus side with **auto-suggested, unvetted candidates** (`vetted: false`) plus
-paths to curate. (Product behavior in [`TOPIC_PAGE_DESIGN.md`](TOPIC_PAGE_DESIGN.md).)
+paths to curate. As of issue #60, curated clips and unvetted candidates **coexist** on a partly-
+curated topic (the three states empty / mixed / fully-curated) — this is a **pure presentation
+derivation in `TopicView` (`hasCurated` + `hasSuggestions`), not a storage change**: candidates
+remain computed/cached and never stored as rows, and the no-churn invariant is a stable
+sort/filter over the already-derived `liveCandidates` (no pipeline re-run on curation). (Product
+behavior in [`TOPIC_PAGE_DESIGN.md`](TOPIC_PAGE_DESIGN.md) §"Three states".)
 
 - **Auto-suggestion is multi-platform by design; YouTube-only in the MVP.** Build the candidate
   pipeline **platform-agnostic** (a pluggable source interface) so additional platforms slot in.

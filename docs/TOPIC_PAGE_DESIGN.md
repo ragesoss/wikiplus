@@ -94,10 +94,13 @@ visual languages, and the docs name them distinctly (resolving the article-fidel
   the top of the lead, and keeps **Wikipedia's visual language** (grey header rows, hairline
   borders) — it is part of "the Wiki world," never restyled into Indigo Press.
 - **wiki+ panel** (formerly called "the +plus infobox") — wiki+'s *own* element in the **right
-  rail**: the videos / creators / curators counts + synced status (curated), or the "0 videos
-  curated" + "Be the first to curate" CTA (empty). It is **Indigo Press** (indigo header block,
-  hardbox border + offset shadow). Implemented in `components/topic/Infobox.tsx` (the filename is
-  retained; its doc-facing name is **the wiki+ panel**).
+  rail**. It has **three faces** (issue #60 coexistence — see §"Three states: empty / mixed /
+  fully-curated"): the videos / creators / curators counts + synced status (fully-curated); the same
+  three numerals **plus a `{V} curated · {M} suggested` two-count line** (mixed); or the "0 videos
+  curated" + "N auto-suggestions from {sources}" + "Be the first to curate" CTA (empty). The CTA
+  appears **only at 0 curated**. It is **Indigo Press** (indigo header block, hardbox border + offset
+  shadow). Implemented in `components/topic/Infobox.tsx` (the filename is retained; its doc-facing
+  name is **the wiki+ panel**).
 
 They **cannot collide**: at `lg+` they are in separate grid columns (the Wikipedia infobox floats
 *within* the article column, the wiki+ panel is the right rail beyond the grid gap); below `lg` the
@@ -111,6 +114,16 @@ don't map to a specific section. It is the **only** place plus content reaches i
 column, and is styled like a video-platform search row — **thumbnail-forward**, a quick visual
 overview, horizontally scrollable.
 
+**Curated and suggested content coexist here, curated always first (issue #60).** When a topic has
+both curated general clips and general suggestions, the strip is one scroll row read left→right:
+**every curated clip first** (full curated chrome, never capped — curation is the priority content),
+then an inline **`Suggested · uncurated`** divider, then the **general suggestions capped at a
+single named default (`GENERAL_SUGGESTION_DEFAULT = 8`)** with a trailing **`See N more`** control
+that toggles only the suggestion overflow (a pure slice — no re-fetch/re-order). Curated and
+suggestions are **never interleaved**. The band heading is **`＋ General`** whenever curated content
+leads (mixed + fully-curated) and **`＋ Suggested videos`** only at 0 curated. See §"Three states"
+below for the full model.
+
 ## Clip placement: General vs. section-anchored
 
 Curated videos divide into two buckets:
@@ -120,7 +133,13 @@ Curated videos divide into two buckets:
 
 The **TOC shows a per-entry video count** (a "General" entry first, then each section with a
 badge for how many videos are anchored there). Sections with no videos still appear as a normal
-wiki TOC entry.
+wiki TOC entry. **A row carries DUAL counts (issue #60 coexistence):** where a section (or the
+General row) has both curated clips and suggestions, it shows **both** a **solid indigo `{c}`**
+curated badge **and** a **dashed-outline violet `~{s}`** suggested badge, curated-first (matching
+the body order). A row with only curated content shows the solid badge; only suggestions, the
+dashed badge; neither, the muted `no video` text badge (on section rows). Each badge carries an
+`sr-only` word (`curated` / `suggested, unvetted`) so the meaning is in the accessible name, never
+color or border-style alone.
 
 ## Interaction: synchronized scrolling
 
@@ -134,7 +153,48 @@ Anchoring is at **section granularity** in the mockup; tightening it to a specif
 ("the inline text") is a candidate refinement for implementation. The exact sync mechanics
 (thresholds, easing, mobile single-column fallback) are an implementation-phase detail.
 
-## Empty / zero-curation state
+## Three states: empty / mixed / fully-curated (issue #60 coexistence)
+
+A Topic page is **not** an all-or-nothing flip between "empty" and "curated." It derives **three
+states** from two independent facts — the curated-clip count and the *remaining* (deduped)
+suggestion count — and **renders both content types when they co-occur**:
+
+- **empty** (0 curated, ≥1 suggestion) — the bootstrap state below.
+- **mixed** (≥1 curated **and** ≥1 remaining suggestion) — the common middle of the curation curve:
+  vetted clips **and** still-unvetted candidates render **together**, curated always first. This is
+  the state the flywheel lives in; it must stay useful, not go dark after the first curation.
+- **fully-curated** (≥1 curated, 0 remaining suggestions) — only curated content; **no** suggestion
+  chrome anywhere (no divider, no "see more", no unvetted set header, no dashed/suggested counts).
+
+**Priority + ordering (owner-fixed).** Curated content always sorts and renders **before**
+suggestions — in the General band (curated group → `Suggested · uncurated` divider → capped
+suggestion group → `See N more`) and within a section's rail (curated `ClipCard`s → one-time
+`CandidateSetHeader` → `CandidateCard`s). They are **never interleaved**; suggestions keep the
+dashed/unvetted, visually-subordinate treatment.
+
+**Section→General reflow (no deletion).** When a section-anchored suggestion loses its slot because
+a curated clip occupies/takes priority in that section, it **folds back into the General suggestion
+pool** (no special "I was moved" chrome — it reads as an ordinary General-pool suggestion, reachable
+under `See N more` if it overflows the default). A suggestion is **never silently dropped** by
+coexistence — only relocated and overflow-collapsed.
+
+**No-churn stability (the bar).** Curating one suggestion changes **exactly one** video's state
+(suggested→curated, deduped out via `curatedVideoKeys()`) and leaves every other suggestion's
+identity, order, and on-screen position untouched — **no re-run of the candidate pipeline
+(`suggestCandidates`), no reshuffle, no re-fetch**. Ordering is a **stable sort/filter over the
+already-derived `liveCandidates`** (the candidate-pipeline effect deliberately excludes `clips` from
+its deps). An optional, `prefers-reduced-motion`-gated cross-fade on the newly-curated tile is
+polish over an already-stable layout; the stability is the contract, not the animation.
+
+**Where the unvetted signal/counts live in mixed (rescoped, once-per-context).** The #14
+once-per-context discipline holds — **no per-card "SUGGESTED" badge** — but the copy is reworded to
+introduce the suggestion *subset*: the **wiki+ panel** carries the `{V} curated · {M} suggested`
+two-count line (the volume signal for the topic); the **TOC** rows carry dual `{c}` + `~{s}` counts;
+the **General-band divider** and the **rail `CandidateSetHeader`** ("The suggested videos below…")
+introduce the suggestions to their right/below, not "this whole topic is unvetted." In
+fully-curated the unvetted signal is **absent everywhere**.
+
+### Empty / zero-curation state (the bootstrap)
 
 Every topic starts with **zero curations**. The empty state still aims to be useful and to drive
 the curation flywheel, by bootstrapping the plus side with **auto-suggested, clearly unvetted
@@ -175,6 +235,14 @@ candidates** plus prominent paths to curate. Reference mockup: **`mockups/inline
     reviewed these. Curate one to vouch for it."). There is **no per-card "SUGGESTED" badge** and
     **no repeated "Auto-suggested" / "no context yet" block** — the dashed container plus the
     once-per-context headers already carry the signal.
+    - *In the **mixed** state these three locations are **rescoped** to introduce the suggestion
+      subset, not the whole topic (issue #60):* the wiki+ panel shows `{V} curated · {M} suggested`
+      (the panel count IS the rescoped signal); the General-band signal becomes the inline
+      `Suggested · uncurated` **divider** after the curated group (the band's own `<h2>` is now
+      `＋ General`); and the rail `CandidateSetHeader` rewords to "**The suggested videos below**
+      are auto-found from {sources} — no context notes yet, not reviewed by a human. Curate one to
+      vouch for it." Its gate is now "≥1 rail suggestion" (independent of curated count), so it sits
+      **between** the curated rail group and the suggestion rail group.
   - *Per-card, a candidate keeps only genuine per-clip **information**:* a **compact single-line
     match reason** (why *this* clip matched, e.g. *Mentions "light-dependent reactions" in
     description*) and a small **text-labeled source pill** (e.g. `YOUTUBE`) reading the candidate's

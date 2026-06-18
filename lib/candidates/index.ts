@@ -9,6 +9,17 @@ import { youtubeSource } from "./youtube";
 // source (no key) is simply skipped by the pipeline (AC1).
 export const CANDIDATE_SOURCES: CandidateSource[] = [youtubeSource];
 
+/**
+ * Issue #60 (coexistence, design §3.1 / spec AC6): the SINGLE named default for how many
+ * General-pool *suggestions* render before the "See N more" control. It is the ONE source of
+ * truth for this cap — never a literal repeated at a call site. Curated general clips are NOT
+ * subject to it (curation is the priority content); section-anchored suggestions are not capped
+ * either (the pipeline anchors only a small number per section). 8 is the calm low end of the
+ * owner's ~8–10 guidance: generous enough to seed curation, few enough that the band stays a
+ * scannable overview once curated clips already lead the row. Same value in empty and mixed.
+ */
+export const GENERAL_SUGGESTION_DEFAULT = 8;
+
 /** True when at least one source is enabled (the live path can run). */
 export function liveCandidatesEnabled(): boolean {
   return CANDIDATE_SOURCES.some((s) => s.isEnabled());
