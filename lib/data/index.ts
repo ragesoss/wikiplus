@@ -11,8 +11,10 @@ import {
   listClipsByContributorAction,
   listTopicsAction,
   recordDismissalAction,
+  toggleUpvoteAction,
   updateClipAction,
   upsertTopicAction,
+  votedClipIdsAction,
   type ClipEditPatch,
 } from "@/lib/server/actions";
 import type { DataStore } from "./store";
@@ -62,6 +64,12 @@ const clientStore: DataStore = {
     getContributorByUsernameAction(username),
   listClipsByContributor: (contributorId) =>
     listClipsByContributorAction(contributorId),
+  // Upvotes (issue #55 / D4). The toggle forwards the clip id only — the boundary resolves the
+  // contributor (the seam's `contributorId` param is server-internal, unused here). `votedClipIds`
+  // is the per-viewer voted-state read; the host calls it ONLY in the authenticated session (it is
+  // gated, so a logged-out call would reject — TopicView guards on `myContributorId`).
+  toggleUpvote: (clipId) => toggleUpvoteAction(clipId),
+  votedClipIds: (clipIds) => votedClipIdsAction(clipIds),
   recordDismissal: (input) => recordDismissalAction(input),
   dismissedKeys: (topicQid) => dismissedKeysAction(topicQid),
 };

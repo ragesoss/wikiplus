@@ -4,6 +4,7 @@ import type { Candidate, Clip } from "@/lib/data/types";
 import { pluralize } from "@/lib/format";
 import { CandidateActions, MatchReason } from "./CandidateBits";
 import { ContextByLink } from "./ContextByLink";
+import { UpvoteControl } from "./UpvoteControl";
 import { VideoThumb } from "./VideoThumb";
 
 // Full-bleed indigo band after the lead — the one crossover (design §5.5 / §6.3).
@@ -25,6 +26,9 @@ export function GeneralStrip({
   ownsClip,
   onEdit,
   onDelete,
+  signedIn = false,
+  votedClip,
+  onUpvote,
   bandRef,
 }: {
   mode: "curated" | "empty";
@@ -56,6 +60,16 @@ export function GeneralStrip({
   onEdit?: (clip: Clip) => void;
   /** Open D2's Delete confirm dialog for an owned General clip (owner only — design §9.2). */
   onDelete?: (clip: Clip) => void;
+  /** D4 (issue #55): is the viewer signed in (a real toggle vs. the login gate — §3/§5.3). */
+  signedIn?: boolean;
+  /**
+   * D4 (issue #55, design §5/§8): has THIS viewer upvoted this General clip — the per-viewer
+   * voted-state predicate, computed in the already-authenticated client session (off the cached
+   * read path). Default `() => false` so an anonymous load does no per-user voted-state work (AC7).
+   */
+  votedClip?: (clip: Clip) => boolean;
+  /** D4 (issue #55): activate the upvote control on a General clip (host's toggle / gate route). */
+  onUpvote?: (clip: Clip) => void;
   bandRef?: (el: HTMLElement | null) => void;
 }) {
   // Empty-mode runtime faces (design §5): loading (skeleton), zero-results (honest
@@ -200,6 +214,20 @@ export function GeneralStrip({
                   <p className="mt-0.5 truncate text-[11px]">
                     <ContextByLink curatedBy={clip.curatedBy} surface="indigo" />
                   </p>
+                  {/* D4 §5: the interactive upvote control on the General tile (the tile showed
+                      NO count pre-D4 — D4 adds it). One short line below the attribution, above
+                      the owner row. White on indigo, bold + underline voted/actionable cue (§5.4
+                      AA). The DISPLAYED count is the DERIVED total `listClips` computed; the
+                      per-viewer voted-state is the off-read-path client-session compute (§8). */}
+                  <div className="mt-1">
+                    <UpvoteControl
+                      count={clip.upvotes ?? 0}
+                      voted={votedClip?.(clip) ?? false}
+                      signedIn={signedIn}
+                      surface="indigo"
+                      onActivate={() => onUpvote?.(clip)}
+                    />
+                  </div>
                   {/* D3 §9.2: owner-only Edit/Delete on the General tile — closes the D2 gap.
                       Rendered ONLY for the signed-in owner; reuses D2's EditModal /
                       DeleteConfirmDialog via the host's onEdit/onDelete. White-fill buttons +

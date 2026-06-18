@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, asc, desc, eq, ne, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, ne, sql } from "drizzle-orm";
 import type { DataStore } from "@/lib/data/store";
 import type {
   ArticleSection,
@@ -9,6 +9,7 @@ import type {
   ContributorClip,
   PublicContributor,
   Topic,
+  UpvoteToggle,
 } from "@/lib/data/types";
 import { STUB_HANDLE } from "@/lib/curation/curator-attribution";
 import { getDb, type Db } from "./client";
@@ -19,7 +20,7 @@ import {
   rowToPublicContributor,
   rowToTopic,
 } from "./mappers";
-import { clip, contributor, dismissedCandidate, topic } from "./schema";
+import { clip, clipVote, contributor, dismissedCandidate, topic } from "./schema";
 
 // The Postgres-backed DataStore (issue #45). Implements the FULL DataStore interface
 // (lib/data/store.ts) server-side, behind the lib/data/index.ts seam (the swap point).
@@ -110,7 +111,56 @@ export class DrizzleDataStore implements DataStore {
       .from(clip)
       .where(eq(clip.topicId, topicId))
       .orderBy(desc(clip.createdAt));
-    return rows.map((r) => rowToClip(r, topicQid));
+    // Issue #55 / D4: the DISPLAYED count is DERIVED (Decision 2) — the frozen `clip.upvotes`
+    // seed baseline PLUS the count of distinct real `clip_vote` rows. It is PUBLIC (the same for
+    // every viewer), so it may ride this topic read (AC7); only the PER-VIEWER voted-state is off
+    // the read path (`votedClipIds`). The legacy `clip.upvotes` column is NEVER mutated — the
+    // derivation reads it as a baseline and adds the live vote count on top, so the count can
+    // never drift from the set of real voters. One grouped COUNT for all the topic's clips.
+    const counts = await this.voteCountsForClips(rows.map((r) => r.id));
+    return rows.map((r) => {
+      const mapped = rowToClip(r, topicQid);
+      const derived = (r.upvotes ?? 0) + (counts.get(r.id) ?? 0);
+      // Surface the derived total as `upvotes` for the UI. When there is neither a seed baseline
+      // nor a real vote (both 0/absent), keep it `undefined` so the footer renders no count for a
+      // never-seeded, never-voted clip — matching the pre-D4 "no number" affordance.
+      return {
+        ...mapped,
+        upvotes: derived > 0 || r.upvotes != null ? derived : undefined,
+      };
+    });
+  }
+
+  /**
+   * Count of distinct `clip_vote` rows per clip id, as a Map (issue #55 / D4 — the public, derived
+   * count's vote component). One grouped query; missing ids carry 0 (no real votes). Drives both
+   * the `listClips` derivation and the `toggleUpvote` return.
+   */
+  private async voteCountsForClips(
+    clipIds: number[]
+  ): Promise<Map<number, number>> {
+    if (clipIds.length === 0) return new Map();
+    const rows = await this.db
+      .select({ clipId: clipVote.clipId, n: count() })
+      .from(clipVote)
+      .where(inArray(clipVote.clipId, clipIds))
+      .groupBy(clipVote.clipId);
+    return new Map(rows.map((r) => [r.clipId, Number(r.n)]));
+  }
+
+  /** The derived public count for ONE clip: seed baseline + distinct vote rows (Decision 2). */
+  private async derivedUpvoteCount(clipId: number): Promise<number> {
+    const baseRows = await this.db
+      .select({ upvotes: clip.upvotes })
+      .from(clip)
+      .where(eq(clip.id, clipId))
+      .limit(1);
+    const baseline = baseRows[0]?.upvotes ?? 0;
+    const voteRows = await this.db
+      .select({ n: count() })
+      .from(clipVote)
+      .where(eq(clipVote.clipId, clipId));
+    return baseline + Number(voteRows[0]?.n ?? 0);
   }
 
   async listCandidates(_topicQid: string): Promise<Candidate[]> {
@@ -307,6 +357,85 @@ export class DrizzleDataStore implements DataStore {
       .from(dismissedCandidate)
       .where(eq(dismissedCandidate.topicId, topicId));
     return rows.map((r) => `${r.provider}:${r.videoId}`);
+  }
+
+  // ── Upvotes (issue #55 / D4 — one-per-user, toggleable; AC1–AC3/AC8/AC9) ───────────
+  async toggleUpvote(
+    clipId: string,
+    contributorId?: number
+  ): Promise<UpvoteToggle> {
+    const numClipId = Number(clipId);
+    // The boundary always passes the authenticated contributor; the optional path (stub) keeps
+    // the store-level tests + reference impl callable without a session. NO self-vote special
+    // case (Decision 3) — `clip.curatorId` is never consulted here.
+    const voterId =
+      contributorId ?? (await getStubContributorId(this.db));
+    if (voterId === null) {
+      throw new Error("toggleUpvote: no contributor to attribute the vote to.");
+    }
+    // Toggle: is there already a vote row for (clip, me)? The one-per-user invariant is the DB
+    // `unique(clip_id, contributor_id)` constraint (AC3) — the read-then-act below is the toggle
+    // DIRECTION, not the uniqueness guarantee; the insert is `onConflictDoNothing` so a racing
+    // double-insert collides on the constraint and lands voted (not a second row, not a throw).
+    const existing = await this.db
+      .select({ id: clipVote.id })
+      .from(clipVote)
+      .where(
+        and(eq(clipVote.clipId, numClipId), eq(clipVote.contributorId, voterId))
+      )
+      .limit(1);
+
+    let voted: boolean;
+    if (existing[0]) {
+      // Present → un-vote (delete). Deleting an absent row is a no-op landing in "not voted"
+      // (AC2 idempotent). The post-state is "no row for (clip, me)".
+      await this.db
+        .delete(clipVote)
+        .where(
+          and(
+            eq(clipVote.clipId, numClipId),
+            eq(clipVote.contributorId, voterId)
+          )
+        );
+      voted = false;
+    } else {
+      // Absent → vote (insert). `onConflictDoNothing` on the unique identity: a concurrent
+      // double-insert collides on the constraint, leaving exactly ONE row (AC3) — the toggle's
+      // contract is "end in the flipped state," not "error on a race." Post-state is "voted".
+      await this.db
+        .insert(clipVote)
+        .values({ clipId: numClipId, contributorId: voterId })
+        .onConflictDoNothing({
+          target: [clipVote.clipId, clipVote.contributorId],
+        });
+      voted = true;
+    }
+
+    // The returned count is the DERIVED total (seed baseline + distinct rows) — the authoritative
+    // value the client reconciles to. `clip.upvotes` is read as a frozen baseline, never written.
+    const count = await this.derivedUpvoteCount(numClipId);
+    return { voted, count };
+  }
+
+  async votedClipIds(
+    clipIds: string[],
+    contributorId?: number
+  ): Promise<string[]> {
+    // The boundary passes the authenticated contributor; an absent one (no session) yields no
+    // votes — never a per-user query for a logged-out caller (AC7). The store-level tests pass
+    // an explicit id.
+    if (contributorId === undefined || clipIds.length === 0) return [];
+    const numIds = clipIds.map((id) => Number(id));
+    const rows = await this.db
+      .select({ clipId: clipVote.clipId })
+      .from(clipVote)
+      .where(
+        and(
+          eq(clipVote.contributorId, contributorId),
+          inArray(clipVote.clipId, numIds)
+        )
+      );
+    return rows.map((r) => String(r.clipId));
   }
 }
 

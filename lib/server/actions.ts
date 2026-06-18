@@ -7,6 +7,7 @@ import type {
   Platform,
   PublicContributor,
   Topic,
+  UpvoteToggle,
 } from "@/lib/data/types";
 import { ACCURACY_ORDER, STANCE_ORDER } from "@/lib/curation/labels";
 import { NOTE_LICENSE } from "@/lib/curation/note-license";
@@ -305,6 +306,45 @@ export async function listClipsByContributorAction(
   contributorId: number
 ): Promise<ContributorClip[]> {
   return store().listClipsByContributor(contributorId);
+}
+
+// ── Upvotes (issue #55 / D4 — a persisted, one-per-user, toggleable signal) ──────────────
+// One auth-gated WRITE (`toggleUpvoteAction`) + one auth-gated, viewer-scoped READ
+// (`votedClipIdsAction`). The toggle is the gated CONTRIBUTION (CURATION §7) — `requireContributor`
+// FIRST, before any DB touch, so an anonymous/expired direct call writes NOTHING (AC4/AC5), exactly
+// like the add/dismiss writes. The voted-state read is gated too (it is per-viewer; a logged-out
+// caller gets an empty set, never a per-user query) and runs ONLY in the already-authenticated
+// client session — it is NEVER reached on the cached topic read path (`listClips` issues no
+// per-user vote query — AC6/AC7). The displayed COUNT is public and rides `listClips` (derived
+// there: seed baseline + distinct vote rows — Decision 2); only the per-viewer voted-state is here.
+
+/**
+ * Toggle the signed-in contributor's upvote on a clip (Decision 4). GATE FIRST (AC4/AC5): an
+ * unauthenticated or expired call is rejected by `requireContributor()` before any `clip_vote`
+ * write — no row inserted or deleted. Then insert-if-absent / delete-if-present (the store uses an
+ * `onConflictDoNothing` upsert so a race lands voted, not doubled — AC3) and return the new
+ * `{ voted, count }` (count = the DERIVED total — Decision 2). NO self-vote special case (Decision
+ * 3): a contributor may upvote a clip they curated, exactly like any other (AC9).
+ */
+export async function toggleUpvoteAction(
+  clipId: string
+): Promise<UpvoteToggle> {
+  const { contributorId } = await requireContributor();
+  return store().toggleUpvote(clipId, contributorId);
+}
+
+/**
+ * The subset of `clipIds` the signed-in viewer has upvoted (Decision 6 — the per-viewer
+ * voted-state read, OFF the cached read path). Gated: `requireContributor()` resolves the viewer,
+ * so this only ever runs in the already-authenticated client session — an anonymous topic load
+ * never calls it (AC7). Scoped to the viewer + the visible clip ids. The COUNT is NOT here (it is
+ * public and rides `listClips`); this returns only WHICH of these clips THIS viewer has voted on.
+ */
+export async function votedClipIdsAction(
+  clipIds: string[]
+): Promise<string[]> {
+  const { contributorId } = await requireContributor();
+  return store().votedClipIds(clipIds, contributorId);
 }
 
 // ── Sticky dismissals (shared + durable — AC5) ──────────────────────────────────────────
