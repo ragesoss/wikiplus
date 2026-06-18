@@ -491,6 +491,93 @@ read as the same thing:
   `opinion` / `mixed` / `inaccurate` is **legitimately curatable** — §7 — and being held is
   about *review status*, not about the accuracy flag's value.)
 
+### 7.2 The removal mechanism — soft-removal accountability + the reason vocabulary (Decision C9)
+
+§7's removable-content rule and §7.1's removal-vs-hold distinction are realized as a workflow in
+milestone D5c (spec `docs/specs/moderator-removal.md`). This subsection is the **editorial
+contract** for what a *removal* asserts and how it must be **accountable** — it does not reopen
+§7 (the removable list, the abuse-not-disagreement boundary) or §7.1 (removal ≠ hold). It records
+the two editorial calls D5c surfaced: the **soft-removal accountability posture** and the
+**removal-reason vocabulary**.
+
+**The removable set is unchanged — §7 binds what removal is *for*.** D5c enforces the **§7
+removable list verbatim** (spam / self-affiliate promotion; no-genuine-relevance clips;
+§1.2-violating notes; hateful/harassing/illegal content; manipulated/deceptive media presented as
+genuine; copyright-circumventing embeds) and **nothing beyond it**. Removal is a **capability — a
+human moderator judges** whether a clip is §7 abuse; the mechanism does **not** auto-classify and
+must **never** make a clip removable *by its `accuracy_flag` value*. The load-bearing boundary
+holds at full force: an honestly-flagged `opinion` / `mixed` / `inaccurate` clip whose context
+note does the §3 work of weighing it is **legitimately curatable — NOT removable.** Removal is for
+**abuse**, never for **disagreement**; a moderator who merely disagrees with a fair note has no
+removal warrant. This is the editorial line a moderator (and QA/UX) judges against.
+
+**Soft-removal is the §7-aligned accountability posture — removing someone else's work leaves a
+record.** A moderator removing *another contributor's* clip is a **privileged act on another
+person's work**, on an **abuse judgment**. §7's "removal is for abuse, not for disagreement"
+implies an act that is **auditable and attributable** — *who* removed it, *when*, and (optionally)
+*why* — so the moderation itself can be held to the same standard it enforces. The standard
+therefore requires removal to be a **soft removal / tombstone**, not a destructive erase: the clip
+**stops showing to readers**, but the row **persists** with the removal recorded against the
+removing moderator. This is **distinct from D2's owner hard-delete**: a curator deleting **their
+own** clip is retracting *their own* vouch (no third party's work is touched, no accountability gap
+— a hard delete is right *there*), whereas a moderator removing *someone else's* work must leave a
+trace. The two acts therefore leave **different traces by design** — D2 erases, D5c tombstones —
+and must never be conflated.
+
+| | Owner delete (D2) | **Moderator removal (D5c)** |
+|---|---|---|
+| Who acts | the clip's **own curator** | a **moderator**, on **any** clip |
+| On whose work | their **own** | **someone else's** (the point) — or own (trivial subset) |
+| For what | retracting *their own vouch* (any reason) | **§7 abuse** only — not disagreement |
+| Persistence | **hard delete** — the row is gone | **soft tombstone** — row persists (who/when/why) |
+| Why this trace | no third party's work touched | a privileged act on another's work must be **auditable + attributable** |
+
+**The removal-reason vocabulary — a small §7-aligned category set + optional free-text (Decision
+C9).** The optional removal reason (Decision 4 of the spec) is captured for the audit trail. The
+standard's recommendation is a **fixed, §7-aligned category set** plus an **optional free-text
+note** — *not* free-text alone and *not* a category alone:
+
+- A **category set** keeps the audit trail consistent and (later) aggregable — a future moderation
+  surface / Analytics read can report a **removal-reason distribution** ("which §7 categories
+  dominate" — the signal of what abuse the product actually attracts), exactly as the closed
+  `stance` / `accuracy` enums (C2) enable filtering. Free-text alone would not aggregate.
+- **Optional free-text** alongside it lets a moderator record the specifics a category cannot
+  ("affiliate links in the note to *vendor X*"), which is what makes the trace legible for a future
+  appeal.
+- **Both optional, not required** (matching spec Decision 4): the facts that matter most — *who* +
+  *when* — are captured regardless; a removal with **no** reason is valid. Requiring a reason would
+  add friction to the confirm step for marginal MVP benefit.
+
+The **canonical category labels** — one per item on the §7 removable list, so the vocabulary *is*
+the §7 list, kept consistent by construction — are, verbatim (UX uses these strings; Dev encodes as
+the enum values; each maps to its §7 clause):
+
+| Value (enum) | Label (UX text) | Covers (§7 removable list) |
+|---|---|---|
+| `spam` | **Spam** | Spam / bulk or junk submissions. |
+| `promotion` | **Self/affiliate promotion** | Self-promotion, affiliate or commercial promotion. |
+| `off_topic` | **No genuine relevance** | Clips with no genuine topical relevance to the article. |
+| `note_violation` | **Note violates the standard** | A context note that violates §1.2 (hype, personal attacks, unsupported curator claims, copied metadata). |
+| `hateful_or_illegal` | **Hateful, harassing, or illegal** | Hateful, harassing, or illegal content. |
+| `deceptive_media` | **Deceptive / manipulated media** | Manipulated or deceptive media presented as genuine without disclosure. |
+| `copyright` | **Copyright-circumventing embed** | An embed that circumvents copyright (we embed official sources only). |
+| `other` | **Other (see note)** | Abuse on the §7 list not captured above — pair with the free-text note. |
+
+The reason vocabulary is **display + audit metadata only** — it does **not** gate or auto-trigger
+removal (a human moderator judges), and it is **never shown to readers** (a removed clip simply
+stops showing; the tombstone is for the moderator audit trail / a future moderation surface, not a
+public "this was removed for X" notice). `other` exists so the set need never block a legitimate
+§7 removal that does not fit a category, while still steering moderators to the specific reason
+when one fits.
+
+**Removal stays editorially distinct from the hold (confirms §7.1).** Nothing here softens §7.1's
+line: a **removal** (abuse — takes the clip *down*, it stops showing) and a **D5b hold** (a
+reversible "not yet vouched" review pause — the clip *stays visible*, marked "in review") are
+**different acts with different meanings**. A held clip must **never** read as "removed," and a
+removed clip is **not** merely "held." They ride **independent** state (the hold's review-status vs.
+the removal tombstone); a moderator may *hold-then-remove*, but those are two distinct acts, never
+one.
+
 ---
 
 ## 8. Decisions log (for Product / UX / Dev to react to)
@@ -505,6 +592,7 @@ read as the same thing:
 | **C6** | Stance/accuracy support an optional **free-form modifier** (≤24 chars) shown after the label, never filtered on. | Reproduces the mockup display strings ("Accurate · fast-paced") without breaking the enum. Dev adds `stance_modifier` / `accuracy_modifier` optional fields; UX renders "Label · modifier". |
 | **C7** | The §5.3 attribution is realized in public as **"context by &lt;username&gt;"** (verbatim), linking IN to the curator's wiki+ profile — **distinct** from the §5.2 creator credit, which links OUT to the platform. The public profile exposes **only** public identity (username + granted avatar), **never email**. A `@prototype` clip shows a non-linked **"seed clip · no curator"** label, no profile link. | Realizes §5.3 / §5.4 for the D3 public attribution + profile (spec #54). UX uses the canonical strings verbatim and keeps curator attribution visually/textually distinct from creator credit; Dev links "context by" to `/contributor/<username>`, suppresses the link for the `@prototype` stub, and ensures the profile read never selects/serializes email (AC2/AC6). |
 | **C8** | The §7 review-hold is defined as the **"held" third clip-state** (§7.1): a real curated clip — note + chips + curator intact — whose **vouch is not yet reviewer-confirmed**; distinct from a fully-curated clip (vouch confirmed) and a §6 candidate (no human behind it). Canonical marking microcopy, verbatim: eyebrow **"In review · not yet vouched"**; explainer **"A curator added this and wrote a note, but it hasn't passed review yet — weigh it accordingly."**; a11y name **"In review — not yet vouched for by a reviewer."** **Hold** = moderator (any clip) OR the curator (own clip); **approve** = moderator-only (no self-approve — the vouch is confirmed by someone other than its author). A hold is a **reversible review pause, not the §7 abuse removal** (that is D5c) — it must never read as "removed/bad." | Realizes §7's review-hold posture + §6's not-vouched-for language for D5b (spec `vetted-review-hold.md`). UX uses the canonical strings verbatim and keeps the held state distinct (by text, never color-alone — §4) from both a curated clip and a §6 candidate; Dev derives the marking from the held flag and gates approve on moderator-only / hold on moderator-or-own-curator server-side; the held marking carries no alarm/removal tone. |
+| **C9** | The §7 removal mechanism (§7.2) is a **soft removal / tombstone**: removing **someone else's** abusive work is **auditable + attributable** (who/when/optional-why persists; the clip stops showing, the row is kept) — **distinct** from D2's owner **hard-delete** of one's *own* clip. Removal enforces the **§7 removable list verbatim** and the **"abuse, not disagreement"** boundary (an honest `opinion`/`mixed`/`inaccurate` clip with a fair note is **not** removable; the mechanism never classifies by `accuracy_flag`). The optional **removal reason** is a **fixed §7-aligned category set + optional free-text** (both optional; a removal needs no reason): `spam` (**Spam**), `promotion` (**Self/affiliate promotion**), `off_topic` (**No genuine relevance**), `note_violation` (**Note violates the standard**), `hateful_or_illegal` (**Hateful, harassing, or illegal**), `deceptive_media` (**Deceptive / manipulated media**), `copyright` (**Copyright-circumventing embed**), `other` (**Other (see note)**). The reason is **audit metadata only — never shown to readers**. Removal stays distinct from the D5b hold (§7.1). | Realizes §7's removable-content rule for D5c (spec `moderator-removal.md`). UX uses the category labels verbatim if it prompts for a reason in the confirm step (optional), keeps Remove distinct from D2 Edit/Delete and D5b Hold/Approve, and never surfaces the reason to readers; Dev may encode the reason as the §7-category enum + optional free-text (or free-text — the captured fact is "an optional reason"), captures `removed_by` / `removed_at`, and never gates removal on the reason or on `accuracy_flag`. |
 
 ---
 
@@ -521,14 +609,21 @@ read as the same thing:
   verbatim **"In review · not yet vouched"** eyebrow (+ the explainer / a11y name strings),
   text-labeled and AA, distinct from both a fully-curated clip and a §6 candidate, with the
   reviewer-only **Hold** / **Approve** affordances (hold: moderator-or-own-curator; approve:
-  moderator-only).
+  moderator-only); and the **moderator-only Remove** affordance + confirm step (§7.2 / C9) —
+  visually/textually distinct from D2 Edit/Delete and D5b Hold/Approve, shown only to a moderator,
+  with the **optional** removal-reason capture using the C9 category labels verbatim (a reason is
+  optional, never required) and **never** surfacing the reason to readers.
 - **Development (schema + limits):** encode the §2 stance enum and §3 accuracy enum as the
   controlled vocabulary in `lib/data/types.ts` (replacing the provisional sets), with a single
   enum→label map driving chip text (§4); add optional `*_modifier` fields (C6); enforce the
   note length (C1); ensure candidates carry no stance/accuracy/context (§6); render attribution
   per §5; for the **held state** (§7.1) derive the marking from the clip's held flag (the
   verbatim §7.1 strings), keep the note/chips/curator intact, and gate the two actions
-  server-side — **approve = moderator-only**, **hold = moderator OR the clip's own curator**.
+  server-side — **approve = moderator-only**, **hold = moderator OR the clip's own curator**; for
+  **removal** (§7.2 / C9) make it a **soft tombstone** (who/when/optional-why persist; the clip is
+  excluded from the read, never hard-deleted), **moderator-only** (no own-curator arm), encode the
+  optional reason as the C9 §7-category set + optional free-text (or free-text — the captured fact
+  is "an optional reason"), and **never** gate removal on the reason or on `accuracy_flag`.
 - **Product (policy → roadmap/criteria):** the moderation policy (§7) and the licensing
   decision (§5.3) become roadmap items when auth/persistence land; the note standard (§1) is
   the **definition of "good curation"** Product/Analytics will later measure against.

@@ -33,9 +33,11 @@ export function GeneralStrip({
   onUpvote,
   canHold,
   canApprove,
+  canRemove,
   reviewInFlight,
   onHold,
   onApprove,
+  onRemove,
   bandRef,
 }: {
   mode: "curated" | "empty";
@@ -86,11 +88,20 @@ export function GeneralStrip({
    */
   canHold?: (clip: Clip) => boolean;
   canApprove?: (clip: Clip) => boolean;
+  /**
+   * D5c (issue #59, design §4.1/§4.2): the moderator Remove-affordance predicate — MODERATOR ONLY,
+   * any clip (NO own-curator arm). Computed in the already-authenticated client session (off the
+   * read path). Default `() => false` so an anonymous / non-moderator tile shows no Remove
+   * affordance and the read-path render is byte-for-byte unchanged (AC7).
+   */
+  canRemove?: (clip: Clip) => boolean;
   /** D5b (issue #58, §5.2): is a hold/approve for this clip in flight → busy word + disable. */
   reviewInFlight?: (clip: Clip) => boolean;
   /** D5b (issue #58): activate Hold / Approve on a General clip (host's runHold / runApprove). */
   onHold?: (clip: Clip) => void;
   onApprove?: (clip: Clip) => void;
+  /** D5c (issue #59): open the Remove confirm on a General clip (host's setRemoveFor). */
+  onRemove?: (clip: Clip) => void;
   bandRef?: (el: HTMLElement | null) => void;
 }) {
   // Empty-mode runtime faces (design §5): loading (skeleton), zero-results (honest
@@ -294,9 +305,11 @@ export function GeneralStrip({
                     clip={clip}
                     canHold={canHold?.(clip) ?? false}
                     canApprove={canApprove?.(clip) ?? false}
+                    canRemove={canRemove?.(clip) ?? false}
                     inFlight={reviewInFlight?.(clip) ?? false}
                     onHold={onHold}
                     onApprove={onApprove}
+                    onRemove={onRemove}
                     size="tile"
                   />
                 </li>

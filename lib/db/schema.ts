@@ -120,6 +120,36 @@ export const clip = pgTable("clip", {
   noteLicenseAgreedAt: timestamp("note_license_agreed_at", {
     withTimezone: true,
   }),
+
+  // ── Soft-removal tombstone (issue #59 / D5c — Decision 1, AC1/AC6/AC7) ─────────────────
+  // The §7 "removable content" moderation enforcement: a MODERATOR removing an ABUSIVE clip
+  // (CURATION §7.2 / Decision C9). A removal is a SOFT TOMBSTONE, NOT a hard delete (the
+  // contrast with D2's owner-gated `deleteClip` — Decision 1): the clip STOPS SHOWING (the
+  // read filters `removed_at IS NULL` — `listClips`/`listClipsByContributor`), but the row +
+  // who/when/why PERSIST as the §7 audit trail (a privileged act on another person's work
+  // must be auditable + attributable — CURATION §7.2). DISTINCT from the D5b `vetted` hold
+  // (an INDEPENDENT column): `vetted` is the reversible "in review" review pause (the clip
+  // STAYS visible, marked); `removed_at` takes an abusive clip DOWN (it stops showing). A clip
+  // can be held (visible, in review) OR removed (not shown) OR both — they never collide
+  // (AC5). The moderator-only role-gate lives SERVER-SIDE in `removeClipAction` (reusing the
+  // D5b `isModeratorContributor` resolver — NO own-curator arm, the key contrast with the
+  // hold); these columns are the persistence only. Restore is DEFERRED but TRIVIAL given the
+  // tombstone (clear `removed_at`/`removed_by` — Decision 1); D5c builds removal only.
+  //
+  // `removed_at` is the SINGLE removed/live discriminant: NULL ≙ live; non-null ≙ removed (the
+  // removal timestamp). All three default NULL (no migration backfill writes them), so every
+  // existing/seeded clip lands LIVE (`removed_at IS NULL`) when the columns land — NO live clip
+  // goes dark (AC6). The reason is OPTIONAL + AUDIT-ONLY + NEVER reader-facing (Decision 4 /
+  // C9): the §7-category enum and/or a free-text note, captured for a future moderation
+  // surface, never surfaced to a reader (a removed clip simply stops showing).
+  removedAt: timestamp("removed_at", { withTimezone: true }),
+  removedBy: integer("removed_by").references(() => contributor.id, {
+    // `set null` so a removed contributor doesn't cascade-delete the tombstone (the audit
+    // trail outlives the moderator's account — same posture as `curator_id`).
+    onDelete: "set null",
+  }),
+  removedReason: text("removed_reason"),
+
   /**
    * Contributor who curated this clip. Nullable in B: interim writes are attributed to a
    * single seeded stub "prototype" contributor (AC13) until issue C wires real sign-in.
