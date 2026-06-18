@@ -250,6 +250,10 @@ Creators are **external people we reference and credit, never host** (VISION; AR
 - We **do not** imply creator endorsement of wiki+ or of the curator's note. The context note
   is clearly wiki+'s editorial voice, distinct from the creator's content.
 
+> **Add-by-link / oEmbed-resolved clips:** how this credit applies when metadata comes from a
+> provider's oEmbed (the minimum credit, handle derivation, and the unresolved-state rule) is in
+> **§5.5 (Decision C10)**.
+
 ### 5.3 License of wiki+ context notes — **Decision C5 (closes an ARCHITECTURE open question)**
 
 **Context notes (and the curator-authored stance/accuracy assessments) are released under
@@ -334,6 +338,58 @@ reopen §5.2/§5.3.
     binds to the note as published. A trivial/typo fix or a stance/accuracy chip change that
     leaves the note text substantively unchanged does **not** require re-affirmation. D2 sets
     the edit mechanics; this is the standard's position so D2 need not reopen it.
+
+### 5.5 Creator credit on oEmbed-resolved clips — **Decision C10** (applies §5.2 to add-by-link)
+
+This subsection **applies §5.2** to a clip whose metadata is resolved from a provider's **oEmbed**
+on the add-by-link path (spec `docs/specs/add-link-metadata.md`, D-YouTube, AC2). It does **not**
+reopen §5.2; it answers the one question that path raises — *what is the minimum acceptable creator
+credit when oEmbed gives `author_name` + `author_url` but no guaranteed clean `@handle`* — so UX and
+Development do not have to guess at attribution adequacy.
+
+- **Minimum acceptable creator credit is name + a working link.** §5.2 requires every curated clip
+  to credit its creator. For an oEmbed-resolved YouTube clip the **floor** is the real
+  **`author_name`** (→ `creator.name`) shown as the creator, plus a **working link to the creator on
+  their platform** — the real **`author_url`** (→ `creator.url`). Name-plus-link is the
+  load-bearing part of §5.2 ("the credit links out to the creator on its platform"): it correctly
+  identifies the actual creator and points the reader to them. A clip with a real `author_name` and a
+  real `author_url` **meets the standard**, even with no clean `@handle`.
+
+- **Handle derivation — derive, consistent with the candidate pipeline; the handle is a label, not
+  an identifier.** oEmbed gives no guaranteed `@handle`. Derive `creator.handle` **the same way the
+  candidate pipeline already does** so both add paths label creators identically: from the author
+  name — `@` + `author_name` lowercased with spaces removed (`lib/candidates/youtube.ts:111`,
+  `` `@${channelTitle.replace(/\s+/g, "").toLowerCase()}` ``). This is **display sugar**, not an
+  identity key (ARCHITECTURE: the contributor/creator handle is "display only — non-unique"); a
+  rough-but-readable handle is acceptable, and handle normalization is a later refinement (spec Open
+  questions, "Handle quality"). The **name + `author_url` link is what carries the attribution
+  weight**, not the derived handle — so a derived handle is fine, and **omitting the handle and
+  showing name-only is also acceptable** when no sensible handle can be derived (the card credit
+  degrades to name + platform + outbound link, never an empty or fake handle). What is **not**
+  acceptable: a placeholder string standing in for a handle on a *resolved* clip (the literal
+  `"pasted"` handle the mock used — spec AC2 — must not appear).
+
+- **Unresolved / placeholder credit must never masquerade as a real creator (AC4/AC5).** When
+  resolution fails (provider error, empty/malformed oEmbed, network failure, offline) and the
+  curator proceeds with an unresolved clip, the placeholder credit must be **clearly labeled as a
+  placeholder, not presented as a real creator**. This is the §6 honesty principle applied to credit
+  and the §7.1 tone register: a placeholder credit reads as *"creator not resolved,"* never as if a
+  real person were named. Concretely — a placeholder must **not** assert a fabricated `author_name`,
+  must **not** carry a fake outbound creator link (no dead or invented `creator.url`), and must
+  **not** claim "resolved via oEmbed" (spec AC3/AC4). It is the credit analogue of the §5.4
+  **"seed clip · no curator"** rule: an honest, non-linked, plainly-labeled stand-in is right; a
+  stand-in dressed up as a real credit is a trust violation. The exact placeholder copy/treatment is
+  UX's to specify (spec AC4/AC5); the **standard is that it must read as unresolved, never as a real
+  creator credit**.
+
+- **Embed-never-host + descriptive User-Agent — confirmed, no conflict.** Nothing in this standard
+  conflicts with the project principles the spec preserves (AC7, AC8). oEmbed is used for
+  **metadata only** — we populate name/handle/url/thumbnail-*reference* and still **embed by
+  reference, never host** (§5.2 "reference, never host"; ARCHITECTURE "embed, never host"). The
+  `thumbnail_url` is a referenced image URL, not a stored/redistributed asset. Any server-side oEmbed
+  fetch must send the **descriptive User-Agent** wiki+ already uses for Wikimedia fetches (§7's
+  "Wikimedia etiquette applies to our fetches"; ARCHITECTURE etiquette; spec AC8). These are
+  **confirmations** of existing principles — this subsection adds no new obligation beyond them.
 
 ---
 
@@ -593,6 +649,7 @@ one.
 | **C7** | The §5.3 attribution is realized in public as **"context by &lt;username&gt;"** (verbatim), linking IN to the curator's wiki+ profile — **distinct** from the §5.2 creator credit, which links OUT to the platform. The public profile exposes **only** public identity (username + granted avatar), **never email**. A `@prototype` clip shows a non-linked **"seed clip · no curator"** label, no profile link. | Realizes §5.3 / §5.4 for the D3 public attribution + profile (spec #54). UX uses the canonical strings verbatim and keeps curator attribution visually/textually distinct from creator credit; Dev links "context by" to `/contributor/<username>`, suppresses the link for the `@prototype` stub, and ensures the profile read never selects/serializes email (AC2/AC6). |
 | **C8** | The §7 review-hold is defined as the **"held" third clip-state** (§7.1): a real curated clip — note + chips + curator intact — whose **vouch is not yet reviewer-confirmed**; distinct from a fully-curated clip (vouch confirmed) and a §6 candidate (no human behind it). Canonical marking microcopy, verbatim: eyebrow **"In review · not yet vouched"**; explainer **"A curator added this and wrote a note, but it hasn't passed review yet — weigh it accordingly."**; a11y name **"In review — not yet vouched for by a reviewer."** **Hold** = moderator (any clip) OR the curator (own clip); **approve** = moderator-only (no self-approve — the vouch is confirmed by someone other than its author). A hold is a **reversible review pause, not the §7 abuse removal** (that is D5c) — it must never read as "removed/bad." | Realizes §7's review-hold posture + §6's not-vouched-for language for D5b (spec `vetted-review-hold.md`). UX uses the canonical strings verbatim and keeps the held state distinct (by text, never color-alone — §4) from both a curated clip and a §6 candidate; Dev derives the marking from the held flag and gates approve on moderator-only / hold on moderator-or-own-curator server-side; the held marking carries no alarm/removal tone. |
 | **C9** | The §7 removal mechanism (§7.2) is a **soft removal / tombstone**: removing **someone else's** abusive work is **auditable + attributable** (who/when/optional-why persists; the clip stops showing, the row is kept) — **distinct** from D2's owner **hard-delete** of one's *own* clip. Removal enforces the **§7 removable list verbatim** and the **"abuse, not disagreement"** boundary (an honest `opinion`/`mixed`/`inaccurate` clip with a fair note is **not** removable; the mechanism never classifies by `accuracy_flag`). The optional **removal reason** is a **fixed §7-aligned category set + optional free-text** (both optional; a removal needs no reason): `spam` (**Spam**), `promotion` (**Self/affiliate promotion**), `off_topic` (**No genuine relevance**), `note_violation` (**Note violates the standard**), `hateful_or_illegal` (**Hateful, harassing, or illegal**), `deceptive_media` (**Deceptive / manipulated media**), `copyright` (**Copyright-circumventing embed**), `other` (**Other (see note)**). The reason is **audit metadata only — never shown to readers**. Removal stays distinct from the D5b hold (§7.1). | Realizes §7's removable-content rule for D5c (spec `moderator-removal.md`). UX uses the category labels verbatim if it prompts for a reason in the confirm step (optional), keeps Remove distinct from D2 Edit/Delete and D5b Hold/Approve, and never surfaces the reason to readers; Dev may encode the reason as the §7-category enum + optional free-text (or free-text — the captured fact is "an optional reason"), captures `removed_by` / `removed_at`, and never gates removal on the reason or on `accuracy_flag`. |
+| **C10** | Creator credit on an **oEmbed-resolved** add-by-link clip (§5.5) applies §5.2: the **minimum acceptable credit is real `author_name` (→ `creator.name`) + a working link to `author_url` (→ `creator.url`)** — name + outbound link, sufficient even with no clean `@handle`. **Handle is derived the same way as the candidate pipeline** (`@` + author name, lowercased, spaces removed — `lib/candidates/youtube.ts:111`) and is a **display label, not an identifier**; **name-only (omit handle) is also acceptable** when no sensible handle derives, but a **placeholder handle (e.g. `"pasted"`) on a resolved clip is not**. An **unresolved/placeholder credit must read as unresolved, never masquerade as a real creator** (no fabricated name, no fake/dead outbound link, no "resolved via oEmbed" claim — the credit analogue of §5.4's "seed clip · no curator"). **Embed-never-host + descriptive User-Agent are confirmed, not changed** (oEmbed = metadata only; thumbnail is a referenced URL; AC7/AC8). | Closes the issue-#64 creator-credit question for UX/Dev so they don't guess at attribution adequacy. UX renders name + outbound link as the floor and a clearly-labeled (non-linked) placeholder for the unresolved state; Dev maps `author_name → creator.name`, `author_url → creator.url`, derives the handle per the candidate pipeline (or omits it cleanly), and never emits the mock `"pasted"`/`"Pasted … clip"` strings on a resolved clip (spec AC2). |
 
 ---
 
@@ -612,7 +669,11 @@ one.
   moderator-only); and the **moderator-only Remove** affordance + confirm step (§7.2 / C9) —
   visually/textually distinct from D2 Edit/Delete and D5b Hold/Approve, shown only to a moderator,
   with the **optional** removal-reason capture using the C9 category labels verbatim (a reason is
-  optional, never required) and **never** surfacing the reason to readers.
+  optional, never required) and **never** surfacing the reason to readers; and, for
+  **add-by-link / oEmbed-resolved** clips (§5.5 / C10), render the floor credit — real creator
+  **name + outbound link** (handle if derived, else name-only) — for a resolved clip, and a
+  **clearly-labeled placeholder** credit for the unresolved/failed state that reads as *unresolved*
+  (no fabricated name, no fake link, no "resolved via oEmbed" claim), distinct from a real credit.
 - **Development (schema + limits):** encode the §2 stance enum and §3 accuracy enum as the
   controlled vocabulary in `lib/data/types.ts` (replacing the provisional sets), with a single
   enum→label map driving chip text (§4); add optional `*_modifier` fields (C6); enforce the
@@ -623,7 +684,12 @@ one.
   **removal** (§7.2 / C9) make it a **soft tombstone** (who/when/optional-why persist; the clip is
   excluded from the read, never hard-deleted), **moderator-only** (no own-curator arm), encode the
   optional reason as the C9 §7-category set + optional free-text (or free-text — the captured fact
-  is "an optional reason"), and **never** gate removal on the reason or on `accuracy_flag`.
+  is "an optional reason"), and **never** gate removal on the reason or on `accuracy_flag`; for
+  **add-by-link / oEmbed-resolved** clips (§5.5 / C10) map `author_name → creator.name` and
+  `author_url → creator.url` (the minimum credit), derive `creator.handle` per the candidate
+  pipeline (`lib/candidates/youtube.ts:111`) or omit it cleanly, **never emit the mock
+  `"pasted"`/`"Pasted … clip"` strings on a resolved clip** (spec AC2), and for an unresolved clip
+  use a placeholder credit that does not masquerade as a real creator (no fake `creator.url`).
 - **Product (policy → roadmap/criteria):** the moderation policy (§7) and the licensing
   decision (§5.3) become roadmap items when auth/persistence land; the note standard (§1) is
   the **definition of "good curation"** Product/Analytics will later measure against.

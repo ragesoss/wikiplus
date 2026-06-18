@@ -362,7 +362,12 @@ behavior in [`TOPIC_PAGE_DESIGN.md`](TOPIC_PAGE_DESIGN.md) §"Three states".)
   (web/app) for a manual search; good finds come in via add-by-link. Other source buttons can
   follow the same launch-and-add pattern.
 - **Add by link (logged-in).** A logged-in user pastes a **YouTube or TikTok share link**; we
-  resolve it via **oEmbed** and start a curation for a clip auto-suggestion missed.
+  resolve it via **oEmbed** and start a curation for a clip auto-suggestion missed. **As-built
+  (issue #64 / D-add-link):** a recognized **YouTube** link resolves real `title`/`author_name`/
+  `author_url`/`thumbnail_url` via a **Server Action** (`lib/embed/oembed.ts` `resolveOEmbedAction`,
+  the CORS decision below); **TikTok/Instagram/other** land on an honest, clearly-labeled
+  **unresolved placeholder** (no fabricated creator, no fake link — CURATION §5.5/C10) rather than
+  resolving this loop. See *Prototype phase* → **D-add-link**.
 - **Promote / rule out.** A candidate becomes a curated clip when a curator writes its
   `context_note` and sets `stance` / `accuracy_flag` (flipping `vetted` to true); "not relevant"
   dismisses it. Browsing candidates is anonymous; **promoting or adding requires login**.
@@ -481,7 +486,10 @@ multi-provider OAuth support, so launching single-provider costs us nothing late
   keeps us compatible with the surrounding Wikipedia content). Capture contributor agreement
   to that license at submission time.
 - **Embedded video** remains under its original platform/creator terms; we link out and rely
-  on official embeds rather than redistributing.
+  on official embeds rather than redistributing. **Creator credit on oEmbed-resolved clips**
+  (add-by-link, issue #64): the minimum is real `author_name` + a working link to `author_url`
+  (handle derived per the candidate pipeline, or omitted; never a placeholder masquerading as a real
+  creator) — see `docs/CURATION_STANDARD.md` §5.5 / Decision C10.
 
 ## Open questions (to resolve before/while building)
 
@@ -783,8 +791,10 @@ a host is provisioned (issue A.2).
   the single seam/swap point. `LocalStorageDataStore` is kept as a reference impl + test double, no
   longer wired for the deployed app.
 - **Wikipedia:** article fetch + DOMPurify sanitize run client-side (as in production); Wikidata
-  resolves QID→title. oEmbed is avoided — we store `platform`+`videoId` and build the click-to-load
-  facade ourselves.
+  resolves QID→title. For **playback** oEmbed is still avoided — we store `platform`+`videoId` and
+  build the click-to-load facade ourselves. **For add-by-link *metadata* (issue #64 / D-add-link),**
+  a YouTube oEmbed lookup now runs **server-side** (`resolveOEmbedAction`) to populate the real
+  title/creator/thumbnail — metadata only, still embed-never-host (see *D-add-link* below).
 - **Auth:** **LIVE as of issue C** — real **Wikimedia OAuth 2.0 via Auth.js v5** (JWT sessions,
   no session store). Reading stays anonymous; the three persisted write actions
   (`addClipAction`/`upsertTopicAction`/`recordDismissalAction`) are **auth-gated at the Server
@@ -1006,6 +1016,35 @@ a host is provisioned (issue A.2).
   un-remove UI, an appeals workflow, a moderation dashboard / removal-log UI, auto-classification of
   abuse, an admin-grant UI, hard-deleting others' clips. **No** ISR/Redis (still deferred). **Closing
   D5c closes Milestone D.**
+- **Real video-metadata resolution on add-by-link (issue #64 / D-add-link).** The add-by-link flow
+  no longer labels a pasted clip with placeholder mock metadata ("Pasted clip (mock preview)" /
+  `creator.handle: "pasted"` / "Pasted {platform} clip"). A recognized **YouTube** link now resolves
+  **real** `title`→`caption`, `author_name`→`creator.name`, `author_url`→`creator.url`, a derived
+  `creator.handle` (the SAME derivation as the candidate pipeline — `lib/candidates/youtube.ts:111`,
+  `@`+name lowercased/spaces-removed; name-only when none derives — CURATION §5.5/C10), and
+  `thumbnail_url`→`thumbnailUrl` (a referenced URL, never hosted — embed-never-host preserved). The
+  preview updates **before** submit; the corrected modal shows "Resolved via oEmbed" **only** on a
+  real resolve (the prior mock claimed it over mock text). **CORS decision (landed):** the oEmbed
+  fetch runs in a **Server Action** (`lib/embed/oembed.ts` `resolveOEmbedAction`), **not** a client
+  fetch — `https://www.youtube.com/oembed` sends no `Access-Control-Allow-Origin`, so a browser fetch
+  would CORS-fail and push every add into the failure state; the server action sidesteps CORS and is
+  the natural home for the descriptive **`User-Agent`** (etiquette/AC8 — browsers forbid setting it).
+  It is **stateless**: **no schema change, no new secret** (YouTube oEmbed needs no key — independent
+  of the YouTube *Data API* search key), **no read-path cache** (`cache: "no-store"`), and it is
+  **not** auth-gated/rate-limited (a read-only metadata lookup; the *write* is still gated at
+  `addClipAction`). **D-TikTok decision (landed): the placeholder arm.** Only YouTube resolves this
+  loop; a recognized **TikTok / Instagram / other** link returns `{ ok: false, reason: "unsupported" }`
+  (no fetch) and lands on an **honest unresolved placeholder** — "Unresolved {Platform} clip" caption,
+  a NON-linked "Creator not resolved" credit (no fabricated name, no fake/dead `creator.url`, no
+  `"pasted"` handle, no false "resolved via oEmbed" — C10), plus an MVP-limitation line — consistent
+  with TikTok being already partial (auto-suggestion deferred). A YouTube **fetch failure** shows a
+  labeled, non-red "Couldn't fetch video details" state with **Try again / Add anyway / Cancel** (Add
+  anyway → the same honest placeholder), so the flow is never a dead end. The card's creator credit
+  (`ClipCard`) now **degrades to a non-linked span when `creator.url` is absent** (the read-path
+  realization of C10 — never a dead/empty outbound link). The persisted `Clip`/`ClipMediaSource` shape
+  is unchanged (AC10); the only changes are the **values** in `caption`/`creator`/`thumbnailUrl` and
+  the modal **states**. The pre-persistence parse validation (unrecognized link → the existing red
+  "Unrecognized link" error, never reaches persistence) is unchanged.
 - **Server Actions (enabled #37; now the data-access boundary — issue #45).** The Node SSR runtime
   supports Server Actions; as of #45 they are the **data-access boundary** for shared Postgres
   (`lib/server/actions.ts`, `"use server"` — see *Persistence* above). The throwaway #37 smoke artifact
