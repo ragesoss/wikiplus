@@ -259,7 +259,7 @@ export function AddModal({
                 <p className="text-[12px] font-semibold text-ink">
                   Fetching video details…
                 </p>
-                <p className="truncate text-[11px] text-muted">{link.trim()}</p>
+                <p className="truncate text-[11px] text-ink2">{link.trim()}</p>
               </div>
             </div>
           )}
@@ -290,7 +290,7 @@ export function AddModal({
                   creator, or thumbnail right now. Check your connection and try
                   again, or add it with the details unresolved.
                 </p>
-                <p className="mt-2 truncate text-[11px] text-muted">
+                <p className="mt-2 truncate text-[11px] text-ink2">
                   {link.trim()}
                 </p>
               </div>
@@ -489,8 +489,8 @@ function PlaceholderPreview({
       </p>
       {/* Non-linked placeholder credit (C10) — the credit analogue of "seed clip · no curator". */}
       <p className="mt-1 text-[12px] font-bold text-ink">Creator not resolved</p>
-      <p className="text-[11px] text-muted">{platformLabel}</p>
-      <p className="mt-1 truncate text-[11px] text-muted">{link}</p>
+      <p className="text-[11px] text-ink2">{platformLabel}</p>
+      <p className="mt-1 truncate text-[11px] text-ink2">{link}</p>
       {unsupported && (
         <p className="mt-2 text-[12px] text-ink2">
           We don&apos;t fetch {platformLabel} video details yet — you can still
