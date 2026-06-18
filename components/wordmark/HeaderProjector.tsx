@@ -53,7 +53,10 @@ export interface ProjectorGeometry {
   beamEdgeInset?: number;
   /** burnY(px) — content boundary where the beam burns to white. Token: --projector-burn-y (150). */
   burnY?: number;
-  /** projectionX — beam apex x (0..1 of width). Default: the lockup aperture center (content-column center, §4.3). */
+  /** projectionX — beam apex x as a fraction (0..1) of width. The reserved AC10 dynamic hook the
+   * future Topic-page header drives. On the landing page it is OMITTED — the apex x is the LIVE
+   * aperture x (centered on desktop / left-anchored at narrow widths — §4.3), computed from the
+   * layout, not a static fraction. */
   projectionX?: number;
   /** seamRatio — wiki/plus seam position driven by a column ratio. Token: --projector-seam-ratio (0.5 centered). */
   seamRatio?: number;
@@ -95,8 +98,18 @@ const CUT_CX = 27; // aperture x within the block (mockup cutCx clamp → ~27 at
 const WIKI_W_EST = 95;
 // SSR fallback for the aperture center's x within the full lockup, from the lockup's left edge:
 // "Wiki" advance + the block's 2px margin + the cut inset. Used to land the aperture (not the
-// lockup midpoint) on the beam apex (= content-column center, §4.3) before the measure resolves.
+// lockup midpoint) on the beam apex (§4.3) before the measure resolves.
 const APERTURE_X_EST = WIKI_W_EST + 2 + CUT_CX;
+
+// SSR fallbacks + layout breakpoint for the true-scale beam (design §4.7, Iteration-3). The beam
+// viewBox width = the REAL band width `cw`; before the client measures it we draw at a sensible
+// desktop fallback so SSR renders a coherent (centered) beam without JS. MD_BREAKPOINT mirrors
+// Tailwind's `md` (768px) — the desktop(centered) vs. narrow(left-anchored) layout switch (§7.5).
+// LANDING_PAD_X is the narrow-layout left inset of the lockup (matches the hero column's px-4),
+// so the left-anchored aperture x = LANDING_PAD_X + apertureX.
+const CW_FALLBACK = 960;
+const MD_BREAKPOINT = 768;
+const LANDING_PAD_X = 16;
 
 // 12-point "+" polygon (mockup plusPath). Used for the aperture knockout, the gold rim,
 // and the screen-blend bleed.
@@ -236,75 +249,108 @@ function ApertureBleed() {
   );
 }
 
-// ── The geometric "+" beam (VISUAL_IDENTITY §5.6): a full-width SVG that scales horizontally
-// (preserveAspectRatio="none") so the straight bracket arms reach BOTH real page edges and the
-// 2px gold border runs off-page. Clipped at burnY so the gold edge-glow stays in the header and
-// the beam burns to white into the hero below. SSR-safe: a fixed viewBox, no measurement.
+// ── The geometric "+" beam (VISUAL_IDENTITY §5.6 / design §4.7, Iteration-3). ──────────────────
 //
-// FLUID at every width (Iteration-2 finding 3 / design §4.7): VBW is a fixed canvas mapped to
-// 100% width, so as the viewport narrows the crossbar's horizontal segment simply shortens — the
-// cone stays a narrow stem, the brackets always reach both edges, the beam never becomes a sliver.
-// fullBleed=false ⇒ no beam (the future Tier-B threshold; never used on the landing page).
+// TRUE-SCALE, ASYMMETRICAL-ARM model (the root-cause fix — design §4.7, Iteration-3 decisions):
+//   • The SVG is full-width but its viewBox width = the REAL canvas width `cw` in pixels, with NO
+//     `preserveAspectRatio="none"` override — so the coordinate system is 1:1 px (option (b) of
+//     §4.7, exactly what the mockup's buildScene() does: viewBox="0 0 {cw} {svgH}", no PAR). The
+//     central stem width = the "+" cutout width and the flare angle (`beamSlope` = 0.6) are drawn
+//     at TRUE pixel scale — identical at 320px and 1920px. `cw` enters as a real length, never as
+//     a stretch ratio. NOTHING is horizontally stretched.
+//   • The apex x = the LIVE aperture x (`apexX`, px) — centered on desktop, left at narrow. The
+//     two crossbar arms are ASYMMETRICAL: the left arm runs apex→`edgeInset` (length apexX −
+//     edgeInset), the right arm runs apex→`cw − edgeInset` (length cw − edgeInset − apexX). Arm
+//     length is the ONLY horizontal thing that varies with layout/width.
+//   • THE UNDERLINE FIX: the polygon's bottom vertices sit at `coneBot`, which is BELOW `burnY`
+//     (like the mockup's `coneBot` below `pageY`). The whole span is then CLIPPED at `burnY`
+//     (`height: burnY; overflow: hidden`), so the polygon's bottom CLOSING EDGE (the horizontal
+//     segment joining the two bottom vertices) lies below the clip line and is NEVER drawn as a
+//     stroke at the boundary. At/near `burnY` only the two diagonal brackets exiting the left/right
+//     viewport edges (the `dn` down-and-out turns) and the crossbar arms ABOVE the boundary are
+//     visible — there is NO full-width horizontal gold line at the header bottom.
+//   • The 2px gold stroke is `non-scaling-stroke` so it stays a true 2px (the viewBox is 1:1 here,
+//     so this is belt-and-suspenders, but it keeps the stroke crisp under any DPR rounding).
+//
+// `cw` is the live canvas width (measured client-side; SSR fallback `CW_FALLBACK`). fullBleed=false
+// ⇒ no beam (the future Tier-B threshold; never used on the landing page).
 function Beam({
+  cw,
   burnY,
   apexY,
   beamSlope,
   crossUp,
   edgeInset,
-  apexXFrac,
+  apexX,
 }: {
+  cw: number; // live canvas width in real px (true-scale viewBox width — NO stretch)
   burnY: number;
   apexY: number; // beam apex y = aperture center y
   beamSlope: number;
   crossUp: number;
   edgeInset: number;
-  apexXFrac: number; // beam apex x as a fraction of width (0.5 = center)
+  apexX: number; // beam apex x in real px = the LIVE aperture x (centered desktop / left narrow)
 }) {
-  // Work in a fixed viewBox; preserveAspectRatio="none" maps VBW → 100% width so the off-page
-  // brackets land on the real viewport edges at any width. VBW is arbitrary scale; pick a wide
-  // canvas so the slope reads as in the strip. (The vertical axis is true pixels.)
-  const VBW = 1000;
-  const apexX = VBW * apexXFrac;
   const top0 = apexY + BH / 2 + 6; // beam top just below the block bottom (mockup top0)
-  const crossY = burnY - crossUp;
+  const crossY = burnY - crossUp; // crossbar sits crossUp above the burn boundary
+  // The polygon extends BELOW burnY to coneBot, then the span clips at burnY (the underline fix —
+  // the bottom closing edge lies below the clip line). Mirrors the mockup's coneBot below pageY;
+  // svgH spans top0→coneBot. The exact coneBot only needs to be safely below burnY so the bottom
+  // edge clips away; the brackets reach the edges well before it. Use the mockup's relationship.
+  const coneBot = burnY + 96; // comfortably below burnY (mockup: ~96px below pageY=150 → 246)
+  const svgH = coneBot - top0;
   const LX = edgeInset;
-  const RX = VBW - edgeInset;
-  const hw = (y: number) => (y - apexY) * beamSlope; // half-width at height y
-  const dn = (burnY - crossY) * beamSlope; // bracket downward expansion past the crossbar
-  // 8-point polygon: narrow stem → horizontal crossbar reaching near the edges → brackets
-  // return to the beam angle and expand down past full width (encloses the content region).
+  const RX = cw - edgeInset;
+  const hw = (y: number) => (y - apexY) * beamSlope; // cone half-width at height y (true-scale)
+  const dn = (coneBot - crossY) * beamSlope; // bracket down-and-out expansion past the crossbar
+  // y mapped into the SVG's own coordinate space (origin at top0).
+  const yy = (y: number) => y - top0;
+  // 8-point polygon (mockup P): narrow true-scale cone → horizontal crossbar arms reaching
+  // edgeInset from EACH real edge (asymmetrical when apexX is off-center) → brackets return to
+  // the beam angle and expand down-and-out PAST the edges to coneBot (below burnY → clipped).
   const P: [number, number][] = [
     [apexX - hw(top0), top0],
     [apexX + hw(top0), top0],
     [apexX + hw(crossY), crossY],
     [RX, crossY],
-    [RX + dn, burnY],
-    [LX - dn, burnY],
+    [RX + dn, coneBot],
+    [LX - dn, coneBot],
     [LX, crossY],
     [apexX - hw(crossY), crossY],
   ];
-  const d = "M" + P.map((p) => `${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(" L") + " Z";
+  const d =
+    "M" + P.map((p) => `${p[0].toFixed(1)},${yy(p[1]).toFixed(1)}`).join(" L") + " Z";
   return (
     <span
       aria-hidden="true"
       className="pointer-events-none absolute inset-x-0"
       style={{
-        top: 0,
-        height: burnY, // clip the beam (and its glow) at the burn boundary — gold off-page, no bleed
+        top: top0, // SVG starts at the beam top; the span clips its bottom at burnY
+        height: burnY - top0, // clip the beam (and its glow) at the burn boundary
         overflow: "hidden",
         filter:
           `drop-shadow(0 0 4px rgba(${GOLD_RIM_RGB},0.6)) drop-shadow(0 0 11px rgba(${GOLD_RIM_RGB},0.32))`,
       }}
     >
       <svg
-        width="100%"
-        height={burnY}
-        viewBox={`0 0 ${VBW} ${burnY}`}
-        preserveAspectRatio="none"
+        width={cw}
+        height={svgH}
+        viewBox={`0 0 ${cw} ${svgH}`}
         style={{ display: "block", overflow: "visible" }}
         aria-hidden="true"
+        data-projector-beam=""
+        // The beam's structural markers for verification (no PAR override = true-scale):
+        // data-beam-cone-bot = the polygon's bottom y (BELOW burnY, in the SVG's own coords);
+        // data-beam-clip-h   = the clip height (burnY − top0). cone-bot > clip-h proves the bottom
+        // closing edge sits BELOW the clip line and is clipped away → NO horizontal line at burnY.
+        data-beam-cone-bot={(coneBot - top0).toFixed(1)}
+        data-beam-clip-h={(burnY - top0).toFixed(1)}
+        data-beam-apex-x={apexX.toFixed(1)}
+        data-beam-left-arm={(apexX - edgeInset).toFixed(1)}
+        data-beam-right-arm={(cw - edgeInset - apexX).toFixed(1)}
       >
-        {/* vectorEffect keeps the 2px gold stroke a true 2px despite the horizontal scale. */}
+        {/* viewBox width = cw (1:1 px) — the stem + angle are TRUE-SCALE, never stretched.
+            non-scaling-stroke keeps the 2px gold edge crisp. */}
         <path
           d={d}
           fill="#ffffff"
@@ -405,27 +451,74 @@ export function HeaderProjector({
   const edgeInset = geometry?.beamEdgeInset ?? 17;
   const seamRatio = geometry?.seamRatio ?? 0.5; // reserved (future column-ratio); centered now
   const fullBleed = geometry?.fullBleed ?? true;
-  const apexXFrac = geometry?.projectionX ?? 0.5; // beam apex x; content-column center on landing
+  // projectionX is the reserved AC10 hook (0..1 of width) the FUTURE Topic-page header drives;
+  // on the landing page the apex x is the LIVE aperture x, computed from the layout below. When
+  // a caller passes projectionX explicitly we honor it as a fraction (the dynamic-API shape).
+  const projectionXFrac = geometry?.projectionX; // undefined on the landing page (layout-driven)
   void seamRatio; // API-shape only this round (AC10) — no dynamic re-seam; documented, unused.
 
   const cyMid = 64; // wordmark row center from header top (design §4.2; matches the mockup)
 
-  // ── Tight seam + apex tracking (Iteration-2 finding 1 / OQ-4). The seam tightness is layout
-  // (the shrink-to-fit Lockup), needing no measure. To LAND the beam apex on the aperture we
-  // measure "Wiki"'s real advance ONCE on the client and offset the lockup so its aperture
-  // center sits at the content-column center (= the beam apex). SSR/first paint uses the tight
-  // WIKI_W_EST (~95px) estimate so it is correct without JS; the measure refines it within ~1px. ──
+  // ── Live geometry measurement (design §4.3 / §4.7, Iteration-3). The beam is drawn TRUE-SCALE
+  // at the real canvas width `cw`, with the apex on the LIVE aperture x — so we measure both on
+  // the client (resize-tracked). The apex x is LAYOUT-DRIVEN, not center-locked:
+  //   • desktop (≥ md, ~≥ 768px): the lockup is CENTERED → aperture (= apex) at cw/2.
+  //   • narrow  (< md):           the lockup is LEFT-anchored → aperture (= apex) at
+  //                               LANDING_PAD_X + apertureX.
+  // The aperture x WITHIN the lockup is "Wiki"'s real advance + the block's 2px margin + the cut
+  // inset; we measure "Wiki"'s advance once it's laid out (the seam tightness itself needs no
+  // measure — it comes from the shrink-to-fit Lockup). SSR/first paint uses the tight WIKI_W_EST
+  // (~95px) + a sensible cw fallback so it is correct without JS; the measure refines it.
   const wikiRef = useRef<HTMLSpanElement>(null);
+  const bandRef = useRef<HTMLDivElement>(null);
   const [apertureX, setApertureX] = useState<number>(APERTURE_X_EST);
-  // useEffect (not useLayoutEffect) is SSR-safe (no SSR warning) and sufficient here: the
-  // first paint already uses the tight WIKI_W_EST estimate, so there is no apex jump — the
-  // measure only refines it to the real Georgia advance.
+  const [cw, setCw] = useState<number>(CW_FALLBACK);
+  const [narrow, setNarrow] = useState<boolean>(false);
+
+  // Measure "Wiki"'s real advance once (refines the SSR estimate to the real Georgia glyph width).
   useEffect(() => {
     if (wikiRef.current) {
       const w = wikiRef.current.getBoundingClientRect().width;
       if (w > 0) setApertureX(w + 2 + CUT_CX); // "Wiki" advance + block margin + cut inset
     }
   }, []);
+
+  // Track the band's real width + the desktop/narrow breakpoint (resize-aware) so the beam stays
+  // true-scale to the actual viewport and the apex tracks the layout-driven aperture.
+  useEffect(() => {
+    const measure = () => {
+      const el = bandRef.current;
+      if (!el) return;
+      const w = el.getBoundingClientRect().width;
+      // Guard on w>0: jsdom (and pre-layout) reports 0 — keep the SSR fallback (centered desktop)
+      // rather than flip to narrow on a bogus zero width.
+      if (w > 0) {
+        setCw(w);
+        setNarrow(w < MD_BREAKPOINT);
+      }
+    };
+    measure();
+    let ro: ResizeObserver | undefined;
+    if (typeof ResizeObserver !== "undefined" && bandRef.current) {
+      ro = new ResizeObserver(measure);
+      ro.observe(bandRef.current);
+    } else if (typeof window !== "undefined") {
+      window.addEventListener("resize", measure);
+    }
+    return () => {
+      if (ro) ro.disconnect();
+      else if (typeof window !== "undefined") window.removeEventListener("resize", measure);
+    };
+  }, []);
+
+  // The live apex x in px (= the aperture x). Layout-driven: centered on desktop, left at narrow.
+  // An explicit projectionX prop (the future Topic-page driver / AC10 dynamic hook) overrides.
+  const apexX =
+    projectionXFrac != null
+      ? projectionXFrac * cw
+      : narrow
+        ? LANDING_PAD_X + apertureX // left-anchored: pad + aperture-within-lockup
+        : cw / 2; // centered desktop: aperture at the content-column center
 
   // ── Tier D — the glyph tile alone (favicon/app-icon scale). Defined-but-minimal. ──
   if (variant === "glyph") {
@@ -457,12 +550,13 @@ export function HeaderProjector({
   }
 
   // ── Tier A — the full projector. On the LANDING page this renders at EVERY width (no
-  // tier-drop — Iteration-2 finding 3 / design §4.7); the beam scales fluidly via the
-  // preserveAspectRatio="none" full-width SVG. The Tier B/C wrappers below remain DEFINED for
-  // the future Topic-page shared header (and forced-colors, §8.5), but on the landing page the
-  // full projector (`.tier-a`) shows at every viewport. `forced-colors: active` still forces the
-  // flat Tier-C lockup (the burn-to-white/gold cannot survive a forced palette) via the
-  // `forced-colors-flat` class (globals.css).
+  // tier-drop — design §4.7 / §7); the beam is drawn TRUE-SCALE at the real band width with the
+  // apex on the live aperture x and ASYMMETRICAL arms (Iteration-3). The header is ONE row at
+  // every width — the lockup is centered on desktop / LEFT-anchored at narrow (the auth control
+  // sits at the right in the page host); there is NO top strip and NO folded second row. The
+  // Tier B/C wrappers below remain DEFINED for the future Topic-page shared header (and
+  // forced-colors, §8.5). `forced-colors: active` forces the flat Tier-C lockup via
+  // `forced-colors-flat` (globals.css) — the burn-to-white/gold cannot survive a forced palette.
   return (
     <Container
       as={as}
@@ -470,45 +564,50 @@ export function HeaderProjector({
       accessibleName={accessibleName}
       className={`header-projector forced-colors-flat ${className}`}
     >
-      {/* The full projector with the two-temperature band + fluid beam — shown at EVERY width
-          on the landing page (no `hidden lg:block` drop). On NARROW viewports `.tier-a` gets a
-          top inset (globals.css) so the whole projector (lamp + beam + boundary, which all sit
-          inside `.projector-band` and move together) drops below the absolutely-positioned
-          top-right AuthControl — the "top bar feel, lockup below" of design §7.5. The auth is
-          absolute to the page wrapper (not the band), so it stays put; only the projector moves,
-          keeping the lamp on the beam apex. This grows the header a little on phones (a thin top
-          strip), never a "full second row," and never overlaps. */}
-      <div className="tier-a block">
+      {/* The full projector with the two-temperature band + true-scale beam — shown at EVERY
+          width (no `hidden lg:block` drop, no top strip). The lockup is positioned by the
+          live apex x, so on narrow widths it sits LEFT (apex left-of-center → short left arm,
+          long right arm) and on desktop it is centered (apex at cw/2 → arms ~equal) — design
+          §4.3/§4.7. Exposes `--projector-apex-x` so the beam and lockup share the exact apex. */}
+      <div
+        className="tier-a block"
+        style={{ ["--projector-apex-x" as string]: `${apexX.toFixed(1)}px` }}
+      >
         {/* The full-bleed two-temperature header band. min-height holds the flare room. */}
-        <div className="projector-band relative w-full" style={{ minHeight: burnY }}>
+        <div ref={bandRef} className="projector-band relative w-full" style={{ minHeight: burnY }}>
           {/* cool fluorescent field above the burn boundary */}
           <span aria-hidden="true" className="absolute inset-x-0 top-0 bg-[var(--color-header-field)]" style={{ height: burnY }} />
           {/* warm content white from the burn boundary down (the hero resolves into this) */}
           <span aria-hidden="true" className="absolute inset-x-0 bg-[var(--color-content-white)]" style={{ top: burnY, bottom: 0 }} />
 
-          {/* The geometric "+" beam (full-width, off-page gold border, clipped at burnY). */}
+          {/* The geometric "+" beam — true-scale stem + fixed 0.6 angle + ASYMMETRICAL arms,
+              each drawn to its own real edge; the bottom extends below burnY and CLIPS at burnY
+              so no horizontal gold line is drawn at the boundary (design §4.7). */}
           {fullBleed && (
             <Beam
+              cw={cw}
               burnY={burnY}
               apexY={cyMid}
               beamSlope={beamSlope}
               crossUp={crossUp}
               edgeInset={edgeInset}
-              apexXFrac={apexXFrac}
+              apexX={apexX}
             />
           )}
 
-          {/* The lockup, placed so its APERTURE CENTER sits at the content-column center =
-              the beam apex (design §4.3) — the beam projects straight down from the lamp onto
-              the search. The aperture x within the lockup is "Wiki" advance + block margin + cut
-              inset; we translate the lockup left by that (measured once; SSR-safe estimate) so
-              the aperture (not the lockup midpoint) lands at left:50%.
-              The inner `.projector-lockup-fit` SCALES the lockup down on narrow viewports
-              (design §7 / §4.7 / §7.5: "the lockup may scale down as a unit before the auth is
-              allowed to wrap") — its transform-origin is the aperture so the apex stays put. */}
+          {/* The lockup, placed so its APERTURE sits exactly on the live apex x (design §4.3):
+              left = apexX, then translate left by the aperture-within-lockup offset so the
+              aperture (not the lockup midpoint) lands on the apex. The beam projects straight
+              down from the lamp. The inner `.projector-lockup-fit` SCALES the lockup down on the
+              smallest phones (transform-origin = the aperture so the apex stays put) BEFORE the
+              auth is allowed to wrap (§7.5). */}
           <div
-            className="absolute left-1/2"
-            style={{ top: cyMid, transform: `translate(${-apertureX}px, -50%)` }}
+            className="absolute"
+            style={{
+              left: apexX,
+              top: cyMid,
+              transform: `translate(${-apertureX}px, -50%)`,
+            }}
           >
             <span
               className="projector-lockup-fit block"

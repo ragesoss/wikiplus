@@ -16,10 +16,14 @@ import { HeaderProjector } from "@/components/wordmark/HeaderProjector";
 //   (AC7, all four states preserved).
 // The search is REUSED unforked (one TopicSearch import, variant="home" — AC2).
 //
-// ── Iteration 2 (PR #61 owner findings — design §7.5): ──
-//   • The projector renders Tier A at EVERY width (no tier-drop, design §4.7) — so the header
-//     is a SINGLE row at every width: the column-centered lockup + a single right-anchored
-//     AuthControl. The auth control NEVER folds to a second row (finding 5).
+// ── Iteration 3 (PR #61, 3rd owner review — design §7.5 / §4.7): ──
+//   • The projector renders Tier A at EVERY width (no tier-drop, design §4.7), with the beam
+//     drawn TRUE-SCALE and the apex on the LIVE aperture x (asymmetrical arms).
+//   • The header is ONE ROW at every width — the lockup + a single AuthControl. NO top strip,
+//     NO folded second row (the Iteration-2 top-strip is RETRACTED, finding 5 + Iteration-3):
+//       - desktop (≥ md): lockup CENTERED in the band, auth pinned top-right.
+//       - narrow  (< md): lockup LEFT-anchored (HeaderProjector positions it left → off-center
+//         apex → short left arm + long right arm), auth at the RIGHT of the same row.
 //   • The "Contribute" link is REMOVED entirely (finding 4) — gone, not relocated.
 //   • The hero (search) is pulled UP so its top sits just below the burn boundary (burnY=150px),
 //     INSIDE the bracket arms — the beam burns into the search, not a far-off underline (§4.4).
@@ -55,20 +59,30 @@ export default function HomePage() {
       <h1 className="sr-only">wiki+</h1>
 
       {/* ── The Daylight Projector header (full-bleed so the gold border runs off both real
-          page edges). The projector renders Tier A at EVERY width (the fluid beam — design §4.7),
-          so the band is tall (burnY=150px) at every width and the header chrome is a SINGLE row:
-          the column-centered lockup + a single AuthControl right-anchored over the cool field.
-          The auth slot is ABSOLUTELY positioned top-right so it never pushes the column-centered
-          lockup off-center and NEVER folds to its own row under the lockup (§7.5, findings 4–6). ── */}
+          page edges). The projector renders Tier A at EVERY width (true-scale beam — design §4.7),
+          so the band is tall (burnY=150px) at every width and the header chrome is ONE ROW:
+          the lockup (centered on desktop / LEFT-anchored at narrow — positioned by HeaderProjector
+          on the live apex) + a single AuthControl right-anchored on the wordmark row. The auth
+          slot is ABSOLUTELY positioned right + vertically centered on the wordmark row so it never
+          pushes the lockup off its anchor and NEVER folds to its own row under the lockup — NO top
+          strip, NO second row at any width (§7.5, findings 4–6 + Iteration-3). ── */}
       <div className="relative bg-[var(--color-header-field)]">
         <HeaderProjector variant="projector" />
-        {/* The single AuthControl, right-anchored top-right of the full-bleed header, on the same
-            row as the lockup, at every width. No "Contribute" link (finding 4). The slot sits in
-            the cool fluorescent band above the burn boundary. It is absolutely positioned so it
-            never pushes the column-centered lockup off-center and NEVER folds to its own row
-            beneath the lockup (§7.5). On narrow viewports the lockup scales down
-            (`.projector-lockup-fit`) so the two coexist on one row without overlap. */}
-        <div className="auth-slot absolute right-0 top-0 z-10 flex items-start px-3 py-2.5 sm:items-center sm:px-4 sm:py-3">
+        {/* The single AuthControl, right-anchored on the SAME row as the lockup at every width.
+            No "Contribute" link (finding 4). The slot sits in the cool fluorescent band above the
+            burn boundary, vertically centered on the wordmark row (~cyMid=64px) so it reads as a
+            normal top-bar (lockup left, sign-in right) at narrow widths and as a top-right control
+            at desktop. It is absolutely positioned so it never pushes the lockup off its anchor and
+            NEVER folds to its own row beneath the lockup (§7.5). On the smallest phones the lockup
+            scales down (`.projector-lockup-fit`) so the two coexist on one row without overlap. */}
+        <div
+          className="auth-slot absolute right-0 top-0 z-10 flex items-center justify-end px-3 sm:px-4 max-[479px]:max-w-[46%] max-[359px]:max-w-[120px]"
+          style={{ height: 128 /* 2×cyMid → vertically centers the auth on the wordmark row (y≈64) */ }}
+        >
+          {/* On the smallest phones the wide "Log in with Wikipedia" button + the LEFT lockup are
+              tight on one row; capping the slot lets the button label WRAP WITHIN the button (it
+              stays on the lockup's row, just taller) — per §7.5 ("the button stays on the lockup's
+              row; the label may wrap within the button") — rather than overlap the lockup. */}
           <AuthControl variant="home" />
         </div>
       </div>

@@ -79,35 +79,34 @@ body {
   }
 }
 
-/* ── Narrow-viewport header layout (design §7 / §4.7 / §7.5). The beam stays a beam at every
-   width (no tier-drop). On narrow viewports the wide "Log in with Wikipedia" button and the
-   COLUMN-CENTERED lockup would otherwise collide in the top-right corner, so:
-   (1) `.tier-a` gets a TOP INSET that drops the whole projector (lamp + beam + boundary, all
-       inside `.projector-band`, so they move together and the lamp stays on the beam apex)
-       below the absolutely-positioned auth — the "top bar feel, lockup below" of §7.5. The auth
-       is absolute to the page wrapper, so it stays put; only the projector moves. This is a thin
-       top strip, never a "full second row," and never overlaps the wordmark.
-   (2) the LOCKUP also scales down a touch as a unit (transform-origin = the aperture, set
-       inline, so the apex stays anchored to the content-column center) so it fits the narrow
-       viewport. Full-size on desktop + tablet (≥ md), where the centered lockup + top-right auth
-       already coexist with room to spare. */
+/* ── Header layout: ONE ROW at every width (design §7 / §4.7 / §7.5, Iteration-3). The beam stays
+   a beam at every width (no tier-drop) and the header is a SINGLE row — there is NO top strip and
+   NO folded second row (the Iteration-2 top-strip is RETRACTED).
+   • Desktop (≥ md): the lockup is CENTERED (apex at cw/2) and the auth sits top-right — they
+     coexist on one row with room to spare.
+   • Narrow (< md): the lockup is LEFT-anchored (apex left-of-center → short left arm, long right
+     arm) and the auth sits at the right of the SAME row. The lockup stays at the wordmark row
+     (top: cyMid); it does NOT drop below the auth.
+   The lockup scales down a touch only on the smallest phones (transform-origin = the aperture, set
+   inline, so the apex stays put) so the LEFT lockup + the RIGHT "Log in with Wikipedia" button fit
+   one row without colliding — the lockup scales BEFORE the auth is allowed to wrap (§7.5). The beam
+   scales with the lockup (its apex is the transform-origin), so it stays true-scale. */
 .tier-a {
   padding-top: 0;
 }
 .projector-lockup-fit {
   transform: scale(1);
 }
-@media (max-width: 767px) {
-  .tier-a {
-    padding-top: 44px; /* clears the top-right auth (min-h-44) → lockup sits below it */
-  }
+@media (max-width: 479px) {
+  /* Smallest phones: the left lockup + the wide right auth button are tight on one row, so the
+     lockup scales down as a unit (apex anchored) before the auth wraps. Still ONE row. */
   .projector-lockup-fit {
-    transform: scale(0.84);
+    transform: scale(0.82);
   }
 }
-@media (max-width: 479px) {
+@media (max-width: 359px) {
   .projector-lockup-fit {
-    transform: scale(0.72);
+    transform: scale(0.7);
   }
 }
 
