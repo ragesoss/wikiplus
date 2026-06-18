@@ -113,6 +113,19 @@ Plus two more requirements this iteration locks:
   spilling onto the indigo** (per the mockup's `?solo=01`), **not a flat white cutout.** The build's
   aperture lost its luminosity, which is part of why the gold edge reads flat. Strengthen the core
   glow / screen-blend bleed so the lit aperture matches the mockup. → §4.6 (renamed to the lamp section).
+- **The "underline" is the beam polygon's BOTTOM CLOSING EDGE drawn AT `burnY` — clip it away (owner's
+  exact clarification this round).** The owner pinned the residual "gold underline" to a specific
+  geometry point: it is the **full-width horizontal gold line (with glow) spanning the page at `burnY`,
+  the very bottom edge of the header**, produced because the build's `Beam()` polygon **closes its two
+  bottom vertices *at* `burnY`** (`[LX−dn, burnY] → [RX+dn, burnY]`), so that closing edge is stroked as
+  a horizontal line. The **crossbar arms higher up (at `crossY`) and the brackets returning to their
+  downward angle are CORRECT and intended** (they are in the mockup) — it is **only this bottom closing
+  edge at `burnY`** that must not appear. **Fix:** the beam's bottom must extend **below** `burnY` and be
+  **clipped at `burnY`** (matching the mockup, where `coneBot` sits *below* `pageY` and the scene is
+  clipped at `pageY`), so the closing bottom edge is clipped away off-screen. **There must be NO
+  horizontal gold line/stroke spanning the page width at `burnY`**; near the boundary only the crossbar
+  arms (above it) and the diagonal brackets exiting the left/right viewport edges are visible, and the
+  white beam interior meets the white content with no horizontal line. → §4.5, §4.7 (decision 4).
 
 These supersede the Iteration-2 §4.7 "fluid beam (stretch)" mechanism wherever they conflict. The
 *intent* of Iteration 2 (beam at every width, tight seam, tight composition, no underline, no
@@ -431,6 +444,19 @@ edge-glow (`drop-shadow(0 0 4px …) drop-shadow(0 0 11px …)`) lives **only at
 at `burnY`** so it never bleeds onto the white hero below. This is the single visible light signal;
 the hero interior is plain white.
 
+**The "gold border off both edges" is NOT a full-width horizontal line — the exact defect to avoid
+(owner, Iteration-3 underline clarification).** The visible gold at the boundary is *only* the two
+**diagonal brackets** turning down-and-off the **left and right viewport edges** (the off-page `dn`
+expansion of the arms), plus the **crossbar arms** that sit *above* `burnY`. There must be **NO
+horizontal gold line or stroke spanning the page width at `burnY`** (the very bottom edge of the
+header). The mechanism that guarantees this is in §4.7: **the beam polygon's bottom must extend
+*below* `burnY` and be *clipped at* `burnY`, so the polygon's closing bottom edge is clipped away
+off-screen — it is never drawn as a stroke at the boundary.** At/near the boundary the gold therefore
+**exits at the two sides** (the brackets running off the edges); it does **not** cross the page
+horizontally. The white beam interior meets the white content **seamlessly, with no horizontal line.**
+(Confirm against `mockups/wordmark-projector-illuminate.html?solo=01`: there is no full-width
+horizontal gold line at the content boundary — the gold leaves the frame at the sides.)
+
 ### 4.6 The lit aperture — a GLOWING lamp, not a flat cutout (Iteration-3: restore the glow)
 
 The lit "+" aperture must read as a **white-hot lamp glowing through the block, with bloom spilling
@@ -506,6 +532,20 @@ length.** The beam is three conceptually separate things composed at the apex:
    bracket drop. They do not change with width. So the beam is never a stubby horizontal sliver and never
    a flattened line — it is always a legible projected "+": **narrow true-scale stem under the lamp →
    crossbar → arms to both real edges → brackets off-page enclosing the search.**
+4. **The beam's bottom extends BELOW `burnY` and is CLIPPED AT `burnY` — so its closing bottom edge is
+   never drawn at the boundary (owner, Iteration-3 underline clarification — the precise root-cause
+   fix).** The defect in the current build: the beam polygon **closes its two bottom vertices sitting
+   *at* `burnY`** (the closing edge runs `[LX−dn, burnY] → [RX+dn, burnY]`), so that bottom edge is
+   stroked as a **full-width horizontal gold line with glow, spanning the page at the very bottom of the
+   header** = the "underline." **Fix (this is how the mockup avoids it):** the beam geometry must extend
+   **below** the burn/clip boundary (in the mockup's `buildScene()`, `coneBot` is *below* `pageY`) and
+   then be **clipped at `burnY`** (the mockup clips at `pageY`). Because the polygon's bottom closing
+   edge lies *below* the clip line, **it is clipped away off-screen and is NEVER rendered as a stroke at
+   `burnY`.** What remains at/near the boundary is **only** the two **diagonal brackets running off the
+   left/right viewport edges** (the `dn` off-page turn-downs) — plus the **crossbar arms above the
+   boundary**. The white beam interior meets the white content **seamlessly: NO horizontal gold
+   line/stroke spanning the page width at `burnY`.** This is non-negotiable and is the single most
+   important geometry point of this iteration.
 
 **SSR-safe way to reach the real edges without stretching the stem (the requirement; technique is Dev's
 call).** The hard requirement: **the stem and flare are drawn at true pixel scale and the angle is never
@@ -536,8 +576,13 @@ picks; both avoid DOM measurement at first paint):
 The non-negotiable contract for Dev, regardless of technique: **the central stem width = the "+" cutout
 width and the flare angle = `0.6`, both at true 1:1 scale at every viewport width; the two horizontal arms
 are asymmetrical and each reaches `edgeInset` from its own real page edge; arm length is the only thing
-that varies.** If a render shows the stem widened or the angle flattened as the viewport changes, the
-stretch bug is back — reject it.
+that varies; AND the beam's bottom extends *below* `burnY` and is *clipped at* `burnY`, so its closing
+bottom edge is clipped away and NO horizontal gold line/stroke spans the page width at `burnY` (§4.5,
+decision 4 above).** If a render shows the stem widened or the angle flattened as the viewport changes,
+the stretch bug is back — reject it. If a render shows **any full-width horizontal gold line at the
+bottom edge of the header** (at `burnY`), the closing-edge "underline" bug is back (the polygon was
+closed *at* `burnY` instead of below it and clipped) — reject it. At/near the boundary the gold must
+exit only at the **two sides** (brackets off the left/right edges), never across the page.
 
 **Coherence at narrow widths.** The **lockup stays tight** (§4.3-seam — block butts "Wiki", no gap) and
 fully visible; the **lit aperture (glowing lamp + bleed) renders at every width** (§4.6); the **"pedia"
