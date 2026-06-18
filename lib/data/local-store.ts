@@ -35,6 +35,20 @@ function uid(): string {
   return "c_" + Math.random().toString(36).slice(2, 10);
 }
 
+// D5c (issue #59): the private soft-removal tombstone marker the reference impl stamps on a stored
+// clip row (NOT part of the public `Clip` type — Decision 5: the client carries no removed field).
+// A removed clip keeps its row in storage but is excluded from the reads via `isRemoved`, the
+// reference parallel of the DrizzleDataStore's `removed_at IS NULL` read filter.
+type RemovedMarker = {
+  __removedAt?: string;
+  __removedBy?: number | null;
+  __removedReason?: string | null;
+};
+
+function isRemoved(c: Clip): boolean {
+  return Boolean((c as Clip & RemovedMarker).__removedAt);
+}
+
 export class LocalStorageDataStore implements DataStore {
   async listTopics(): Promise<Topic[]> {
     return read<Topic>(TOPICS_KEY);
@@ -60,8 +74,12 @@ export class LocalStorageDataStore implements DataStore {
   }
 
   async listClips(topicQid: string): Promise<Clip[]> {
+    // D5c (issue #59): a soft-removed clip leaves the read (the reference parallel of the
+    // DrizzleDataStore's `removed_at IS NULL` filter). The reference impl marks a removed clip with
+    // a private `__removedAt` on the persisted row (the client `Clip` carries NO removed field —
+    // Decision 5) and excludes it here, mirroring the production read exclusion.
     return read<Clip>(CLIPS_KEY)
-      .filter((c) => c.topicQid === topicQid)
+      .filter((c) => c.topicQid === topicQid && !isRemoved(c))
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   }
 
@@ -125,6 +143,32 @@ export class LocalStorageDataStore implements DataStore {
     return clips[i];
   }
 
+  // D5c (issue #59): the moderator soft-removal (reference impl). The production role-gate lives in
+  // `removeClipAction` (moderator-only, no own-curator arm); this reference impl just persists the
+  // tombstone marker. SOFT — the row PERSISTS in storage with a private `__removedAt` (NOT a hard
+  // `deleteClip`), so a removed clip leaves the read (`listClips`/`listClipsByContributor` exclude
+  // it via `isRemoved`) while the row remains — the parallel of the DB tombstone. `vetted`/`held`
+  // is left untouched (a removed clip is independent of its held state). The reason is recorded on
+  // the marker for parity; it is never reader-facing.
+  async removeClip(
+    id: string,
+    removedBy?: number,
+    reason?: string | null
+  ): Promise<Clip> {
+    const clips = read<Clip>(CLIPS_KEY);
+    const i = clips.findIndex((c) => c.id === id);
+    if (i < 0) throw new Error(`Clip ${id} not found`);
+    const marked = {
+      ...clips[i],
+      __removedAt: new Date().toISOString(),
+      __removedBy: removedBy ?? null,
+      __removedReason: reason ?? null,
+    } as Clip & RemovedMarker;
+    clips[i] = marked;
+    write(CLIPS_KEY, clips);
+    return marked;
+  }
+
   // ── Public contributor profile reads (issue #54 / D3 — reference impl over `curatedBy`). ──
   // The localStorage store has no `contributor` table — clips carry only the `curatedBy` handle
   // string. The reference impl therefore derives a STABLE synthetic id from the sorted set of
@@ -160,7 +204,9 @@ export class LocalStorageDataStore implements DataStore {
     if (!username) return [];
     const topics = read<Topic>(TOPICS_KEY);
     return read<Clip>(CLIPS_KEY)
-      .filter((c) => c.curatedBy === username)
+      // D5c (issue #59): a soft-removed clip leaves the profile read too (`!isRemoved`), parallel to
+      // the DrizzleDataStore's `removed_at IS NULL` filter on `listClipsByContributor`.
+      .filter((c) => c.curatedBy === username && !isRemoved(c))
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
       .map((c) => ({
         ...c,

@@ -15,6 +15,7 @@ import { CitationLayer } from "@/components/topic/CitationLayer";
 import { ClipCard } from "@/components/topic/ClipCard";
 import { CurateModal } from "@/components/topic/CurateModal";
 import { DeleteConfirmDialog } from "@/components/topic/DeleteConfirmDialog";
+import { RemoveConfirmDialog } from "@/components/topic/RemoveConfirmDialog";
 import { EditModal } from "@/components/topic/EditModal";
 import type { ClipEditFormPatch } from "@/components/topic/curate-clip";
 import type { SubmitOutcome } from "@/components/topic/useCurateSubmit";
@@ -166,6 +167,10 @@ export function TopicView() {
   // D2 (issue #53): the clip currently being edited / the clip pending delete-confirmation.
   const [editClip, setEditClip] = useState<Clip | null>(null);
   const [deleteFor, setDeleteFor] = useState<Clip | null>(null);
+  // D5c (issue #59): the clip pending the moderator Remove-confirmation (the RemoveConfirmDialog
+  // target — set by the Remove affordance, cleared on cancel/success). Distinct from `deleteFor`
+  // (the D2 owner-delete confirm) — a separate dialog, action, and persistence (soft vs. hard).
+  const [removeFor, setRemoveFor] = useState<Clip | null>(null);
 
   const [activeSlug, setActiveSlug] = useState<string | null>(null);
 
@@ -935,6 +940,17 @@ export function TopicView() {
     (clip: Clip): boolean => Boolean(clip.held) && isModerator,
     [isModerator]
   );
+  // D5c (issue #59, design §4.1): the Remove-affordance predicate — MODERATOR-ONLY, on ANY clip,
+  // with NO own-curator OR-arm (the KEY contrast with `canHold`). A curator who is not a moderator
+  // never sees Remove, even on their own clip (they have D2 Delete for that). Off the read path
+  // (the `isModerator` claim is already read for D5b) — no read-path cost (AC7). NOT the security
+  // control: `removeClipAction` re-resolves the role server-side and rejects a non-moderator (incl.
+  // the clip's own curator) regardless of any button (AC2/AC3). `_clip` is unused — Remove renders
+  // for a moderator on every clip, never gated by the clip's chips/owner/held state.
+  const canRemove = useCallback(
+    (_clip: Clip): boolean => isModerator,
+    [isModerator]
+  );
   const reviewInFlight = useCallback(
     (clip: Clip): boolean => reviewInFlightIds.has(clip.id),
     [reviewInFlightIds]
@@ -1178,6 +1194,48 @@ export function TopicView() {
     })();
   }, [deleteFor, focusBandHeading, showExpiredGate]);
 
+  // Remove confirm (issue #59 / D5c, design §5.5 / §6). MIRRORS `onDeleteConfirm`: the
+  // RemoveConfirmDialog runs this with the OPTIONAL audit-only reason; the host calls the
+  // role-gated `removeClipAction` (server re-resolves the moderator role — no own-curator arm),
+  // then FILTERS the clip out of the in-memory `clips` set so it disappears with NO reload (counts
+  // drop; the last clip flips curated→empty via the existing `mode = clips.length > 0` switch). The
+  // SERVER soft-remove (`removed_at` set) + the `removed_at IS NULL` read filter are the durable
+  // truth; this in-memory filter is the no-reload reflect (the clip leaves the read either way).
+  // Because the card is REMOVED, focus must not be lost to <body>: move it to `focusBandHeading()`
+  // (the same removed-node anchor D2 Delete uses — §6.2) after the shell's `prevActive` fires (the
+  // rAF pattern). The THREE-ARM catch (§5.5, mutually exclusive): isAuthRequired → the expired gate
+  // (dialog closes via "expired"); isRateLimited → the calm limit notice in the dialog (it stays
+  // open via "limited"); else throw (the dialog keeps open with its role="alert"). No false success
+  // — the clip only leaves the page on a real server success.
+  const onRemoveConfirm = useCallback(
+    (reason: string | null): Promise<SubmitOutcome> => {
+      const target = removeFor;
+      if (!target) return Promise.resolve<SubmitOutcome>({ outcome: "added" });
+      return (async () => {
+        try {
+          await store.removeClip(target.id, undefined, reason);
+          setClips((prev) => prev.filter((c) => c.id !== target.id));
+          if (typeof requestAnimationFrame !== "undefined") {
+            requestAnimationFrame(() => focusBandHeading());
+          } else {
+            focusBandHeading();
+          }
+          return { outcome: "added" } satisfies SubmitOutcome;
+        } catch (err) {
+          if (isAuthRequired(err)) {
+            showExpiredGate();
+            return { outcome: "expired" } satisfies SubmitOutcome;
+          }
+          if (isRateLimited(err)) {
+            return { outcome: "limited" } satisfies SubmitOutcome;
+          }
+          throw err;
+        }
+      })();
+    },
+    [removeFor, focusBandHeading, showExpiredGate]
+  );
+
   const sectionList = useMemo(
     () => (article?.sections ?? []).map((s) => ({ slug: s.slug, title: s.title })),
     [article]
@@ -1282,6 +1340,11 @@ export function TopicView() {
           reviewInFlight={reviewInFlight}
           onHold={runHold}
           onApprove={runApprove}
+          /* D5c (issue #59, design §4.2): the moderator-only Remove affordance on General tiles,
+             reusing the SAME off-read-path `canRemove` predicate + the SAME setRemoveFor the rail
+             uses. The server-side role-gate is the security control; this affordance mirrors it. */
+          canRemove={canRemove}
+          onRemove={(c) => setRemoveFor(c)}
         />
       )}
 
@@ -1420,6 +1483,9 @@ export function TopicView() {
                     reviewInFlight={reviewInFlight(clip)}
                     onHold={runHold}
                     onApprove={runApprove}
+                    /* D5c (issue #59, design §4.2): moderator-only Remove on the rail card. */
+                    canRemove={canRemove(clip)}
+                    onRemove={(c) => setRemoveFor(c)}
                     cardRef={(el) => {
                       if (el) cardEls.current.set(clip.id, el);
                       else cardEls.current.delete(clip.id);
@@ -1535,6 +1601,19 @@ export function TopicView() {
           clip={deleteFor}
           onClose={() => setDeleteFor(null)}
           onConfirm={onDeleteConfirm}
+        />
+      )}
+
+      {/* Moderator-only Remove confirm dialog (D5c, design §5). Cancel-as-default; the destructive
+          confirm runs the role-gated removeClipAction with the OPTIONAL audit-only reason. On
+          success the host filters the clip out of `clips` (no reload — soft-removed server-side; the
+          read excludes it) and moves focus to the band heading (§6.2). Distinct from the D2 Delete
+          confirm above (soft tombstone vs. hard delete; "Remove clip" vs. "Delete clip"). */}
+      {removeFor && (
+        <RemoveConfirmDialog
+          clip={removeFor}
+          onClose={() => setRemoveFor(null)}
+          onConfirm={onRemoveConfirm}
         />
       )}
 

@@ -29,9 +29,11 @@ export function ClipCard({
   onDelete,
   canHold = false,
   canApprove = false,
+  canRemove = false,
   reviewInFlight = false,
   onHold,
   onApprove,
+  onRemove,
   cardRef,
 }: {
   clip: Clip;
@@ -54,12 +56,16 @@ export function ClipCard({
   canHold?: boolean;
   /** D5b (issue #58, design §4.1): show "Approve" (moderator only, held clip). */
   canApprove?: boolean;
+  /** D5c (issue #59, design §4.1): show "Remove (moderator)" (moderator only, any clip — no own-curator arm). */
+  canRemove?: boolean;
   /** D5b (issue #58, design §5.2): a hold/approve for THIS clip is in flight → busy word + disable. */
   reviewInFlight?: boolean;
   /** D5b (issue #58): activate Hold (host's runHold → role-gated holdClipAction). */
   onHold?: (clip: Clip) => void;
   /** D5b (issue #58): activate Approve (host's runApprove → role-gated reviewClipAction). */
   onApprove?: (clip: Clip) => void;
+  /** D5c (issue #59): open the Remove confirm for this clip (host's setRemoveFor → removeClipAction). */
+  onRemove?: (clip: Clip) => void;
   cardRef?: (el: HTMLElement | null) => void;
 }) {
   return (
@@ -193,9 +199,11 @@ export function ClipCard({
         clip={clip}
         canHold={canHold}
         canApprove={canApprove}
+        canRemove={canRemove}
         inFlight={reviewInFlight}
         onHold={onHold}
         onApprove={onApprove}
+        onRemove={onRemove}
         size="rail"
       />
     </article>

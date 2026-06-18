@@ -50,6 +50,13 @@
       "when": 1781800839683,
       "tag": "0006_useful_the_phantom",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1781805176306,
+      "tag": "0007_regular_scorpion",
+      "breakpoints": true
     }
   ]
 }

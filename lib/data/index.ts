@@ -12,6 +12,7 @@ import {
   listClipsByContributorAction,
   listTopicsAction,
   recordDismissalAction,
+  removeClipAction,
   reviewClipAction,
   toggleUpvoteAction,
   updateClipAction,
@@ -68,6 +69,12 @@ const clientStore: DataStore = {
   // write (the host's runHold/runApprove call this — never a client role flag).
   setClipVetted: (id, vetted) =>
     vetted ? reviewClipAction(id) : holdClipAction(id),
+  // D5c (issue #59): the moderator-only soft-removal. The seam's `removeClip(id, _removedBy, reason)`
+  // routes to the role-gated `removeClipAction` — the client passes only the clip id + the OPTIONAL
+  // audit reason; the server resolves the acting moderator (`removedBy`) and gates the write
+  // MODERATOR-ONLY (no own-curator arm). The seam's `removedBy` param is server-internal, unused
+  // here (the boundary resolves it from the session — never a client-supplied remover).
+  removeClip: (id, _removedBy, reason) => removeClipAction(id, reason),
   // Public contributor profile reads (issue #54 / D3) — anonymous, like `listClips`.
   getContributorByUsername: (username) =>
     getContributorByUsernameAction(username),

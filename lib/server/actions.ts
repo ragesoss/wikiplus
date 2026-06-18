@@ -389,6 +389,68 @@ export async function reviewClipAction(clipId: string): Promise<Clip> {
   return result;
 }
 
+// ── Moderator removal: soft-remove any clip (issue #59 / D5c — AC1–AC7, Decisions 1–4) ───────
+// The §7 "removable content" enforcement: a MODERATOR removes an ABUSIVE clip (CURATION §7.2). The
+// THIRD privileged action, reusing D5b's role model exactly — the SECOND capability gated on the
+// same server-side `isModeratorContributor` (D5b's reviewer approves/holds; D5c's moderator
+// removes). It slots into the established gate→limit→role→write order, but with the KEY contrast:
+// the role check is MODERATOR-ONLY — there is NO own-curator OR-arm (unlike `holdClipAction`).
+// Removal of ANYONE's clip is the privileged reach; a curator wanting THEIR OWN clip gone uses D2
+// owner-delete. A non-moderator (INCLUDING the clip's own curator acting as a non-moderator) and an
+// anonymous caller are rejected server-side and the clip stays live (AC2/AC3 — the load-bearing
+// security tests, at the action on the ROLE, never a hidden button).
+//
+// The removal is a SOFT tombstone (Decision 1), NOT a hard delete (the contrast with
+// `deleteClipAction`): `removed_at`/`removed_by`/optional `removed_reason` are set, the row PERSISTS
+// as the §7 audit trail, and the clip leaves the read (`listClips` filters `removed_at IS NULL`).
+// DISTINCT from the D5b `vetted` hold (an independent column — Decision 3 / AC5). The action NEVER
+// gates on or reads `accuracy_flag` (Decision 2 / C9) — a human moderator judges abuse; an honest
+// `opinion`/`mixed`/`inaccurate` clip with a fair note is legitimately curatable, NOT removable.
+
+/**
+ * Soft-remove a clip (publish/held → removed). MODERATOR-ONLY (Decision 2): allowed iff the acting
+ * contributor is a moderator (`isModeratorContributor` — the D5b resolver, DB column OR env
+ * allowlist, server-side authority, NEVER a client flag). There is NO own-curator arm — a
+ * non-moderator (including the clip's own curator) and an anonymous caller are rejected server-side
+ * and the clip stays live (AC2/AC3). On pass, sets the soft-removal tombstone (`removed_at = now()`,
+ * `removed_by` = the acting moderator, the OPTIONAL audit-only `reason`) so the clip stops showing
+ * while its row persists. The `reason` NEVER gates the removal (Decision 4) and is NEVER shown to a
+ * reader (it is audit metadata only). Returns the removed `Clip` so the client filters it out of the
+ * in-memory set with no reload (AC1). A `remove` `kind` is appended to `write_event` (no schema
+ * change — the `kind` column already exists).
+ */
+export async function removeClipAction(
+  clipId: string,
+  reason?: string | null
+): Promise<Clip> {
+  // GATE FIRST (AC3): an anonymous caller is rejected before the rate-limit or role check.
+  const { contributorId } = await requireContributor();
+  // LIMIT SECOND (D5a, gate→limit→role→write): reject + write nothing if over cap (a pure read).
+  const db = getDb();
+  await checkWriteRateLimit(db, contributorId);
+  // ROLE CHECK THIRD — MODERATOR-ONLY (Decision 2 / AC2, the load-bearing security test): NO
+  // own-curator arm. Load the clip to confirm it exists, then allow ONLY if the actor is a
+  // moderator. A non-moderator (incl. the clip's own curator) is rejected here and writes nothing.
+  // Resolved server-side via `isModeratorContributor` (DB OR env), never a client "isModerator".
+  const s = store();
+  const owner = await s.clipOwnership(clipId);
+  if (!owner) throw new Error(`Clip ${clipId} not found`);
+  const isModerator = await isModeratorContributor(db, contributorId);
+  if (!isModerator) {
+    throw new Error("Not authorized to remove this clip.");
+  }
+  // NEVER gate on or read `accuracy_flag` (Decision 2 / C9) — the role is the only gate. The reason
+  // is captured as-supplied (a closed-set + free-text string composed client-side); cap its length
+  // as the cheap server-side stopgap on free text (it is never reader-facing, but still input).
+  const auditReason =
+    typeof reason === "string" && reason.length > 0
+      ? capText(reason, "removedReason")
+      : null;
+  const result = await s.removeClip(clipId, contributorId, auditReason);
+  await recordWriteEvent(db, contributorId, "remove");
+  return result;
+}
+
 // ── Public contributor profile reads (issue #54 / D3 — AC1–AC4) ──────────────────────────
 // Both are READS and are deliberately ANONYMOUS — NO `requireContributor()` gate, exactly like
 // `listClips`/`getTopic` above. A public profile is browsable logged-out (AC1); gating it would
