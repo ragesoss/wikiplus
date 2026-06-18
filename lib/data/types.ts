@@ -155,6 +155,18 @@ export interface Clip extends VideoBase {
 }
 
 /**
+ * The result of `toggleUpvoteAction` / the seam's `toggleUpvote` (issue #55 / D4, Decision 4).
+ * The server returns the NEW per-viewer state so the client reconciles to the authoritative
+ * truth, not a client-side guess: `voted` = does THIS viewer now have a `clip_vote` row, and
+ * `count` = the DERIVED public total `(clip.upvotes ?? 0) + COUNT(distinct clip_vote rows)`
+ * (Decision 2 — never a mutated counter, so it cannot drift).
+ */
+export interface UpvoteToggle {
+  voted: boolean;
+  count: number;
+}
+
+/**
  * A clip as listed on a contributor's PUBLIC PROFILE (issue #54 / D3, AC1). It is an ordinary
  * `Clip` carried OUT of its Topic-page setting, so it additionally names its parent topic for
  * the profile row's "On <Topic>" link (design §5.1): the topic title (display) drives the link

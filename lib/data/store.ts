@@ -5,6 +5,7 @@ import type {
   ContributorClip,
   PublicContributor,
   Topic,
+  UpvoteToggle,
 } from "./types";
 
 // The `DataStore` interface — the data-access seam. `./index.ts` is the single place that
@@ -158,6 +159,33 @@ export interface DataStore {
    * to exactly this contributor's `curatorId` — a clip curated by anyone else is excluded.
    */
   listClipsByContributor(contributorId: number): Promise<ContributorClip[]>;
+
+  // ── Upvotes (issue #55 / D4 — a persisted, one-per-user, toggleable signal). ────────
+  /**
+   * Toggle the signed-in contributor's upvote on a clip (Decision 4). The auth-gated
+   * `toggleUpvoteAction` resolves the session via `requireContributor()` FIRST (an anonymous
+   * or expired call rejects with `AuthRequiredError` before any DB touch — AC4/AC5), then:
+   * inserts a `clip_vote` row if absent (now voted) / deletes it if present (now un-voted).
+   * The insert is an upsert (`onConflictDoNothing` on the `(clip, contributor)` unique
+   * constraint) so a racing double-insert lands voted, not throwing (AC3). Returns the NEW
+   * per-viewer state `{ voted, count }` (count = the DERIVED total `(clip.upvotes ?? 0) +
+   * distinct vote rows` — Decision 2), so the client reconciles to the server's truth without
+   * a reload. `contributorId` is server-internal (the boundary resolves it); the client facade
+   * passes the clip id only — the optional shape keeps the store-level tests + reference impl
+   * callable with an explicit contributor.
+   */
+  toggleUpvote(clipId: string, contributorId?: number): Promise<UpvoteToggle>;
+  /**
+   * The subset of `clipIds` the given viewer has upvoted (issue #55 / D4 — Decision 6). The
+   * PER-VIEWER "have I voted?" read, resolved in the ALREADY-AUTHENTICATED client session and
+   * scoped to the visible clips — NEVER baked into `listClips` or the cached/SSG topic shell, so
+   * an anonymous topic load does ZERO voted-state work (AC6/AC7). Mirrors how D2/D3 compute the
+   * owner affordance from `myContributorId` in the client session with no read-path cost. Routed
+   * through `votedClipIdsAction` which gates on `requireContributor()` (a logged-out caller gets
+   * an empty set, never a per-user query on the read path). The displayed COUNT is public and
+   * rides the topic read (`listClips`); only this voted-state is off the read path.
+   */
+  votedClipIds(clipIds: string[], contributorId?: number): Promise<string[]>;
 
   // ── Sticky candidate dismissals (issue #45). ─────────────────────────────────────
   // Moved behind the store boundary so a dismissal is SHARED + DURABLE like a clip:

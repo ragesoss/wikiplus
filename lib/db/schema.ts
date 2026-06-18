@@ -205,23 +205,69 @@ export const dismissedCandidate = pgTable(
   ]
 );
 
+/**
+ * One contributor's upvote on one clip (issue #55 / D4 — Decision 1). The "I'm glad I watched
+ * this" reader signal, tied to a real Wikimedia identity. ONE-PER-USER is a DB INVARIANT, not
+ * app logic: the `unique(clip_id, contributor_id)` constraint makes a duplicate insert collide
+ * on the constraint regardless of races, so a racing double-insert lands voted, never doubled
+ * (AC3). The displayed count is DERIVED — `(clip.upvotes ?? 0) + COUNT(clip_vote rows)` — never
+ * a mutated counter, so it cannot drift (Decision 2); the legacy `clip.upvotes` column stays a
+ * FROZEN seed baseline and is never written by a vote. Same DB-enforced-uniqueness pattern as
+ * `account_provider_identity` and `dismissed_candidate_identity`.
+ */
+export const clipVote = pgTable(
+  "clip_vote",
+  {
+    id: serial("id").primaryKey(),
+    clipId: integer("clip_id")
+      .notNull()
+      // Cascade: deleting a clip removes its votes (matches D2's hard delete + the clip→topic
+      // cascade). A vote against a deleted clip is meaningless.
+      .references(() => clip.id, { onDelete: "cascade" }),
+    contributorId: integer("contributor_id")
+      .notNull()
+      // Cascade (Decision 1, the clean default): a null contributor cannot carry the
+      // one-per-user meaning, so the FK is NOT NULL and a removed contributor drops their votes.
+      .references(() => contributor.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    // The one-per-user enforcement (AC3) — a single (clip, contributor) row at most. This unique
+    // index also serves the per-viewer `(contributor_id, clip_id)` voted-state lookup and is the
+    // index backing the per-clip `COUNT(... WHERE clip_id = ?)` derivation.
+    unique("clip_vote_identity").on(t.clipId, t.contributorId),
+  ]
+);
+
 // ── Relations (typed joins; Drizzle relational queries) ─────────────────────────────
 export const topicRelations = relations(topic, ({ many }) => ({
   clips: many(clip),
   dismissals: many(dismissedCandidate),
 }));
 
-export const clipRelations = relations(clip, ({ one }) => ({
+export const clipRelations = relations(clip, ({ one, many }) => ({
   topic: one(topic, { fields: [clip.topicId], references: [topic.id] }),
   curator: one(contributor, {
     fields: [clip.curatorId],
     references: [contributor.id],
   }),
+  votes: many(clipVote),
 }));
 
 export const contributorRelations = relations(contributor, ({ many }) => ({
   accounts: many(account),
   clips: many(clip),
+  votes: many(clipVote),
+}));
+
+export const clipVoteRelations = relations(clipVote, ({ one }) => ({
+  clip: one(clip, { fields: [clipVote.clipId], references: [clip.id] }),
+  contributor: one(contributor, {
+    fields: [clipVote.contributorId],
+    references: [contributor.id],
+  }),
 }));
 
 export const accountRelations = relations(account, ({ one }) => ({
@@ -252,3 +298,4 @@ export type TopicRow = typeof topic.$inferSelect;
 export type ClipRow = typeof clip.$inferSelect;
 export type ContributorRow = typeof contributor.$inferSelect;
 export type DismissedCandidateRow = typeof dismissedCandidate.$inferSelect;
+export type ClipVoteRow = typeof clipVote.$inferSelect;

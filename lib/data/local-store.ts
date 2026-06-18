@@ -8,12 +8,14 @@ import type {
   ContributorClip,
   PublicContributor,
   Topic,
+  UpvoteToggle,
 } from "./types";
 
 const TOPICS_KEY = "wikiplus.topics";
 const CLIPS_KEY = "wikiplus.clips";
 const CANDIDATES_KEY = "wikiplus.candidates";
 const DISMISSED_KEY = "wikiplus.dismissed_candidates";
+const VOTES_KEY = "wikiplus.clip_votes";
 
 function read<T>(key: string): T[] {
   if (typeof window === "undefined") return [];
@@ -182,6 +184,29 @@ export class LocalStorageDataStore implements DataStore {
       if (platform && videoId) out.add(`${platform}:${videoId}`);
     }
     return [...out];
+  }
+
+  // ── Upvotes (issue #55 / D4 — reference impl). ─────────────────────────────────────
+  // The localStorage store is a single-browser, single-"user" reference impl with no real
+  // `contributor` identity (the production path is `DrizzleDataStore` with the real per-user
+  // `clip_vote` table + the `(clip,contributor)` unique constraint). Here a vote is just the set
+  // of clip ids this browser has voted, so the toggle is a Set add/remove and the derived count is
+  // the seed baseline + 1 when voted. This keeps the seam contract satisfiable in the reference
+  // impl / non-DB tests; the one-per-user DB invariant + the gate are exercised against the real
+  // DrizzleDataStore (pglite).
+  async toggleUpvote(clipId: string): Promise<UpvoteToggle> {
+    const voted = new Set(read<string>(VOTES_KEY));
+    const nowVoted = !voted.has(clipId);
+    if (nowVoted) voted.add(clipId);
+    else voted.delete(clipId);
+    write(VOTES_KEY, [...voted]);
+    const baseline = read<Clip>(CLIPS_KEY).find((c) => c.id === clipId)?.upvotes ?? 0;
+    return { voted: nowVoted, count: baseline + (nowVoted ? 1 : 0) };
+  }
+
+  async votedClipIds(clipIds: string[]): Promise<string[]> {
+    const voted = new Set(read<string>(VOTES_KEY));
+    return clipIds.filter((id) => voted.has(id));
   }
 
   /** Seed helpers (used by lib/data/index.ts). */

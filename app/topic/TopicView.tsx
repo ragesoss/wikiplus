@@ -103,6 +103,21 @@ export function TopicView() {
   // Optimistic-dismissal failure notice (design §"dismissal — optimistic rollback"): a
   // non-blocking polite line shown when a dismissal write fails and the card reappears.
   const [dismissError, setDismissError] = useState(false);
+  // ── Upvotes (issue #55 / D4). ──────────────────────────────────────────────────────────
+  // The PER-VIEWER voted-state — the set of clip ids THIS viewer has upvoted — resolved in the
+  // ALREADY-AUTHENTICATED client session, OFF the cached read path (Decision 6 / design §8). It
+  // hydrates AFTER the topic shell renders (the hydrate-on-mount effect below); an anonymous load
+  // does ZERO voted-state work. The DISPLAYED count rides `clips` (the derived total `listClips`
+  // computed — public, Decision 2). An optimistic ±1 to the count lives in `clips` directly (the
+  // same in-memory clip-state the add/edit/delete paths mutate), reconciled to the server's
+  // authoritative `{ voted, count }` on the toggle's return.
+  const [votedClipIds, setVotedClipIds] = useState<Set<string>>(new Set());
+  // Non-blocking polite notice when a non-auth toggle write fails (design §6.4). The rolled-back
+  // count/state is the honest signal; this line names why.
+  const [upvoteError, setUpvoteError] = useState(false);
+  // Per-clip in-flight guard (design §2.4.5): a second activation for the same clip is ignored
+  // until the first resolves, so a double-click can't desync the optimistic count.
+  const upvoteInFlight = useRef<Set<string>>(new Set());
   // Store-read error floor (design §"read failure"): a clip/dismissal read can now fail.
   const [storeError, setStoreError] = useState(false);
   const [article, setArticle] = useState<FullArticle | null>(null);
@@ -258,6 +273,35 @@ export function TopicView() {
       alive = false;
     };
   }, [qid]);
+
+  // ── Per-viewer voted-state hydration (issue #55 / D4, Decision 6 / design §8). ─────────────
+  // OFF the cached read path: this runs ONLY in the already-authenticated client session, AFTER
+  // the clips (and thus the public derived counts) have loaded — never baked into `listClips` or
+  // the SSG shell. An ANONYMOUS viewer (no `myContributorId`) does ZERO voted-state work (AC7):
+  // the effect bails before any read, and the control renders the logged-out "Log in to upvote"
+  // form. For a signed-in viewer it reads WHICH of the visible clips they have voted on (a small
+  // viewer-scoped read of their own votes), then the controls show the voted cue — a quiet
+  // correction, never a flash of a wrong "voted" before it is confirmed (it only ADDS the cue).
+  useEffect(() => {
+    if (typeof myContributorId !== "number" || clips.length === 0) {
+      setVotedClipIds(new Set());
+      return;
+    }
+    let alive = true;
+    (async () => {
+      try {
+        const ids = await store.votedClipIds(clips.map((c) => c.id));
+        if (alive) setVotedClipIds(new Set(ids));
+      } catch {
+        // A failed voted-state read is non-fatal: leave the controls in the not-voted default
+        // (the count is already correct from `listClips`); the viewer can still toggle.
+        if (alive) setVotedClipIds(new Set());
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [myContributorId, clips]);
 
   const loadArticle = useCallback(async () => {
     if (!resolvedTitle) return;
@@ -819,6 +863,97 @@ export function TopicView() {
     [myContributorId]
   );
 
+  // ── Upvote toggle (issue #55 / D4, design §2.4 — clones the `runDismiss` posture). ─────────
+  // OPTIMISTIC-WITH-ROLLBACK (not an awaited spinner): on a signed-in activation flip the
+  // per-viewer voted-state AND adjust the displayed count by ±1 IMMEDIATELY (in `clips`, the same
+  // in-memory clip-state the add/edit/delete paths mutate), then fire `toggleUpvoteAction` in the
+  // background and RECONCILE to the server's authoritative `{ voted, count }`. On error ROLL BACK
+  // to the pre-click truth: an expired session (`isAuthRequired`) surfaces the expired-session
+  // gate (the D1 path); any other error shows the polite §6.4 notice. Per-clip in-flight guard
+  // (§2.4.5) prevents a double-click from desyncing the count. Self-vote is allowed — no
+  // `ownsClip` special case (Decision 3 / §2.3); this runs for any clip the viewer activates.
+  const runUpvote = useCallback(
+    (clip: Clip) => {
+      const id = clip.id;
+      // Guard: ignore a second activation for the SAME clip while one is in flight (§2.4.5).
+      if (upvoteInFlight.current.has(id)) return;
+      upvoteInFlight.current.add(id);
+
+      // Snapshot the pre-click truth for an exact rollback.
+      const wasVoted = votedClipIds.has(id);
+      const willVote = !wasVoted;
+      const delta = willVote ? 1 : -1;
+
+      setUpvoteError(false);
+      // Optimistic apply (instant): flip the voted-state + the displayed count by ±1.
+      setVotedClipIds((prev) => {
+        const next = new Set(prev);
+        if (willVote) next.add(id);
+        else next.delete(id);
+        return next;
+      });
+      setClips((prev) =>
+        prev.map((c) =>
+          c.id === id ? { ...c, upvotes: (c.upvotes ?? 0) + delta } : c
+        )
+      );
+
+      void (async () => {
+        try {
+          const result = await store.toggleUpvote(id);
+          // Reconcile to the server's AUTHORITATIVE values (not the optimistic guess), so the
+          // displayed count is the true derived total and the voted-state matches the row truth.
+          setVotedClipIds((prev) => {
+            const next = new Set(prev);
+            if (result.voted) next.add(id);
+            else next.delete(id);
+            return next;
+          });
+          setClips((prev) =>
+            prev.map((c) => (c.id === id ? { ...c, upvotes: result.count } : c))
+          );
+        } catch (err) {
+          // Roll back the optimistic vote to the pre-click truth.
+          setVotedClipIds((prev) => {
+            const next = new Set(prev);
+            if (wasVoted) next.add(id);
+            else next.delete(id);
+            return next;
+          });
+          setClips((prev) =>
+            prev.map((c) =>
+              c.id === id ? { ...c, upvotes: (c.upvotes ?? 0) - delta } : c
+            )
+          );
+          // Expired session (valid at render, gone at click) → the expired-session gate, not a
+          // generic error (the D1 path); else the polite non-blocking notice (§6.4 / S32).
+          if (isAuthRequired(err)) showExpiredGate();
+          else setUpvoteError(true);
+        } finally {
+          upvoteInFlight.current.delete(id);
+        }
+      })();
+    },
+    [votedClipIds, showExpiredGate]
+  );
+
+  // Entry point (design §2.2): gate first. Signed in → run the optimistic toggle; logged out →
+  // the "Log in to upvote" gate WITHOUT any optimistic vote (the count does not move — a vote that
+  // can't persist must never read as cast; AC4). No auto-resume on return (the C/D1 UX-2 rule).
+  const upvote = useCallback(
+    (clip: Clip) => {
+      requireLogin({ gate: "upvote", action: () => runUpvote(clip) });
+    },
+    [requireLogin, runUpvote]
+  );
+
+  // Whether the upvote control renders as a real toggle (signed in) or the login gate trigger.
+  const signedIn = typeof myContributorId === "number";
+  const votedClip = useCallback(
+    (clip: Clip): boolean => votedClipIds.has(clip.id),
+    [votedClipIds]
+  );
+
   // Edit submit (design §6.3 / §7.1 / AC1/AC2). The Edit modal hands up the editable-set patch +
   // the agreement boolean; the host calls the auth-gated `updateClipAction` (the server decides
   // ownership + the §5.3 re-stamp), then REPLACES the clip object in the in-memory `clips` array
@@ -976,6 +1111,12 @@ export function TopicView() {
           ownsClip={ownsClip}
           onEdit={(c) => setEditClip(c)}
           onDelete={(c) => setDeleteFor(c)}
+          /* D4 (issue #55, design §5): the interactive upvote control on the General tiles —
+             signed-in toggle vs. the login gate, the per-viewer voted-state (off the read path),
+             and the host's optimistic-with-rollback `upvote`. */
+          signedIn={signedIn}
+          votedClip={votedClip}
+          onUpvote={upvote}
         />
       )}
 
@@ -995,6 +1136,22 @@ export function TopicView() {
             className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700"
           >
             Couldn&apos;t dismiss that — please try again.
+          </p>
+        </div>
+      )}
+
+      {/* Upvote-failure notice (issue #55 / D4; design §6.4). NON-BLOCKING + POLITE (role="status"
+          aria-live="polite", NOT alert/assertive — an upvote failure is informational, not urgent,
+          and must not interrupt the reader). After it shows, the optimistic vote is already rolled
+          back (the control shows the truth); this line names why. Verbatim §6.4 copy. */}
+      {upvoteError && (
+        <div className="mx-auto max-w-[1200px] px-5">
+          <p
+            role="status"
+            aria-live="polite"
+            className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700"
+          >
+            Couldn&apos;t record your upvote — please try again.
           </p>
         </div>
       )}
@@ -1045,6 +1202,9 @@ export function TopicView() {
                     clip={clip}
                     active={activeSlug === clip.sectionSlug}
                     owned={ownsClip(clip)}
+                    signedIn={signedIn}
+                    voted={votedClip(clip)}
+                    onUpvote={upvote}
                     onPlay={setPlayer}
                     onGoToSection={(slug) => slug && goTo(slug)}
                     onEdit={(c) => setEditClip(c)}

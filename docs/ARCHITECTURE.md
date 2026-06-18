@@ -132,7 +132,10 @@ Keyed on stable identifiers, normalized, minimal.
   - `section_anchor` (nullable) — which article section it relates to (`general` = whole-topic).
     Stored as a heading **slug + heading text** so it can be re-resolved when the article
     changes; an orphaned anchor falls back to `general` (see *Article rendering*).
-  - `upvotes` (cached count)
+  - `upvotes` — **as of issue #55 / D4 a FROZEN seed baseline, NOT a mutable counter.** The
+    displayed count is **derived** = `(clip.upvotes ?? 0) + COUNT(distinct clip_vote rows)`; a real
+    vote is a `clip_vote` row, never a write to this column (so the count can't drift). See
+    **clip_vote** below + *Prototype phase* → D4.
   - `vetted` (boolean) — light moderation flag. A `clip` row exists only once a human has acted
     (promote or add-by-link), so clips are curated by construction; auto-suggested candidates
     are **not** clip rows (see *Candidate suggestion*). `vetted` remains so we can hold a freshly
@@ -162,6 +165,15 @@ Keyed on stable identifiers, normalized, minimal.
   - `id`, `topic_id` → topic, `provider`, `provider_video_id`, `contributor_id` → contributor,
     `created_at`
   - `unique(topic_id, provider, provider_video_id)`
+- **clip_vote** (one contributor's upvote on one clip — issue #55 / D4; migration `drizzle/0004_*`)
+  - `id`, `clip_id` → clip (`onDelete: cascade`), `contributor_id` → contributor (`onDelete:
+    cascade`), `created_at`
+  - **`unique(clip_id, contributor_id)`** — the **one-per-user enforcement is this DB constraint**,
+    not app logic: a duplicate insert collides (the toggle inserts with `onConflictDoNothing`, so a
+    racing double-insert lands voted, never doubled). The displayed count is **derived** = the
+    frozen `clip.upvotes` seed baseline **+** `COUNT(clip_vote rows)`, so it can never drift from the
+    set of distinct real voters; `clip.upvotes` is never mutated by a vote. A viewer's "have I
+    voted?" state comes **only** from `clip_vote` (never the seed). See *Prototype phase* → D4.
 
 > Auto-suggested **candidates are not stored as rows** — they're computed and cached per topic
 > (see *Candidate suggestion*). Only a **promote** (→ `clip`) or **dismiss** (→
@@ -555,7 +567,11 @@ build on additively.
   FK to contributor — **issue C adopted it with only that one additive constraint drop**, AC9: the existing
   columns already carried the JWT find-or-create's needs),
   `dismissed_candidate` (`unique(topic_id, provider, provider_video_id)` — the sticky-dismissal
-  identity; shared so a candidate dismissed by anyone stays dismissed for everyone).
+  identity; shared so a candidate dismissed by anyone stays dismissed for everyone), and
+  `clip_vote` (**issue #55 / D4**, migration `0004_perpetual_fat_cobra.sql` — `unique(clip_id,
+  contributor_id)` is the one-per-user upvote invariant, FKs to `clip`/`contributor` both
+  `onDelete: cascade`; a clean **additive** migration — no drop/rename/backfill of `clip.upvotes`,
+  which is kept as the frozen seed baseline).
 - **Migration + seed run on DEPLOY, never at build or per-request.** A compose **`migrate` one-shot**
   (same app image, `command: node dist/migrate.cjs`) applies pending Drizzle migrations then runs the
   idempotent seed (`lib/db/seed.ts`, ported from the prototype seed) against Postgres **before** the
@@ -716,6 +732,36 @@ a host is provisioned (issue A.2).
   **optional additive index** migration (`drizzle/0003_*`) adds non-unique btree indexes on
   `clip.curator_id`, `clip.topic_id`, and `contributor.handle` (insurance for the new by-contributor
   + handle queries at scale; non-destructive, no data migration).
+- **Upvotes as a persisted, one-per-user, toggleable signal (issue #55 / D4).** The reader's "I'm
+  glad I watched this" signal is now real: the static `▲ {clip.upvotes}` becomes an interactive,
+  identity-tied **toggle**. A new **`clip_vote`** table (one row per `(clip, contributor)`,
+  `unique(clip_id, contributor_id)`, FKs to `clip`/`contributor` both `onDelete: cascade`) carries
+  the votes; the **one-per-user cap is the DB unique constraint, not app logic** (a duplicate insert
+  collides). The **displayed count is DERIVED** — `(clip.upvotes ?? 0) + COUNT(clip_vote rows)` — so
+  it can never drift from the set of distinct real voters; the legacy **`clip.upvotes` is a FROZEN
+  seed baseline**, never written by a vote (a seeded demo clip keeps its number and real votes layer
+  on top; a seeded clip can't drop below its baseline — that's correct, the seed is demo decoration).
+  A viewer's **"have I voted?"** state comes **only** from `clip_vote`, never the seed. One
+  **auth-gated Server Action `toggleUpvoteAction(clipId)`**: `requireContributor()` **FIRST** (an
+  anonymous/expired call writes nothing — the gate is server-side, the C/D1 posture), then
+  insert-if-absent (`onConflictDoNothing` so a race lands voted) / delete-if-present, returning the
+  new `{ voted, count }`. **Self-vote is allowed** (no `curatorId === voter` special case — Decision
+  3; the abuse posture is D5). The Topic page uses **optimistic-with-rollback** (`runUpvote`, cloned
+  from `runDismiss`): the count moves ±1 and the voted-state flips instantly, reconciled to the
+  server's authoritative return; on error it rolls back — an expired session (`isAuthRequired`) →
+  the D1 expired-session gate, else a polite `role="status"` notice. Logged-out activation routes to
+  C's gate (a new **`upvote` entry** in `AUTH_COPY.gates`) with **no** optimistic vote (the count
+  stays visible — reading is anonymous). The voted/not-voted state is **never color-alone**:
+  `aria-pressed` + a visible "Voted" word + a filled-vs-outline glyph (CURATION §4). **Read-path
+  discipline (the key constraint):** the **count is public** and rides the topic read (`listClips`
+  derives it — same for every viewer); the **per-viewer voted-state is OFF the cached read path** —
+  a viewer-scoped **`votedClipIds(clipIds)`** seam read (auth-gated `votedClipIdsAction`) resolved in
+  the **already-authenticated client session** (hydrate-on-mount in `TopicView`, scoped to the
+  visible clips), exactly as D2/D3's `ownsClip()` is computed client-side. An **anonymous topic load
+  does ZERO voted-state work**; `listClips` issues **no** per-user vote query. A clean **additive**
+  migration (`drizzle/0004_perpetual_fat_cobra.sql`) adds the table — no drop/rename/backfill of
+  `clip.upvotes`. **No** downvotes/ranking/rate-limits (D5); **no** ISR/Redis (still deferred — but
+  D4 plants no per-user state where the future cache will live).
 - **Server Actions (enabled #37; now the data-access boundary — issue #45).** The Node SSR runtime
   supports Server Actions; as of #45 they are the **data-access boundary** for shared Postgres
   (`lib/server/actions.ts`, `"use server"` — see *Persistence* above). The throwaway #37 smoke artifact

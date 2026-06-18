@@ -3,6 +3,7 @@
 import type { Clip } from "@/lib/data/types";
 import { AccuracyChip, StanceChip } from "./Chips";
 import { ContextByLink } from "./ContextByLink";
+import { UpvoteControl } from "./UpvoteControl";
 import { VideoThumb } from "./VideoThumb";
 
 // Anchored clip card in the plus rail (design §5.9, AC9/AC10/AC12/AC13).
@@ -17,6 +18,9 @@ export function ClipCard({
   clip,
   active,
   owned = false,
+  signedIn = false,
+  voted = false,
+  onUpvote,
   onPlay,
   onGoToSection,
   onEdit,
@@ -27,6 +31,12 @@ export function ClipCard({
   active: boolean;
   /** The signed-in viewer owns this clip → show the Edit/Delete row (design §3.1). */
   owned?: boolean;
+  /** D4 (issue #55): is the viewer signed in (a real toggle vs. the login gate — §3). */
+  signedIn?: boolean;
+  /** D4 (issue #55): has THIS viewer upvoted this clip (the per-viewer voted-state — §8). */
+  voted?: boolean;
+  /** D4 (issue #55): activate the upvote control — the host's optimistic toggle / gate route. */
+  onUpvote?: (clip: Clip) => void;
   onPlay: (clip: Clip) => void;
   onGoToSection: (slug: string | undefined) => void;
   /** Open the Edit modal for this clip (owner only — design §2.1). */
@@ -100,17 +110,23 @@ export function ClipCard({
         </p>
       </div>
 
-      {/* Provenance footer — D3 (issue #54, design §6.2): the bare `{curatedBy}` text evolved
-          into the linked "context by <curator>" attribution (links IN to the curator's profile;
-          distinct from the creator credit above which links OUT). Upvote count stays on the left;
-          the attribution sits on the right (where `curatedBy` was), with the relative `curatedAt`
-          as trailing muted text. No read-path cost — static markup from `clip.curatedBy`. */}
+      {/* Provenance footer — D3 (issue #54, design §6.2) + D4 (issue #55, design §4): the bare
+          `{curatedBy}` text evolved into the linked "context by <curator>" attribution (links IN
+          to the curator's profile; distinct from the creator credit above which links OUT). D4
+          replaces the static `▲ {upvotes}` span on the LEFT with the interactive `UpvoteControl`
+          (the count + the per-viewer voted-state, a real `<button aria-pressed>`); the attribution
+          sits on the right (where `curatedBy` was), with the relative `curatedAt` as trailing
+          muted text. The DISPLAYED count is the DERIVED total `listClips` already computed
+          (Decision 2). The control reads as "Log in to upvote" logged out (count still visible —
+          §4.3); the per-viewer voted-state is off the cached read path (§8). */}
       <footer className="mt-2 flex items-center justify-between gap-2 text-[11px]">
-        {typeof clip.upvotes === "number" ? (
-          <span className="font-bold text-brand">▲ {clip.upvotes}</span>
-        ) : (
-          <span />
-        )}
+        <UpvoteControl
+          count={clip.upvotes ?? 0}
+          voted={voted}
+          signedIn={signedIn}
+          surface="light"
+          onActivate={() => onUpvote?.(clip)}
+        />
         <span className="min-w-0 truncate text-right">
           <ContextByLink curatedBy={clip.curatedBy} surface="light" />
           {clip.curatedAt ? (

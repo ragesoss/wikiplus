@@ -28,6 +28,13 @@ export const AUTH_COPY = {
       title: "Log in to dismiss this suggestion",
       body: "Ruling a suggestion out is a curation action and requires a Wikipedia login.",
     },
+    // Issue #55 / D4 (design §6.2 — verbatim). The upvote is a gated contribution (CURATION §7):
+    // casting/toggling a vote ties it to a real Wikimedia identity; reading the count stays
+    // anonymous. Matches the C/D1 gate language + the existing gate shape.
+    upvote: {
+      title: "Log in to upvote",
+      body: "Upvoting a clip ties your vote to your Wikimedia identity, so the count means one real person, once. Reading the count stays anonymous — only voting needs a login.",
+    },
   },
 
   errors: {
