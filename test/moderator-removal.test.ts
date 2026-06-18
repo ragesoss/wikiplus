@@ -400,6 +400,56 @@ describe("grant mechanism — the WIKIPLUS_MODERATORS env allowlist confers remo
   });
 });
 
+// ── QA additions (independent, non-author): integrity edges the author suite did not cover. ──────
+describe("QA — integrity edges: not-found rejection + cross-curator attribution", () => {
+  it("a moderator removing a NON-EXISTENT clip id is rejected (not-found) and writes no phantom tombstone", async () => {
+    // The action loads `clipOwnership` to confirm the clip exists before the soft-remove write, so a
+    // moderator cannot mint a tombstone row for a clip id that was never there (or already hard-deleted
+    // via D2). Guards against an unbounded/forged-id write creating orphan removed-state.
+    await seedTopicAndClip("Marcus", "sub-marcus");
+    const mod = await signInAs("Mod", "sub-mod");
+    await grantModeratorById(mod.contributorId);
+
+    await expect(removeClipAction("999999", null)).rejects.toThrow(/not found/i);
+    // No row was created for the bogus id (the update targets an absent row → nothing written).
+    const ghost = await h.db
+      .select({ id: clip.id })
+      .from(clip)
+      .where(eq(clip.id, 999999))
+      .limit(1);
+    expect(ghost).toHaveLength(0);
+    // The real seeded clip is untouched by the failed call.
+    expect(await listClipsAction(QID)).toHaveLength(1);
+  });
+
+  it("removed_by is the ACTING MODERATOR, never the clip's curator, when removing another's clip", async () => {
+    // AC6 accountability: the audit anchor must point at WHO removed it (the moderator), not the
+    // curator whose clip it was — the §7 "removal is attributable" guarantee.
+    const c = await seedTopicAndClip("Marcus", "sub-marcus");
+    const curatorId = c.curatorId!;
+    const mod = await signInAs("Mod", "sub-mod");
+    await grantModeratorById(mod.contributorId);
+    await removeClipAction(c.id, null);
+
+    const t = await tombstoneOf(c.id);
+    expect(t.removedBy).toBe(mod.contributorId); // the moderator
+    expect(t.removedBy).not.toBe(curatorId); // NOT the curator (distinct accounts)
+  });
+
+  it("a free-text-only reason persists verbatim (audit fidelity; no category prefix invented)", async () => {
+    // composeRemovalReason with no category returns the bare note — verify the persisted audit string
+    // is exactly the moderator's words, not silently wrapped/prefixed.
+    const c = await seedTopicAndClip("Marcus", "sub-marcus");
+    const mod = await signInAs("Mod", "sub-mod");
+    await grantModeratorById(mod.contributorId);
+    await removeClipAction(c.id, "affiliate links to vendor X in the note");
+
+    expect((await tombstoneOf(c.id)).removedReason).toBe(
+      "affiliate links to vendor X in the note"
+    );
+  });
+});
+
 // ── The limit arm of gate→limit→role — an over-cap removal writes nothing (AC2/D5a). ──────────────
 describe("removal is a counted gated write: an over-cap call is rate-limited, writes nothing", () => {
   it("a moderator over the per-identity cap is rejected on remove and the clip stays live", async () => {
