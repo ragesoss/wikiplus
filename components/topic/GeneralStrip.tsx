@@ -9,6 +9,7 @@ import {
   MatchReason,
   SeeMoreButton,
 } from "./CandidateBits";
+import { AccuracyChip, StanceChip } from "./Chips";
 import { ContextByLink } from "./ContextByLink";
 import { HeldPill } from "./HeldMarking";
 import { ReviewRow } from "./ReviewRow";
@@ -276,6 +277,32 @@ export function GeneralStrip({
                   <p className="truncate text-[11px] text-white/70">
                     {clip.creator.handle} · {clip.platformLabel}
                   </p>
+                  {/* #63 §3 (AC2): the stance + accuracy chips, the same AA-safe chips the rail
+                      `ClipCard` uses — their own dark fills + 2px ink border carry the contrast, so
+                      the indigo band behind them never touches the chip text (no re-tint — §7.2).
+                      `flex-wrap` so a long pair stacks to two rows within the `w-44` tile (§9). */}
+                  <div className="mt-1.5 flex flex-wrap gap-1.5">
+                    <StanceChip stance={clip.stance} modifier={clip.stanceModifier} />
+                    <AccuracyChip flag={clip.accuracyFlag} modifier={clip.accuracyModifier} />
+                  </div>
+                  {/* #63 §3.1 (AC1 preview): the 2-line context-note PREVIEW, on a WHITE panel + 2px
+                      ink border so its small body text clears AA over the indigo `#676EB4` band
+                      (ink/ink2 on white, never small body text on bare indigo — §7.2). It is the rail
+                      card's "Curator note" block re-skinned for the indigo band + `line-clamp-2`; the
+                      FULL note lives in the opened player (§2/§4). The whole tile thumbnail is already
+                      the click-to-open affordance, so there is NO separate "read more" control (§2).
+                      Omitted defensively on an empty note — render nothing rather than an empty panel
+                      (§6 empty-note guard; chips above still render). */}
+                  {clip.contextNote ? (
+                    <div className="mt-1.5 border-2 border-ink bg-white px-2 py-1.5">
+                      <p className="text-[10px] font-bold uppercase tracking-wide text-violet">
+                        Curator note
+                      </p>
+                      <p className="mt-0.5 line-clamp-2 text-[11px] leading-snug text-ink2">
+                        {clip.contextNote}
+                      </p>
+                    </div>
+                  ) : null}
                   {/* D3 §6.3: the linked "context by <curator>" attribution. */}
                   <p className="mt-0.5 truncate text-[11px]">
                     <ContextByLink curatedBy={clip.curatedBy} surface="indigo" />
