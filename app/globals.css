@@ -506,6 +506,23 @@ figure.wikifig .credit {
   animation: wikiplus-dock-in 0.18s ease-out;
 }
 
+/* Issue #60 §6 (optional fade): a light opacity fade-in on curated General tiles when a
+   suggestion is curated. Polish OVER an already-stable layout — the suggestion group
+   never re-keys or re-fades, so the no-churn stability (AC10) is independent of this. It
+   is applied by GeneralStrip ONLY when prefers-reduced-motion is NOT set; the media-query
+   below also disables it as a belt-and-braces. */
+@keyframes wikiplus-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.gs-fade-in {
+  animation: wikiplus-fade-in 0.18s ease-out;
+}
+
 /* ── Reduced motion (design §10.4, binding). ── */
 @media (prefers-reduced-motion: reduce) {
   .sec.active > :is(h2, h3, h4) {
@@ -518,6 +535,9 @@ figure.wikifig .credit {
     transition: none;
   }
   .pinned-dock-in {
+    animation: none;
+  }
+  .gs-fade-in {
     animation: none;
   }
   /* Tailwind's looping utility animations on loading/skeleton chips (e.g. the header

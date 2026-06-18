@@ -442,8 +442,6 @@ export function TopicView() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [qid, storeReady, fetchState, article]);
 
-  const mode: "curated" | "empty" = clips.length > 0 ? "curated" : "empty";
-
   // #23: split the formerly-overloaded `topicTitle` into canonical vs display.
   //   - `canonicalTitle` (space-form) keys the "From Wikipedia"/ArticleError URL, the
   //     store/QID context, and the General strip / sections context labels.
@@ -476,6 +474,17 @@ export function TopicView() {
     [candidates, dismissed, isPersistedDismissed]
   );
 
+  // ── Three-state derivation (issue #60 §0). Retires the binary `mode = clips.length > 0`.
+  // Two independent facts drive coexistence: curated content (the priority content) and the
+  // REMAINING, deduped suggestions (`liveCandidates`). When both are non-empty the page reads
+  // as "mixed" and renders BOTH, curated first. This is a presentation derivation, not a
+  // data-model change — and it is a STABLE FILTER over the already-derived `liveCandidates`:
+  // curating one suggestion only removes that one id (via `setDismissed`/`setPersistedDismissed`
+  // in the curate path) and the candidate-pipeline effect deliberately excludes `clips` from
+  // its deps, so no re-run / re-fetch / reshuffle happens on curation (AC9/AC10 — the bar).
+  const hasCurated = clips.length > 0;
+  const hasSuggestions = liveCandidates.length > 0;
+
   const stats = useMemo(() => deriveStats(clips), [clips]);
 
   // ── Anchored clips/candidates grouped by section slug. ──
@@ -490,27 +499,34 @@ export function TopicView() {
     [liveCandidates]
   );
 
-  // ── TOC entries: ＋ band row first, then sections with counts. ──
+  // ── TOC entries: ＋ band row first, then sections with DUAL counts (issue #60 §5.2). ──
+  // Each row carries BOTH a curated count and a suggested count (no longer branching on the
+  // binary `mode`); the Toc renders both badges where a row has both. The ＋General row uses
+  // the general clip/candidate counts; section rows use the section-anchored counts.
   const tocEntries: TocEntry[] = useMemo(() => {
     const sections = article?.sections ?? [];
-    const countFor = (slug: string) =>
-      mode === "curated"
-        ? sectionClips.filter((c) => c.sectionSlug === slug).length
-        : sectionCandidates.filter((c) => c.sectionSlug === slug).length;
-    const bandCount =
-      mode === "curated" ? generalClips.length : generalCandidates.length;
+    const curatedFor = (slug: string) =>
+      sectionClips.filter((c) => c.sectionSlug === slug).length;
+    const suggestedFor = (slug: string) =>
+      sectionCandidates.filter((c) => c.sectionSlug === slug).length;
     return [
-      { slug: "__general", title: "General", level: 2, count: bandCount },
+      {
+        slug: "__general",
+        title: "General",
+        level: 2,
+        curated: generalClips.length,
+        suggested: generalCandidates.length,
+      },
       ...sections.map((s) => ({
         slug: s.slug,
         title: s.title,
         level: s.level,
-        count: countFor(s.slug),
+        curated: curatedFor(s.slug),
+        suggested: suggestedFor(s.slug),
       })),
     ];
   }, [
     article,
-    mode,
     sectionClips,
     sectionCandidates,
     generalClips,
@@ -535,10 +551,14 @@ export function TopicView() {
     else sectionEls.current.delete(slug);
   }, []);
 
-  // First clip/candidate per section (the rail card to scroll to).
+  // First clip/candidate per section (the rail card to scroll to). Issue #60 §2.3: the
+  // union, curated-first — `sectionClips` come before `sectionCandidates`, so for any section
+  // that has a curated clip `railItems.find(...)` resolves to the curated card as the sync
+  // anchor; a section with only suggestions anchors on its first suggestion. The sync mechanics
+  // (active-section pairing, the TOC highlight) are otherwise untouched.
   const railItems = useMemo(
-    () => (mode === "curated" ? sectionClips : sectionCandidates),
-    [mode, sectionClips, sectionCandidates]
+    () => [...sectionClips, ...sectionCandidates],
+    [sectionClips, sectionCandidates]
   );
 
   const scrollBehavior = (): ScrollBehavior =>
@@ -809,8 +829,9 @@ export function TopicView() {
   // ── Persist a curated clip (issue #52 / D1, AC1–AC5). ──────────────────────────────────
   // The two modals (Promote / Add) hand the assembled clip + the CC BY-SA consent up here; the
   // host owns the write (the auth-gated boundary), the in-memory clip-state update (the new clip
-  // renders with no reload — AC2/AC5, flipping empty→curated when first since `mode` derives from
-  // `clips.length`), and the expired-session gate (it holds `useRequireLogin`). It returns the
+  // renders with no reload — AC2/AC5; the first curation moves the page empty→mixed since
+  // `hasCurated` derives from `clips.length`, issue #60 §0), and the expired-session gate (it
+  // holds `useRequireLogin`). It returns the
   // SubmitOutcome the modal's submit machine expects: "added" / "expired" resolve (modal closes),
   // a generic error THROWS (modal stays open with the note intact + the §6 alert — AC11).
   const persistClip = useCallback(
@@ -1161,8 +1182,9 @@ export function TopicView() {
 
   // Delete confirm (design §2.2 / §7.2 / §7.3 / AC3). The confirm dialog runs this; the host
   // calls the auth-gated `deleteClipAction` (server re-checks ownership), then REMOVES the clip
-  // from the in-memory `clips` set so it disappears with no reload (counts drop; the last clip
-  // flips curated→empty via the existing `mode = clips.length > 0` switch). Because the card is
+  // from the in-memory `clips` set so it disappears with no reload (counts drop; deleting the
+  // last clip moves the page back to empty/mixed via the `hasCurated`/`hasSuggestions`
+  // derivation, issue #60 §0). Because the card is
   // REMOVED, focus must not be lost to <body>: move it to `focusBandHeading()` after the shell's
   // own `prevActive` fires (the rAF pattern the promote/dismiss paths use — §7.3). Errors branch
   // like `persistClip`: auth → expired gate; other → throw (dialog stays open with its alert).
@@ -1198,7 +1220,8 @@ export function TopicView() {
   // RemoveConfirmDialog runs this with the OPTIONAL audit-only reason; the host calls the
   // role-gated `removeClipAction` (server re-resolves the moderator role — no own-curator arm),
   // then FILTERS the clip out of the in-memory `clips` set so it disappears with NO reload (counts
-  // drop; the last clip flips curated→empty via the existing `mode = clips.length > 0` switch). The
+  // drop; removing the last clip moves the page back to empty/mixed via the
+  // `hasCurated`/`hasSuggestions` derivation, issue #60 §0). The
   // SERVER soft-remove (`removed_at` set) + the `removed_at IS NULL` read filter are the durable
   // truth; this in-memory filter is the no-reload reflect (the clip leaves the read either way).
   // Because the card is REMOVED, focus must not be lost to <body>: move it to `focusBandHeading()`
@@ -1285,7 +1308,7 @@ export function TopicView() {
           {storeReady && (
             <aside className="space-y-4 lg:sticky lg:top-20 lg:self-start">
               <Infobox
-                mode={mode}
+                hasCurated={hasCurated}
                 stats={stats}
                 suggestionCount={liveCandidates.length}
                 sources={sources}
@@ -1294,7 +1317,6 @@ export function TopicView() {
               />
               <Toc
                 entries={tocEntries}
-                mode={mode}
                 currentSlug={activeSlug}
                 onGo={goTo}
               />
@@ -1306,13 +1328,9 @@ export function TopicView() {
       {/* General / Suggested band — full bleed (the one crossover). */}
       {storeReady && (
         <GeneralStrip
-          mode={mode}
           topicTitle={canonicalTitle}
           generalClips={generalClips}
           generalCandidates={generalCandidates}
-          totalGeneral={
-            mode === "curated" ? generalClips.length : generalCandidates.length
-          }
           loading={candidatesLoading}
           prefersReduced={prefersReduced.current}
           onPlay={setPlayer}
@@ -1348,9 +1366,12 @@ export function TopicView() {
         />
       )}
 
-      {/* Polite live region — announces the candidate search (design §5.4 / §8). */}
+      {/* Polite live region — announces the candidate search (design §5.4 / §8; issue #60
+          §7.4). It fires WHENEVER a candidate fetch runs — in MIXED as well as empty (the
+          legacy gate was `mode === "empty"`). `candidateAnnounce` is "" until a fetch runs,
+          so a fully-curated / no-key load announces nothing. */}
       <p className="sr-only" role="status" aria-live="polite">
-        {mode === "empty" ? candidateAnnounce : ""}
+        {candidateAnnounce}
       </p>
 
       {/* Dismissal notice (issue #45; design §"dismissal — optimistic rollback"; D5a §5.3).
@@ -1440,9 +1461,11 @@ export function TopicView() {
             ref={railRef}
             onScroll={onRailScroll}
             aria-label={
-              mode === "curated"
-                ? "wiki+ curated videos"
-                : "wiki+ suggested videos"
+              hasCurated && hasSuggestions
+                ? "wiki+ curated and suggested videos"
+                : hasCurated
+                  ? "wiki+ curated videos"
+                  : "wiki+ suggested videos"
             }
             className="space-y-4 lg:sticky lg:top-16 lg:max-h-[calc(100vh-4rem)] lg:overflow-y-auto"
           >
@@ -1455,72 +1478,95 @@ export function TopicView() {
                 Couldn&apos;t load curated videos — please refresh.
               </p>
             )}
-            {/* #14 AC5: the one-time "unvetted set" header introduces the rail
-                candidate list ONCE — replacing v2's per-card "auto-suggested / no
-                context yet" repetition. Names the sources from data; carries no count
-                (the volume lives once in the ＋plus panel — AC7). Shown when there are
-                rail candidates to introduce. */}
-            {mode === "empty" && sectionCandidates.length > 0 && (
-              <CandidateSetHeader sources={sources} />
+            {/* Issue #60 §2.2: the rail renders TWO stacked groups, curated FIRST. The
+                section-anchored curated ClipCards (full chrome) lead; then the one-time
+                CandidateSetHeader introduces the suggestion subset; then the section-anchored
+                CandidateCards. Curated and suggested are NEVER interleaved. The curated cards
+                paint from `clips` regardless of candidate loading (§7.4) — a slow/failed
+                candidate fetch never disturbs them (AC10). */}
+            {sectionClips.map((clip) => (
+              <ClipCard
+                key={clip.id}
+                clip={clip}
+                active={activeSlug === clip.sectionSlug}
+                owned={ownsClip(clip)}
+                signedIn={signedIn}
+                voted={votedClip(clip)}
+                onUpvote={upvote}
+                onPlay={setPlayer}
+                onGoToSection={(slug) => slug && goTo(slug)}
+                onEdit={(c) => setEditClip(c)}
+                onDelete={(c) => setDeleteFor(c)}
+                /* D5b (issue #58, design §4): reviewer-only Hold/Approve on the rail card. */
+                canHold={canHold(clip)}
+                canApprove={canApprove(clip)}
+                reviewInFlight={reviewInFlight(clip)}
+                onHold={runHold}
+                onApprove={runApprove}
+                /* D5c (issue #59, design §4.2): moderator-only Remove on the rail card. */
+                canRemove={canRemove(clip)}
+                onRemove={(c) => setRemoveFor(c)}
+                cardRef={(el) => {
+                  if (el) cardEls.current.set(clip.id, el);
+                  else cardEls.current.delete(clip.id);
+                }}
+              />
+            ))}
+            {/* #14 AC5 / issue #60 §2.2/§5.3: the one-time "unvetted set" header introduces
+                the rail suggestion subset ONCE. Its gate is now "≥1 rail suggestion" — NOT
+                `mode === "empty"` — so it sits BETWEEN the curated group and the suggestion
+                group in a mixed rail. In mixed it uses the "The suggested videos below…"
+                copy (`scope="subset"`); in a pure-suggestion rail (0 curated) it keeps the
+                #14 empty-state copy. Carries no count (the volume lives once in the ＋plus
+                panel — AC7). */}
+            {sectionCandidates.length > 0 && (
+              <CandidateSetHeader
+                sources={sources}
+                scope={hasCurated ? "subset" : "all"}
+              />
             )}
-            {mode === "curated"
-              ? sectionClips.map((clip) => (
-                  <ClipCard
-                    key={clip.id}
-                    clip={clip}
-                    active={activeSlug === clip.sectionSlug}
-                    owned={ownsClip(clip)}
-                    signedIn={signedIn}
-                    voted={votedClip(clip)}
-                    onUpvote={upvote}
-                    onPlay={setPlayer}
-                    onGoToSection={(slug) => slug && goTo(slug)}
-                    onEdit={(c) => setEditClip(c)}
-                    onDelete={(c) => setDeleteFor(c)}
-                    /* D5b (issue #58, design §4): reviewer-only Hold/Approve on the rail card. */
-                    canHold={canHold(clip)}
-                    canApprove={canApprove(clip)}
-                    reviewInFlight={reviewInFlight(clip)}
-                    onHold={runHold}
-                    onApprove={runApprove}
-                    /* D5c (issue #59, design §4.2): moderator-only Remove on the rail card. */
-                    canRemove={canRemove(clip)}
-                    onRemove={(c) => setRemoveFor(c)}
-                    cardRef={(el) => {
-                      if (el) cardEls.current.set(clip.id, el);
-                      else cardEls.current.delete(clip.id);
-                    }}
-                  />
-                ))
-              : sectionCandidates.map((c) => (
-                  <CandidateCard
-                    key={c.id}
-                    candidate={c}
-                    active={activeSlug === c.sectionSlug}
-                    onPlay={playCandidate}
-                    onPromote={promote}
-                    onDismiss={dismiss}
-                    cardRef={(el) => {
-                      if (el) cardEls.current.set(c.id, el);
-                      else cardEls.current.delete(c.id);
-                    }}
-                  />
-                ))}
-            {mode === "curated" && sectionClips.length === 0 && (
-              <p className="text-sm text-muted">
-                All curated clips for this topic are general overviews — see the
-                strip above.
-              </p>
-            )}
-            {/* Rail loading / zero-results lines (design §5.2 / §5.4). */}
-            {mode === "empty" && candidatesLoading && (
+            {sectionCandidates.map((c) => (
+              <CandidateCard
+                key={c.id}
+                candidate={c}
+                active={activeSlug === c.sectionSlug}
+                onPlay={playCandidate}
+                onPromote={promote}
+                onDismiss={dismiss}
+                cardRef={(el) => {
+                  if (el) cardEls.current.set(c.id, el);
+                  else cardEls.current.delete(c.id);
+                }}
+              />
+            ))}
+            {/* Fully-curated edge: every curated clip is a general overview (no section-
+                anchored cards) AND there are no suggestions — the rail body is empty, so
+                point the reader at the strip above (unchanged copy, §7.3). */}
+            {hasCurated &&
+              sectionClips.length === 0 &&
+              sectionCandidates.length === 0 &&
+              !candidatesLoading && (
+                <p className="text-sm text-muted">
+                  All curated clips for this topic are general overviews — see the
+                  strip above.
+                </p>
+              )}
+            {/* Rail suggestion-region loading / zero-results lines (design §5.2 / §5.4;
+                issue #60 §7.4/§7.5). The loading line shows whenever a candidate fetch is in
+                flight AND no rail suggestions have resolved yet — in MIXED as well as empty;
+                it sits AFTER the curated group, so curated cards are never disturbed. */}
+            {candidatesLoading && sectionCandidates.length === 0 && (
               <p className="text-sm text-muted" aria-live="polite">
                 Looking for suggestions…
               </p>
             )}
-            {mode === "empty" &&
+            {/* The honest "no suggestions" line shows only when there is NO curated content
+                either (the empty-with-no-results case). With curated clips present a zero
+                suggestion count simply reads as fully-curated — no suggestion chrome (§7.5). */}
+            {!hasCurated &&
               !candidatesLoading &&
-              sectionCandidates.length === 0 && (
+              sectionCandidates.length === 0 &&
+              generalCandidates.length === 0 && (
                 <p className="text-sm text-muted">
                   No suggestions for this topic yet — use &lsquo;Find more&rsquo;
                   above to add the first video.

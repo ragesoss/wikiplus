@@ -1,62 +1,96 @@
 import { describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Toc, type TocEntry } from "@/components/topic/Toc";
 import { Infobox } from "@/components/topic/Infobox";
 import type { TopicStats } from "@/lib/data/types";
 
-const entries: TocEntry[] = [
-  { slug: "__general", title: "General", level: 2, count: 3 },
-  { slug: "light-dependent-reactions", title: "Light-dependent reactions", level: 2, count: 2 },
-  { slug: "calvin-cycle", title: "Calvin cycle", level: 2, count: 0 }, // zero-count
+// Issue #60 §5.2: a TocEntry carries DUAL counts ({ curated, suggested }) — no `mode`.
+const curatedEntries: TocEntry[] = [
+  { slug: "__general", title: "General", level: 2, curated: 3, suggested: 0 },
+  {
+    slug: "light-dependent-reactions",
+    title: "Light-dependent reactions",
+    level: 2,
+    curated: 2,
+    suggested: 0,
+  },
+  { slug: "calvin-cycle", title: "Calvin cycle", level: 2, curated: 0, suggested: 0 }, // zero-count
 ];
 
-describe("Toc (AC6 / AC17)", () => {
+const suggestedEntries: TocEntry[] = [
+  { slug: "__general", title: "General", level: 2, curated: 0, suggested: 3 },
+  {
+    slug: "light-dependent-reactions",
+    title: "Light-dependent reactions",
+    level: 2,
+    curated: 0,
+    suggested: 2,
+  },
+  { slug: "calvin-cycle", title: "Calvin cycle", level: 2, curated: 0, suggested: 0 },
+];
+
+describe("Toc (AC6 / AC17 / #60 §5.2)", () => {
   it("lists the ＋General row first, then sections (incl. zero-count ones)", () => {
-    render(<Toc entries={entries} mode="curated" currentSlug={null} onGo={vi.fn()} />);
+    render(<Toc entries={curatedEntries} currentSlug={null} onGo={vi.fn()} />);
     expect(screen.getByText("＋ General")).toBeInTheDocument();
     expect(screen.getByText("Calvin cycle")).toBeInTheDocument(); // zero-count still listed
   });
 
   it("shows a solid integer count badge for curated sections with videos (AC6)", () => {
-    render(<Toc entries={entries} mode="curated" currentSlug={null} onGo={vi.fn()} />);
+    render(<Toc entries={curatedEntries} currentSlug={null} onGo={vi.fn()} />);
     expect(screen.getByText("2")).toBeInTheDocument();
     // zero-count section shows no integer badge (it shows the "no video" text badge)
     expect(screen.queryByText("0")).toBeNull();
   });
 
   it("shows a 'no video' text badge on a zero-count SECTION (article-fidelity #27 D5)", () => {
-    render(<Toc entries={entries} mode="curated" currentSlug={null} onGo={vi.fn()} />);
-    // the zero-count "Calvin cycle" row gets the muted text badge (text, not color alone)
+    render(<Toc entries={curatedEntries} currentSlug={null} onGo={vi.fn()} />);
     expect(screen.getByText("no video")).toBeInTheDocument();
   });
 
   it("does NOT badge the ＋General band row with 'no video' even at zero count (D5)", () => {
     const zeroBand: TocEntry[] = [
-      { slug: "__general", title: "General", level: 2, count: 0 },
-      { slug: "calvin-cycle", title: "Calvin cycle", level: 2, count: 0 },
+      { slug: "__general", title: "General", level: 2, curated: 0, suggested: 0 },
+      { slug: "calvin-cycle", title: "Calvin cycle", level: 2, curated: 0, suggested: 0 },
     ];
-    render(<Toc entries={zeroBand} mode="curated" currentSlug={null} onGo={vi.fn()} />);
+    render(<Toc entries={zeroBand} currentSlug={null} onGo={vi.fn()} />);
     // only the section row gets a badge → exactly one "no video"
     expect(screen.getAllByText("no video")).toHaveLength(1);
   });
 
-  it("shows 'no video' on a zero-count section in EMPTY mode too (D5)", () => {
-    render(<Toc entries={entries} mode="empty" currentSlug={null} onGo={vi.fn()} />);
+  it("shows 'no video' on a zero-count section in a suggestions-only TOC too (D5)", () => {
+    render(<Toc entries={suggestedEntries} currentSlug={null} onGo={vi.fn()} />);
     expect(screen.getByText("no video")).toBeInTheDocument();
   });
 
-  it("shows dashed/outline '~n' badges in the empty state (AC17)", () => {
-    render(<Toc entries={entries} mode="empty" currentSlug={null} onGo={vi.fn()} />);
+  it("shows dashed/outline '~n' badges for suggestion counts (AC17)", () => {
+    render(<Toc entries={suggestedEntries} currentSlug={null} onGo={vi.fn()} />);
     expect(screen.getByText("~2")).toBeInTheDocument();
-    expect(screen.getByText("＋ Suggested")).toBeInTheDocument();
+    // The band row label is always "＋ General" now (issue #60 §5.3) — no "＋ Suggested".
+    expect(screen.getByText("＋ General")).toBeInTheDocument();
     const badge = screen.getByText("~2");
     expect(badge.className).toMatch(/border-dashed/);
   });
 
+  // Issue #60 AC12: a row with BOTH renders BOTH badges, curated-first, each text-labeled.
+  it("renders BOTH the solid curated and dashed suggested badge on a mixed row (AC12)", () => {
+    const mixed: TocEntry[] = [
+      { slug: "__general", title: "General", level: 2, curated: 4, suggested: 7 },
+    ];
+    render(<Toc entries={mixed} currentSlug={null} onGo={vi.fn()} />);
+    const solid = screen.getByText("4");
+    const dashed = screen.getByText("~7");
+    expect(solid.className).not.toMatch(/border-dashed/);
+    expect(dashed.className).toMatch(/border-dashed/);
+    // Text-labeled (AC15) — the meaning is in the accessible name, not color/border alone.
+    expect(within(solid).getByText("curated")).toBeInTheDocument();
+    expect(within(dashed).getByText("suggested, unvetted")).toBeInTheDocument();
+  });
+
   it("invokes onGo with the section slug when an entry is activated (AC6/AC13)", async () => {
     const onGo = vi.fn();
-    render(<Toc entries={entries} mode="curated" currentSlug={null} onGo={onGo} />);
+    render(<Toc entries={curatedEntries} currentSlug={null} onGo={onGo} />);
     await userEvent.click(screen.getByText("Light-dependent reactions"));
     expect(onGo).toHaveBeenCalledWith("light-dependent-reactions");
   });
@@ -64,11 +98,11 @@ describe("Toc (AC6 / AC17)", () => {
 
 const stats: TopicStats = { videos: 14, creators: 9, curators: 6, synced: "2h ago" };
 
-describe("Infobox (AC7 curated / AC14 empty)", () => {
-  it("shows the three derived counts as big numerals in the curated state (AC7)", () => {
+describe("Infobox (AC7 curated / AC14 empty / #60 §5.1 mixed)", () => {
+  it("shows the three derived counts as big numerals when curated (AC7)", () => {
     render(
       <Infobox
-        mode="curated"
+        hasCurated
         stats={stats}
         suggestionCount={0}
         sources="YouTube"
@@ -85,7 +119,7 @@ describe("Infobox (AC7 curated / AC14 empty)", () => {
   it("shows '0 / videos curated' and the curate CTA in the empty state (AC14)", () => {
     render(
       <Infobox
-        mode="empty"
+        hasCurated={false}
         stats={{ videos: 0, creators: 0, curators: 0 }}
         suggestionCount={5}
         sources="YouTube + TikTok"
@@ -101,11 +135,49 @@ describe("Infobox (AC7 curated / AC14 empty)", () => {
     ).toBeInTheDocument();
   });
 
+  // Issue #60 AC11 / §5.1: the mixed face — three numerals + the two-count line, NO CTA.
+  it("shows the '{V} curated · {M} suggested' two-count line in the mixed state (AC11)", () => {
+    render(
+      <Infobox
+        hasCurated
+        stats={stats}
+        suggestionCount={12}
+        sources="YouTube"
+        syncedLabel="now"
+        onCurateFirst={vi.fn()}
+      />
+    );
+    expect(screen.getByText("14")).toBeInTheDocument(); // the curated numerals still show
+    expect(screen.getByText("14 curated · 12 suggested")).toBeInTheDocument();
+    // AC13: no "Be the first to curate" CTA in mixed.
+    expect(
+      screen.queryByRole("button", { name: "Be the first to curate this topic" })
+    ).toBeNull();
+  });
+
+  // Issue #60 AC3 / AC13: fully-curated — numerals only, NO suggestion count, NO CTA.
+  it("shows no suggestion count and no CTA in the fully-curated state (AC3/AC13)", () => {
+    render(
+      <Infobox
+        hasCurated
+        stats={stats}
+        suggestionCount={0}
+        sources="YouTube"
+        syncedLabel="now"
+        onCurateFirst={vi.fn()}
+      />
+    );
+    expect(screen.queryByText(/suggested/)).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "Be the first to curate this topic" })
+    ).toBeNull();
+  });
+
   // #14 AC10: the ＋plus panel header no longer carries the "this topic" filler label.
   it("renders the ＋plus header WITHOUT the 'this topic' label (#14 AC10)", () => {
     render(
       <Infobox
-        mode="empty"
+        hasCurated={false}
         stats={{ videos: 0, creators: 0, curators: 0 }}
         suggestionCount={5}
         sources="YouTube"
@@ -120,7 +192,7 @@ describe("Infobox (AC7 curated / AC14 empty)", () => {
   it("keeps the ＋plus header clean of 'this topic' in the curated state too (#14 AC10)", () => {
     render(
       <Infobox
-        mode="curated"
+        hasCurated
         stats={stats}
         suggestionCount={0}
         sources="YouTube"
@@ -135,7 +207,7 @@ describe("Infobox (AC7 curated / AC14 empty)", () => {
     const onCurateFirst = vi.fn();
     render(
       <Infobox
-        mode="empty"
+        hasCurated={false}
         stats={{ videos: 0, creators: 0, curators: 0 }}
         suggestionCount={5}
         sources="YouTube"

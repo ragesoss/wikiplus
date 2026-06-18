@@ -91,12 +91,25 @@ export function CandidateActions({
 }
 
 /**
- * One-time "unvetted set" header (#14 AC5 / design D2) atop the rail candidate list.
- * A single dashed-outline block — replaces v2's tiny eyebrow AND absorbs the per-card
- * "No context yet…" sentence. Names the `sources` (from data, never hard-coded);
- * carries NO count (the topic-wide volume lives once, in the ＋plus panel — AC7).
+ * One-time "unvetted set" header (#14 AC5 / design D2; issue #60 §5.3) atop the rail
+ * candidate list. A single dashed-outline block — replaces v2's tiny eyebrow AND absorbs
+ * the per-card "No context yet…" sentence. Names the `sources` (from data, never
+ * hard-coded); carries NO count (the topic-wide volume lives once, in the ＋plus panel).
+ *
+ * Issue #60: in a MIXED rail (curated clips above it) it introduces the suggestion
+ * *subset*, not the whole topic — the body copy switches to the "The suggested videos
+ * below…" wording via `scope="subset"`. Empty-state copy ("the whole plus side is
+ * suggestions") is unchanged from #14 and is the default. The eyebrow ("Suggested ·
+ * uncurated") is a `<span>`, NOT a heading, so the heading outline is unbroken (AC15).
  */
-export function CandidateSetHeader({ sources }: { sources: string }) {
+export function CandidateSetHeader({
+  sources,
+  scope = "all",
+}: {
+  sources: string;
+  /** "subset" → the mixed-state copy that scopes to the suggestion group; "all" → empty copy. */
+  scope?: "all" | "subset";
+}) {
   return (
     <div className="candsethead px-3 py-2.5">
       <div className="flex items-center gap-2">
@@ -115,12 +128,66 @@ export function CandidateSetHeader({ sources }: { sources: string }) {
           Suggested · uncurated
         </span>
       </div>
-      <p className="mt-1 text-[11px] leading-snug text-ink2">
-        Auto-found from <span className="font-bold text-ink">{sources}</span>. No
-        context notes yet — a human hasn&apos;t reviewed these.{" "}
-        <span className="text-muted">Curate one to vouch for it.</span>
-      </p>
+      {scope === "subset" ? (
+        <p className="mt-1 text-[11px] leading-snug text-ink2">
+          The suggested videos below are auto-found from{" "}
+          <span className="font-bold text-ink">{sources}</span> — no context notes
+          yet, not reviewed by a human.{" "}
+          <span className="text-muted">Curate one to vouch for it.</span>
+        </p>
+      ) : (
+        <p className="mt-1 text-[11px] leading-snug text-ink2">
+          Auto-found from <span className="font-bold text-ink">{sources}</span>. No
+          context notes yet — a human hasn&apos;t reviewed these.{" "}
+          <span className="text-muted">Curate one to vouch for it.</span>
+        </p>
+      )}
     </div>
+  );
+}
+
+/**
+ * "See N more" / "See fewer" toggle for the General suggestion pool (issue #60 §3.2 /
+ * AC6/AC7/AC15). Presence is the CALLER's responsibility (render only when
+ * `generalCandidates.length > GENERAL_SUGGESTION_DEFAULT`); this component just renders
+ * the control. It is a native `<button>` (keyboard-reachable, Enter/Space, the project
+ * `:focus-visible` ring), ≥44px tall, with the band's white-fill-on-indigo control
+ * language. ARIA: `aria-expanded` announces collapsed/expanded; `aria-controls` points at
+ * the suggestion-group container id; the visible label text is the accessible name (the
+ * `▾`/`▴` glyph is decorative, `aria-hidden`). Focus stays on the button across toggle
+ * (the button persists; the newly-revealed tiles come after it in source order).
+ */
+export function SeeMoreButton({
+  expanded,
+  remaining,
+  controls,
+  onToggle,
+}: {
+  expanded: boolean;
+  /** Suggestions hidden when collapsed (`length − DEFAULT`) — shown in the collapsed label. */
+  remaining: number;
+  /** id of the suggestion-group container this toggle expands (`aria-controls`). */
+  controls: string;
+  onToggle: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-expanded={expanded}
+      aria-controls={controls}
+      className="inline-flex min-h-[44px] shrink-0 items-center self-center whitespace-nowrap border-2 border-ink bg-white px-3 py-1 text-[12px] font-bold text-ink hover:shadow-[2px_2px_0_#2C2C2C]"
+    >
+      {expanded ? (
+        <>
+          See fewer&nbsp;<span aria-hidden>▴</span>
+        </>
+      ) : (
+        <>
+          See {remaining} more&nbsp;<span aria-hidden>▾</span>
+        </>
+      )}
+    </button>
   );
 }
 
