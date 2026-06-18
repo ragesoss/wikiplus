@@ -108,6 +108,17 @@ export interface Clip extends VideoBase {
   upvotes?: number;
   /** wiki+ curator handle who curated it (distinct from the creator). */
   curatedBy?: string;
+  /**
+   * The curating contributor's stable internal id (`contributor.id`). Surfaced READ-ONLY on
+   * the client `Clip` (issue #53 / D2, Decision 6 mechanism (a)) so the Topic page can decide
+   * which clips to show the owner-only Edit/Delete affordances on — by comparing this to
+   * `session.user.contributorId`, matching the server gate exactly (no username-collision
+   * corner case). It is NOT a secret (an internal row id, not the Wikimedia identity) and is
+   * NOT a security control: the authoritative check is the server-side, id-based gate inside
+   * `updateClipAction` / `deleteClipAction` (the affordance only mirrors it). Undefined for
+   * legacy `@prototype` clips owned by no current user — so they show no affordance to anyone.
+   */
+  curatorId?: number;
   /** Relative date label (decorative). */
   curatedAt?: string;
   /**

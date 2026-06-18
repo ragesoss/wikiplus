@@ -199,7 +199,11 @@ export function AddModal({
               <ModalActionRow
                 publishIdleLabel="＋ Add & curate"
                 publishBusyLabel="Adding…"
-                canPublish={submit.hasNote && submit.agreed && parsed !== null}
+                canPublish={
+                  submit.hasNote &&
+                  (!submit.materialNote || submit.agreed) &&
+                  parsed !== null
+                }
                 pending={submit.pending}
                 error={submit.error}
                 licenseStatementId={licenseStatementId}

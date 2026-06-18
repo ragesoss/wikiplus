@@ -92,7 +92,9 @@ export function CurateModal({
           <ModalActionRow
             publishIdleLabel="✓ Publish curation"
             publishBusyLabel="Publishing…"
-            canPublish={submit.hasNote && submit.agreed}
+            canPublish={
+              submit.hasNote && (!submit.materialNote || submit.agreed)
+            }
             pending={submit.pending}
             error={submit.error}
             licenseStatementId={licenseStatementId}

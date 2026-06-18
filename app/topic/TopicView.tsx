@@ -14,6 +14,9 @@ import { CandidateCard, CandidateSetHeader } from "@/components/topic/CandidateB
 import { CitationLayer } from "@/components/topic/CitationLayer";
 import { ClipCard } from "@/components/topic/ClipCard";
 import { CurateModal } from "@/components/topic/CurateModal";
+import { DeleteConfirmDialog } from "@/components/topic/DeleteConfirmDialog";
+import { EditModal } from "@/components/topic/EditModal";
+import type { ClipEditFormPatch } from "@/components/topic/curate-clip";
 import type { SubmitOutcome } from "@/components/topic/useCurateSubmit";
 import { GeneralStrip } from "@/components/topic/GeneralStrip";
 import { Infobox } from "@/components/topic/Infobox";
@@ -22,6 +25,7 @@ import { PlayerModal } from "@/components/topic/PlayerModal";
 import { Toc, type TocEntry } from "@/components/topic/Toc";
 import { TopicHeader } from "@/components/topic/TopicHeader";
 import { useRequireLogin } from "@/components/auth/useRequireLogin";
+import { useSession } from "next-auth/react";
 import { isAuthRequired } from "@/lib/auth/auth-error";
 import { liveCandidatesEnabled } from "@/lib/candidates";
 import {
@@ -55,6 +59,13 @@ export function TopicView() {
   // Issue C: the gate seam for the four contribute entry points (design §2 / §9). It runs the
   // action when signed in, else opens the right login gate (no auto-resume on return — UX-2).
   const { requireLogin, showExpiredGate, gateElement } = useRequireLogin();
+  // D2 (issue #53, design §3.1 / Decision 6 (a)): the signed-in contributor id, read in the
+  // ALREADY-AUTHENTICATED client session, to decide which clips show the owner-only Edit/Delete
+  // affordances (by comparing to `clip.curatorId`). This is the affordance mechanism ONLY — the
+  // server-side, id-based gate is the security control. No read-path cost (runs only in the
+  // authenticated session, on data already loaded; an anonymous render reads no session here).
+  const { data: session } = useSession();
+  const myContributorId = session?.user?.contributorId;
   const pathname = usePathname();
   const qidParam = useSearchParams().get("qid");
 
@@ -110,6 +121,9 @@ export function TopicView() {
   const [curateFor, setCurateFor] = useState<Candidate | null>(null);
   const [curateOpen, setCurateOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
+  // D2 (issue #53): the clip currently being edited / the clip pending delete-confirmation.
+  const [editClip, setEditClip] = useState<Clip | null>(null);
+  const [deleteFor, setDeleteFor] = useState<Clip | null>(null);
 
   const [activeSlug, setActiveSlug] = useState<string | null>(null);
 
@@ -793,6 +807,84 @@ export function TopicView() {
     [persistClip, qid, topic, canonicalTitle]
   );
 
+  // ── Owner-only edit / delete (issue #53 / D2, design §§2–9). ───────────────────────────
+  // The AFFORDANCE check (Decision 6 (a)): a clip is "owned" by the viewer iff the viewer is
+  // signed in AND `clip.curatorId` equals their session contributor id. This decides which
+  // cards show Edit/Delete; a legacy `@prototype` clip has no `curatorId` → never owned (AC8).
+  // It is NOT the security control — `updateClipAction`/`deleteClipAction` re-check ownership
+  // server-side, id-based, regardless of any button (AC4/AC5/AC6/AC8).
+  const ownsClip = useCallback(
+    (clip: Clip): boolean =>
+      typeof myContributorId === "number" && clip.curatorId === myContributorId,
+    [myContributorId]
+  );
+
+  // Edit submit (design §6.3 / §7.1 / AC1/AC2). The Edit modal hands up the editable-set patch +
+  // the agreement boolean; the host calls the auth-gated `updateClipAction` (the server decides
+  // ownership + the §5.3 re-stamp), then REPLACES the clip object in the in-memory `clips` array
+  // by id so it re-renders in place with no reload (a section change re-anchors via the existing
+  // `sectionClips`/`generalClips`/`tocEntries` derivations). Edit does NOT remove the card, so
+  // focus-return is the normal `ModalShell` `prevActive` (no band-heading exception — §7.1).
+  // Errors branch exactly like `persistClip`: `AuthRequiredError` → the expired gate (modal
+  // closes via "expired"); any other error throws so the modal stays open with the §6 alert.
+  const onEditSubmit = useCallback(
+    (patch: ClipEditFormPatch, agreed: boolean): Promise<SubmitOutcome> => {
+      const target = editClip;
+      if (!target) return Promise.resolve<SubmitOutcome>({ outcome: "added" });
+      return (async () => {
+        try {
+          const updated = await store.updateClip(
+            target.id,
+            patch,
+            undefined,
+            agreed
+          );
+          setClips((prev) =>
+            prev.map((c) => (c.id === updated.id ? updated : c))
+          );
+          return { outcome: "added" } satisfies SubmitOutcome;
+        } catch (err) {
+          if (isAuthRequired(err)) {
+            showExpiredGate();
+            return { outcome: "expired" } satisfies SubmitOutcome;
+          }
+          throw err; // generic error → the modal keeps open + shows its §6 alert
+        }
+      })();
+    },
+    [editClip, showExpiredGate]
+  );
+
+  // Delete confirm (design §2.2 / §7.2 / §7.3 / AC3). The confirm dialog runs this; the host
+  // calls the auth-gated `deleteClipAction` (server re-checks ownership), then REMOVES the clip
+  // from the in-memory `clips` set so it disappears with no reload (counts drop; the last clip
+  // flips curated→empty via the existing `mode = clips.length > 0` switch). Because the card is
+  // REMOVED, focus must not be lost to <body>: move it to `focusBandHeading()` after the shell's
+  // own `prevActive` fires (the rAF pattern the promote/dismiss paths use — §7.3). Errors branch
+  // like `persistClip`: auth → expired gate; other → throw (dialog stays open with its alert).
+  const onDeleteConfirm = useCallback((): Promise<SubmitOutcome> => {
+    const target = deleteFor;
+    if (!target) return Promise.resolve<SubmitOutcome>({ outcome: "added" });
+    return (async () => {
+      try {
+        await store.deleteClip(target.id);
+        setClips((prev) => prev.filter((c) => c.id !== target.id));
+        if (typeof requestAnimationFrame !== "undefined") {
+          requestAnimationFrame(() => focusBandHeading());
+        } else {
+          focusBandHeading();
+        }
+        return { outcome: "added" } satisfies SubmitOutcome;
+      } catch (err) {
+        if (isAuthRequired(err)) {
+          showExpiredGate();
+          return { outcome: "expired" } satisfies SubmitOutcome;
+        }
+        throw err;
+      }
+    })();
+  }, [deleteFor, focusBandHeading, showExpiredGate]);
+
   const sectionList = useMemo(
     () => (article?.sections ?? []).map((s) => ({ slug: s.slug, title: s.title })),
     [article]
@@ -945,8 +1037,11 @@ export function TopicView() {
                     key={clip.id}
                     clip={clip}
                     active={activeSlug === clip.sectionSlug}
+                    owned={ownsClip(clip)}
                     onPlay={setPlayer}
                     onGoToSection={(slug) => slug && goTo(slug)}
+                    onEdit={(c) => setEditClip(c)}
+                    onDelete={(c) => setDeleteFor(c)}
                     cardRef={(el) => {
                       if (el) cardEls.current.set(clip.id, el);
                       else cardEls.current.delete(clip.id);
@@ -1039,6 +1134,29 @@ export function TopicView() {
           topicQid={qid}
           onClose={() => setAddOpen(false)}
           onSubmit={onAddSubmit}
+        />
+      )}
+
+      {/* Owner-only Edit modal (D2, design §6). Pre-filled; the conditional §5.3 re-agreement
+          lives inside CurateFields. The host owns the write (auth-gated updateClipAction) + the
+          in-place re-render. The card is not removed, so focus returns to the Edit trigger. */}
+      {editClip && (
+        <EditModal
+          clip={editClip}
+          sections={sectionList}
+          onClose={() => setEditClip(null)}
+          onSubmit={onEditSubmit}
+        />
+      )}
+
+      {/* Owner-only Delete confirm dialog (D2, design §9). Cancel-as-default; the destructive
+          confirm runs the auth-gated deleteClipAction. On success the host removes the clip
+          (no reload) and moves focus to the band heading (§7.3). */}
+      {deleteFor && (
+        <DeleteConfirmDialog
+          clip={deleteFor}
+          onClose={() => setDeleteFor(null)}
+          onConfirm={onDeleteConfirm}
         />
       )}
 

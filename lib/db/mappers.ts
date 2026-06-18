@@ -38,6 +38,10 @@ export function rowToClip(row: ClipRow, topicQid: string): Clip {
     accuracyModifier: row.accuracyModifier ?? undefined,
     upvotes: row.upvotes ?? undefined,
     curatedBy: row.curatedBy ?? undefined,
+    // The stable owner key, surfaced read-only for the owner-only Edit/Delete affordance
+    // (issue #53 / D2, Decision 6 mechanism (a)). Null for legacy `@prototype` clips owned
+    // by no current user → undefined → no affordance to anyone (AC8). NOT the security gate.
+    curatorId: row.curatorId ?? undefined,
     curatedAt: row.curatedAt ?? undefined,
     // Note-license agreement (issue #52 / D1, AC7). Surfaced read-side so QA can confirm a
     // D1 clip carries the captured license version + timestamp and a seed/stub clip does not.
@@ -111,9 +115,15 @@ export function rowToTopic(row: TopicRow): Topic {
  * The fields of a `Clip` that are mutable via `updateClip` → a partial update row.
  * Only the columns the patch names are written. `id`/`topicQid`/`createdAt` are never
  * patchable through this path (the interface already excludes `id`).
+ *
+ * The note-license re-stamp (issue #53 / D2, AC9) is passed SEPARATELY as a server-built
+ * `agreement`, never read off `patch`: a forged `noteLicense*` on the patch can never reach
+ * the row (mirrors `clipToInsert`). Omitting `agreement` leaves both columns untouched
+ * (a chip/section-only or whitespace-only edit — AC10).
  */
 export function clipPatchToUpdate(
-  patch: Partial<Omit<Clip, "id">>
+  patch: Partial<Omit<Clip, "id">>,
+  agreement?: { noteLicense: string; noteLicenseAgreedAt: Date }
 ): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   const set = (k: string, v: unknown) => {
@@ -146,6 +156,12 @@ export function clipPatchToUpdate(
   set("upvotes", patch.upvotes);
   set("curatedBy", patch.curatedBy);
   set("curatedAt", patch.curatedAt);
+  // §5.3 re-affirmation re-stamp (server-built only): present ⇒ a fresh license version +
+  // agreement timestamp; absent ⇒ both columns left as they were (AC9/AC10).
+  if (agreement) {
+    out.noteLicense = agreement.noteLicense;
+    out.noteLicenseAgreedAt = agreement.noteLicenseAgreedAt;
+  }
   out.updatedAt = new Date();
   return out;
 }

@@ -22,13 +22,24 @@ export type SubmitOutcome = { outcome: "added" | "expired" };
 export interface CurateSubmitState {
   /** Non-empty trimmed note present (design §3.3 / AC10). */
   hasNote: boolean;
-  /** Required CC BY-SA agreement checked (design §3.2 / AC6). */
+  /** CC BY-SA agreement checked (design §3.2 / AC6). */
   agreed: boolean;
+  /**
+   * Whether the agreement is currently REQUIRED (design §4). On the ADD path this is always
+   * `true` (the agreement is always shown + required). On the EDIT path it is `true` only on a
+   * material note change — so Save is gated on `hasNote && (!materialNote || agreed)`, letting a
+   * chip/section-only edit save without re-agreeing (AC10) while a note rewrite must (AC9).
+   */
+  materialNote: boolean;
   /** A write is in flight (publish disabled + busy label; no double-submit — §5/AC11). */
   pending: boolean;
   /** A generic server/boundary error occurred; keep the modal open with the §6 alert (AC11). */
   error: boolean;
-  setPreconditions: (s: { hasNote: boolean; agreed: boolean }) => void;
+  setPreconditions: (s: {
+    hasNote: boolean;
+    agreed: boolean;
+    materialNote: boolean;
+  }) => void;
   /** Run the gated submit. No-op while pending (double-submit guard) or preconditions unmet. */
   run: (
     submit: () => Promise<SubmitOutcome>,
@@ -40,6 +51,9 @@ export interface CurateSubmitState {
 export function useCurateSubmit(): CurateSubmitState {
   const [hasNote, setHasNote] = useState(false);
   const [agreed, setAgreed] = useState(false);
+  // Defaults to `true` so the ADD path (which never reports `materialNote=false`) gates exactly
+  // as before — the agreement is required. The EDIT path reports `false` for a non-material edit.
+  const [materialNote, setMaterialNote] = useState(true);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState(false);
 
@@ -54,9 +68,10 @@ export function useCurateSubmit(): CurateSubmitState {
   }, []);
 
   const setPreconditions = useCallback(
-    (s: { hasNote: boolean; agreed: boolean }) => {
+    (s: { hasNote: boolean; agreed: boolean; materialNote: boolean }) => {
       setHasNote(s.hasNote);
       setAgreed(s.agreed);
+      setMaterialNote(s.materialNote);
     },
     []
   );
@@ -67,9 +82,12 @@ export function useCurateSubmit(): CurateSubmitState {
       onClose: () => void,
       extraReady = true
     ) => {
-      // Client-side publish preconditions (design §3.2/§3.3, AC10): non-empty note + agreement
-      // + any flow-specific gate (add-by-link's resolved link). Also a no-op while pending.
-      if (pending || !hasNote || !agreed || !extraReady) return;
+      // Client-side publish/save preconditions (design §3.2/§3.3 + §4, AC9/AC10): a non-empty
+      // note, the agreement WHEN it is required (always on add; only on a material note change
+      // on edit), and any flow-specific gate (add-by-link's resolved link). Also a no-op while
+      // pending (double-submit guard). The agreement clause `(!materialNote || agreed)` mirrors
+      // the modal's `canPublish` so the button and the run-gate never disagree.
+      if (pending || !hasNote || (materialNote && !agreed) || !extraReady) return;
       setError(false);
       setPending(true);
       try {
@@ -90,12 +108,13 @@ export function useCurateSubmit(): CurateSubmitState {
       }
       if (alive.current) setPending(false);
     },
-    [pending, hasNote, agreed]
+    [pending, hasNote, agreed, materialNote]
   );
 
   return {
     hasNote,
     agreed,
+    materialNote,
     pending,
     error,
     setPreconditions,

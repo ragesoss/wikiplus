@@ -471,13 +471,34 @@ build on additively.
   The boundary (`lib/server/actions.ts`, `"use server"`) is a thin set of **mechanical wrappers** over
   the store — **no product logic** (auth-gating / the CC-BY-SA agreement are issue D).
 - **Boundary surface is narrower than the store (security, fix round).** The boundary deliberately
-  does **not** expose every store method. The destructive `updateClip` / `deleteClip` have **no UI
-  caller** and are **not** Server Actions (a boundary export would let any visitor edit/delete any
-  clip) — they live **only** on `DrizzleDataStore` (for issue D + store-level tests) and are absent
-  from both the boundary and the client-facing `DataStore` interface. **As of issue C the three write
-  actions (`addClip`/`upsertTopic`/`recordDismissal`) are AUTH-GATED** — `requireContributor()` runs
-  at the top of each and rejects an unauthenticated call before any DB write (the B-era
-  "unauthenticated boundary" is closed; see *Authentication & identity*). A **minimal input stopgap**
+  does **not** expose every store method. Until ownership existed, the destructive `updateClip` /
+  `deleteClip` were **off** the boundary (an anonymous export would let any visitor edit/delete any
+  clip). **As of issue #53 / D2 they are surfaced — but as AUTH-GATED, OWNER-ONLY Server Actions**
+  (`updateClipAction` / `deleteClipAction`), **not** the anonymous edit/delete-any the fix round
+  guarded against. The gate is **server-side and id-based** (Decision 6): each action runs
+  `requireContributor()` **first**, then loads the target clip's `curatorId` and **rejects unless it
+  equals the session contributor id** — never by username, never trusting a client flag. A
+  non-owner / anonymous / legacy-`@prototype`-clip call writes nothing and is rejected
+  (`test/clip-edit-delete.test.ts` is the load-bearing security suite). The update is restricted to
+  the **editable set** (Decision 2 — `contextNote`, `stance` (+ preserved modifier), `accuracyFlag`
+  (+ preserved modifier), `general`/`sectionSlug`/`sectionLabel`); a forged patch carrying any other
+  field (`curatorId`/`curatedBy`/`createdAt`/video/creator/`upvotes`/`topicQid`/`noteLicense*`) is
+  dropped at the boundary (`pickEditable`). Delete is a **hard** `db.delete(clip)` (Decision 4 — no
+  soft-delete/undo; the captured note-license agreement goes with the row; dismissals are keyed
+  independently and are unaffected). The §5.3 **edit re-affirmation** (Decision 3, AC9/AC10) is
+  decided server-side: the action recomputes materiality from the **stored** note vs. the patch via
+  a shared normalization helper (`lib/curation/note-text.ts` — trim + collapse internal whitespace)
+  and re-stamps `note_license` = `CC-BY-SA-4.0` + a fresh `note_license_agreed_at` only when the
+  normalized note text changed **and** the client signalled consent; a chip/section-only or
+  whitespace-only edit leaves both untouched. The **client affordance** (which clips show
+  Edit/Delete) uses **Decision 6 mechanism (a)**: `rowToClip` now surfaces `curatorId` **read-only**
+  on the client `Clip`, compared to `session.user.contributorId` in the already-authenticated client
+  session (no read-path cost) — a convenience layer that mirrors, but never replaces, the server
+  gate (legacy `@prototype` clips carry no `curatorId` → no affordance to anyone, AC8). **The three
+  pre-D2 write actions (`addClip`/`upsertTopic`/`recordDismissal`) have been AUTH-GATED since issue
+  C** — `requireContributor()` runs at the top of each and rejects an unauthenticated call before any
+  DB write (the B-era "unauthenticated boundary" is closed; see *Authentication & identity*). A
+  **minimal input stopgap**
   sits on the write actions (after the gate)
   (`addClip`, `upsertTopic`) ahead of D's full validation: a free-text **length cap**
   (`context_note` / `caption` / `title`) and a **closed-set guard** on the curation enums
@@ -496,8 +517,10 @@ build on additively.
   - **Reads (server-DB):** `listTopics`, `getTopic`, `getTopicByTitle`, `listClips`, the persisted
     `dismissedKeys` — Server Actions → `DrizzleDataStore` → Postgres.
   - **Writes (server-DB):** `upsertTopic`, `addClip`, `recordDismissal` — same path, **auth-gated as
-    of issue C** (rejected when anonymous; attributed to the real signed-in contributor). (`updateClip`
-    / `deleteClip` exist on the store but are **not** boundary actions — see *Boundary surface* above.)
+    of issue C** (rejected when anonymous; attributed to the real signed-in contributor). **As of
+    issue #53 / D2 `updateClip` / `deleteClip` are also boundary actions** (`updateClipAction` /
+    `deleteClipAction`) — **auth-gated + owner-only**, the gate `clip.curatorId === session
+    contributor id` (id-based, server-side); delete is hard; see *Boundary surface* above.
   - **Client (Wikipedia/YouTube), unchanged:** title→QID resolution, the article-body fetch, the TOC,
     and the **live YouTube candidate search** all stay **client-side**. `suggestCandidates` runs the
     pure pipeline in the browser; the (now shared) dismissed-video keys it needs for dedup are fetched
@@ -619,9 +642,24 @@ a host is provisioned (issue A.2).
   the license + timestamp and **strips any `note_license*` smuggled on the input** (attribution +
   license are the boundary's call, never the client's — same posture as `curated_by`). The canonical
   license version + the two verbatim agreement strings live in `lib/curation/note-license.ts`.
-  Edit/delete of one's own clips stays **off** the boundary (D2); immediate publish, no `vetted`
-  review hold (Decision D1-2; D5 owns the hold). Migration `drizzle/0002_*` adds the two nullable
-  columns to the C schema.
+  Immediate publish, no `vetted` review hold (Decision D1-2; D5 owns the hold). Migration
+  `drizzle/0002_*` adds the two nullable columns to the C schema.
+- **Owner-only edit / delete of your own clips (issue #53 / D2).** `updateClipAction` /
+  `deleteClipAction` are now on the **auth-gated Server Actions boundary** — **owner-only**, the
+  gate `clip.curatorId === session contributor id` (id-based, server-side; `requireContributor()`
+  then the ownership check; a non-owner/anonymous/legacy-`@prototype` call writes nothing). Edit is
+  restricted to the **editable set** (note + stance/accuracy (+ preserved modifiers) + section;
+  Decision 2) — a forged out-of-set patch is dropped (`pickEditable`); delete is a **hard**
+  `db.delete` (Decision 4). A **material note-text change** (normalized via
+  `lib/curation/note-text.ts`) re-stamps `note_license`/`note_license_agreed_at` server-side (§5.3 /
+  Decision 3); a chip/section-only or whitespace-only edit does not. The Topic page shows the
+  owner-only **Edit/Delete** affordances on the curated `ClipCard` (an Edit modal cloned from
+  `CurateModal` with the conditional re-agreement; a Cancel-default Delete confirm dialog) and
+  re-renders **in place** / removes-and-refocuses with no reload. Affordance ownership uses
+  **Decision 6 (a)** — `curatorId` surfaced read-only on the client `Clip` (`rowToClip`), compared
+  to `session.user.contributorId` (no read-path cost; mirrors but never replaces the server gate).
+  **No migration** (the columns + store methods already existed). Moderator removal of *anyone's*
+  clip is **D5**.
 - **Server Actions (enabled #37; now the data-access boundary — issue #45).** The Node SSR runtime
   supports Server Actions; as of #45 they are the **data-access boundary** for shared Postgres
   (`lib/server/actions.ts`, `"use server"` — see *Persistence* above). The throwaway #37 smoke artifact

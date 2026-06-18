@@ -146,18 +146,22 @@ describe("addClip topic-resolution guard", () => {
 // (a) the findings are codified for the report and (b) when C/D add auth-gating + ownership
 // checks, these tests must be UPDATED — a deliberate trip-wire, not a green-forever assert.
 //
-// As of the fix round: the destructive `updateClip` / `deleteClip` are NOT exposed at the
-// Server-Actions boundary (no UI caller; an anonymous boundary export = edit/delete-any).
-// The capability stays on the STORE (issue D needs it). So the two destructive cases below
-// now pin BOTH: the store can still update/delete (D's foundation), AND the anonymous
-// boundary does not surface those actions.
-describe("SECURITY (B has no auth) — boundary surface + store capability", () => {
-  it("the Server-Actions boundary does NOT export updateClip/deleteClip (no anonymous edit/delete-any)", async () => {
+// Issue #53 / D2 UPDATE (the deliberate trip-wire from the #45 fix round fired): the destructive
+// `updateClip` / `deleteClip` are now SURFACED at the boundary — but as AUTH-GATED, OWNER-ONLY
+// Server Actions, not the anonymous edit/delete-any the fix round guarded against. So the case
+// below now pins the NEW posture: the boundary exports both actions, and the gate
+// (requireContributor() then the id-based ownership check) is the protection — verified in
+// test/clip-edit-delete.test.ts, the load-bearing security tests. The store still carries the
+// raw, unguarded methods (D's foundation; the gate lives at the boundary, not the store).
+describe("SECURITY — boundary surface + store capability (D2: gated edit/delete)", () => {
+  it("the Server-Actions boundary now EXPORTS owner-only updateClip/deleteClip (D2 — the gate, not the absence, is the protection)", async () => {
     const actions = await import("@/lib/server/actions");
-    // Removed from the boundary in the fix round — an unauthenticated visitor cannot reach
-    // a destructive clip mutation. (D can add gated edit/delete actions once auth lands.)
-    expect("updateClipAction" in actions).toBe(false);
-    expect("deleteClipAction" in actions).toBe(false);
+    // D2 surfaced them as auth-gated, owner-only actions (the ownership gate is the security
+    // control — see test/clip-edit-delete.test.ts for the non-owner/anonymous rejection tests).
+    expect("updateClipAction" in actions).toBe(true);
+    expect("deleteClipAction" in actions).toBe(true);
+    expect(typeof actions.updateClipAction).toBe("function");
+    expect(typeof actions.deleteClipAction).toBe("function");
   });
 
   it("deleteClip stays on the STORE for issue D (still no ownership/auth check at the store level)", async () => {
