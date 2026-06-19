@@ -32,11 +32,12 @@ export function middleware(request: NextRequest) {
 
   // Redirect to canonical trailing-slash form, preserving any query string.
   // 308 Permanent Redirect (method-preserving, same as Next.js's own redirect).
-  const url = request.nextUrl.clone();
-  url.pathname = pathname + "/";
-  // search is already part of nextUrl; clone preserves it. Explicitly reassign to be safe.
-  url.search = search;
-  return NextResponse.redirect(url, { status: 308 });
+  // Use a plain URL (not NextURL) so the trailing slash is not stripped by NextURL's
+  // internal trailingSlash flag during href serialization — which would produce a
+  // redirect loop (Location equals the original URL).
+  const dest = new URL(`${pathname}/`, request.nextUrl.origin);
+  dest.search = search;
+  return NextResponse.redirect(dest, { status: 308 });
 }
 
 export const config = {
