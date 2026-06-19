@@ -277,31 +277,34 @@ describe("AC16 — Home auth slot height 56 (re-centred on cyMid=28), no second-
   });
 });
 
-// ── AC11 — coupling: the SAME [data-collapsed] state drives BOTH the band height (104→56) and the
-// beam/lockup opacity, with the SAME 180ms ease-out, so a faded beam never sits over a full band.
-// (shared-header.test.tsx asserts the boolean flip + height; here we assert the single-state
-// coupling + equal-duration transitions explicitly for this refinement's Decision 3.) ───────────
-describe("AC11/AC15 — coupled collapse driven by one [data-collapsed] state, reduced-motion gated", () => {
-  it("band height + beam + all three lockup-layer opacities transition at the SAME 180ms ease-out", async () => {
+// ── AC11 (#96 — supersedes #89 Decision 3) — coupling: ONE normalized progress `p` drives BOTH the
+// band height (104→56) and the beam/lockup/border opacities, in lockstep, every frame — so a faded
+// beam can never sit over a full band. The #89 180ms boolean tween is REMOVED (a CSS transition
+// would fight the scroll — #96 §6); the coupling is now structural (one `p`, no per-property
+// clock), not a matched-duration tween. ─────────────────────────────────────────────────────────
+describe("AC11/AC15 (#96) — coupled collapse driven by ONE progress p, no tween", () => {
+  it("the band height + the layer opacities are var-driven (one source), with NO transition", async () => {
     const fs = await import("node:fs");
     const path = await import("node:path");
     const css = fs.readFileSync(path.resolve(process.cwd(), "app/globals.css"), "utf8");
-    const gateIdx = css.indexOf("@media (prefers-reduced-motion: no-preference)");
-    expect(gateIdx).toBeGreaterThan(-1);
-    const afterGate = css.slice(gateIdx, css.indexOf("}", css.indexOf("}", gateIdx) + 1) + 200);
-    // Height + opacity both at 180ms ease-out inside the reduced-motion gate (so a reduce
-    // preference snaps to the end-state with no tween — AC15).
-    expect(afterGate).toMatch(/\.header-band\s*\{\s*transition:\s*height\s*180ms\s*ease-out/);
-    expect(afterGate).toMatch(/transition:\s*opacity\s*180ms\s*ease-out/);
+    // The opacities read the host's `p`-derived vars (one source of truth).
+    expect(css).toMatch(/opacity:\s*var\(--beam-opacity/);
+    expect(css).toMatch(/opacity:\s*var\(--flat-opacity/);
+    expect(css).toMatch(/border-bottom:\s*2px solid rgb\([^)]*var\(--border-opacity/);
+    // No per-property transition in the .header-shared cross-fade block (the scroll is the
+    // animation). The old 180ms height/opacity tweens are gone.
+    const start = css.indexOf("\n.header-shared .projector-beamfade");
+    const end = css.search(/^\.topic-illum\s*\{/m);
+    expect(css.slice(start, end)).not.toMatch(/transition\s*:/);
+    expect(css).not.toMatch(/transition:\s*height\s*180ms/);
   });
 
-  it("the band height + the [data-collapsed] opacity flips are driven by the one header state", () => {
-    // Render is enough to confirm the single [data-collapsed] gate exists; shared-header.test.tsx
-    // exercises the scroll flip end-to-end. Here: the band height is the collapsed-conditional value.
+  it("the band height is driven by the live --topic-burn-y var (same value as the burn boundary)", () => {
+    // The band edge and the projector's internal burn boundary read the SAME --topic-burn-y, so
+    // they are one edge at every p (#96 §4.2). At scrollY=0 the mount value is the full Tier-A 104.
     const { container } = renderTopicHeader();
     const band = container.querySelector(".header-band") as HTMLElement;
-    // At scrollY=0 the band is the full Tier-A height (the collapsed boolean is false).
-    expect(band.style.height).toBe(`${TOPIC_BURN_Y}px`);
+    expect(band.style.height).toBe("var(--topic-burn-y)");
   });
 });
 
