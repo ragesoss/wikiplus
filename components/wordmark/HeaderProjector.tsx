@@ -291,7 +291,12 @@ function Beam({
   edgeInset: number;
   apexX: number; // beam apex x in real px = the LIVE aperture x (centered desktop / left narrow)
 }) {
-  const top0 = apexY + BH / 2 + 6; // beam top just below the block bottom (mockup top0)
+  // The cone's apex is a POINT at the aperture center (apexY), which sits BEHIND the zine block
+  // (the block, drawn after the beam, occludes the apex region). So the beam has NO horizontal
+  // gold cap at the top (the apex is a zero-width point, not a flat top edge) and NO gap — it
+  // emerges flush from under the block's bottom (black zine) edge, exactly touching it. (Owner,
+  // Iteration-3 follow-up: "no top gold border on the apex; the beam touches the black zine edge".)
+  const top0 = apexY;
   const crossY = burnY - crossUp; // crossbar sits crossUp above the burn boundary
   // The polygon extends BELOW burnY to coneBot, then the span clips at burnY (the underline fix —
   // the bottom closing edge lies below the clip line). Mirrors the mockup's coneBot below pageY;
@@ -326,8 +331,15 @@ function Beam({
       className="pointer-events-none absolute inset-x-0"
       style={{
         top: top0, // SVG starts at the beam top; the span clips its bottom at burnY
-        height: burnY - top0, // clip the beam (and its glow) at the burn boundary
+        height: burnY - top0,
+        // overflow:hidden clips the SVG CONTENT at burnY (the underline fix — the polygon's
+        // bottom closing edge sits below this and is never drawn). But `overflow:hidden` does
+        // NOT clip the element's own `filter` output, so the gold drop-shadow GLOW would leak
+        // ~12px below burnY onto the white hero. `clip-path: inset(0)` clips the FILTERED result
+        // too (clip-path applies AFTER filter in the paint order), so the edge-glow stays inside
+        // the header and never bleeds below the boundary — matching the mockup's clip-path clip.
         overflow: "hidden",
+        clipPath: "inset(0)",
         filter:
           `drop-shadow(0 0 4px rgba(${GOLD_RIM_RGB},0.6)) drop-shadow(0 0 11px rgba(${GOLD_RIM_RGB},0.32))`,
       }}

@@ -141,7 +141,8 @@ describe("AC10 — the geometry is parameterized, not baked constants", () => {
   it("a geometry override changes the rendered beam clip height (burnY is a real prop)", () => {
     const def = render(<HeaderProjector variant="projector" />);
     const defBeam = def.container.querySelector("[data-projector-beam]");
-    // The clip height = burnY − top0; with the default burnY=150 and top0=98 → 52.
+    // The clip height = burnY − top0; top0 = apexY (cyMid=64; the cone apex sits at the aperture,
+    // behind the block), so with the default burnY=150 → 86.
     const defClipH = defBeam?.getAttribute("data-beam-clip-h");
     def.unmount();
 
@@ -155,8 +156,8 @@ describe("AC10 — the geometry is parameterized, not baked constants", () => {
     // boundary, inside the projected light) and the override (240) produce DIFFERENT clip heights
     // — proving the value flows from the prop, not a hardcoded inline constant. The default MUST
     // stay in sync with the `--projector-burn-y` token in globals.css (AC10).
-    expect(defClipH).toBe("52.0"); // 150 − 98
-    expect(ovClipH).toBe("142.0"); // 240 − 98
+    expect(defClipH).toBe("86.0"); // 150 − 64 (burnY − apexY)
+    expect(ovClipH).toBe("176.0"); // 240 − 64
     expect(ovClipH).not.toEqual(defClipH);
   });
 
