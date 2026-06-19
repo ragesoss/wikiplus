@@ -46,6 +46,15 @@ const nextConfig = {
   outputFileTracingRoot: import.meta.dirname,
   images: { unoptimized: true },
   trailingSlash: true,
+  // skipTrailingSlashRedirect: tells Next.js NOT to issue a 308 redirect for any request
+  // lacking a trailing slash. Without this, Next.js 308-redirects ALL routes — including
+  // /api/auth/callback/wikimedia — to their trailing-slash form, breaking OAuth callback
+  // URL matching (issue #51). The trailing-slash redirect is instead handled selectively
+  // by middleware.ts, which skips /api/* so Auth.js routes are never 308-redirected.
+  // trailingSlash: true above is still kept so Next.js emits trailing slashes on all
+  // internal <Link> hrefs and router.push calls — defining canonical URL shape — but the
+  // 308 enforcement is now middleware's job, not the framework's.
+  skipTrailingSlashRedirect: true,
   eslint: { ignoreDuringBuilds: true },
 };
 
