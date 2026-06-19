@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { AuthControl } from "@/components/auth/AuthControl";
 import { SiteFooter } from "@/components/chrome/SiteFooter";
-import { SiteHeader } from "@/components/chrome/SiteHeader";
+import { SiteHeader } from "@/components/header/SiteHeader";
 
 // ── /about/data — the persistent data notice (issue #66, design §2.1 / §4). ───────────────
 // The canonical, anonymous-reachable surface for "what wiki+ stores about you" (AC2): a stable,
@@ -22,12 +23,10 @@ export const metadata: Metadata = {
   title: "About your data",
 };
 
-const COLUMN = "mx-auto flex max-w-[640px] flex-wrap items-center justify-between gap-3 px-4 py-3";
-
 export default function AboutDataPage() {
   return (
     <>
-      <SiteHeader containerClassName={COLUMN} />
+      <SiteHeader auth={<AuthControl variant="home" />} />
       <main className="mx-auto max-w-[640px] px-4 py-8">
         <h1 className="text-2xl font-semibold text-ink sm:text-3xl">About your data</h1>
 

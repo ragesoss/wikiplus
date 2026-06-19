@@ -5,7 +5,8 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { LoginPromptPanel } from "@/components/auth/LoginPrompt";
 import { SiteFooter } from "@/components/chrome/SiteFooter";
-import { SiteHeader } from "@/components/chrome/SiteHeader";
+import { AuthControl } from "@/components/auth/AuthControl";
+import { SiteHeader } from "@/components/header/SiteHeader";
 import { store } from "@/lib/data";
 import { AUTH_COPY } from "@/lib/auth/microcopy";
 import { isAuthRequired } from "@/lib/auth/auth-error";
@@ -24,13 +25,10 @@ import { parseVideoUrl } from "@/lib/embed/facade";
 const STANCES: Stance[] = STANCE_ORDER;
 const ACCURACY: AccuracyFlag[] = ACCURACY_ORDER;
 
-// A minimal home-style header row so the auth affordance + the login gate have a home on
-// /contribute (design §1b — the page had no app header before C). As of #66 this is the shared
-// SiteHeader, aligned to the page's max-w-xl reading column.
+// Header for the /contribute route. Uses the universal Daylight Projector header (VISUAL_IDENTITY
+// §10.1) — the same full-bleed projector beam all app views share.
 function ContributeHeader() {
-  return (
-    <SiteHeader containerClassName="mx-auto flex max-w-xl flex-wrap items-center justify-between gap-3 px-4 py-3" />
-  );
+  return <SiteHeader auth={<AuthControl variant="home" />} />;
 }
 
 export default function ContributePage() {
