@@ -285,13 +285,19 @@ describe("D — navigational tail & hatnotes (#27)", () => {
 
 // A taxobox section banner is a classless <th colspan="2"> (its centering + taxon band live
 // in inline style that sanitize strips). The "Scientific classification" banner wraps the
-// .taxobox-edit-taxonomy pencil. The lead image is a SEPARATE <td colspan="2"> cell.
+// .taxobox-edit-taxonomy pencil. The lead image is a SEPARATE classless <td colspan="2"> cell
+// (NO `.infobox-image` class), its caption the classless <td colspan="2"> in the row right
+// after it. The synonyms are a classless <td colspan="2"> wrapping a <ul> under the "Synonyms"
+// <th colspan="2"> banner. These four classless `td[colspan]` shapes are why the image-centering
+// CSS keys off the `<img>` element + the image-bearing row, NOT `td[colspan]` broadly — so the
+// LEFT-aligned synonyms list is never caught. (Mirrors live Parsoid markup of Dendrobium kingianum.)
 const TAXOBOX = (opts: { withEdit?: boolean } = {}) =>
   `<table class="infobox biota" style="text-align: left; width: 200px">` +
   `<tbody>` +
   `<tr><th colspan="2" style="text-align:center;background-color:rgb(180,250,180)">Pink rock orchid</th></tr>` +
   `<tr><td colspan="2" style="text-align:center"><img src="//up.example/orchid.jpg" ` +
   `alt="Dendrobium kingianum flower" width="250" height="188"/></td></tr>` +
+  `<tr><td colspan="2" style="text-align:center">Dendrobium kingianum flower detail</td></tr>` +
   `<tr><th colspan="2" style="text-align:center;background-color:rgb(180,250,180)">` +
   `<a rel="mw:WikiLink" href="./Taxonomy" title="Taxonomy">Scientific classification</a>` +
   (opts.withEdit
@@ -303,6 +309,11 @@ const TAXOBOX = (opts: { withEdit?: boolean } = {}) =>
   `<tr><td>Kingdom:</td><td><a rel="mw:WikiLink" href="./Plant" title="Plant">Plantae</a></td></tr>` +
   `<tr class="taxonrow"><td><i>Clade</i>:</td>` +
   `<td><a rel="mw:WikiLink" href="./Embryophyte" title="Embryophyte">Embryophytes</a></td></tr>` +
+  `<tr><th colspan="2" style="text-align:center;background-color:rgb(180,250,180)">Binomial name</th></tr>` +
+  `<tr><td colspan="2" style="text-align:center"><span class="binomial">Dendrobium kingianum</span></td></tr>` +
+  `<tr><th colspan="2" style="text-align:center;background-color:rgb(180,250,180)">Synonyms</th></tr>` +
+  `<tr><td colspan="2" style="text-align:left"><ul><li>Callista kingiana</li>` +
+  `<li>Dendrocoryne kingianum</li></ul></td></tr>` +
   `</tbody></table>`;
 
 const MODERN_INFOBOX =
@@ -359,6 +370,50 @@ describe("#74 — infobox / taxobox layout fidelity", () => {
     expect(ladderKeys.every((td) => !td.hasAttribute("colspan"))).toBe(true);
     // The "Kingdom:" row is a bare <tr> of two <td> (no colspan) — also left-aligned by CSS.
     expect(out).toContain("<td>Kingdom:</td>");
+  });
+
+  it("the taxobox lead image is a CLASSLESS td[colspan] (the centering CSS keys off the <img> + image row)", async () => {
+    // Guards the A.1.2 image-centering fix: the lead image has NO `.infobox-image` class and
+    // its inline `text-align:center` is stripped, so centering must key off the <img> element
+    // inside a classless `td[colspan]`. If a future markup/CSS change moves the image out of a
+    // classless `td[colspan]` (or adds a class the selector no longer matches), this fails —
+    // catching a silently-broken centering selector that a render test would miss.
+    const out = await fullHtml(`<section><p>x</p>${TAXOBOX()}</section>`);
+    const doc = new DOMParser().parseFromString(out, "text/html");
+    const box = doc.querySelector("table.infobox.biota")!;
+    const leadImg = box.querySelector('img[src*="orchid.jpg"]')!;
+    expect(leadImg).not.toBeNull();
+    // The image's cell is a colspanned <td> with no class — the structure the
+    // `table.infobox.biota td[colspan] img { margin-inline:auto }` rule targets.
+    const cell = leadImg.closest("td")!;
+    expect(cell.tagName).toBe("TD");
+    expect(cell.hasAttribute("colspan")).toBe(true);
+    expect(cell.getAttribute("class")).toBeNull();
+  });
+
+  it("the LEFT-aligned synonyms <ul> is a classless td[colspan] NOT in an image row (centering can't reach it)", async () => {
+    // Guards the A.1.5 constraint: synonyms stay left-aligned. The synonyms cell is the same
+    // classless `td[colspan]` shape as the image/caption cells, so the centering rule deliberately
+    // keys on the <img> element / an image-bearing row — never `td[colspan]` broadly. This asserts
+    // the synonyms `<ul>` lives in a `td[colspan]` whose row holds no <img> and is preceded by a
+    // <th> banner (not an image row), so neither the `td[colspan] img` nor the
+    // `tr:has(td[colspan] img) + tr` caption selector can center it.
+    const out = await fullHtml(`<section><p>x</p>${TAXOBOX()}</section>`);
+    const doc = new DOMParser().parseFromString(out, "text/html");
+    const box = doc.querySelector("table.infobox.biota")!;
+    const ul = box.querySelector("ul")!;
+    expect(ul).not.toBeNull();
+    const synCell = ul.closest("td")!;
+    expect(synCell.hasAttribute("colspan")).toBe(true);
+    expect(synCell.getAttribute("class")).toBeNull();
+    // The synonyms cell's own row carries no image (so `td[colspan] img` does not apply)…
+    const synRow = synCell.closest("tr")!;
+    expect(synRow.querySelector("img")).toBeNull();
+    // …and the row before it is the "Synonyms" <th> banner, not an image-bearing row (so the
+    // `tr:has(td[colspan] img) + tr` caption-centering rule does not apply either).
+    const prevRow = synRow.previousElementSibling as HTMLElement;
+    expect(prevRow.querySelector("th")).not.toBeNull();
+    expect(prevRow.querySelector("img")).toBeNull();
   });
 
   it("the inline style that carried the taxobox banner band/width is stripped (X4 — option a is necessary)", async () => {

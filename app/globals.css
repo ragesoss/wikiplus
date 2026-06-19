@@ -569,6 +569,26 @@ figure.wikifig .credit {
   padding: 2px 6px;
 }
 
+/* Taxobox lead image (A.1.2): the taxobox emits its lead image as a CLASSLESS
+   `<td colspan="2">` — no `.infobox-image` to key off, and its inline `text-align:center`
+   is stripped at sanitize, so it would inherit the box's `text-align: left` and render
+   left-aligned. Center the `<img>` itself (image-only — `margin-inline:auto` on the block
+   image), then center the caption that sits in the row immediately after an image row.
+   Keying centering on the `<img>` element (and on an image-bearing row, not on
+   `td[colspan]` broadly) means the LEFT-aligned synonyms `<ul>` — a sibling classless
+   `<td colspan>` under the "Synonyms" banner, never after an image row (verified against
+   live Parsoid markup of Dendrobium kingianum / Lion) — is untouched (A.1.5). */
+.wiki-body table.infobox.biota td[colspan] img {
+  display: block;
+  margin-inline: auto;
+}
+.wiki-body table.infobox.biota tr:has(> td[colspan] img) + tr > td[colspan] {
+  text-align: center;
+  font-size: 0.8rem;
+  color: var(--color-ink2);
+  padding: 2px 6px;
+}
+
 /* Key/value rows — LEFT-aligned two columns. Modern: `th.infobox-label` (the
    `th scope="row"` key, no colspan) + `td.infobox-data`/`.infobox-full-data`. Taxobox:
    the plain `<td>` pairs in `tr.taxonrow` (and the first Kingdom row, a bare `<tr>` of
