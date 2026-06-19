@@ -158,11 +158,13 @@ function HomeSiteHeader({ auth }: { auth: ReactNode }) {
 //     search + the single AuthControl + the slim-state title cue. These are the SAME DOM nodes in
 //     both scroll states, so focus is never lost on the Tier-A ↔ slim transition (AC9/AC13) and
 //     there is no remount/jump.
-//   • At scroll-top an absolutely-positioned Tier-A PROJECTOR OVERLAY (the lit aperture + the
-//     descending beam, seam on the divider) fades IN over the flat chrome; when scrolled it fades
-//     OUT (opacity → 0) and the band collapses 104 → 56 (height transition), revealing the flat
-//     chrome bar beneath. Both lockups share the same left origin so there is no horizontal jump.
-//     The overlay is pointer-events:none + aria-hidden — the flat wordmark link beneath carries the
+//   • The flat Tier-C wordmark card is ALWAYS fully opaque (the stable home link); at scroll-top an
+//     absolutely-positioned Tier-A PROJECTOR OVERLAY (the lit aperture GLOW + the descending beam,
+//     seam on the divider) sits ON TOP of it, and when scrolled that glow fades OUT (opacity → 0)
+//     while the band collapses 104 → 56 (height transition), revealing the identical flat card
+//     beneath. Both lockups share the same left origin so there is no horizontal jump, and because
+//     the card beneath never fades it never washes out and always occludes the beam apex. The
+//     overlay is pointer-events:none + aria-hidden — the flat wordmark link beneath carries the
 //     "wiki+" home affordance; the overlay is pure decoration that the persistent chrome owns the
 //     interactivity for.
 function TopicSiteHeader({
@@ -213,7 +215,6 @@ function TopicSiteHeader({
       el.style.setProperty("--p", p.toFixed(4));
       el.style.setProperty("--topic-burn-y", `${d.bandHeight.toFixed(2)}px`);
       el.style.setProperty("--beam-opacity", d.beamOpacity.toFixed(4));
-      el.style.setProperty("--flat-opacity", d.flatOpacity.toFixed(4));
       el.style.setProperty("--border-opacity", d.borderOpacity.toFixed(4));
       setIsSlim((prev) => {
         const next = p >= SLIM_GATE_P;
@@ -309,7 +310,11 @@ function TopicSiteHeader({
   return (
     <header
       ref={headerRef}
-      className="header-shared sticky top-0 z-40 bg-[var(--color-header-field)]"
+      // bg is content-white (NOT the cool field): the visible cool fluorescent band is painted by
+      // the projector's own coolfield span, so the header element's background only ever shows
+      // through the reserved 2px bottom border (transparent in the front half). White there means
+      // that border strip matches the white page top — no `#fafbfe` hairline at the header bottom.
+      className="header-shared sticky top-0 z-40 bg-[var(--color-content-white)]"
       // Initial CSS-var values so SSR/first paint is the full Tier-A state (p = 0) before the
       // scroll handler runs; the mount evaluate() immediately corrects a deep-linked position (§5).
       style={
@@ -317,7 +322,6 @@ function TopicSiteHeader({
           "--p": "0",
           "--topic-burn-y": `${TOPIC_BURN_Y}px`,
           "--beam-opacity": "1",
-          "--flat-opacity": "0",
           "--border-opacity": "0",
         } as React.CSSProperties
       }
@@ -333,10 +337,11 @@ function TopicSiteHeader({
         style={{ height: "var(--topic-burn-y)" }}
       >
         {/* ── The single Tier-A PROJECTOR layer — full-bleed, BEHIND the chrome controls. It owns
-            the wordmark at every `p`: the lit aperture + descending beam (seam on the divider ≥ lg)
-            fade out and the flat Tier-C lockup fades IN at the IDENTICAL origin as `p` rises
-            (DEFECT-B — no double wordmark), and below SQUEEZE_BREAKPOINT it collapses to the Tier-D
-            glyph so the search has room (DEFECT-A). The band is pointer-events:none; the ONLY
+            the wordmark at every `p`: the flat Tier-C lockup is always opaque at the shared origin
+            and the lit aperture GLOW + descending beam (seam on the divider ≥ lg) fade out ON TOP of
+            it as `p` rises (DEFECT-B — no double wordmark, no wash-out), and below SQUEEZE_BREAKPOINT
+            it collapses to the Tier-D glyph so the search has room (DEFECT-A). The band is
+            pointer-events:none; the ONLY
             interactive node is the flat/glyph home link (so it never intercepts the search/auth —
             DEFECT-A pointer-events fix). The seam probe (the gutter span) lives here so
             getBoundingClientRect reads the REAL gutter centre (§3.3 / AC2), at mount/resize only —

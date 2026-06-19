@@ -84,14 +84,15 @@ export interface HeaderProjectorProps {
   href?: string;
   /** Per-instance geometry overrides (AC10). Omit on the landing page — defaults are the config. */
   geometry?: ProjectorGeometry;
-  /** #72/#96 DEFECT-B: the scroll-aware cross-fade, OWNED by the Tier-A "projector" variant so both
+  /** #72/#96 DEFECT-B: the scroll-aware transition, OWNED by the Tier-A "projector" variant so both
    * the lit lockup+beam and the flat slim lockup share ONE lockup origin (the live `apexX`) — only
    * opacity animates, never position, so there is NO two-wordmark ghost mid-transition. When
-   * `continuous` is set the lit lockup + beam fade out and a FLAT lockup fades in at the SAME origin
-   * — driven CONTINUOUSLY by the `p`-derived CSS vars the host writes (`--beam-opacity`,
-   * `--flat-opacity`) and the live burn boundary `--topic-burn-y` (#96 §3.2/§4.2). The flat lockup
-   * is the interactive home link (the lit layer is decorative). Undefined (the landing page) ⇒ no
-   * slim layer, beam always shown — the landing header is unchanged (AC12). */
+   * `continuous` is set the FLAT lockup stays fully opaque at that origin (the stable card + home
+   * link) and the lit aperture GLOW + beam fade out ON TOP of it as `p` rises — so the card never
+   * washes out and always occludes the beam apex. Driven CONTINUOUSLY by the `p`-derived CSS vars
+   * the host writes (`--beam-opacity` + the live burn boundary `--topic-burn-y`, #96 §3.2/§4.2). The
+   * flat lockup is the interactive home link (the lit layer is decorative). Undefined (the landing
+   * page) ⇒ no slim layer, beam always shown — the landing header is unchanged (AC12). */
   continuous?: boolean;
   className?: string;
 }
@@ -616,10 +617,10 @@ export function HeaderProjector({
         : cw / 2; // centered desktop: aperture at the content-column center
 
   // #96: scroll-awareness is driven by the `continuous` flag — the host writes the `p`-derived CSS
-  // vars (`--beam-opacity`, `--flat-opacity`, `--topic-burn-y`) and CSS/this component consume them,
-  // so the lit→flat cross-fade and the band-height recession happen in lockstep every frame with no
-  // boolean state here. `continuous` undefined (the landing page) ⇒ scrollAware off: no flat layer,
-  // the beam is always lit (AC12 — unchanged).
+  // vars (`--beam-opacity`, `--topic-burn-y`) and CSS/this component consume them, so the glow
+  // fade-out (over the always-opaque flat card) and the band-height recession happen in lockstep
+  // every frame with no boolean state here. `continuous` undefined (the landing page) ⇒ scrollAware
+  // off: no flat layer, the beam is always lit (AC12 — unchanged).
   const scrollAware = continuous === true;
 
   // #72 DEFECT-A — the squeeze (scroll-aware host only): below SQUEEZE_BREAKPOINT the full lockup
@@ -783,7 +784,9 @@ export function HeaderProjector({
             className={`absolute ${
               scrollAware ? "projector-litlockup" : ""
             }`}
-            style={lockupOriginStyle}
+            // z above the flat lockup: the lit layer (the glow) fades out ON TOP of the always-
+            // opaque flat card beneath, so only the glow disappears while the card stays solid.
+            style={{ ...lockupOriginStyle, zIndex: 2 }}
             aria-hidden={scrollAware ? true : undefined}
           >
             <span
@@ -794,18 +797,22 @@ export function HeaderProjector({
             </span>
           </div>
 
-          {/* #72 — the FLAT slim lockup, only on the scroll-aware Topic host. It is positioned at
-              the IDENTICAL origin as the lit lockup (`lockupOriginStyle`) so the cross-fade is pure
-              opacity — no horizontal jump, no double wordmark (DEFECT-B). It is the INTERACTIVE home
-              link (pointer-events restored on the link, the band being pointer-events-none); the lit
-              layer above is decoration. It stays in the DOM + focusable in BOTH states so the
-              wordmark is always a reachable "wiki+" → / link (AC3/AC13) — only opacity animates. */}
+          {/* #72/#96 — the FLAT slim lockup, only on the scroll-aware Topic host. It is positioned at
+              the IDENTICAL origin as the lit lockup (`lockupOriginStyle`) so there is no horizontal
+              jump and no double wordmark (DEFECT-B). It is ALWAYS fully opaque (the stable card) and
+              sits BENEATH the lit layer, so the lit glow fading on top reveals this identical card
+              rather than letting the card wash out. It is the INTERACTIVE home link (pointer-events
+              restored on the link, the band being pointer-events-none); the lit layer above is
+              decoration. It stays in the DOM + focusable in BOTH states so the wordmark is always a
+              reachable "wiki+" → / link (AC3/AC13). */}
           {scrollAware && (
             <a
               href={href ?? "/"}
               aria-label={accessibleName}
               className="projector-flatlockup pointer-events-auto absolute"
-              style={lockupOriginStyle}
+              // Beneath the lit layer (z below it): the flat card is the ALWAYS-opaque stable
+              // wordmark + home link; the lit glow fades away above it to reveal this identical card.
+              style={{ ...lockupOriginStyle, zIndex: 1 }}
             >
               <span
                 className="projector-lockup-fit block"

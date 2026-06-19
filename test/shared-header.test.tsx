@@ -183,14 +183,14 @@ describe("AC3 — wordmark is a home link with accessible name 'wiki+' on both h
 // ── AC4 (#96) — CONTINUOUS scroll-linked transition. There is no boolean `[data-collapsed]` flip
 // anymore: SiteHeader writes a normalized progress `p` and the derived band height + layer/border
 // opacities as CSS custom properties on the header element every frame (§3.2). At scrollY=0 it is
-// the full Tier-A state (p=0, band 104, beam opacity 1, flat 0); scrolling past PROGRESS_END (104)
-// it is the slim state (p=1, band 56, beam 0, flat 1); scrolling back retraces it. ──────────────
+// the full Tier-A state (p=0, band 104, beam opacity 1); scrolling past PROGRESS_END (104)
+// it is the slim state (p=1, band 56, beam 0); scrolling back retraces it. ──────────────────────
 describe("AC4 (#96) — continuous: p drives band height + layer opacities via CSS vars", () => {
   // Read a CSS custom property the scroll handler writes on the header element.
   const v = (header: Element, name: string) =>
     (header as HTMLElement).style.getPropertyValue(name).trim();
 
-  it("at scrollY=0 it is the full Tier-A state (p=0, band 104, beam 1, flat 0, border 0)", async () => {
+  it("at scrollY=0 it is the full Tier-A state (p=0, band 104, beam 1, border 0)", async () => {
     window.scrollY = 0;
     const { container } = renderTopicHeader();
     const header = container.querySelector("header.header-shared")!;
@@ -199,7 +199,6 @@ describe("AC4 (#96) — continuous: p drives band height + layer opacities via C
     await vi.waitFor(() => expect(v(header, "--p")).toBe("0.0000"));
     expect(v(header, "--topic-burn-y")).toBe(`${TOPIC_BURN_Y}.00px`);
     expect(v(header, "--beam-opacity")).toBe("1.0000");
-    expect(v(header, "--flat-opacity")).toBe("0.0000");
     expect(v(header, "--border-opacity")).toBe("0.0000");
     // The band height tracks the live burn-y var (the single edge — #96 §4.2).
     expect(band.style.height).toBe("var(--topic-burn-y)");
@@ -209,7 +208,7 @@ describe("AC4 (#96) — continuous: p drives band height + layer opacities via C
     expect(header.className).toMatch(/sticky/);
   });
 
-  it("scrolling past PROGRESS_END (104) lands the slim end-state (p=1, band 56, beam 0, flat 1, border 1)", async () => {
+  it("scrolling past PROGRESS_END (104) lands the slim end-state (p=1, band 56, beam 0, border 1)", async () => {
     const { container } = renderTopicHeader();
     const header = container.querySelector("header.header-shared")!;
     window.scrollY = 200;
@@ -217,7 +216,6 @@ describe("AC4 (#96) — continuous: p drives band height + layer opacities via C
     await vi.waitFor(() => expect(v(header, "--p")).toBe("1.0000"));
     expect(v(header, "--topic-burn-y")).toBe(`${SLIM_BAR_HEIGHT}.00px`);
     expect(v(header, "--beam-opacity")).toBe("0.0000");
-    expect(v(header, "--flat-opacity")).toBe("1.0000");
     expect(v(header, "--border-opacity")).toBe("1.0000");
   });
 
@@ -231,7 +229,7 @@ describe("AC4 (#96) — continuous: p drives band height + layer opacities via C
     expect(v(header, "--topic-burn-y")).toBe("80.00px");
     // Border is held at 0 through the front half (gated to p ≥ 0.5 → starts exactly here at 0).
     expect(Number(v(header, "--border-opacity"))).toBe(0);
-    // Beam still partly present (not yet 0), flat still mostly hidden.
+    // The glow (beam + lit aperture) is still partly present (not yet 0) over the opaque card.
     expect(Number(v(header, "--beam-opacity"))).toBeGreaterThan(0);
     expect(Number(v(header, "--beam-opacity"))).toBeLessThan(1);
   });
@@ -274,9 +272,11 @@ describe("AC5 (#96) — no per-property CSS transition fights the scroll", () =>
     const block = css.slice(start, end);
     expect(block).not.toMatch(/\.header-shared .header-band\s*\{[^}]*transition/);
     expect(block).not.toMatch(/transition:\s*opacity/);
-    // The opacities are var-driven (the continuous model).
+    // The GLOW opacity is var-driven (the continuous model); the flat card is always opaque (1).
     expect(block).toMatch(/opacity:\s*var\(--beam-opacity/);
-    expect(block).toMatch(/opacity:\s*var\(--flat-opacity/);
+    expect(block).toMatch(
+      /\.header-shared \.projector-flatlockup\s*\{\s*opacity:\s*1/
+    );
   });
 });
 
@@ -507,25 +507,33 @@ describe("DEFECT-B — single-origin cross-fade (no double wordmark)", () => {
     expect(flat.style.top).toBe(lit.style.top);
   });
 
-  it("the CSS fades the lit + flat lockups by var-driven OPACITY only (one origin), no tween", async () => {
+  it("the CSS fades the GLOW by var-driven OPACITY over an always-opaque flat card (one origin), no tween", async () => {
     const fs = await import("node:fs");
     const path = await import("node:path");
     const css = fs.readFileSync(
       path.resolve(process.cwd(), "app/globals.css"),
       "utf8"
     );
-    // The three co-located layers read the host's `p`-derived CSS vars (no position animation, #96).
-    expect(css).toMatch(
-      /\.header-shared \.projector-flatlockup\s*\{\s*opacity:\s*var\(--flat-opacity/
-    );
+    // The glow layers (beam + lit aperture) read the host's `p`-derived var (no position animation,
+    // #96); the flat card is always fully opaque so it can never wash out beneath the fading glow.
     expect(css).toMatch(
       /\.header-shared \.projector-beamfade[\s\S]*?opacity:\s*var\(--beam-opacity/
     );
-    // No per-property transition fights the scroll (#96 §6) — the focus reveal is the only opacity
-    // override and it is NOT a transition.
+    expect(css).toMatch(
+      /\.header-shared \.projector-flatlockup\s*\{\s*opacity:\s*1/
+    );
+    // No per-property transition fights the scroll (#96 §6).
     const start = css.indexOf("\n.header-shared .projector-beamfade");
     const end = css.search(/^\.topic-illum\s*\{/m);
     expect(css.slice(start, end)).not.toMatch(/transition\s*:/);
+  });
+
+  it("the lit glow layer is stacked ABOVE the always-opaque flat card (z-order)", () => {
+    const { container } = renderTopicHeader();
+    const lit = container.querySelector(".projector-litlockup") as HTMLElement;
+    const flat = container.querySelector(".projector-flatlockup") as HTMLElement;
+    // The glow fades out ON TOP of the opaque card beneath it; fading reveals the identical card.
+    expect(Number(lit.style.zIndex)).toBeGreaterThan(Number(flat.style.zIndex));
   });
 });
 

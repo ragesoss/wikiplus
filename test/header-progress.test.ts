@@ -76,18 +76,16 @@ describe("quantizeProgress (#96 §7 — reduced motion) — snap to {0,1} with a
 });
 
 describe("deriveHeaderProgress (#96 §3.2) — one p drives every property in lockstep", () => {
-  it("p=0 is the full Tier-A end-state (band 104, beam 1, flat 0, border 0)", () => {
+  it("p=0 is the full Tier-A end-state (band 104, beam 1, border 0)", () => {
     const d = deriveHeaderProgress(0, BURN_Y, SLIM);
     expect(d.bandHeight).toBe(104);
     expect(d.beamOpacity).toBeCloseTo(1, 5);
-    expect(d.flatOpacity).toBeCloseTo(0, 5);
     expect(d.borderOpacity).toBe(0);
   });
-  it("p=1 is the slim end-state (band 56, beam 0, flat 1, border 1)", () => {
+  it("p=1 is the slim end-state (band 56, beam 0, border 1)", () => {
     const d = deriveHeaderProgress(1, BURN_Y, SLIM);
     expect(d.bandHeight).toBe(56);
     expect(d.beamOpacity).toBeCloseTo(0, 5);
-    expect(d.flatOpacity).toBeCloseTo(1, 5);
     expect(d.borderOpacity).toBeCloseTo(1, 5);
   });
 
@@ -114,22 +112,18 @@ describe("deriveHeaderProgress (#96 §3.2) — one p drives every property in lo
     expect(back).toBeLessThan(1);
   });
 
-  it("the cross-fade has no muddy midpoint: at p=0.5 the beam is low and the flat is still low", () => {
+  it("the glow is well faded by the midpoint: at p=0.5 the beam opacity is low", () => {
     const d = deriveHeaderProgress(0.5, BURN_Y, SLIM);
-    // Beam nearly gone, flat barely emerging — never both at full strength (clean dissolve).
+    // The glow (lit aperture + beam) is nearly gone by the midpoint; the opaque card beneath holds.
     expect(d.beamOpacity).toBeLessThan(0.2);
-    expect(d.flatOpacity).toBeLessThan(0.1);
   });
 
-  it("beam opacity decreases monotonically and flat opacity increases monotonically", () => {
+  it("beam opacity decreases monotonically across the whole range", () => {
     let prevBeam = Infinity;
-    let prevFlat = -Infinity;
     for (let p = 0; p <= 1.0001; p += 0.05) {
       const d = deriveHeaderProgress(Math.min(p, 1), BURN_Y, SLIM);
       expect(d.beamOpacity).toBeLessThanOrEqual(prevBeam + 1e-9);
-      expect(d.flatOpacity).toBeGreaterThanOrEqual(prevFlat - 1e-9);
       prevBeam = d.beamOpacity;
-      prevFlat = d.flatOpacity;
     }
   });
 });

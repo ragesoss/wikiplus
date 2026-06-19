@@ -131,37 +131,39 @@ body {
 }
 
 /* ── Shared Daylight Projector header (#72/#96) — the Topic host's CONTINUOUS, scroll-linked
-   Tier-A → slim sticky transition (docs/design/continuous-header-transition.md). ONE header, two
-   compositions cross-faded by a SINGLE HeaderProjector instance (DEFECT-B fix) so both states share
-   one lockup origin, with a single normalized progress `p` (and the derived band height / layer
-   opacities / border opacity, written as CSS vars on the header every frame) driving everything in
-   lockstep — no boolean flip, no per-property tween:
-   • p = 0 (scroll-top): the lit aperture + full beam (.projector-beamfade / .projector-litlockup),
-     seam on the divider; the band is TOPIC_BURN_Y (104px) tall; the flat slim lockup is opacity-0.
-   • p = 1 (scrolled past the band height): the lit layers are at opacity 0, the band has receded to
-     56px, the flat Tier-C lockup (.projector-flatlockup — the interactive home link) is at opacity 1
-     at the SAME origin (no horizontal jump, no double wordmark), and the 2px ink rule is at full
-     strength. Every value between is a continuous function of `p`.
+   Tier-A → slim sticky transition (docs/design/continuous-header-transition.md). ONE header, ONE
+   stable wordmark CARD with a fading glow on top, all from a SINGLE HeaderProjector instance
+   (DEFECT-B fix) sharing one lockup origin, with a single normalized progress `p` (and the derived
+   band height / glow opacity / border opacity, written as CSS vars on the header every frame)
+   driving everything in lockstep — no boolean flip, no per-property tween:
+   • p = 0 (scroll-top): the lit aperture + full beam (.projector-beamfade / .projector-litlockup)
+     glow ON TOP of the opaque flat card, seam on the divider; the band is TOPIC_BURN_Y (104px) tall.
+   • p = 1 (scrolled past the band height): the lit glow layers are at opacity 0, the band has
+     receded to 56px, the flat Tier-C card (.projector-flatlockup — the interactive home link) is the
+     only wordmark layer left, and the 2px ink rule is at full strength. Every value between is a
+     continuous function of `p`.
    The chrome row (search + title cue + auth) and the wordmark link are the SAME DOM at every `p`
    (no remount, focus preserved — AC9/AC13). The article body is untouched (§9.3). */
 
-/* #72/#96 DEFECT-B — the cross-fade is OWNED by the single HeaderProjector layer: the lit lockup +
-   beam and the flat slim lockup are positioned at ONE shared origin inside one instance, so only
-   OPACITY animates between them — there is never a second wordmark at a different x (no double
-   vision). Under #96 the transition is CONTINUOUS and scroll-linked: a single normalized progress
-   `p` (and the derived opacities/height/border) is written every frame as CSS custom properties on
-   the header element by SiteHeader's rAF-gated scroll handler, and the three co-located layers read
-   those vars directly — no boolean `[data-collapsed]` flip, no per-property CSS tween (the scroll
-   IS the animation, so a tween would fight it — #96 §6):
+/* #72/#96 DEFECT-B — the transition is OWNED by the single HeaderProjector layer: the lit lockup +
+   beam and the flat slim lockup are positioned at ONE shared origin inside one instance, so there is
+   never a second wordmark at a different x (no double vision). The flat CARD is ALWAYS fully opaque
+   and sits beneath the lit layer; only the GLOW (the lit aperture + the beam) fades, so the card
+   never washes out (fading two semi-transparent identical cards could never composite back to a
+   solid card) and the opaque card always occludes the beam apex. Under #96 the fade is CONTINUOUS
+   and scroll-linked: a single normalized progress `p` (and the derived glow-opacity/height/border)
+   is written every frame as CSS custom properties on the header element by SiteHeader's rAF-gated
+   scroll handler, and the co-located layers read those vars directly — no boolean `[data-collapsed]`
+   flip, no per-property CSS tween (the scroll IS the animation, so a tween would fight it — #96 §6):
    • .projector-beamfade   — the descending beam: opacity = --beam-opacity (1 → 0, easeOutCubic).
-   • .projector-litlockup  — the lit aperture lockup: opacity = --beam-opacity (fades with the beam).
-   • .projector-flatlockup — the flat Tier-C lockup (the interactive home link): opacity =
-                             --flat-opacity (0 → 1, easeInCubic). It stays in the DOM + focusable at
-                             every `p` so the wordmark is always a reachable "wiki+" → / link.
+   • .projector-litlockup  — the lit aperture glow: opacity = --beam-opacity (fades with the beam).
+   • .projector-flatlockup — the flat Tier-C card (the interactive home link): opacity 1 always. It
+                             is in the DOM + focusable at every `p` so the wordmark is always a
+                             reachable "wiki+" → / link, and is the stable card the glow reveals.
    The band HEIGHT recedes via --topic-burn-y on the inline `height` (SiteHeader), and the projector's
    internal cool→white burn boundary is pinned to that same --topic-burn-y (#96 §4.2), so there is
    only ONE edge and no grey/white seam can form. SSR/first-paint fallbacks are set inline on the
-   header so a no-JS / pre-hydration render is the full Tier-A state (--beam-opacity 1, --flat 0). */
+   header so a no-JS / pre-hydration render is the full Tier-A state (--beam-opacity 1). */
 /* The beam is bright white light on BOTH hosts (design header-topic-integration §3.2 / AC6): the
    beam interior + the band below burnY resolve to #FFFFFF everywhere — no Topic-host override. On
    Topic the *page* (not the beam) carries the grey, via the .topic-illum white→grey falloff at the
@@ -172,15 +174,11 @@ body {
 .header-shared .projector-litlockup {
   opacity: var(--beam-opacity, 1);
 }
+/* The flat Tier-C card is ALWAYS fully opaque: it is the stable wordmark + home link, and the lit
+   aperture glow + beam fade out ON TOP of it. Keeping it solid (rather than cross-fading it in) is
+   what stops the card washing out mid-transition, and it means a keyboard user tabbing to the
+   wordmark at scroll-top always lands on a fully visible focus target (#96 §8 / AC13). */
 .header-shared .projector-flatlockup {
-  opacity: var(--flat-opacity, 0);
-}
-/* Keep the focus ring visible even when the flat mark is at --flat-opacity 0 (p = 0): if it
-   receives keyboard focus, reveal it so the focus target is never invisible (#96 §8 / AC13). This
-   rule comes AFTER the var-driven opacity above and matches a more specific selector, so it wins —
-   a keyboard user tabbing to the wordmark at scroll-top sees a visible ring. */
-.header-shared .projector-flatlockup:focus-within,
-.header-shared .projector-flatlockup:focus {
   opacity: 1;
 }
 

@@ -63,16 +63,16 @@ export function quantizeProgress(p: number, prev: 0 | 1): 0 | 1 {
   return prev;
 }
 
-/** The five values `p` drives, in lockstep (design §3.2). All derived from one `p`. */
+/** The values `p` drives, in lockstep (design §3.2). All derived from one `p`. */
 export interface HeaderProgress {
   /** The raw progress `p ∈ [0, 1]`. */
   p: number;
   /** Band height in px — linear `burnY − (burnY − slim)·p`. The burn boundary equals this. */
   bandHeight: number;
-  /** Beam + lit-lockup opacity — easeOutCubic to 0, fully gone by p ≈ 0.85 (design §3.3). */
+  /** Beam + lit-aperture-glow opacity — easeOutCubic to 0, fully gone by p ≈ 0.85 (design §3.3).
+   * Only the GLOW (the lit aperture + the descending beam) fades; the wordmark CARD beneath stays
+   * fully opaque at every `p`, so the card never washes out and always occludes the beam apex. */
   beamOpacity: number;
-  /** Flat-lockup opacity — easeInCubic mirror, rising from p ≈ 0.15 to 1 at p = 1. */
-  flatOpacity: number;
   /** Bottom-border opacity — easeInQuad gated to the back half (held at 0 until p = 0.5). */
   borderOpacity: number;
 }
@@ -82,6 +82,11 @@ export interface HeaderProgress {
  * projector's internal burn boundary are the SAME number at every `p` (the crux invariant, §4.2):
  * SiteHeader feeds `bandHeight` to both the outer band and `--topic-burn-y`, so the cool→white edge
  * sits exactly on the band's bottom edge and no independently-scrolling seam can form.
+ *
+ * The wordmark card does NOT cross-fade: the flat lockup is always fully opaque (the stable card +
+ * home link), and the lit aperture glow + beam fade out ON TOP of it via `beamOpacity`. So there is
+ * no second opacity to drive — fading two semi-transparent identical cards could never composite
+ * back to a solid card (the front-half wash-out), so the card is kept solid and only the glow fades.
  *
  * @param p     normalized progress in [0, 1]
  * @param burnY full Tier-A band height (TOPIC_BURN_Y, 104)
@@ -96,10 +101,9 @@ export function deriveHeaderProgress(
     p,
     // Height & burn boundary → linear (position-following layout tracks the scroll 1:1, §3.3).
     bandHeight: burnY - (burnY - slim) * p,
-    // Beam fades over a compressed sub-range so it is fully 0 for the final stretch (§3.3).
+    // Beam + lit aperture glow fade over a compressed sub-range so they are fully 0 for the final
+    // stretch (§3.3); the opaque card beneath is unaffected.
     beamOpacity: 1 - easeOutCubic(clamp(p / 0.85, 0, 1)),
-    // Flat lockup rises a touch after the beam starts fading — a short overlap, not a hand-off.
-    flatOpacity: easeInCubic(clamp((p - 0.15) / 0.85, 0, 1)),
     // Border held at 0 while the beam still reads; eased in over the back half (§3.3).
     borderOpacity: easeInQuad(clamp((p - 0.5) / 0.5, 0, 1)),
   };

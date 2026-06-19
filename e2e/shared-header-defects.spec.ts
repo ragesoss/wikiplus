@@ -109,16 +109,21 @@ test.describe("#72 DEFECT-A — narrow-width search is visible + hittable (Tier 
       await expect(trigger).toBeVisible();
 
       // ── Slim (scrolled past the collapse threshold) ──────────────────────────────────────────
-      // Scroll well past burnY (104); poll for the collapse (the rAF-gated handler flips on the
-      // scroll event). Retry the scroll if the first didn't take (timing on the slowest widths).
+      // Scroll well past burnY (104); poll for the slim end-state. #96 replaced the boolean
+      // `data-collapsed` flip with a continuous, scroll-linked `p` written as a CSS var, so we poll
+      // `--p` reaching 1 (the slim end). Retry the scroll if the first didn't take (timing on the
+      // slowest widths).
       await expect(async () => {
         await page.evaluate(() => window.scrollTo(0, 700));
-        await expect(header).toHaveAttribute("data-collapsed", "", { timeout: 1000 });
+        const p = await header.evaluate(
+          (el) => (el as HTMLElement).style.getPropertyValue("--p").trim()
+        );
+        expect(Number(p)).toBeGreaterThan(0.99);
       }).toPass({ timeout: 8000 });
       const triggerSlim = page.getByRole("button", { name: /search topics/i });
       await expect(triggerSlim).toBeVisible();
       await assertNoOverlapWithMark();
-      // Let the ~180ms opacity cross-fade settle to the slim END-STATE before capturing.
+      // Settle on the slim END-STATE before capturing (the glow has faded; the flat card remains).
       await page.waitForTimeout(300);
       const slimLayers = await page.evaluate(() => {
         const op = (sel: string) => {
@@ -137,8 +142,8 @@ test.describe("#72 DEFECT-A — narrow-width search is visible + hittable (Tier 
         // lockup), so the search has maximum room. The cross-fade layers do not exist here.
         expect(slimLayers.glyph).toBe(true);
       } else {
-        // Above the squeeze: the decorative lit layers (beam + lit lockup) have faded to ~0 in the
-        // slim end-state; only the flat lockup remains visible (no orphaned glow / no beam).
+        // Above the squeeze: the decorative glow layers (beam + lit aperture) have faded to ~0 in
+        // the slim end-state; the always-opaque flat card is all that remains (no orphaned glow).
         expect(slimLayers.beam ?? 1).toBeLessThan(0.05);
         expect(slimLayers.lit ?? 1).toBeLessThan(0.05);
         expect(slimLayers.flat ?? 0).toBeGreaterThan(0.95);
@@ -176,8 +181,8 @@ test.describe("#72 DEFECT-B — single-origin cross-fade (no double wordmark)", 
     await expect(page.getByRole("link", { name: "wiki+" })).toHaveCount(1);
 
     // The lit + flat lockups are positioned at the IDENTICAL inline origin (left + transform), so
-    // the cross-fade is pure opacity. Read both layers' computed left edge: equal ⇒ no double-vision
-    // teleport at any opacity between the end-states.
+    // the glow fades over the opaque card with no position change. Read both layers' computed left
+    // edge: equal ⇒ no double-vision teleport at any opacity between the end-states.
     const origins = await page.evaluate(() => {
       const lit = document.querySelector(".projector-litlockup") as HTMLElement | null;
       const flat = document.querySelector(".projector-flatlockup") as HTMLElement | null;
@@ -191,9 +196,9 @@ test.describe("#72 DEFECT-B — single-origin cross-fade (no double wordmark)", 
     expect(Math.abs(origins!.litLeft - origins!.flatLeft)).toBeLessThanOrEqual(1);
     expect(Math.abs(origins!.litTop - origins!.flatTop)).toBeLessThanOrEqual(1);
 
-    // Capture a MID-TRANSITION frame: scroll just past the collapse threshold and screenshot during
-    // the ~180ms cross-fade window (both layers partially opaque, co-located → reads as ONE mark
-    // fading, not two ghosting apart).
+    // Capture a MID-TRANSITION frame: scroll into the transition zone and screenshot while the glow
+    // is partially faded over the opaque card (co-located → reads as ONE mark, the glow lifting off a
+    // stable card, not two ghosting apart).
     await page.evaluate(() => window.scrollTo(0, 130));
     await page.screenshot({
       path: "screenshots/72-defectB-midtransition.png",

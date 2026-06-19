@@ -287,9 +287,10 @@ describe("AC11/AC15 (#96) — coupled collapse driven by ONE progress p, no twee
     const fs = await import("node:fs");
     const path = await import("node:path");
     const css = fs.readFileSync(path.resolve(process.cwd(), "app/globals.css"), "utf8");
-    // The opacities read the host's `p`-derived vars (one source of truth).
+    // The glow opacity reads the host's `p`-derived var (one source of truth); the flat card is
+    // always fully opaque (it does not cross-fade — only the glow on top does).
     expect(css).toMatch(/opacity:\s*var\(--beam-opacity/);
-    expect(css).toMatch(/opacity:\s*var\(--flat-opacity/);
+    expect(css).toMatch(/\.header-shared \.projector-flatlockup\s*\{\s*opacity:\s*1/);
     expect(css).toMatch(/border-bottom:\s*2px solid rgb\([^)]*var\(--border-opacity/);
     // No per-property transition in the .header-shared cross-fade block (the scroll is the
     // animation). The old 180ms height/opacity tweens are gone.

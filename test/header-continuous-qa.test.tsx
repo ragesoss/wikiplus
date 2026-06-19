@@ -191,8 +191,8 @@ describe("#96 fix round — no header/page temperature hairline in the front hal
 
 // ── AC#6 (issue #96 "Done when" 6 — reduced motion) — the RUNTIME quantize path. Under
 // `prefers-reduced-motion: reduce` the header writes ONLY end-state var sets: full Tier-A (p=0,
-// burn-y 104, beam 1, flat 0, border 0) below the midpoint, slim (p=1, burn-y 56, beam 0, flat 1,
-// border 1) above it — never an intermediate frame. (The continuous-path mid values are asserted in
+// burn-y 104, beam 1, border 0) below the midpoint, slim (p=1, burn-y 56, beam 0, border 1) above
+// it — never an intermediate frame. (The continuous-path mid values are asserted in
 // shared-header.test.tsx; this is the no-preference≠reduce contrast.) ────────────────────────────
 describe("AC#6 — reduced motion snaps to {0,1} end-states (no intermediate frame)", () => {
   it("at a mid scroll offset (scrollY=52, continuous p would be 0.5) the reduced-motion header is a clean end-state", async () => {
@@ -204,7 +204,6 @@ describe("AC#6 — reduced motion snaps to {0,1} end-states (no intermediate fra
     await vi.waitFor(() => expect(v(header, "--p")).toBe("0.0000"));
     expect(v(header, "--topic-burn-y")).toBe(`${TOPIC_BURN_Y}.00px`);
     expect(v(header, "--beam-opacity")).toBe("1.0000");
-    expect(v(header, "--flat-opacity")).toBe("0.0000");
     expect(v(header, "--border-opacity")).toBe("0.0000");
 
     // Scroll clearly past the threshold → snaps to the SLIM end-state, still no intermediate values.
@@ -213,7 +212,6 @@ describe("AC#6 — reduced motion snaps to {0,1} end-states (no intermediate fra
     await vi.waitFor(() => expect(v(header, "--p")).toBe("1.0000"));
     expect(v(header, "--topic-burn-y")).toBe(`${SLIM_BAR_HEIGHT}.00px`);
     expect(v(header, "--beam-opacity")).toBe("0.0000");
-    expect(v(header, "--flat-opacity")).toBe("1.0000");
     expect(v(header, "--border-opacity")).toBe("1.0000");
     // Every written burn-y is one of the two end values — no continuous 80px frame ever appears.
   });
