@@ -78,18 +78,69 @@ jobs:
       # runs migrations automatically on deploy — no extra SSH step, no manual `next build` on
       # the box. The box needs the new Postgres secret + .env (POSTGRES_PASSWORD) set ONCE
       # during setup — see docs/ops/vps-setup.md ("Postgres bring-up").
+      #
+      # Runtime server secrets (issue #49): the three Auth.js / Wikimedia-OAuth RUNTIME secrets
+      # are injected into /opt/wikiplus/.env at DEPLOY time from GitHub Actions secrets — NOT as
+      # build-args (unlike the build-time, client-side YOUTUBE_API_KEY in the build job, which is
+      # baked into the browser bundle by design). These are server-only and must NEVER enter the
+      # image or client bundle, so they ride this deploy job's container environment instead.
+      # GitHub Actions secret names must match [A-Z_][A-Z0-9_]* (Actions uppercases them), so the
+      # GH secrets are UPPERCASE (AUTH_SECRET, WIKIMEDIA_OAUTH_CLIENT_KEY,
+      # WIKIMEDIA_OAUTH_CLIENT_SECRET); the injection script below writes the LOWERCASE .env keys
+      # the app/compose actually read (wikimedia_oauth_client_key / _secret — AUTH_SECRET is
+      # already uppercase). `envs:` passes only the named vars into the remote shell; appleboy
+      # masks them in the SSH-action log. Replaces the one-time manual SSH from §3c of the runbook
+      # for both setup AND rotation. SECURITY TRADE-OFF: these now transit the ephemeral, encrypted
+      # Actions runner — accepted for automation, a move away from the host-only posture
+      # POSTGRES_PASSWORD keeps (it stays a file-based Docker secret, never through the runner).
       - name: Deploy over SSH
         uses: appleboy/ssh-action@v1
+        env:
+          AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
+          WIKIMEDIA_OAUTH_CLIENT_KEY: ${{ secrets.WIKIMEDIA_OAUTH_CLIENT_KEY }}
+          WIKIMEDIA_OAUTH_CLIENT_SECRET: ${{ secrets.WIKIMEDIA_OAUTH_CLIENT_SECRET }}
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
+          # Forward the three runtime secrets (set in `env:` above) into the remote shell. Only
+          # these named vars cross; nothing else from the runner env leaks to the box.
+          envs: AUTH_SECRET,WIKIMEDIA_OAUTH_CLIENT_KEY,WIKIMEDIA_OAUTH_CLIENT_SECRET
           script: |
             set -euo pipefail
             cd /opt/wikiplus
+
+            # Idempotently write/update each runtime secret into /opt/wikiplus/.env BEFORE the
+            # stack comes up. `set_env_key` rewrites the file via a temp copy: it strips any
+            # existing line for the key (grep -v on an exact `KEY=` anchor), appends the fresh
+            # `KEY=value`, then atomically moves it back chmod 600. This is replace-or-append:
+            # a redeploy never DUPLICATES a key, and other keys (POSTGRES_PASSWORD) are preserved
+            # untouched. Values are passed as positional args (NOT interpolated into the script
+            # body or a sed pattern), so values containing /, &, or other regex/sed-special chars
+            # are handled literally — no escaping pitfalls. `set +x` stays in force (we never
+            # enable tracing), so secret values are never echoed to the deploy log.
+            set_env_key() {
+              key="$1"; val="$2"
+              touch .env
+              tmp="$(mktemp .env.XXXXXX)"
+              # Keep every line that is NOT this key's assignment; anchor on `^KEY=`.
+              grep -v "^${key}=" .env > "$tmp" || true
+              # Append the current value via printf (no interpolation into a pattern).
+              printf '%s=%s\n' "$key" "$val" >> "$tmp"
+              mv "$tmp" .env
+              chmod 600 .env
+            }
+
+            # The .env keys the app + compose read are LOWERCASE for the two OAuth values
+            # (see deploy/docker-compose.yml); AUTH_SECRET is uppercase in both places.
+            set_env_key AUTH_SECRET "$AUTH_SECRET"
+            set_env_key wikimedia_oauth_client_key "$WIKIMEDIA_OAUTH_CLIENT_KEY"
+            set_env_key wikimedia_oauth_client_secret "$WIKIMEDIA_OAUTH_CLIENT_SECRET"
+
             docker compose pull
             # `up -d` brings up postgres, runs the migrate one-shot to completion, then starts
             # app + caddy. --wait surfaces a failed migration as a non-zero exit (deploy fails
-            # loudly rather than starting the app against an unmigrated DB).
+            # loudly rather than starting the app against an unmigrated DB). The compose `:?`
+            # guards also fail the deploy loudly if any of the three secrets is unset/empty.
             docker compose up -d --wait
             docker image prune -f
