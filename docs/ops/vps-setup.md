@@ -141,55 +141,81 @@ chmod 600 .env
 > `POSTGRES_PASSWORD` / mount the secret. Do §3b before re-pulling the #45 compose file (§4) and
 > triggering the deploy.
 
-> **The issue C deploy is stateful + owner-gated the same way:** before the C compose file lands,
-> the box `.env` must additionally hold `AUTH_SECRET` + the two `wikimedia_oauth_client_*` values
-> (§3c), **and** the owner must register the prod callback URL at meta.wikimedia.org (§3c). The
-> `:?` guards in the C compose file make `docker compose up -d --wait` **fail loudly** if any of the
-> three is unset — so the live site is not taken down by a half-applied deploy, but login will be
-> broken until the callback is registered. Stage §3c on the box **before** merging C to `main`
-> (the merge auto-deploys); re-pull the updated compose file (§4) so the box has the new `app`
-> environment wiring, then verify login live (not just a green Actions run).
+> **The issue C deploy is stateful + owner-gated:** the owner must register the prod callback URL
+> at meta.wikimedia.org (§3c) **and** the three runtime secrets must exist (as of issue #49, as
+> GitHub Actions secrets — the deploy job injects them, see §3c). The `:?` guards in the compose
+> file make `docker compose up -d --wait` **fail loudly** if any of the three is unset on the box —
+> so the live site is not taken down by a half-applied deploy, but login will be broken until the
+> callback is registered. Verify login live after the deploy (not just a green Actions run).
 
-## 3c. OAuth bring-up (issue C — Wikimedia login)
+## 3c. OAuth runtime secrets — injected at deploy time (issues C + #49)
 
-As of **issue C** the app does **real Wikimedia OAuth 2.0** (Auth.js v5, JWT sessions). The `app`
-container reads **three RUNTIME secrets** (read by `lib/auth/config.ts` + Auth.js at request time —
-**not** baked into the image, unlike the build-time YouTube key). They follow the **same box-`.env`
-pattern as `POSTGRES_PASSWORD`** (§3b): the values live **only** in `/opt/wikiplus/.env` on the box;
-`deploy/docker-compose.yml` interpolates them into the `app` service and passes them to the container.
-The committed compose file carries **no** secret values. A **`:?` guard** on each makes
-`docker compose up -d --wait` **fail loudly** if any is unset — so a missing secret is caught at deploy,
-never shipped as silently-broken login.
+The app does **real Wikimedia OAuth 2.0** (Auth.js v5, JWT sessions). The `app` container reads
+**three RUNTIME secrets** (read by `lib/auth/config.ts` + Auth.js at request time — **not** baked
+into the image, unlike the build-time YouTube key). The values live in **GitHub Actions secrets**;
+the **deploy job** (`.github/workflows/deploy.yml`) injects them into `/opt/wikiplus/.env` on the
+box **before** `docker compose up -d`. So there is **no manual SSH step** to set or rotate them —
+this is the automated, mobile-drivable flow. `deploy/docker-compose.yml` interpolates the `.env`
+keys into the `app` service; the committed compose file carries **no** secret values, and a **`:?`
+guard** on each makes `docker compose up -d --wait` **fail loudly** if any is unset — so a missing
+secret is caught at deploy, never shipped as silently-broken login.
 
-| Env var (in `/opt/wikiplus/.env`) | What it is | Source |
-|---|---|---|
-| `AUTH_SECRET` | Auth.js JWT session signing/encryption. **NEW server secret — generate a fresh strong value ON THE BOX.** The local-dev `.env` value is dev-only; **do not reuse it.** | `openssl rand -base64 32` (see below) |
-| `wikimedia_oauth_client_key` | The Wikimedia OAuth **consumer key** (`clientId`). | The owner's registered consumer (meta.wikimedia.org) |
-| `wikimedia_oauth_client_secret` | The Wikimedia OAuth **consumer secret** (`clientSecret`). | Same consumer |
+### Name mapping (GitHub secret → box `.env` key → consumer)
+
+GitHub Actions secret names must match `[A-Z_][A-Z0-9_]*` (Actions stores them uppercased), so the
+two OAuth secrets are stored UPPERCASE in GitHub but the deploy job writes the **lowercase** `.env`
+keys the app/compose actually read. `AUTH_SECRET` is uppercase in both places.
+
+| GitHub Actions secret | Box `.env` key (what the app reads) | What it is | Source |
+|---|---|---|---|
+| `AUTH_SECRET` | `AUTH_SECRET` | Auth.js JWT session signing/encryption. | `openssl rand -base64 32` (a fresh, strong value — never the dev `.env` value) |
+| `WIKIMEDIA_OAUTH_CLIENT_KEY` | `wikimedia_oauth_client_key` | The Wikimedia OAuth **consumer key** (`clientId`). | The owner's registered consumer (meta.wikimedia.org) |
+| `WIKIMEDIA_OAUTH_CLIENT_SECRET` | `wikimedia_oauth_client_secret` | The Wikimedia OAuth **consumer secret** (`clientSecret`). | Same consumer |
+
+### Setting the secrets (one-time, owner action — the VALUES live only off-box)
+
+The owner sets the three repo secrets (the values exist in the owner's hands / the box's current
+`.env`, not in the repo). Run from a checkout:
 
 ```sh
-cd /opt/wikiplus
-
-# Append the three auth secrets to the SAME .env that already holds POSTGRES_PASSWORD (§3b).
-# AUTH_SECRET: generate a FRESH strong value on the box (never reuse the dev .env value):
-{
-  printf 'AUTH_SECRET=%s\n' "$(openssl rand -base64 32 | tr -d '\n')"
-  printf 'wikimedia_oauth_client_key=%s\n'    '<OWNER-PROVIDED CONSUMER KEY>'
-  printf 'wikimedia_oauth_client_secret=%s\n' '<OWNER-PROVIDED CONSUMER SECRET>'
-} >> .env
-chmod 600 .env
-
-# Sanity-check the file has all four keys (POSTGRES_PASSWORD + the three above), values redacted:
-sed -E 's/=.*/=<set>/' .env
+# AUTH_SECRET: a fresh, strong value (do NOT reuse the local-dev value).
+gh secret set AUTH_SECRET                   --body "$(openssl rand -base64 32 | tr -d '\n')"
+gh secret set WIKIMEDIA_OAUTH_CLIENT_KEY    --body "<OWNER CONSUMER KEY>"
+gh secret set WIKIMEDIA_OAUTH_CLIENT_SECRET --body "<OWNER CONSUMER SECRET>"
 ```
+
+The next deploy (push to `main`, or **Actions → Run workflow**) injects them. The deploy job's
+SSH step writes each into `/opt/wikiplus/.env` **idempotently** — replace-or-append, never
+duplicating a key, `chmod 600`, leaving `POSTGRES_PASSWORD` (and any other key) untouched. Values
+are passed as positional args to the writer, so `/`, `&`, `=`, and other special chars are handled
+literally, and the values are never echoed to the deploy log.
+
+### Rotation (no SSH)
+
+To rotate any of the three: update the GitHub secret, then redeploy.
+
+```sh
+gh secret set AUTH_SECRET --body "$(openssl rand -base64 32 | tr -d '\n')"   # e.g. rotate AUTH_SECRET
+# then: push to main, or Actions → "Build & deploy to VPS" → Run workflow
+```
+
+Rotating `AUTH_SECRET` **invalidates existing JWT sessions** (everyone is logged out) — expected;
+login still works on the next sign-in. Rotating the consumer key/secret requires the matching
+consumer at meta.wikimedia.org.
 
 - **Sessions are stateless JWT** — no Redis, no session table; `AUTH_SECRET` is the only new
   server-secret surface. The OAuth scope is identify-only (no edit/act-on-behalf grant).
-- **`trustHost: true`** is set in the app config (it runs behind Caddy), so **no `AUTH_URL` /
-  `NEXTAUTH_URL` env var is needed** — Auth.js derives the origin from the (trusted) host header.
-- After editing `.env`, the change takes effect on the next `docker compose up -d` (the deploy job,
-  or by hand). `docker compose config` on the box is a safe dry-run that surfaces a missing/blank
-  secret before you bring the stack up.
+- **`AUTH_URL`** is pinned to `https://wikiplus.wikiedu.org` in the compose file (public, not a
+  secret) so the OAuth `redirect_uri` matches the registered consumer callback behind Caddy/Cloudflare.
+- To inspect the box `.env` keys (read-only, values redacted), use `scripts/ops/box-secrets-check.sh`
+  rather than an interactive SSH.
+
+> **Security trade-off (issue #49):** these three secrets now transit the **ephemeral, encrypted
+> GitHub Actions runner** (set in the deploy job's `env:`, forwarded to the SSH step via `envs:`,
+> masked in the action log). We accept this for automation — it's a deliberate move away from the
+> host-only-secret posture. **`POSTGRES_PASSWORD` does NOT change**: it stays a **file-based Docker
+> secret** (`secrets/postgres_password`) plus a box-`.env` value (§3b), created on the box and never
+> passed through the runner. Only the three OAuth/Auth runtime secrets ride the deploy job.
 
 ### ⚠️ OWNER ACTION — register the prod callback URL (login fails until done)
 
@@ -327,6 +353,9 @@ The workflow consumes exactly these:
 | `DEPLOY_USER` | The SSH deploy user on the box (the sudo/docker-group user from step 3). |
 | `DEPLOY_SSH_KEY` | The **private** SSH key — the contents of `~/.ssh/wikiplus_vps_ed25519` (whose `.pub` is in the deploy user's `authorized_keys`). |
 | `YOUTUBE_API_KEY` | The referrer-restricted YouTube Data API key, baked into the client bundle at build time (`--build-arg NEXT_PUBLIC_YOUTUBE_API_KEY`). Unset → live search no-ops. **The key is HTTP-referrer-restricted — the live origin must be on its allowlist (see ⚠️ below) or every search 403s even though the key is present.** *(Carried over from the old Pages workflow.)* |
+| `AUTH_SECRET` | Auth.js JWT session signing/encryption (issue #49). **Runtime server secret** — injected into the box `.env` by the deploy job, never into the image/bundle. See §3c. |
+| `WIKIMEDIA_OAUTH_CLIENT_KEY` | Wikimedia OAuth consumer key (issue #49). Written to the box `.env` as the lowercase `wikimedia_oauth_client_key` (Actions uppercases secret names — see §3c name mapping). |
+| `WIKIMEDIA_OAUTH_CLIENT_SECRET` | Wikimedia OAuth consumer secret (issue #49). Written to the box `.env` as the lowercase `wikimedia_oauth_client_secret`. |
 
 `GITHUB_TOKEN` is the built-in token GitHub injects automatically (used to push to GHCR) —
 **do not set it**.
@@ -339,12 +368,15 @@ The workflow consumes exactly these:
 > assembles `DATABASE_URL` at runtime from the box's `.env`. The migrate one-shot runs on the box
 > during `docker compose up -d`, not in CI.
 
-> **Auth secrets are ALSO box-side, not GitHub secrets (issue C).** `AUTH_SECRET`,
-> `wikimedia_oauth_client_key`, and `wikimedia_oauth_client_secret` live **only** in
-> `/opt/wikiplus/.env` on the box (§3c) — read by the `app` container at **runtime**. The OAuth
-> consumer secret must **never** be baked into the CI image (unlike the build-time YouTube key);
-> `.dockerignore` excludes `.env` so it cannot enter an image layer. There is **no** auth GitHub
-> Actions secret to set.
+> **Auth runtime secrets are GitHub Actions secrets, injected at deploy time (issue #49).**
+> `AUTH_SECRET`, `WIKIMEDIA_OAUTH_CLIENT_KEY`, and `WIKIMEDIA_OAUTH_CLIENT_SECRET` are repo Actions
+> secrets; the deploy job writes them into `/opt/wikiplus/.env` (as `AUTH_SECRET` +
+> the lowercase `wikimedia_oauth_client_*` keys) before `docker compose up -d` — read by the `app`
+> container at **runtime** (§3c). They must **never** be baked into the CI image (unlike the
+> build-time YouTube key) — they ride the **deploy** job, not the build job; `.dockerignore`
+> excludes `.env` so it cannot enter an image layer either. Set/rotate them with `gh secret set`
+> (§3c), no SSH. Trade-off: they transit the ephemeral, encrypted runner — accepted for automation,
+> whereas `POSTGRES_PASSWORD` (above) stays host-only and never crosses the runner.
 
 > **⚠️ YouTube referrer allowlist (post-deploy, easy to miss):** the `YOUTUBE_API_KEY` is
 > **HTTP-referrer-restricted** in Google Cloud Console, so it only works from origins on its
@@ -360,6 +392,11 @@ gh secret set DEPLOY_HOST     --body "<BOX_IP>"
 gh secret set DEPLOY_USER     --body "<deploy_user>"
 gh secret set DEPLOY_SSH_KEY  < ~/.ssh/wikiplus_vps_ed25519
 gh secret set YOUTUBE_API_KEY --body "<youtube_data_api_key>"   # if not already set on the repo
+
+# Issue #49 runtime server secrets (the deploy job injects these into the box .env — see §3c):
+gh secret set AUTH_SECRET                   --body "$(openssl rand -base64 32 | tr -d '\n')"
+gh secret set WIKIMEDIA_OAUTH_CLIENT_KEY    --body "<owner consumer key>"
+gh secret set WIKIMEDIA_OAUTH_CLIENT_SECRET --body "<owner consumer secret>"
 ```
 
 (`gh secret set NAME < file` reads the secret value from the file — the right way to load the

@@ -38,12 +38,13 @@ services:
       #
       # --- Auth.js / Wikimedia OAuth RUNTIME secrets (issue C) ---------------------------------
       # Read at RUNTIME by lib/auth/config.ts + Auth.js (NOT at build time — unlike the YouTube
-      # key, the OAuth consumer secret must NEVER be baked into the CI image). They follow the
-      # #45 POSTGRES_PASSWORD pattern: the VALUES live ONLY in /opt/wikiplus/.env on the box
-      # (gitignored, chmod 600); compose interpolates them here and passes them to the container.
-      # The committed file carries NO secret values (AC12). See docs/ops/vps-setup.md "OAuth
-      # bring-up". The `:?` guard makes `docker compose up` FAIL LOUDLY if any is unset on the
-      # box — so a missing secret is caught at deploy, never shipped as silently-broken login.
+      # key, the OAuth consumer secret must NEVER be baked into the CI image). Compose interpolates
+      # them here from /opt/wikiplus/.env (gitignored, chmod 600) and passes them to the container;
+      # the committed file carries NO secret values (AC12). As of issue #49 the deploy job injects
+      # these .env values from GitHub Actions secrets at deploy time (no manual SSH for setup or
+      # rotation) — see docs/ops/vps-setup.md §3c "OAuth runtime secrets". The `:?` guard makes
+      # `docker compose up` FAIL LOUDLY if any is unset on the box — so a missing secret is caught
+      # at deploy, never shipped as silently-broken login.
       #   - AUTH_SECRET                    : Auth.js JWT session signing/encryption (server-only).
       #   - wikimedia_oauth_client_key     : the Wikimedia OAuth consumer key   (clientId).
       #   - wikimedia_oauth_client_secret  : the Wikimedia OAuth consumer secret (clientSecret).
