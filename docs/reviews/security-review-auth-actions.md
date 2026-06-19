@@ -226,7 +226,17 @@ The write boundary was characterized as unauthenticated at the time. That is now
 The `resolveOEmbedAction` SSRF posture was reviewed independently and remains sound. The host is a fixed constant; user input is `encodeURIComponent`-confined to a query parameter; non-YouTube platforms never trigger a fetch. Test coverage exists.
 
 ### Auth bugs #50 and #51
-These issue numbers were not found in the codebase comments or git log. Their security impact could not be assessed from this review. Development should confirm whether these are open issues and what their security surface is.
+Both are open GitHub bugs (not code-comment references). Assessed for security impact under the public-link threat model. **Security verdict: neither has a security impact; both are purely functional/UX. No new finding warranted; §2 and the §6 routing table are unchanged.**
+
+**#51 — `trailingSlash:true` 308-redirects Auth.js `/api/auth/*` routes — NO SECURITY IMPACT (functional only).**
+A 308 here is a **same-origin, same-path-plus-trailing-slash** permanent redirect (e.g. `/api/auth/session` → `/api/auth/session/`). It is not a 302/303 to a user-controllable location.
+- **Open-redirect:** None. The redirect target is derived by Next.js from the inbound request *path* per the global `trailingSlash` rule — not from any user-supplied `redirect_uri`/`callbackUrl`/`Host`. There is no path by which an attacker influences the 308 `Location` beyond appending a slash to the same path.
+- **Callback-hijack / OAuth-flow integrity:** None. The OAuth callback URL is validated by Auth.js (same-origin check — see M-4) and is independent of `trailingSlash`. The trailingSlash redirect does not touch the registered `redirect_uri` (`/api/auth/callback/wikimedia`, the URL Ops registers at meta.wikimedia.org).
+- **Token leak:** None. 308 (unlike 302/303) **preserves the HTTP method and request body**, and the query string is carried to the followed request — so an OAuth `?code=…&state=…` callback or a POST is forwarded intact, not dropped or downgraded. No credential is emitted in a redirect to a third party (the `Location` is same-origin).
+- **The real (functional) symptom** is already captured for Ops as **MINOR-2** in `docs/ops/vps-setup.md:223`: the `next-auth` client fetches `/api/auth/session` slashless, Next emits a 308 to the slashed form, and a proxy (Caddy/Cloudflare) that strips or mangles the 308 would break `useSession()` resolution. That is availability/functionality, not a security boundary. Routed appropriately to **Operations** (proxy pass-through) / **Development** (the trailingSlash↔Auth.js interaction); QA raises no security defect.
+
+**#50 — stuck "Connecting…" button after bfcache restore — NO SECURITY IMPACT (client UX only).**
+The `connecting` flag is a component-local `useState(false)` in `components/auth/AuthControl.tsx:28` that drives only the button's `disabled`, `aria-busy`, and visible label (lines 65-77). It holds no token, carries no session, and gates nothing on the server. The authoritative auth state is the JWT session cookie surfaced via `useSession()` (line 27) — entirely independent of `connecting`. A stale `connecting = true` after a bfcache `pageshow` restore yields a *disabled login button*, which is fail-safe (it denies, never grants). It does not expose session data, does not bypass the no-flash placeholder, and cannot forge or replay a session. Pure client-side UX bug; correctly labeled `type: bug`, non-blocking. No security surface.
 
 ---
 
