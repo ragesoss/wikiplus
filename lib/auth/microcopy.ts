@@ -43,6 +43,18 @@ export const AUTH_COPY = {
     expiredSession: "Your session ended — please log in again.",
   },
 
+  // Issue #66 (design §3.2 — VERBATIM). The data disclosure shown on EVERY contribute gate,
+  // below the gate's own body, so a signed-out visitor reads — before completing sign-in — what a
+  // contribution stores and that reading is anonymous (AC1). The fuller, linkable notice lives at
+  // /about/data (AC2). Rendered once by LoginPromptPanel / LoginPromptDialog so the five gates can't
+  // drift. The WORDS carry the meaning (never color): a plain summary + a real, labeled link.
+  dataNotice: {
+    gateLead: "What contributing stores:",
+    gateBody:
+      "Logging in links your Wikimedia account so your curation is credited to you, and sets a session cookie that keeps you signed in. Your username and your curations are public; your email is never shown. Reading needs no login and stores no identity.",
+    gateLinkLabel: "About your data",
+  },
+
   // Issue #57 / D5a (design §3 — VERBATIM). The per-identity write rate-limit notice. A SIBLING of
   // `gates.*` (login prompts) and `errors.*` (failures), distinct from both: this user IS signed in
   // (so it is NOT a login gate) and nothing is broken (so it is NOT a generic failure) — a calm,

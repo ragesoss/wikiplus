@@ -135,6 +135,16 @@ function SignedIn({
           >
             My curations
           </DropdownMenu.Item>
+          {/* #66 (design §4.4): the signed-in convenience link to the persistent data notice —
+              reaches /about/data from the Topic page too (whose chrome carries no footer). Reuses
+              the EXACT item styling so the menu reads as one. The WORD is the label (no icon alone).
+              Ordered: My curations → About your data → (divider) → Sign out (the exit stays last). */}
+          <DropdownMenu.Item
+            onSelect={() => router.push("/about/data")}
+            className="cursor-pointer select-none px-3 py-2 text-sm font-bold outline-none data-[highlighted]:bg-bg2"
+          >
+            About your data
+          </DropdownMenu.Item>
           <DropdownMenu.Separator className="my-1 h-px bg-ink/15" />
           <DropdownMenu.Item
             onSelect={() => void signOut({ callbackUrl: "/" })}

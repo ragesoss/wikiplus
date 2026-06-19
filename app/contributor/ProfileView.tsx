@@ -4,7 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
-import { AuthControl } from "@/components/auth/AuthControl";
+import { SiteFooter } from "@/components/chrome/SiteFooter";
+import { SiteHeader } from "@/components/chrome/SiteHeader";
 import { useRequireLogin } from "@/components/auth/useRequireLogin";
 import { DeleteConfirmDialog } from "@/components/topic/DeleteConfirmDialog";
 import { EditModal } from "@/components/topic/EditModal";
@@ -242,6 +243,10 @@ export function ProfileView() {
         )}
       </main>
 
+      {/* The slim shared footer (issue #66, design §4.3) — present in every profile state, the
+          persistent "About your data" link home (AC2). Matches the profile's reading column. */}
+      <SiteFooter containerClassName="mx-auto max-w-[760px] px-5" />
+
       {player && <PlayerModal clip={player} onClose={() => setPlayer(null)} />}
 
       {/* Owner-only Edit modal (reused D2 — issue #54 §9.3). */}
@@ -273,14 +278,7 @@ export function ProfileView() {
 // TopicHeader. The profile itself requires no login.
 function ProfileHeader() {
   return (
-    <header className="border-b border-ink/10">
-      <div className="mx-auto flex max-w-[760px] flex-wrap items-center justify-between gap-3 px-5 py-3">
-        <Link href="/" className="text-lg font-semibold text-brand">
-          wiki<span className="text-sprout">+</span>
-        </Link>
-        <AuthControl variant="home" />
-      </div>
-    </header>
+    <SiteHeader containerClassName="mx-auto flex max-w-[760px] flex-wrap items-center justify-between gap-3 px-5 py-3" />
   );
 }
 

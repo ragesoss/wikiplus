@@ -510,6 +510,79 @@ multi-provider OAuth support, so launching single-provider costs us nothing late
   (handle derived per the candidate pipeline, or omitted; never a placeholder masquerading as a real
   creator) — see `docs/CURATION_STANDARD.md` §5.5 / Decision C10.
 
+### Privacy / data notice — canonical wording + placements (issue #66, release gate)
+
+The public-link prototype surfaces a **lightweight, honest data notice** (NOT a legal privacy
+policy / ToS / DSAR tooling — that is a later production-MVP deliverable; `/privacy` is intentionally
+left free for it). It is **descriptive**: it changes nothing about what is stored or the auth model
+(see *Authentication & identity* for the as-built data model) — it makes the as-built behavior
+legible. Specs: `docs/specs/privacy-notice.md` (ACs) + `docs/design/privacy-notice.md` (the
+microcopy contract). This section is the durable record (**AC10**) of the canonical wording + where
+it lives.
+
+- **Canonical surface (the source of truth): a static route at `/about/data`** — title "About your
+  data" (`app/about/data/page.tsx`). It is **server-rendered, content-only** (no `store`, no session,
+  no fetch) so it has **no loading / empty / error states and always renders** (a data notice that
+  could fail to load would undermine the trust it exists to build). It is **anonymous-reachable**
+  (no auth gate, like topic/profile reads), so the gate's link to it is readable **before** sign-in
+  (AC1). Single centered `max-w-[640px]` reading column; one `<h1>` + three sequential `<h2>`s; AA
+  contrast, focus-visible links, text-labeled (never color, never gold) — AC11.
+- **Three links into that one surface** (so the wording can't drift and AC2 is met):
+  1. **`SiteFooter`** (`components/chrome/SiteFooter.tsx`) — the **primary persistent,
+     signed-out-reachable** home for the link, a `<footer>` (contentinfo) landmark in normal flow on
+     **home** (`app/page.tsx`), **contribute** (`app/contribute/page.tsx`), and the **contributor
+     profile** (`app/contributor/ProfileView.tsx`). One required link: "About your data" → `/about/data`.
+  2. **The account menu** — one `DropdownMenu.Item` "About your data" → `/about/data` in
+     `AuthControl`'s `SignedIn` dropdown (ordered: My curations → About your data → divider → Sign
+     out). Signed-in-only; it is the **supplement** that reaches the notice from the **Topic page**
+     (whose full-bleed split-header carries no footer — a deliberate, recorded omission, covered by
+     this menu item + the on-Topic Wikipedia attribution below).
+  3. **The sign-in gate disclosure** — `AUTH_COPY.dataNotice` (`lib/auth/microcopy.ts`) rendered
+     **once** by `LoginPromptPanel` / `LoginPromptDialog` (below the gate's own `{body}`, above the
+     error slot), so it appears on **every** gate (contribute / curate / add / dismiss / upvote) by
+     construction, with a `<Link>` to `/about/data` for the fuller read.
+- **Canonical wording (verbatim):**
+  - **Gate disclosure** (`AUTH_COPY.dataNotice`): lead **"What contributing stores:"**; body
+    **"Logging in links your Wikimedia account so your curation is credited to you, and sets a
+    session cookie that keeps you signed in. Your username and your curations are public; your email
+    is never shown. Reading needs no login and stores no identity."**; link label **"About your
+    data"**.
+  - **`/about/data` page**: H1 "About your data"; an intro framing it as a prototype, **not** a legal
+    policy, with no export/deletion requests; H2 "Reading is anonymous"; H2 "What logging in and
+    contributing stores" (three plain-language bullets — **a link to your Wikimedia account** /
+    **a session cookie** / **your curation contributions** — the moderator flag, votes, dismissals,
+    and write-event ledger folded into "the curation actions you take… and any reviewer role you may
+    be granted", no table names); H2 "What's public, and what's never shown" (email is **never
+    displayed anywhere on wiki+**); a closing line deferring upstream-account questions to Wikimedia's
+    own policy; a "← Back to wiki+" link to `/`. The full verbatim text lives in
+    `app/about/data/page.tsx` and `docs/design/privacy-notice.md` §4.2.
+- **Wikimedia email-scope note (the §4.2 hedge):** the Wikimedia provider uses the **default
+  identify-only scope** (no scope override — `lib/auth/config.ts`); the `jwt` callback stores
+  `account.email` only **if** the provider returns one (`p.email ?? null`). The page wording hedges
+  ("…your name, email, and avatar **if you've made them available**") so it stays accurate whether or
+  not an email is actually granted; the **public** promise that email is *never shown* is independent
+  and holds regardless. (If the default scope is later confirmed to never return an email, the email
+  hedge in the §4.2 stored-data bullet can be tightened.)
+
+### Attribution facts verified for the #66 release gate (AC7–AC9)
+
+- **AC7 — Wikipedia article CC BY-SA 4.0 attribution: PRESENT.** `components/topic/ArticleBody.tsx`
+  (`ArticleLeadBlock`) renders **"From [Wikipedia](source) · CC BY-SA 4.0 · Wikidata Q…"** linked to
+  the source article on every Topic view masthead (CURATION §5.1). Unchanged by #66.
+- **AC8 — context-note CC BY-SA 4.0 license: captured at submit.** `lib/curation/note-license.ts`
+  defines `NOTE_LICENSE = "CC-BY-SA-4.0"`, the verbatim license statement, and the agreement label
+  (CURATION §5.3); the curate/add flow shows them and persists `note_license` /
+  `note_license_agreed_at` at the auth-gated Server Actions boundary (the boundary stamps the
+  license + timestamp and strips any client-smuggled `note_license*`). Unchanged by #66.
+- **AC9 — context-note license on public display: RESOLVED as "at submit only" (accepted).** Where a
+  context note is **publicly displayed**, the prototype carries the §5.4 **attribution** ("context by
+  &lt;curator&gt;" via `components/topic/ContextByLink.tsx`), **not** a §5.3 **license** marker. The
+  CC BY-SA 4.0 license is captured and persisted **at submit** (AC8) but is **not surfaced as a
+  per-note license indication on the public clip/note display** in this prototype. Per the Product
+  spec (`docs/specs/privacy-notice.md` AC9), submit-only is acceptable for this release gate **if
+  recorded** — this is that record. A display-side per-note license marker is a separate, later
+  design task if wanted (not built here; no UX change for #66).
+
 ## Open questions (to resolve before/while building)
 
 - Exact ISR revalidation triggers and stale-after windows for `article_index` and candidate sets.
