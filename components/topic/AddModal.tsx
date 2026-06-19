@@ -37,8 +37,9 @@ const PLATFORM_LABEL: Record<Platform, string> = {
 //                      "resolved via oEmbed".
 //   E PLACEHOLDER    — "Add anyway" accepted: honest non-linked "Creator not resolved" credit (C10).
 //   F UNRECOGNIZED   — existing red parse-error validation, UNCHANGED (AC9).
-//   G TIKTOK/UNSUPP. — D-TikTok placeholder arm: a recognized TikTok/Instagram link skips B→C/D and
-//                      resolves straight to the E placeholder + an MVP-limitation line (no Try again).
+//   G UNSUPPORTED    — placeholder arm: a recognized Instagram/other link skips B→C/D and resolves
+//                      straight to the E placeholder + an MVP-limitation line (no Try again). TikTok
+//                      and YouTube both resolve through B→{C|D}; TikTok no longer reaches G (D2).
 //
 // The curate fields + Add row render ONLY once a media source the curator has SEEN is in hand —
 // state C (resolved) or state E/G (accepted placeholder) — preserving AC9's "a recognized link must
@@ -51,7 +52,7 @@ type Phase =
   | { kind: "resolving"; parsed: ParsedVideo } // B
   | { kind: "resolved"; parsed: ParsedVideo; meta: ResolvedMeta } // C
   | { kind: "failed"; parsed: ParsedVideo } // D
-  | { kind: "placeholder"; parsed: ParsedVideo; unsupported: boolean }; // E (Add anyway) / G (unsupported)
+  | { kind: "placeholder"; parsed: ParsedVideo; unsupported: boolean }; // E (Add anyway) / G (Instagram/other unsupported)
 
 export function AddModal({
   sections,
@@ -108,8 +109,8 @@ export function AddModal({
       setPhase({ kind: "resolved", parsed, meta: result.meta });
       focusNoteSoon();
     } else if (result.reason === "unsupported") {
-      // D-TikTok placeholder arm (state G): a recognized platform we don't fetch → honest
-      // placeholder + MVP-limitation line, no "Try again".
+      // Placeholder arm (state G): a recognized platform we don't fetch (Instagram/other) → honest
+      // placeholder + MVP-limitation line, no "Try again". TikTok no longer reaches here (D2).
       setPhase({ kind: "placeholder", parsed, unsupported: true });
       focusNoteSoon();
     } else {
@@ -379,8 +380,9 @@ export function AddModal({
  * State C resolved preview (design §5). Mirrors ClipCard's credit anatomy so the curator previews
  * what the reader will see: a real thumbnail (with a gradient fallback if it 404s — a missing
  * thumbnail is NOT a resolution failure), the platform pill, the "Resolved via oEmbed" eyebrow
- * (HERE ONLY — AC3), the real title (clamped), and the outbound creator credit (name + derived
- * handle · platform, name-only when no handle derives — C10).
+ * (HERE ONLY — AC3), the real title (clamped), and the outbound creator credit (name + handle ·
+ * platform, name-only when no handle is available — C10). The handle follows the D1 precedence
+ * (share-URL handle, else author-name derivation, else omitted), matching `resolvedMediaSource`.
  */
 function ResolvedPreview({
   meta,
@@ -393,7 +395,10 @@ function ResolvedPreview({
 }) {
   const [thumbBroken, setThumbBroken] = useState(false);
   const thumb = meta.thumbnailUrl ?? parsed.thumbnailUrl;
-  const handle = deriveHandle(meta.authorName);
+  // Handle precedence (D1) — the SAME rule `resolvedMediaSource` uses, so the previewed `@handle`
+  // matches the persisted one: the share-URL handle (TikTok), else the author-name derivation, else
+  // name-only.
+  const handle = parsed.creatorHandle ?? deriveHandle(meta.authorName);
   return (
     <>
       {/* Polite success announcement (design §5 a11y / copy #8). */}

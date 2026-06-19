@@ -363,11 +363,12 @@ behavior in [`TOPIC_PAGE_DESIGN.md`](TOPIC_PAGE_DESIGN.md) §"Three states".)
   follow the same launch-and-add pattern.
 - **Add by link (logged-in).** A logged-in user pastes a **YouTube or TikTok share link**; we
   resolve it via **oEmbed** and start a curation for a clip auto-suggestion missed. **As-built
-  (issue #64 / D-add-link):** a recognized **YouTube** link resolves real `title`/`author_name`/
+  (D-add-link):** a recognized **YouTube or TikTok** link resolves real `title`/`author_name`/
   `author_url`/`thumbnail_url` via a **Server Action** (`lib/embed/oembed.ts` `resolveOEmbedAction`,
-  the CORS decision below); **TikTok/Instagram/other** land on an honest, clearly-labeled
-  **unresolved placeholder** (no fabricated creator, no fake link — CURATION §5.5/C10) rather than
-  resolving this loop. See *Prototype phase* → **D-add-link**.
+  the CORS decision below), with an honest, clearly-labeled **unresolved placeholder** fallback when
+  a fetch fails (no fabricated creator, no fake link — CURATION §5.5/C10); **Instagram/other** land
+  on that placeholder directly (no token-free oEmbed for our use). See *Prototype phase* →
+  **D-add-link**.
 - **Promote / rule out.** A candidate becomes a curated clip when a curator writes its
   `context_note` and sets `stance` / `accuracy_flag` (flipping `vetted` to true); "not relevant"
   dismisses it. Browsing candidates is anonymous; **promoting or adding requires login**.
@@ -1156,34 +1157,41 @@ a host is provisioned (issue A.2).
   un-remove UI, an appeals workflow, a moderation dashboard / removal-log UI, auto-classification of
   abuse, an admin-grant UI, hard-deleting others' clips. **No** ISR/Redis (still deferred). **Closing
   D5c closes Milestone D.**
-- **Real video-metadata resolution on add-by-link (issue #64 / D-add-link).** The add-by-link flow
-  no longer labels a pasted clip with placeholder mock metadata ("Pasted clip (mock preview)" /
-  `creator.handle: "pasted"` / "Pasted {platform} clip"). A recognized **YouTube** link now resolves
-  **real** `title`→`caption`, `author_name`→`creator.name`, `author_url`→`creator.url`, a derived
-  `creator.handle` (the SAME derivation as the candidate pipeline — `lib/candidates/youtube.ts:111`,
-  `@`+name lowercased/spaces-removed; name-only when none derives — CURATION §5.5/C10), and
-  `thumbnail_url`→`thumbnailUrl` (a referenced URL, never hosted — embed-never-host preserved). The
-  preview updates **before** submit; the corrected modal shows "Resolved via oEmbed" **only** on a
-  real resolve (the prior mock claimed it over mock text). **CORS decision (landed):** the oEmbed
-  fetch runs in a **Server Action** (`lib/embed/oembed.ts` `resolveOEmbedAction`), **not** a client
-  fetch — `https://www.youtube.com/oembed` sends no `Access-Control-Allow-Origin`, so a browser fetch
-  would CORS-fail and push every add into the failure state; the server action sidesteps CORS and is
-  the natural home for the descriptive **`User-Agent`** (etiquette/AC8 — browsers forbid setting it).
-  It is **stateless**: **no schema change, no new secret** (YouTube oEmbed needs no key — independent
-  of the YouTube *Data API* search key), **no read-path cache** (`cache: "no-store"`), and it is
-  **not** auth-gated/rate-limited (a read-only metadata lookup; the *write* is still gated at
-  `addClipAction`). **D-TikTok decision (landed): the placeholder arm.** Only YouTube resolves this
-  loop; a recognized **TikTok / Instagram / other** link returns `{ ok: false, reason: "unsupported" }`
-  (no fetch) and lands on an **honest unresolved placeholder** — "Unresolved {Platform} clip" caption,
-  a NON-linked "Creator not resolved" credit (no fabricated name, no fake/dead `creator.url`, no
-  `"pasted"` handle, no false "resolved via oEmbed" — C10), plus an MVP-limitation line — consistent
-  with TikTok being already partial (auto-suggestion deferred). A YouTube **fetch failure** shows a
-  labeled, non-red "Couldn't fetch video details" state with **Try again / Add anyway / Cancel** (Add
-  anyway → the same honest placeholder), so the flow is never a dead end. The card's creator credit
-  (`ClipCard`) now **degrades to a non-linked span when `creator.url` is absent** (the read-path
+- **Real video-metadata resolution on add-by-link (D-add-link).** The add-by-link flow labels a
+  pasted clip with **real** resolved metadata, never placeholder mock strings. A recognized
+  **YouTube or TikTok** link resolves `title`→`caption`, `author_name`→`creator.name`,
+  `author_url`→`creator.url`, a `creator.handle`, and `thumbnail_url`→`thumbnailUrl` (a referenced
+  URL, never hosted — embed-never-host preserved). **Handle precedence (D1):** the canonical
+  `@handle` carried in the share URL when present (TikTok URLs embed it —
+  `tiktok.com/@junglygarden/video/…`; captured onto `ParsedVideo.creatorHandle`, an in-memory parse
+  field), else the author-name derivation (the SAME as the candidate pipeline —
+  `lib/candidates/youtube.ts:111`, `@`+name lowercased/spaces-removed; YouTube uses this floor since
+  its watch URLs carry no clean handle), else name-only — never `"pasted"` (CURATION §5.5/C10). The
+  preview updates **before** submit; the modal shows "Resolved via oEmbed" **only** on a real resolve.
+  **CORS decision (landed):** the oEmbed fetch runs in a **Server Action** (`lib/embed/oembed.ts`
+  `resolveOEmbedAction`), **not** a client fetch — neither `https://www.youtube.com/oembed` nor
+  `https://www.tiktok.com/oembed` sends `Access-Control-Allow-Origin`, so a browser fetch would
+  CORS-fail and push every add into the failure state; the server action sidesteps CORS and is the
+  natural home for the descriptive **`User-Agent`** (etiquette/AC8 — browsers forbid setting it). It
+  is **stateless**: **no schema change, no new secret** (both oEmbed endpoints are token-free —
+  independent of the YouTube *Data API* search key), **no read-path cache** (`cache: "no-store"`), a
+  bounded request timeout (`AbortSignal.timeout`, ~5s — a hang is a failure, not a stuck modal), and
+  it is **not** auth-gated/rate-limited (a read-only metadata lookup; the *write* is still gated at
+  `addClipAction`). The **resolve floor (D3)** is a non-empty `title` AND `author_name`; `author_url`
+  and `thumbnail_url` are optional and degrade gracefully (a missing link → a non-linked credit, a
+  missing thumb → the gradient fallback — both still a successful resolve). A **fetch failure**
+  (non-200 / network error / malformed JSON / floor-miss / timeout, D2) returns
+  `{ ok: false, reason: "failed" }` and shows a labeled, non-red "Couldn't fetch video details" state
+  with **Try again / Add anyway / Cancel** (Add anyway → an honest unresolved placeholder:
+  "Unresolved {Platform} clip" caption, a NON-linked "Creator not resolved" credit — no fabricated
+  name, no fake/dead `creator.url`, no `"pasted"` handle, no false "resolved via oEmbed" — C10), so
+  the flow is never a dead end. **Instagram / other** recognized links return
+  `{ ok: false, reason: "unsupported" }` (no fetch — no token-free oEmbed for our use) and land on
+  that honest placeholder directly, plus an MVP-limitation line. The card's creator credit
+  (`ClipCard`) **degrades to a non-linked span when `creator.url` is absent** (the read-path
   realization of C10 — never a dead/empty outbound link). The persisted `Clip`/`ClipMediaSource` shape
-  is unchanged (AC10); the only changes are the **values** in `caption`/`creator`/`thumbnailUrl` and
-  the modal **states**. The pre-persistence parse validation (unrecognized link → the existing red
+  is unchanged (no migration); the only changes are the **values** in `caption`/`creator`/`thumbnailUrl`
+  and the modal **states**. The pre-persistence parse validation (unrecognized link → the existing red
   "Unrecognized link" error, never reaches persistence) is unchanged.
 - **Server Actions (enabled #37; now the data-access boundary — issue #45).** The Node SSR runtime
   supports Server Actions; as of #45 they are the **data-access boundary** for shared Postgres
