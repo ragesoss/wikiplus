@@ -60,25 +60,25 @@ describe("AC8 — the projector variant renders the full Tier-A treatment", () =
     expect(container.querySelector(".tier-c")).toBeTruthy();
     // The two-temperature band is present in Tier A.
     expect(container.querySelector(".projector-band")).toBeTruthy();
-    // The beam SVG is the TRUE-SCALE beam (Iteration-3, design §4.7): NO preserveAspectRatio="none"
+    // The beam SVG is the TRUE-SCALE beam (design §4.7): NO preserveAspectRatio="none"
     // stretch — its viewBox width is the real canvas width, drawn 1:1. It is marked
     // `data-projector-beam` — a Tier-A-only structural handle (Tier B/C have no beam).
     const beam = container.querySelector("[data-projector-beam]");
     expect(beam).toBeTruthy();
-    // The retracted stretch mechanism MUST be gone — the underline bug was the PAR="none" stretch.
+    // The beam must NOT use preserveAspectRatio="none" — a stretch there would distort the beam
+    // and draw a full-width gold line at the boundary.
     expect(beam?.getAttribute("preserveAspectRatio")).not.toBe("none");
     expect(container.querySelector('svg[preserveAspectRatio="none"]')).toBeNull();
     // The gold border/glow signal: a stroked path in #EECE87 (rgb 238,206,135).
     expect(beam?.querySelector('path[stroke="rgb(238,206,135)"]')).toBeTruthy();
   });
 
-  it("the beam's bottom extends BELOW burnY and is CLIPPED at burnY — no horizontal gold line at the boundary (the #1 fix, §4.5/§4.7)", () => {
-    // The owner's Iteration-3 underline clarification: the defect was the beam polygon closing its
-    // bottom vertices AT burnY, stroking a full-width horizontal gold line at the header bottom.
-    // The fix: the polygon extends below burnY (like the mockup's coneBot below pageY) and the span
-    // CLIPS at burnY, so the bottom closing edge is clipped away off-screen and never drawn. We
-    // assert that geometrically: the polygon's bottom (cone-bot, in the SVG's own coords) sits
-    // BELOW the clip height (burnY − top0) — so the closing edge is outside the clipped region.
+  it("the beam's bottom extends BELOW burnY and is CLIPPED at burnY — no horizontal gold line at the boundary (§4.5/§4.7)", () => {
+    // The polygon extends below burnY (like the mockup's coneBot below pageY) and the span CLIPS
+    // at burnY, so the polygon's bottom closing edge is clipped away off-screen and never drawn —
+    // there is no full-width horizontal gold line at the header bottom. We assert that
+    // geometrically: the polygon's bottom (cone-bot, in the SVG's own coords) sits BELOW the clip
+    // height (burnY − top0) — so the closing edge is outside the clipped region.
     const { container } = render(<HeaderProjector variant="projector" />);
     const beam = container.querySelector("[data-projector-beam]");
     expect(beam).toBeTruthy();
@@ -156,9 +156,9 @@ describe("AC10 — the geometry is parameterized, not baked constants", () => {
     const ovBeam = overridden.container.querySelector("[data-projector-beam]");
     const ovClipH = ovBeam?.getAttribute("data-beam-clip-h");
 
-    // The default burnY (130 — trimmed from 150 alongside cyMid 64→44 to cut the top empty space;
-    // the search still sits just below the boundary, inside the projected light) and the override
-    // (240) produce DIFFERENT clip heights — proving the value flows from the prop, not a hardcoded
+    // The default burnY (130; the search sits just below the boundary, inside the projected
+    // light) and the override (240) produce DIFFERENT clip heights — proving the value flows
+    // from the prop, not a hardcoded
     // inline constant. The default MUST stay in sync with the `--projector-burn-y` token in
     // globals.css (AC10).
     expect(defClipH).toBe("86.0"); // 130 − 44 (burnY − apexY)

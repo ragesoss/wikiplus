@@ -6,10 +6,10 @@ import { VideoThumb } from "./VideoThumb";
 // Shared candidate sub-parts. Candidates carry NO stance/accuracy chips and NO
 // context note (CURATION §6) — only a compact match reason + a source pill.
 //
-// #14 declutter: the "this is unvetted / auto-suggested / no context yet" SIGNAL
-// no longer lives per card — it reads ONCE per context (the ＋plus panel, the
-// General band header, and the rail set header `CandidateSetHeader`). What stays
-// per card is genuine per-clip INFORMATION: why THIS clip matched, and its source.
+// The "this is unvetted / auto-suggested / no context yet" SIGNAL reads ONCE per context
+// (the ＋plus panel, the General band header, and the rail set header `CandidateSetHeader`),
+// not per card. What stays per card is genuine per-clip INFORMATION: why THIS clip matched,
+// and its source.
 
 /**
  * Compact, quiet single-line match reason (#14 AC3) — per-clip information, not the

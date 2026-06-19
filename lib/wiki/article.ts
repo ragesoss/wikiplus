@@ -2,9 +2,9 @@
 // rendered article HTML from the MediaWiki REST API, sanitize with DOMPurify, and
 // rewrite wikilinks before rendering. See docs/ARCHITECTURE.md ("Article rendering").
 //
-// v1 upgrade: the lead-only summary is no longer enough — the TOC + scroll-sync
-// need the full section structure (AC3). We fetch the page HTML, derive a section
-// list with stable slugs, and split the body into per-section fragments.
+// The TOC + scroll-sync need the full section structure (AC3), so we fetch the page
+// HTML, derive a section list with stable slugs, and split the body into per-section
+// fragments.
 
 import type { ArticleSection } from "@/lib/data/types";
 import { slugToTitle, topicHref } from "./topicRoute";
@@ -89,10 +89,9 @@ export function stripDisplayTitle(html: string | null | undefined): string | nul
 
 /**
  * Resolve a title to its canonical title + display title + QID in a SINGLE action-API
- * request (#23) — `action=query&prop=info|pageprops&inprop=displaytitle&
- * ppprop=wikibase_item&redirects=1&titles=…`. This is the one request previously made
- * by {@link titleToQid} for the QID alone, now also reading `pages[].title` (canonical,
- * no longer discarded) and `pages[].displaytitle` (rendered) — no extra round-trip.
+ * request — `action=query&prop=info|pageprops&inprop=displaytitle&
+ * ppprop=wikibase_item&redirects=1&titles=…`. One request yields `pages[].title`
+ * (canonical), `pages[].displaytitle` (rendered), and the QID — no extra round-trip.
  * `redirects=1` follows Wikipedia redirects/aliases (`jfk` → `John F. Kennedy`). A
  * `missing` page (or any failure) yields all-null so the caller reaches not-found
  * without canonicalizing (AC6). CORS-enabled for anonymous GETs.
@@ -172,10 +171,10 @@ export function slugify(text: string): string {
     .replace(/^-|-$/g, "");
 }
 
-// Article-fidelity (#24–#27): the navigational tail + the References/Notes
-// (citation) sections are NO LONGER dropped — they come through the same section
-// walk as ordinary `ArticleSectionBody` entries so they get a slug, heading, TOC
-// row, `.sec` wrapper, and scroll-sync tracking for free (design spec §2/§6.3).
+// Article-fidelity: the navigational tail + the References/Notes (citation) sections
+// come through the same section walk as ordinary `ArticleSectionBody` entries, so they
+// get a slug, heading, TOC row, `.sec` wrapper, and scroll-sync tracking for free
+// (design spec §2/§6.3).
 // A footnote-style "Notes" block is a `note`-group reference list (`ol.mw-references`)
 // that carries its own backlinks — keeping it as its own section IS the citation
 // system for those notes (D7); there is no duplication because each footnote group

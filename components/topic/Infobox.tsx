@@ -45,8 +45,7 @@ export function Infobox({
 
   return (
     <div className="plus-card">
-      {/* #14 AC10: the header is just `＋plus` — the purposeless "this topic" label
-          was removed. */}
+      {/* #14 AC10: the header is just `＋plus` — no "this topic" label. */}
       <div className="flex items-baseline gap-2 border-b-2 border-ink bg-brand px-3 py-2 text-white">
         <span className="plus-disp text-lg font-bold">＋plus</span>
       </div>

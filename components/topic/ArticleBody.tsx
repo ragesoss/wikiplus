@@ -56,8 +56,7 @@ export function ArticleLeadBlock({
  * Wikipedia — never interrupted by a plus/candidate card in EITHER state. Plus
  * content crosses into the Wiki column ONLY in the full-width General strip (the
  * one crossover); section-matched candidates are anchored in the plus rail, not
- * inline here. (The inline-under-section placement was retired — see issue #21 /
- * docs/specs/wiki-column-no-plus.md.)
+ * inline here (see docs/specs/wiki-column-no-plus.md).
  */
 export function ArticleSections({
   sections,

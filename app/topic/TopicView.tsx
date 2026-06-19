@@ -442,7 +442,7 @@ export function TopicView() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [qid, storeReady, fetchState, article]);
 
-  // #23: split the formerly-overloaded `topicTitle` into canonical vs display.
+  // The topic title is split into canonical vs. display.
   //   - `canonicalTitle` (space-form) keys the "From Wikipedia"/ArticleError URL, the
   //     store/QID context, and the General strip / sections context labels.
   //   - `displayTitle` (plain-text Wikipedia `displaytitle`) drives the human HEADING
@@ -500,8 +500,8 @@ export function TopicView() {
   );
 
   // ── TOC entries: ＋ band row first, then sections with DUAL counts (issue #60 §5.2). ──
-  // Each row carries BOTH a curated count and a suggested count (no longer branching on the
-  // binary `mode`); the Toc renders both badges where a row has both. The ＋General row uses
+  // Each row carries BOTH a curated count and a suggested count; the Toc renders both badges
+  // where a row has both. The ＋General row uses
   // the general clip/candidate counts; section rows use the section-anchored counts.
   const tocEntries: TocEntry[] = useMemo(() => {
     const sections = article?.sections ?? [];

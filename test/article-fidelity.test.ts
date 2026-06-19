@@ -40,7 +40,7 @@ const REFLIST_LI = (n: string) =>
 
 // ───────────────────────── GROUP A — citations ─────────────────────────
 describe("A — citations & references (#24)", () => {
-  it("A1 keeps inline sup.reference markers (no longer stripped)", async () => {
+  it("A1 keeps inline sup.reference markers (not stripped)", async () => {
     const out = await fullHtml(`<section><p>Carbon is fixed${MARKER("12")}.</p></section>`);
     expect(out).toContain('class="mw-ref reference"');
     expect(out).toContain("[</span>12<span"); // literal bracketed number survives

@@ -2,18 +2,17 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { eq } from "drizzle-orm";
 
-// Issue C: the three write actions are now auth-gated (they call `auth()` BEFORE validation —
-// gate-first is the security order). These #45 characterization tests for the input STOPGAP
-// exercise the validation rejection paths, so they must be past the gate: mock `auth()` to a
-// signed-in session. The gate itself (reject-when-anonymous) is covered by test/auth-boundary.
+// The three write actions are auth-gated (they call `auth()` BEFORE validation — gate-first is
+// the security order). These tests exercise the input-validation rejection paths, so they must be
+// past the gate: mock `auth()` to a signed-in session. The gate itself (reject-when-anonymous) is
+// covered by test/auth-boundary.
 vi.mock("@/lib/auth/config", () => ({
   auth: async () => ({ user: { contributorId: 1, username: "QaCurator" } }),
 }));
 
-// Issue #57 / D5a: the write actions now run a per-identity rate-limit check (gate → LIMIT →
-// validation → write) that touches the DB via `getDb()` BEFORE the input-stopgap validation. So
-// the boundary's DB must resolve to the per-test pglite handle here (these characterization tests
-// previously never reached a store method). Mock `getDb` to the current handle, assigned per test.
+// The write actions run a per-identity rate-limit check (gate → LIMIT → validation → write) that
+// touches the DB via `getDb()` BEFORE the input validation. So the boundary's DB must resolve to
+// the per-test pglite handle here. Mock `getDb` to the current handle, assigned per test.
 let currentDb: import("@/lib/db/client").Db | undefined;
 vi.mock("@/lib/db/client", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/db/client")>();
@@ -32,25 +31,18 @@ import { deriveStats } from "@/lib/data";
 import type { Clip } from "@/lib/data/types";
 import { makeTestDb, type TestDb } from "./helpers/pglite-db";
 
-// QA & Review additions for issue #45 (independent, non-author). These COMPLEMENT
-// test/drizzle-store.test.ts — they do not duplicate it. Focus areas the AC map and the
-// security review surfaced that needed first-class coverage:
+// Independent (non-author) coverage that COMPLEMENTS test/drizzle-store.test.ts — it does not
+// duplicate it. Focus areas:
 //   - AC11: shared persistence proven THROUGH the same DB by two store instances, for the
 //           TOPICS LIST + the infobox counts (deriveStats), not just one clip.
 //   - AC13: interim attribution is wired to the curator_id FK (points at @prototype), not
 //           only the decorative `curatedBy` display string.
-//   - The Server-Actions write boundary is UNAUTHENTICATED in B (no auth until C): these
-//     tests CHARACTERIZE the over-broad capabilities the boundary DOES expose (anonymous
-//     arbitrary upsertTopic) so the finding is codified and the test flips when C/D gate it.
-//   - The destructive `updateClip` / `deleteClip` are NO LONGER exposed at the boundary
-//     (fix round): they have no UI caller and would let an anonymous visitor edit/delete
-//     ANY clip with no auth, so they were removed from lib/server/actions.ts. The methods
-//     remain on `DrizzleDataStore` (for issue D + the store-level coverage below). This
-//     suite now PINS both facts: the store still can update/delete (D's foundation), AND
-//     the anonymous boundary does not surface them.
+//   - Security posture: the destructive `updateClip` / `deleteClip` live on `DrizzleDataStore`
+//     as raw, unguarded methods (D's foundation), while the boundary exports them as auth-gated,
+//     owner-only Server Actions — the gate is the protection (see the SECURITY block below).
 //   - addClip against an unknown topic is rejected (the topic-resolution guard).
-//   - Free-text inputs are now length-capped at the boundary (the stopgap before D's full
-//     validation); the store itself stays unbounded (D owns real validation).
+//   - Free-text inputs are length-capped at the boundary; the store itself stays unbounded by
+//     design.
 //
 // pglite is a real Postgres (WASM): the committed migrations + real unique/FK/ON CONFLICT
 // semantics are exercised with no live DB (AC16). A second `new DrizzleDataStore(h.db)` over
@@ -152,23 +144,17 @@ describe("addClip topic-resolution guard", () => {
   });
 });
 
-// ── SECURITY CHARACTERIZATION ─────────────────────────────────────────────────────────
-// In epic-B there is NO AUTH (that is issue C). The Server Actions that ARE exposed are
-// callable by any anonymous visitor. These tests pin the current security posture so
-// (a) the findings are codified for the report and (b) when C/D add auth-gating + ownership
-// checks, these tests must be UPDATED — a deliberate trip-wire, not a green-forever assert.
-//
-// Issue #53 / D2 UPDATE (the deliberate trip-wire from the #45 fix round fired): the destructive
-// `updateClip` / `deleteClip` are now SURFACED at the boundary — but as AUTH-GATED, OWNER-ONLY
-// Server Actions, not the anonymous edit/delete-any the fix round guarded against. So the case
-// below now pins the NEW posture: the boundary exports both actions, and the gate
-// (requireContributor() then the id-based ownership check) is the protection — verified in
-// test/clip-edit-delete.test.ts, the load-bearing security tests. The store still carries the
-// raw, unguarded methods (D's foundation; the gate lives at the boundary, not the store).
-describe("SECURITY — boundary surface + store capability (D2: gated edit/delete)", () => {
-  it("the Server-Actions boundary now EXPORTS owner-only updateClip/deleteClip (D2 — the gate, not the absence, is the protection)", async () => {
+// ── SECURITY POSTURE ──────────────────────────────────────────────────────────────────
+// The split between the store and the boundary is the security boundary. The destructive
+// `updateClip` / `deleteClip` are exported at the boundary as AUTH-GATED, OWNER-ONLY Server
+// Actions: the gate (requireContributor() then the id-based ownership check) is the protection —
+// verified in test/clip-edit-delete.test.ts, the load-bearing security tests. The store itself
+// carries the raw, unguarded methods (D's foundation); the gate lives at the boundary, not the
+// store. These tests pin both facts.
+describe("SECURITY — boundary surface + store capability (gated edit/delete)", () => {
+  it("the Server-Actions boundary EXPORTS owner-only updateClip/deleteClip (the gate, not the absence, is the protection)", async () => {
     const actions = await import("@/lib/server/actions");
-    // D2 surfaced them as auth-gated, owner-only actions (the ownership gate is the security
+    // They are auth-gated, owner-only actions (the ownership gate is the security
     // control — see test/clip-edit-delete.test.ts for the non-owner/anonymous rejection tests).
     expect("updateClipAction" in actions).toBe(true);
     expect("deleteClipAction" in actions).toBe(true);
@@ -176,7 +162,7 @@ describe("SECURITY — boundary surface + store capability (D2: gated edit/delet
     expect(typeof actions.deleteClipAction).toBe("function");
   });
 
-  it("deleteClip stays on the STORE for issue D (still no ownership/auth check at the store level)", async () => {
+  it("deleteClip stays on the STORE (no ownership/auth check at the store level)", async () => {
     await store.upsertTopic({ qid: "Q11982", title: "Photosynthesis" });
     const victim = await store.addClip({
       ...clip0(),
@@ -184,14 +170,14 @@ describe("SECURITY — boundary surface + store capability (D2: gated edit/delet
       caption: "not yours",
       curatedBy: "@victim",
     });
-    // The store method is intact (D's foundation): a direct store call deletes the row.
-    // The protection added in B is that this is NOT reachable anonymously via the boundary.
+    // The store method is unguarded (D's foundation): a direct store call deletes the row. The
+    // protection is that this is NOT reachable anonymously — the boundary action is auth-gated.
     const sessionB = new DrizzleDataStore(h.db);
     await sessionB.deleteClip(victim.id);
     expect(await store.listClips("Q11982")).toHaveLength(0);
   });
 
-  it("updateClip stays on the STORE for issue D (still no ownership/auth check at the store level)", async () => {
+  it("updateClip stays on the STORE (no ownership/auth check at the store level)", async () => {
     await store.upsertTopic({ qid: "Q11982", title: "Photosynthesis" });
     const victim = await store.addClip({
       ...clip0(),
@@ -214,8 +200,8 @@ describe("SECURITY — boundary surface + store capability (D2: gated edit/delet
   });
 
   it("the STORE itself has no length cap — an oversized context note is accepted at the store level", async () => {
-    // The boundary now caps free text (see the boundary-stopgap test below); the store stays
-    // unbounded by design — real validation is issue D. This pins the store-level behavior.
+    // The boundary caps free text (see the boundary length-cap test below); the store stays
+    // unbounded by design. This pins the store-level behavior.
     await store.upsertTopic({ qid: "Q11982", title: "Photosynthesis" });
     const huge = "x".repeat(200_000); // 200KB note; the store does not reject it
     const added = await store.addClip({
@@ -228,12 +214,11 @@ describe("SECURITY — boundary surface + store capability (D2: gated edit/delet
   });
 });
 
-// ── BOUNDARY INPUT STOPGAP (issue #45 fix round) ──────────────────────────────────────
-// A cheap server-side defense on the PUBLIC, unauthenticated write actions before issue D's
-// full validation/auth: free-text length cap + closed-set guard on the curation enums. The
-// validation runs BEFORE the store is constructed, so these rejection paths are exercised
-// with NO DB connection (no DATABASE_URL needed) — they throw at the boundary, not the store.
-describe("boundary input stopgap — addClipAction / upsertTopicAction reject out-of-bounds input", () => {
+// ── BOUNDARY INPUT VALIDATION ─────────────────────────────────────────────────────────
+// A cheap server-side defense on the write actions: a free-text length cap + a closed-set guard
+// on the curation enums. These rejection paths throw at the boundary, before the store performs
+// the write.
+describe("boundary input validation — addClipAction / upsertTopicAction reject out-of-bounds input", () => {
   function validClip(): Omit<Clip, "id" | "createdAt"> {
     return clip0();
   }

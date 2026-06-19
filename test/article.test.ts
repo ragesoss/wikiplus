@@ -155,8 +155,8 @@ describe("wikilink rewriting (AC5)", () => {
   });
 
   it("KEEPS cite/backref in-page anchors functional (article-fidelity #24 A4/A6)", async () => {
-    // Flipped: the marker↔reference round-trip is the whole point — `#cite_note-*` /
-    // `#cite_ref-*` anchors are no longer de-linked. (Other bare `#` anchors still are.)
+    // The marker↔reference round-trip is the whole point — `#cite_note-*` / `#cite_ref-*`
+    // anchors are kept as functional links. (Other bare `#` anchors are de-linked.)
     mockArticleHtml(
       `<section><p>text<sup class="reference"><a href="./X#cite_note-1">[1]</a></sup>` +
         ` <a href="#section-jump">jump</a></p></section>`

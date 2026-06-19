@@ -7,10 +7,9 @@ import { render, screen, waitFor } from "@testing-library/react";
 // polite "Loading topic…" a11y announcement; a non-bare path falls through to TopicView,
 // which ends in the graceful "Topic not found. Back home" dead end. (AC1/AC4 + a11y.)
 //
-// Under the Node SSR server (issue #37) not-found.tsx is no longer the `404.html` SPA
-// shell, and `/topic/...` deep links are now rendered on demand by the `[[...slug]]`
-// catch-all — they no longer reach this component at runtime. The fallback render here
-// is the defensive path for genuinely-unmatched (reserved/multi-segment) paths.
+// Under the Node SSR server, `/topic/...` deep links are rendered on demand by the
+// `[[...slug]]` catch-all and do not reach this component at runtime. The fallback render
+// here is the defensive path for genuinely-unmatched (reserved/multi-segment) paths.
 //
 // TopicView is mocked to a sentinel so we test the not-found host's routing decision in
 // isolation (TopicView's own resolve flow is covered by topic-view.test.tsx).
@@ -98,7 +97,7 @@ describe("app/not-found.tsx — bare-path redirect host", () => {
   });
 
   it("a /topic/<Title>/ path is never redirected by not-found's bare-path rule (loop guard)", async () => {
-    // Under SSR the catch-all renders /topic/... on demand, so this path no longer reaches
+    // Under SSR the catch-all renders /topic/... on demand, so this path does not reach
     // not-found.tsx at runtime; this asserts the defensive behavior IF it did — the
     // bare-path rule is a no-op on the reserved /topic prefix (no redirect, falls through).
     setLocation("/topic/Cellular_respiration/");

@@ -162,7 +162,7 @@ describe("placeCandidates (AC5 best-per-section, AC7 one-home-per-video)", () =>
     // v1 is the best match for BOTH "Glycolysis" and "Citric acid cycle" (it names
     // both). Article order: glycolysis first → it claims v1. Citric-acid-cycle must NOT
     // get nothing — it falls through to its next-best still-unused match (v2), which
-    // clears the threshold ("cycle"/"acid"/"citric"). Previously v2 was dropped entirely.
+    // clears the threshold ("cycle"/"acid"/"citric").
     const results = [
       raw("v1", "Glycolysis and the citric acid cycle explained"),
       raw("v2", "The citric acid cycle (Krebs cycle) in depth"),

@@ -173,7 +173,7 @@ describe("Infobox (AC7 curated / AC14 empty / #60 §5.1 mixed)", () => {
     ).toBeNull();
   });
 
-  // #14 AC10: the ＋plus panel header no longer carries the "this topic" filler label.
+  // #14 AC10: the ＋plus panel header does not carry a "this topic" filler label.
   it("renders the ＋plus header WITHOUT the 'this topic' label (#14 AC10)", () => {
     render(
       <Infobox

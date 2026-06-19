@@ -111,7 +111,7 @@ describe("GeneralStrip — empty / Suggested (AC1, AC16, AC18)", () => {
     expect(screen.getByText("uncurated")).toBeInTheDocument();
   });
 
-  // #14 AC6: the General band no longer renders a "N candidates" count label.
+  // #14 AC6: the General band does not render a "N candidates" count label.
   it("does NOT render a 'N candidates' count label on the band (#14 AC6)", () => {
     setup();
     expect(screen.queryByText(/\d+\s+candidates?/)).toBeNull();
@@ -379,7 +379,7 @@ describe("GeneralStrip — zero-results face (design §5.2 / AC2 zero case)", ()
       />
     );
     expect(screen.getByText(/No videos found for this topic yet/)).toBeInTheDocument();
-    // #14 AC6: the band no longer shows a candidate count, even at zero.
+    // #14 AC6: the band does not show a candidate count, even at zero.
     expect(screen.queryByText(/\d+\s+candidates?/)).toBeNull();
     expect(screen.getByRole("link", { name: /Search YouTube/ })).toBeInTheDocument();
   });

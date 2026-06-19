@@ -44,7 +44,7 @@ export function titleToSlug(title: string): string {
 /**
  * Decode a URL path segment back into the clean space-form Topic title:
  * underscores → spaces, then percent-decode the rest. We swap `_`→space first so
- * legacy `%20` URLs (from before this encoding) also decode to a space — both
+ * `%20`-encoded URLs also decode to a space — both
  * `San_Francisco` and `San%20Francisco` yield `San Francisco` (spec #11 AC9).
  * Falls back to the raw segment if it is not valid percent-encoding.
  */
