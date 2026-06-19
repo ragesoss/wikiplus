@@ -74,11 +74,13 @@ As of this writing the app is a **Next.js App Router Node SSR server** (no longe
 to `main` (`.github/workflows/deploy.yml`: build the image in CI → push to GHCR → SSH to the box →
 `docker compose pull && up`). Persistence is **shared Postgres via Drizzle, reached through a Server
 Actions data-access boundary** (`lib/data/index.ts` → `lib/server/actions.ts` → `lib/db/drizzle-store.ts`),
-so the deployed app is **multi-user and durable**. **Server Actions and migrations are live.** **Still
-ahead:** real auth (Wikimedia OAuth — issue C) and the production read-path (ISR + the Redis shared
-`cacheHandler`). So: a feature *may* legitimately add server infra (a Server Action, a schema change +
+so the deployed app is **multi-user and durable**. **Server Actions and migrations are live.** **Real
+auth is live too** — Wikimedia OAuth (issue C) shipped: Auth.js v5, stateless JWT sessions, writes
+auth-gated + attributed to the signed-in contributor; the curation-action write layer (Milestone D) is
+built on top of it. **Still ahead:** the production read-path (ISR + the Redis shared `cacheHandler`).
+So: a feature *may* legitimately add server infra (a Server Action, a schema change +
 its migration) — don't block a role on "no migration written" when the change has no schema delta; but
-don't let a role build the deferred read-path caching or auth speculatively either.
+don't let a role build the deferred read-path caching speculatively either.
 
 The build/verify commands that exist: **`yarn build`** (a *server* build in `.next/`, no static `out/`),
 **`yarn start`** (serves that build), **`yarn typecheck`**, **`yarn test`** (Vitest + React Testing
