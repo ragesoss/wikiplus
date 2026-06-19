@@ -75,6 +75,14 @@ services:
     command: ["node", "dist/migrate.cjs"]
     environment:
       DATABASE_URL: "postgres://wikiplus:${POSTGRES_PASSWORD}@postgres:5432/wikiplus"
+      # Demo-seed gate (issue #75): PRODUCTION does NOT seed the fabricated demo curations.
+      # `"false"` disables the deploy-time seed (the gate's truthiness convention — see
+      # scripts/migrate.ts `seedDemoContentEnabled`); migrations still apply and the run still
+      # exits 0. The seed is a TEST/LOCAL-DEV fixture only — set OFF HERE (the migrate one-shot)
+      # ONLY, never on `app` or in local/test runs (which leave it unset ⇒ seeds). The existing
+      # prod demo rows are removed once, out-of-band, via scripts/purge-demo-content.ts
+      # (see docs/ARCHITECTURE.md "Production seed policy" for the owner/ops invocation).
+      SEED_DEMO_CONTENT: "false"
     depends_on:
       postgres:
         condition: service_healthy

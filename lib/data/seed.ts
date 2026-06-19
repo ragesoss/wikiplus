@@ -2,7 +2,7 @@ import { titleToSlug } from "../wiki/topicRoute";
 import type { Candidate, Clip } from "./types";
 
 // Seed data for the prototype (spec A3/A4). Two demo topics exercise both states:
-//   - Q11982 "Photosynthesis"  → fully CURATED (14 real, oEmbed-verified clips
+//   - Q11982 "Photosynthesis"  → fully CURATED (13 real, oEmbed-verified clips
 //     mapped onto the closed CURATION enums + display modifiers — see §2/§3
 //     reconciliation). Section slugs match lib/wiki slugify() of the live article.
 //   - Q189603 "Cellular respiration" → UNCURATED: zero clips, a set of seeded mock

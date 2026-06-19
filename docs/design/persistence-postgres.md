@@ -460,3 +460,34 @@ divergence (surface + observable + expected) back to Development; re-evaluate af
   to the stub contributor, no sign-in UI); ISR/Redis caching, Cloudflare, the production read-path
   (**Operations**, production-MVP); correctness/security/no-DB-creds-in-bundle verification (**QA &
   Review**, AC7).
+
+---
+
+## Change record — production seed walked back (issue [#75](https://github.com/ragesoss/wikiplus/issues/75))
+
+This doc's **AC10** ("the deployed app opens NON-EMPTY for everyone" — the three demo topics + the
+curated Photosynthesis demo clips seeded on deploy) is **walked back for production**. The owner is
+hand-building real curation examples and wants the fabricated demo clips gone and staying gone, so
+they neither linger nor compete with the real work — a topic should read honestly as "not yet
+curated" rather than padded with placeholder clips attributed to the non-person `@prototype` stub.
+
+What changed (current state recorded in `docs/ARCHITECTURE.md` → *Production seed policy*):
+
+- **The seed is now a TEST / LOCAL-DEV FIXTURE only.** `lib/db/seed.ts` `seedDatabase` is unchanged
+  and still runs directly in tests + local dev (so the contract is still exercised in CI). What
+  changed is its **production deploy invocation**: the deploy entrypoint (`scripts/migrate.ts`) gates
+  it behind the **`SEED_DEMO_CONTENT`** env flag — **default ON** (unset / empty / any non-disabling
+  value seeds; only the literal `"false"`/`"0"` disables), set **OFF** only in the prod compose
+  `migrate` service (`deploy/docker-compose.yml`). Migrations still apply when the seed is skipped; the
+  run exits 0.
+- **The existing prod demo rows are purged once** via the standalone, idempotent
+  `scripts/purge-demo-content.ts` (Product decision **2a** — a documented, owner/ops-run one-off, not
+  folded into the deploy path). It deletes the seeded Photosynthesis demo clips (topic-scoped + matched
+  on the seed `watchUrl`s, so a non-seeded real clip survives), removes the orphaned `@prototype`
+  contributor (only when it has no remaining clips), is idempotent, and leaves the seeded topic rows
+  intact. Exact owner/ops invocation + the verifying test (`test/prod-seed-purge.test.ts`, pglite) are
+  recorded in `docs/ARCHITECTURE.md`.
+
+This is a **data + deploy-env-gate** change: no schema change, no auth-model change, and no change to
+the parity/async-write contract above (which still holds). The localStorage / GitHub-Pages demo seed
+(`lib/data/seed.ts` as used client-side) is untouched.
