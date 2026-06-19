@@ -123,16 +123,20 @@ describe("AC8 — the projector variant renders the full Tier-A treatment", () =
     expect(container.querySelector(".tier-c")?.classList.contains("hidden")).toBe(true);
   });
 
-  it("the lit aperture (even-odd knockout + radial core) renders for the projector, not for the flat tier", () => {
+  it("the lit aperture (even-odd knockout + white-hot core) renders for the projector, not for the flat tier", () => {
     const lit = render(<HeaderProjector variant="lockup-lit" />);
-    // The lit lockup uses a radialGradient core (the white-hot lamp) + an even-odd knockout.
-    expect(lit.container.querySelector("radialGradient")).toBeTruthy();
+    // The lit lockup is a recessed lamp: an even-odd "+" knockout in the block SVG (leaving the cut
+    // TRANSPARENT) + a separate white-hot core layer (`[data-aperture-core]`) BEHIND it. The core
+    // was moved OUT of the SVG into its own layer so the "pedia" ghost shows through the cut (owner
+    // fix — the in-SVG opaque white fill had hidden the letters).
+    expect(lit.container.querySelector("[data-aperture-core]")).toBeTruthy();
     expect(lit.container.querySelector('path[fill-rule="evenodd"]')).toBeTruthy();
     lit.unmount();
 
     const flat = render(<HeaderProjector variant="lockup-flat" />);
-    // The flat tier has NO lamp (no radial core); it is a solid block + drawn glyph.
-    expect(flat.container.querySelector("radialGradient")).toBeNull();
+    // The flat tier has NO lamp (no core, no knockout); it is a solid block + drawn glyph.
+    expect(flat.container.querySelector("[data-aperture-core]")).toBeNull();
+    expect(flat.container.querySelector('path[fill-rule="evenodd"]')).toBeNull();
   });
 });
 

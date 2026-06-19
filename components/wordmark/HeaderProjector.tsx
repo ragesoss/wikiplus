@@ -162,24 +162,21 @@ function ZineBlock({ lit, uid }: { lit: boolean; uid: string }) {
       <rect x={bw} y={6} width={6} height={BH} fill="#2C2C2C" />
       {lit ? (
         <>
-          {/* Even-odd knockout: indigo block with the "+" cut OUT (the lamp shows through). */}
+          {/* Even-odd knockout: indigo block with the "+" cut OUT. The cut is left TRANSPARENT —
+              the white-hot core + the faint "pedia" ghost are SEPARATE layers BEHIND this SVG (in
+              Lockup) and show THROUGH the cut, exactly as the mockup stacks them (white backing →
+              black "pedia" → block-with-transparent-cut). The earlier build filled the cut with an
+              opaque white rect+core circle HERE, inside the SVG, which painted over the pedia ghost
+              behind it — so no hint of the letters survived (owner). Now nothing opaque fills the
+              cut; only the gold rim is drawn on its edge. */}
           <path
             d={`M0 0 H${bw} V${BH} H0 Z ${plus}`}
             fill="#676EB4"
             fillRule="evenodd"
           />
-          {/* White-hot core behind the cut (radial, warm only at the very rim). */}
-          <g clipPath={`url(#cp-${uid})`}>
-            <rect x={0} y={0} width={bw} height={BH} fill="#fff" />
-            <circle
-              cx={cutCx}
-              cy={cy}
-              r={CORE / 2}
-              fill={`url(#core-${uid})`}
-            />
-          </g>
           {/* Gold rim: stroke ON the "+" path, clipped to the interior + blurred — gold at the
-              edge, clipping to white inward (NOT a circular glow). */}
+              edge, fading inward over the transparent cut so the lit core + pedia behind show
+              through (NOT a circular glow). */}
           <path
             d={plus}
             fill="none"
@@ -189,12 +186,6 @@ function ZineBlock({ lit, uid }: { lit: boolean; uid: string }) {
             clipPath={`url(#cp-${uid})`}
             filter={`url(#fb-${uid})`}
           />
-          <radialGradient id={`core-${uid}`} cx="50%" cy="46%" r="50%">
-            <stop offset="0%" stopColor="#ffffff" />
-            <stop offset="74%" stopColor="#ffffff" />
-            <stop offset="93%" stopColor={`rgb(${mix(GOLD_FILL, 0.5)})`} />
-            <stop offset="100%" stopColor={`rgb(${mix(GOLD_FILL, 0.22)})`} />
-          </radialGradient>
         </>
       ) : (
         <>
@@ -413,25 +404,63 @@ function Lockup({
       >
         Wiki
       </span>
-      {/* The zine block (+ aperture/bleed when lit), butting the seam (only the block's own 2px
-          ink border as margin — NOT a gap; the mockup's bx = seam). */}
-      <span className="relative inline-flex items-center" style={{ marginLeft: 2 }}>
-        <ZineBlock lit={lit} uid={uid} />
-        {/* "pedia" halation ghost printed BEHIND the cut — faintest dark ghost, never read,
-            anchored at the seam so it lives entirely behind the block (covered; never floats). */}
-        <span
-          aria-hidden="true"
-          className="projector-serif pointer-events-none absolute left-0 top-1/2 -translate-y-1/2 whitespace-nowrap"
-          style={{ fontWeight: 600, fontSize: FS, color: "#000", opacity: PEDIA_OPACITY, filter: "blur(1.45px)", zIndex: -1 }}
-        >
-          pedia
+      {/* The zine block + the lit-aperture stack, butting the seam (only the block's own 2px ink
+          border as margin — NOT a gap; the mockup's bx = seam). When lit, the aperture is a RECESSED
+          LAMP built as LAYERS, in the SAME z-order as the mockup's buildScene
+          (wordmark-projector-illuminate.html): white-hot core (behind) → faint "pedia" ghost OVER
+          the core → the zine block whose "+" cut is a TRANSPARENT knockout (so the core+pedia show
+          THROUGH it) → the screen-blend bleed on top. Reproducing that stack here (rather than
+          filling the cut with opaque white inside the SVG) is what restores the faint hint of the
+          "pedia" letters in the aperture (owner: the build had lost it entirely).
+          aria-hidden: the whole zine-block subtree is decorative (the mark is named once on the
+          Container via role=img/aria-label); hiding it keeps the "plus"/"pedia" text out of the
+          accessibility tree regardless of which layers render per tier. */}
+      <span aria-hidden="true" className="relative inline-flex items-center" style={{ marginLeft: 2 }}>
+        {lit && (
+          <>
+            {/* White-hot core (mockup z=2): a 44×44 radial that is pure white across its middle and
+                warms to gold only at the very rim. Centered on the cut, BEHIND everything, so only
+                the part inside the transparent "+" shows. NOT clipped to the "+" here — the block's
+                cut does the masking, exactly as the mockup's free-standing radial div does. */}
+            <span
+              aria-hidden="true"
+              data-aperture-core=""
+              className="pointer-events-none absolute top-1/2"
+              style={{
+                left: CUT_CX - CORE / 2,
+                width: CORE,
+                height: CORE,
+                transform: "translateY(-50%)",
+                zIndex: 0,
+                background: `radial-gradient(circle at 50% 46%, #fff 0%, #fff 74%, rgb(${mix(GOLD_FILL, 0.5)}) 93%, rgb(${mix(GOLD_FILL, 0.22)}) 100%)`,
+              }}
+            />
+            {/* "pedia" halation ghost (mockup z=5): pure-black letters at low opacity, blurred,
+                printed OVER the white core but BEHIND the block. The core light reads as washing
+                over them, so they're the faintest dark ghosts — glimpsed ONLY through the lit "+"
+                aperture (the block's indigo covers them everywhere else). */}
+            <span
+              aria-hidden="true"
+              className="projector-serif pointer-events-none absolute left-0 top-1/2 -translate-y-1/2 whitespace-nowrap"
+              style={{ fontWeight: 600, fontSize: FS, color: "#000", opacity: PEDIA_OPACITY, filter: "blur(1.45px)", zIndex: 1 }}
+            >
+              pedia
+            </span>
+          </>
+        )}
+        {/* The zine block, ABOVE the core+pedia (mockup z=9). When lit, its "+" cut is transparent
+            and reveals the lit core + pedia behind; when flat, it is a solid block with a drawn "+".
+            aria-hidden: this wrapper carries the SVG's "plus" text content, so it must stay inside
+            the mark's hidden subtree (the accessible name is the container's "wiki+" alone). */}
+        <span aria-hidden="true" className="relative" style={{ zIndex: 2 }}>
+          <ZineBlock lit={lit} uid={uid} />
         </span>
-        {/* The screen-blend "+"-outline bleed, over the aperture center. */}
+        {/* The screen-blend "+"-outline bleed, over the aperture center (mockup z=12, on top). */}
         {lit && (
           <span
             aria-hidden="true"
             className="pointer-events-none absolute top-1/2"
-            style={{ left: CUT_CX }}
+            style={{ left: CUT_CX, zIndex: 3 }}
           >
             <ApertureBleed />
           </span>
