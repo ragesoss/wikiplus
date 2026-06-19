@@ -110,6 +110,33 @@ describe("AC3 — faithful cladograms (clade style reuse)", () => {
     const doc = new DOMParser().parseFromString(out, "text/html");
     expect(doc.querySelectorAll(".wiki-clade").length).toBe(1);
   });
+
+  it("AC3+AC4 coexist: a plain data table beside a cladogram still gets the data-table grid + scroll wrap", async () => {
+    // The clade guard (`:not(.clade):not(.wiki-clade-carrier)` in globals.css, and the
+    // `wrapTables` skip-list) must NOT suppress an ordinary data table that happens to
+    // share the article with a cladogram. A real `wikitable` next to the tree must still
+    // be tagged `wiki-table` and wrapped in a `.wiki-tablewrap` scroll region (AC4),
+    // while the clade tree and its carrier stay out of that grid (AC3).
+    const DATA_TABLE =
+      `<table class="wikitable"><caption>Lifespan</caption><tbody>` +
+      `<tr><th>Stage</th><th>Years</th></tr>` +
+      `<tr><td>Kitten</td><td>0–1</td></tr>` +
+      `</tbody></table>`;
+    const out = await fullHtml(
+      `<section><h2>Evolution</h2>${CLADE}<h3>Data</h3>${DATA_TABLE}</section>`
+    );
+    const doc = new DOMParser().parseFromString(out, "text/html");
+    // The plain data table is tagged + scroll-wrapped…
+    const dataTable = doc.querySelector("table.wikitable")!;
+    expect(dataTable).not.toBeNull();
+    expect(dataTable.classList.contains("wiki-table")).toBe(true);
+    expect(dataTable.closest(".wiki-tablewrap")).not.toBeNull();
+    // …while neither the clade tree nor its carrier is given the data-table treatment.
+    expect(doc.querySelector("table.clade")!.classList.contains("wiki-table")).toBe(false);
+    expect(
+      doc.querySelector("table.gallery-element")!.classList.contains("wiki-table")
+    ).toBe(false);
+  });
 });
 
 // ───────────────────── X4 — the clade reuse path admits NO page-body CSS ─────────────────────
