@@ -3,7 +3,7 @@ import "./globals.css";
 import { Providers } from "@/components/auth/Providers";
 
 export const metadata: Metadata = {
-  title: "wiki+",
+  title: "Wiki+plus",
   description: "A curation and contextualization layer over Wikipedia.",
 };
 

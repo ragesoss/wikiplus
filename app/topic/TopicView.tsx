@@ -490,6 +490,19 @@ export function TopicView() {
   const displayTitle =
     article?.displayTitle ?? resolvedDisplayTitle ?? canonicalTitle;
 
+  // Browser-tab title mirrors Wikipedia: "<Article> - Wiki+plus" once the topic
+  // resolves, falling back to the bare site title while it's still loading or
+  // unresolved. Set client-side (the route is a client SPA shell). On unmount the
+  // RootLayout metadata default ("Wiki+plus") takes over again.
+  useEffect(() => {
+    document.title = displayTitle
+      ? `${displayTitle} - Wiki+plus`
+      : "Wiki+plus";
+    return () => {
+      document.title = "Wiki+plus";
+    };
+  }, [displayTitle]);
+
   // Displayed candidates exclude both the in-memory optimistic dismissals (this session) AND
   // any SHARED persisted dismissal from Postgres (AC5/AC9; design §6.3). The persisted check
   // keeps a dismissal sticky across reloads and ACROSS BROWSERS — a candidate dismissed by
