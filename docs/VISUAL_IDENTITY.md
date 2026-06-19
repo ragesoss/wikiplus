@@ -606,20 +606,36 @@ stands unchanged. **What is new is strictly the header treatment** — and with 
    two separate per-column labels; and (b) confirm with Dev **how the lockup's internal seam maps to
    the real column layout/breakpoints** — i.e. at which width the columns stop sitting side-by-side and
    the seam-alignment requirement (§6.0) hands off to the self-contained-split fallback (§6.3, §10.2 #6).
-3. **Scope of adoption.** Is this the header for the **home page**, the **Topic page**, or **both** —
-   and at which breakpoints does the **full projector** (Tier A) appear vs. a fallback (§6.2)?
+3. **Scope of adoption — RESOLVED: BOTH pages, one shared header.** The `HeaderProjector`
+   lockup is the header for **both** the home page (a free-standing Tier-A hero) **and** the
+   Topic page (the shared "Daylight Projector" header). One component, two host configs — there is
+   no separate Topic-page header implementation. Tier appearance by scroll state on Topic: **Tier A**
+   (lit aperture + full beam) at scroll-top, collapsing to **Tier C** (flat lockup, beam faded) when
+   scrolled (see §10.2 #6 + the scroll-transition decision below). On home, Tier A at every width (no
+   scroll collapse). See `docs/specs/shared-header.md` + `docs/design/shared-header.md`.
 
 ### 10.2 Open design questions (resolve with Product/Dev)
 
 4. **Favicon / app-icon mark (Tier D).** Bare indigo "+" tile, or a "+" tile with a hint of the
-   white-hot aperture? (Must read at `16px`.)
+   white-hot aperture? (Must read at `16px`.) *(Still open — no favicon mark is wired yet.)*
 5. **Dark mode (§6.4).** Confirm "no dark-mode projector; flat lockup only" for now, and whether a
-   true dark inversion is a future task.
-6. **Exact responsive breakpoints + seam-to-column mapping** for Tiers A→B→C — needs Dev to map to the
-   app's real header heights/widths (the mockup's `pageY=150` / `bh=56` are strip-canvas numbers, not
-   app layout) **and** to confirm how the lockup's internal seam lands on the real wiki/plus column
-   divider at Tier A (§6.0), including the breakpoint at which the columns stop sitting side-by-side and
-   the seam-alignment requirement hands off to the self-contained-split fallback (§6.3).
+   true dark inversion is a future task. *(Still open — the current behavior is the `forced-colors`
+   → flat-lockup fallback; no dark inversion.)*
+6. **Responsive breakpoints + seam-to-column mapping — RESOLVED.** The side-by-side ↔ stacked
+   handoff is the existing **`lg` (1024px)** Topic-grid breakpoint (`lg:grid-cols-[1fr_360px]`). At
+   `≥ lg` the seam aligns to the **gutter centre** — the midpoint of the `gap-7` (28px) channel
+   between the `1fr` article column and the `360px` rail — driven onto the lockup via the
+   `projectionX`/`seamRatio` hook off the **measured** column geometry (a mount/resize probe, never a
+   per-scroll measure). The mockup's strip-canvas numbers are mapped to the real Topic band as
+   `burnY=116`, `cyMid=40` (a shorter sticky chrome band than the landing hero's `burnY=130`). Below
+   `lg` the columns stack, there is no divider, and the lockup carries its `wiki | +plus` split
+   **within itself** (§6.3) — no seam-alignment is applied. **Scroll transition:** on
+   the Topic page the header is **Tier A** (lit aperture + full beam, seam on the divider) at
+   scroll-top and collapses to a **flat Tier C** slim sticky bar (`56px`, beam opacity → 0, band
+   height `116 → 56`) once `scrollY > 116` (restore `< 76`, a 40px hysteresis); the transition is
+   `~180ms` and **gated on `prefers-reduced-motion`** (reduced motion → end-states, no tween).
+   **Tier B is not used** here (it remains defined for future shorter-header contexts). See
+   `docs/design/shared-header.md` §3–§4.
 7. **Performance.** The mark uses CSS `filter` (drop-shadows, blurs) + `mix-blend-mode` + SVG. Confirm
    it's cheap enough to render in the SSR'd header without layout jank; if not, consider shipping it as
    a **pre-rendered static SVG/PNG asset** for Tier A rather than live DOM (it is static, §6.5).

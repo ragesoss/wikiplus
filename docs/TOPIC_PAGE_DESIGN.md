@@ -20,8 +20,14 @@ A Topic page presents two deliberately contrasting visual languages, split by co
   usability, and accessibility are the baseline (contrast, focus states, keyboard support,
   text-labeled signals — never color alone).
 
-The wordmark is **split to label the columns**: "Wiki" sits over the article column, "＋plus"
-over the plus column.
+The wordmark is **one seam-aligned lockup straddling the column divider** (not two separate
+per-column labels): a single `wiki | plus` mark whose internal seam — where the serif "Wiki" ends
+and the indigo "+" block begins — lands on the **real article↔plus column divider**, so the lockup
+labels the two columns *by position*: "Wiki" sits over the article column and "＋plus" over the plus
+rail because the seam is on the boundary between them. (Built #72 as the shared "Daylight Projector"
+header — the same `HeaderProjector` lockup the landing page uses, with its seam driven onto the
+measured gutter centre at `≥ lg`; below `lg` the columns stack and the lockup carries its split
+within itself. See `VISUAL_IDENTITY.md` §6.0 and `docs/design/shared-header.md`.)
 
 > **Implementation note (per ARCHITECTURE).** The article body is fetched and rendered
 > **client-side** from Wikipedia (sanitized), and its **wikilinks resolve to internal wiki+

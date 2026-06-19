@@ -24,7 +24,8 @@ import { Infobox } from "@/components/topic/Infobox";
 import { PinnedPlayer, type PinnedClip } from "@/components/topic/PinnedPlayer";
 import { PlayerModal } from "@/components/topic/PlayerModal";
 import { Toc, type TocEntry } from "@/components/topic/Toc";
-import { TopicHeader } from "@/components/topic/TopicHeader";
+import { SiteHeader, TopicHeaderSearch } from "@/components/header/SiteHeader";
+import { HeaderAuth } from "@/components/header/HeaderAuth";
 import { useRequireLogin } from "@/components/auth/useRequireLogin";
 import { useSession } from "next-auth/react";
 import { isAuthRequired, isRateLimited } from "@/lib/auth/auth-error";
@@ -51,7 +52,11 @@ import {
   topicHref,
 } from "@/lib/wiki/topicRoute";
 
-const HEAD = 64;
+// HEAD = the sticky header's steady-state occupied height, used by the scroll-sync math to compute
+// section scroll targets. The shared header's slim sticky bar is 56px (#72 design §2/§8 — the
+// SLIM_BAR_HEIGHT); the Tier-A extra height (116px) only exists at scroll-top, before any sync
+// runs, so the slim height is the correct steady-state offset (#72 DQ-3 — no article jump).
+const HEAD = 56;
 const READ = 120;
 
 type FetchState = "loading" | "ready" | "error";
@@ -1282,7 +1287,18 @@ export function TopicView() {
 
   return (
     <>
-      <TopicHeader articleTitle={displayTitle} />
+      {/* The ONE shared Daylight Projector header (#72), Topic host: search upper-left (inline ≥ md
+          / disclosure icon-reveal < md — AC6/AC7), the lockup seam aligned to the real article↔plus
+          divider at ≥ lg (AC2), scroll-aware Tier-A → slim Tier-C bar (AC4), the wordmark a home
+          link (AC3), ONE consolidated AuthControl reachable at every breakpoint (AC8/AC9 — `home`
+          skin ≥ md on the light field / `topic-compact` < md), and the muted slim-state title cue
+          (A4). Replaces the retired bespoke TopicHeader (AC1). */}
+      <SiteHeader
+        host="topic"
+        articleTitle={displayTitle}
+        search={<TopicHeaderSearch />}
+        auth={<HeaderAuth />}
+      />
 
       <div className="mx-auto max-w-[1200px] px-5">
         {/* Masthead: title + attribution + lead (left) + infobox + TOC (right). */}

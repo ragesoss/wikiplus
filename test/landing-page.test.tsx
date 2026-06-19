@@ -182,10 +182,14 @@ describe("HeaderProjector accessible name + decorative layers", () => {
 });
 
 // ── The landing page mounts the projector at Tier A above the search (AC1/AC8/AC9). ──
+// #72: the landing wordmark is now a LINK to / (the shared-header AC3 — the wordmark navigates
+// home from BOTH pages), so it exposes role="link" name "wiki+" (not role="img"). This is the one
+// sanctioned additive change to the landing header; everything visual is unchanged (AC12).
 describe("the landing page composition", () => {
-  it("renders the HeaderProjector wordmark above the search hero", async () => {
+  it("renders the HeaderProjector wordmark (a home link) above the search hero", async () => {
     render(<HomePage />);
-    const wordmark = screen.getByRole("img", { name: "wiki+" });
+    const wordmark = screen.getByRole("link", { name: "wiki+" });
+    expect(wordmark).toHaveAttribute("href", "/");
     const search = await screen.findByRole("combobox", { name: /find a topic/i });
     // The wordmark precedes the search in document order (header → hero, AC1).
     expect(
