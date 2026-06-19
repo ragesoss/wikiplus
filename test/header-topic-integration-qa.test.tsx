@@ -4,10 +4,11 @@ import { render } from "@testing-library/react";
 // QA supplement (header-topic-integration) — independent, non-author acceptance-criterion tests
 // written by the qa-reviewer role for the refinement contract in
 // docs/design/header-topic-integration.md §8. These close coverage the author's commit left
-// unmapped: the UNIFIED Tier-A geometry on BOTH hosts (AC1/AC2/AC3), the burn-to-background token
-// wiring (AC6/AC7/AC8), and Home's re-pinned auth-slot height (AC16). The coupling ACs
+// unmapped: the UNIFIED Tier-A geometry on BOTH hosts (AC1/AC2/AC3), the WHITE-beam token wiring +
+// the Topic white→grey illumination falloff (AC6/AC7/AC8/AC8b), and Home's re-pinned auth-slot
+// height (AC16). The coupling ACs
 // (AC11/AC12/AC14/AC15/AC5) are already exercised in test/shared-header.test.tsx; the CSS-gate
-// assertions below add the burn-bg-specific cascade + token-default checks those did not cover.
+// assertions below add the burn-bg-default + falloff-token checks those did not cover.
 //
 // Geometry strategy: HeaderProjector exposes the band's true-scale beam structural markers as
 // data-* attributes. The clip height `data-beam-clip-h` = burnY − apexY = burnY − cyMid (the cone
@@ -165,9 +166,12 @@ describe("AC3 — defaults are 104/28; Home passes no geometry overrides; no 130
   });
 });
 
-// ── AC6 / AC7 / AC8 — the --projector-burn-bg token drives the beam interior + the band fill, and
-// the Topic host overrides it to the body grey while Home keeps white. ──────────────────────────
-describe("AC6/AC7/AC8 — --projector-burn-bg drives the beam + band fill (Home #FFF, Topic #F7F7F7)", () => {
+// ── AC6 / AC7 / AC8 / AC8b — REVISED contract (owner reversal 2026-06-19): the beam is BRIGHT WHITE
+// LIGHT on BOTH hosts (--projector-burn-bg resolves to #FFFFFF everywhere — NO host override), and
+// the Topic page (not the beam) carries the grey via the white→grey illumination FALLOFF
+// (.topic-illum, --topic-illum-falloff) at the top of the page content. These tests REPLACE the
+// prior burn-to-grey assertions (Topic burn-bg = #F7F7F7) the earlier build asserted. ────────────
+describe("AC6/AC7/AC8/AC8b — white beam on both hosts + Topic white→grey illumination falloff", () => {
   it("AC6 — the Beam SVG fill reads var(--projector-burn-bg), not a hardcoded #ffffff", () => {
     const { container } = render(<HeaderProjector variant="projector" />);
     const beam = container.querySelector("[data-projector-beam]");
@@ -193,7 +197,21 @@ describe("AC6/AC7/AC8 — --projector-burn-bg drives the beam + band fill (Home 
     expect(fieldSpan).toBeTruthy();
   });
 
-  it("AC7 — Home keeps the #FFFFFF default for --projector-burn-bg", async () => {
+  it("AC6 — --projector-burn-bg is #FFFFFF and NO host overrides it (the Topic grey override is gone)", async () => {
+    const fs = await import("node:fs");
+    const path = await import("node:path");
+    const css = fs.readFileSync(path.resolve(process.cwd(), "app/globals.css"), "utf8");
+    // The token default declared on .header-projector is #ffffff (the beam is bright white light).
+    expect(css).toMatch(/\.header-projector\s*\{[\s\S]*--projector-burn-bg:\s*#ffffff/);
+    // The reverted contract: NO host (no `.header-shared .header-projector`) overrides the token to
+    // a non-white value — the beam is white on Home AND Topic. The prior grey override is removed.
+    expect(css).not.toMatch(/--projector-burn-bg:\s*var\(--color-body-grey\)/);
+    expect(css).not.toMatch(
+      /\.header-shared\s+\.header-projector\s*\{[\s\S]*?--projector-burn-bg/
+    );
+  });
+
+  it("AC7 — Home keeps the #FFFFFF default for --projector-burn-bg (no gradient added)", async () => {
     const fs = await import("node:fs");
     const path = await import("node:path");
     const css = fs.readFileSync(path.resolve(process.cwd(), "app/globals.css"), "utf8");
@@ -201,19 +219,36 @@ describe("AC6/AC7/AC8 — --projector-burn-bg drives the beam + band fill (Home 
     expect(css).toMatch(/\.header-projector\s*\{[\s\S]*--projector-burn-bg:\s*#ffffff/);
   });
 
-  it("AC8 — the Topic host (.header-shared) overrides --projector-burn-bg to the body grey", async () => {
+  it("AC8 — the Topic illumination falloff is white→grey over 96px (--topic-illum-falloff)", async () => {
     const fs = await import("node:fs");
     const path = await import("node:path");
     const css = fs.readFileSync(path.resolve(process.cwd(), "app/globals.css"), "utf8");
-    // The override sits on `.header-shared .header-projector` (2-class specificity > the 1-class
-    // default), so it wins on the Topic host. The grey resolves to #f7f7f7 via --color-body-grey.
-    expect(css).toMatch(
-      /\.header-shared\s+\.header-projector\s*\{[\s\S]*--projector-burn-bg:\s*var\(--color-body-grey\)/
-    );
+    // The falloff distance token (96px is in the spec build range 64–120).
+    expect(css).toMatch(/--topic-illum-falloff:\s*96px/);
+    // .topic-illum paints a white→grey vertical gradient over the falloff distance, on a grey base
+    // (so any region taller than the falloff stays the body grey — flat #F7F7F7 below). Anchor on
+    // the RULE selector (`.topic-illum {`), not a `.topic-illum` mention inside an earlier comment.
+    const ruleStart = css.search(/^\.topic-illum\s*\{/m);
+    expect(ruleStart).toBeGreaterThan(-1);
+    const block = css.slice(ruleStart, css.indexOf("}", ruleStart) + 1);
+    expect(block).toMatch(/linear-gradient/);
+    expect(block).toMatch(/var\(--color-content-white\)/); // top = #FFFFFF (= the beam interior)
+    expect(block).toMatch(/var\(--color-body-grey\)/); // bottom + base = #F7F7F7 (= the body)
+    expect(block).toMatch(/background-size:\s*100%\s*var\(--topic-illum-falloff\)/);
+    expect(css).toMatch(/--color-content-white:\s*#ffffff/i);
     expect(css).toMatch(/--color-body-grey:\s*#f7f7f7/i);
   });
 
-  it("AC8 — the Topic host renders the projector inside .header-shared (the override scope)", () => {
+  it("AC8b — the falloff is page content (a background paint) beneath the sticky header, not in the band", () => {
+    // The .topic-illum field is rendered by TopicView as the first page-content block AFTER the
+    // SiteHeader — it is NOT inside the .header-shared band (so it adds no header height and scrolls
+    // away with the page). The header render alone carries no .topic-illum node.
+    const { container } = renderTopicHeader();
+    expect(container.querySelector(".topic-illum")).toBeNull();
+    expect(container.querySelector(".header-shared .topic-illum")).toBeNull();
+  });
+
+  it("AC8 — the Topic host renders the projector inside .header-shared (the white-beam scope)", () => {
     const { container } = renderTopicHeader();
     const shared = container.querySelector(".header-shared");
     const projector = container.querySelector(".header-shared .header-projector");

@@ -382,9 +382,10 @@ function Beam({
         data-beam-right-arm={(cw - edgeInset - apexX).toFixed(1)}
       >
         {/* viewBox width = cw (1:1 px) — the stem + angle are TRUE-SCALE, never stretched.
-            non-scaling-stroke keeps the 2px gold edge crisp. The interior burns to the host's own
-            background (--projector-burn-bg: Home #FFFFFF / Topic #F7F7F7) so the beam edge meets the
-            page with no seam (spec Decision 2 / AC6) — the gold stroke stays the signal-carrying edge. */}
+            non-scaling-stroke keeps the 2px gold edge crisp. The interior is bright white light
+            (--projector-burn-bg: #FFFFFF on BOTH hosts — spec Decision 2 / AC6); the gold stroke
+            stays the signal-carrying edge. On Topic the white beam lands on the white page top (the
+            page's .topic-illum falloff carries the grey, not the beam) so the edge meets no seam. */}
         <path
           d={d}
           fill="var(--projector-burn-bg)"
@@ -717,9 +718,10 @@ export function HeaderProjector({
         <div ref={bandRef} className="projector-band relative w-full" style={{ minHeight: burnY }}>
           {/* cool fluorescent field above the burn boundary */}
           <span aria-hidden="true" className="absolute inset-x-0 top-0 bg-[var(--color-header-field)]" style={{ height: burnY }} />
-          {/* the burn-to-background fill from the burn boundary down — the host's OWN page surface
-              (Home #FFFFFF, Topic #F7F7F7), driven by --projector-burn-bg so the area beneath the
-              header resolves into the page with no seam (spec Decision 2). */}
+          {/* the burn-to-background fill from the burn boundary down — bright white light on BOTH
+              hosts (--projector-burn-bg: #FFFFFF, spec Decision 2 / AC6). On Topic the page top is a
+              white→grey illumination falloff (.topic-illum) so the white beam meets a white page top
+              with no seam; the page, not the beam, falls off to grey just under the lamp. */}
           <span aria-hidden="true" className="absolute inset-x-0 bg-[var(--projector-burn-bg)]" style={{ top: burnY, bottom: 0 }} />
 
           {/* The geometric "+" beam — true-scale stem + fixed 0.6 angle + ASYMMETRICAL arms,

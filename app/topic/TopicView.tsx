@@ -1300,44 +1300,55 @@ export function TopicView() {
         auth={<HeaderAuth />}
       />
 
-      <div className="mx-auto max-w-[1200px] px-5">
-        {/* Masthead: title + attribution + lead (left) + infobox + TOC (right). */}
-        <div className="grid grid-cols-1 gap-7 pt-6 lg:grid-cols-[1fr_360px]">
-          <div className="min-w-0" onClick={onArticleClick}>
-            {fetchState === "loading" && <ArticleSkeleton />}
-            {fetchState === "error" && (
-              <ArticleError
-                url={`https://en.wikipedia.org/wiki/${encodeURIComponent(canonicalTitle)}`}
-                onRetry={loadArticle}
-              />
-            )}
-            {fetchState === "ready" && article && (
-              <ArticleLeadBlock
-                title={article.displayTitle}
-                url={article.url}
-                qid={qid}
-                lead={article.lead}
-              />
+      {/* Illumination falloff (design header-topic-integration Decision 2 / §3.2 / AC8 / AC8b):
+          the FIRST thing in the Topic page content, flush beneath the sticky header. It is a
+          FULL-BLEED, decorative BACKGROUND paint (the `.topic-illum` white→grey gradient over a grey
+          base) — NOT a spacer, so it adds NO vertical height (the masthead's pt-6 + the article
+          title/lead do not shift down — AC10). The white beam lands on the white page top with no
+          seam; the brightness falls off to the body grey over 96px, then flat grey. It is ordinary
+          page content that scrolls away with the article, so by the collapse threshold the field is
+          out of view and flat grey sits under the slim bar (AC8b). aria-hidden via no text; it never
+          intercepts pointer events over the masthead (the gradient is a passive background). */}
+      <div className="topic-illum">
+        <div className="mx-auto max-w-[1200px] px-5">
+          {/* Masthead: title + attribution + lead (left) + infobox + TOC (right). */}
+          <div className="grid grid-cols-1 gap-7 pt-6 lg:grid-cols-[1fr_360px]">
+            <div className="min-w-0" onClick={onArticleClick}>
+              {fetchState === "loading" && <ArticleSkeleton />}
+              {fetchState === "error" && (
+                <ArticleError
+                  url={`https://en.wikipedia.org/wiki/${encodeURIComponent(canonicalTitle)}`}
+                  onRetry={loadArticle}
+                />
+              )}
+              {fetchState === "ready" && article && (
+                <ArticleLeadBlock
+                  title={article.displayTitle}
+                  url={article.url}
+                  qid={qid}
+                  lead={article.lead}
+                />
+              )}
+            </div>
+
+            {storeReady && (
+              <aside className="space-y-4 lg:sticky lg:top-20 lg:self-start">
+                <Infobox
+                  hasCurated={hasCurated}
+                  stats={stats}
+                  suggestionCount={liveCandidates.length}
+                  sources={sources}
+                  syncedLabel="just now"
+                  onCurateFirst={curateFirst}
+                />
+                <Toc
+                  entries={tocEntries}
+                  currentSlug={activeSlug}
+                  onGo={goTo}
+                />
+              </aside>
             )}
           </div>
-
-          {storeReady && (
-            <aside className="space-y-4 lg:sticky lg:top-20 lg:self-start">
-              <Infobox
-                hasCurated={hasCurated}
-                stats={stats}
-                suggestionCount={liveCandidates.length}
-                sources={sources}
-                syncedLabel="just now"
-                onCurateFirst={curateFirst}
-              />
-              <Toc
-                entries={tocEntries}
-                currentSlug={activeSlug}
-                onGo={goTo}
-              />
-            </aside>
-          )}
         </div>
       </div>
 

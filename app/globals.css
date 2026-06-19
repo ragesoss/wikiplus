@@ -23,7 +23,13 @@
   --color-bleed-warm-white: #fffcf6; /* tighter inner bleed "+" */
   --color-header-field: #fafbfe; /* cool fluorescent header band above the burn boundary */
   --color-content-white: #ffffff; /* hero surface + beam interior below the burn boundary */
-  --color-body-grey: #f7f7f7; /* the body / Topic page surface — the Topic host's burn-to-background */
+  --color-body-grey: #f7f7f7; /* the body / Topic page surface + the Topic illumination falloff's grey base */
+
+  /* The Topic-only illumination falloff distance (design header-topic-integration §3.2.1): the top
+     of the Topic page content brightens from #FFFFFF flush under the sticky header, easing (ease-out,
+     biased knee near #FCFCFC) to the body grey #F7F7F7 over this distance, then flat grey below — so
+     the white beam lands on a white page top and the brightness falls off just under the lamp. */
+  --topic-illum-falloff: 96px;
 }
 
 body {
@@ -57,8 +63,10 @@ body {
   --projector-cy-mid: 28px; /* cyMid — wordmark row centre from the band top (= SLIM_BAR_HEIGHT/2),
      so the lit lockup aligns with a 56px chrome row and the flat lockup fills the slim bar. */
   --projector-burn-bg: #ffffff; /* the surface the beam interior + the band below burnY burn TO.
-     Home (default) burns to the white hero; the Topic host overrides it to the body grey #F7F7F7
-     so the beam edge meets the page with no seam — the projection lands on the page's own surface. */
+     The beam is BRIGHT WHITE LIGHT on BOTH hosts (design header-topic-integration §3.2 / AC6): no
+     host overrides this. On Home the white hero receives it seamlessly; on Topic the page top is a
+     white→grey illumination falloff (.topic-illum) so the white beam lands on white and the
+     brightness falls off to the body grey just under the lamp — the page, not the beam, carries grey. */
   --projector-seam-ratio: 0.5; /* seamRatio — 0.5 = centered lockup (single-column hero) */
   /* projectionX defaults to the content-column center via layout (the lockup is centered
      as a unit), not a px var — see HeaderProjector (design §4.3). fullBleed = true is the
@@ -143,14 +151,11 @@ body {
    • .projector-flatlockup — the flat Tier-C lockup (the interactive home link): opacity 0 at Tier A
                              → 1 when collapsed. It stays in the DOM + focusable in BOTH states so
                              the wordmark is always a reachable "wiki+" → / link (AC3/AC13). */
-/* The Topic host burns the beam to the body grey (spec Decision 2 / AC8): the beam interior + the
-   band below burnY resolve to #F7F7F7 — the SAME grey the Topic page already uses — so the beam edge
-   meets the page with no seam. Overriding on the .header-projector inside .header-shared (rather than
-   on the ancestor) wins over the .header-projector's own #FFFFFF default, which a custom property
-   declared on the element would otherwise shadow. Home (no .header-shared) keeps the #FFFFFF default. */
-.header-shared .header-projector {
-  --projector-burn-bg: var(--color-body-grey);
-}
+/* The beam is bright white light on BOTH hosts (design header-topic-integration §3.2 / AC6): the
+   beam interior + the band below burnY resolve to #FFFFFF everywhere — no Topic-host override. On
+   Topic the *page* (not the beam) carries the grey, via the .topic-illum white→grey falloff at the
+   top of the page content (below) — so the white beam lands on a white page top and the brightness
+   falls off to the body grey just under the lamp. */
 
 .header-shared .projector-beamfade,
 .header-shared .projector-litlockup {
@@ -206,6 +211,29 @@ body {
   .header-shared .projector-flatlockup {
     opacity: 1 !important;
   }
+}
+
+/* ── Topic illumination falloff (design header-topic-integration §3.2 / AC8 / AC8b). ──
+   The Topic page reads as bright white light illuminating Wikipedia: the white beam lands on a
+   white page top, and the brightness falls off to the body grey just under the lamp. This paints
+   that falloff as the BACKGROUND of the top page region (the first content beneath the sticky
+   header) — NOT a spacer, so it adds NO vertical height (the article title/lead do not shift down).
+   The gradient occupies the top `--topic-illum-falloff` (96px) and is flat #F7F7F7 below; over a
+   #F7F7F7 base so any region taller than the falloff stays the body grey. The eased (ease-out)
+   knee biases the midpoint near #FCFCFC so the falloff reads as illumination, not a hard band — no
+   seam at the header boundary (white meets the white beam) nor at the bottom (grey arrives by
+   gradient). It is decorative page content that scrolls away normally: by the collapse threshold
+   (scrollY > 104) the whole 96px field has scrolled past the slim bar, leaving flat grey under it. */
+.topic-illum {
+  background-color: var(--color-body-grey);
+  background-image: linear-gradient(
+    to bottom,
+    var(--color-content-white) 0%,
+    #fcfcfc 45%,
+    var(--color-body-grey) 100%
+  );
+  background-repeat: no-repeat;
+  background-size: 100% var(--topic-illum-falloff);
 }
 
 /* ── Hardbox language (design §5): white fill, 2px ink border, solid offset. ── */

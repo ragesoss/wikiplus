@@ -635,8 +635,12 @@ stands unchanged. **What is new is strictly the header treatment** — and with 
    `--projector-*` defaults equal these and Home passes no overrides), with the wordmark row centred
    on the `56px` chrome-row centre (`SLIM_BAR_HEIGHT/2`) so the lit lockup aligns with the search +
    auth cards and the flat lockup fills the slim bar exactly. Topic alone adds the scroll-collapse
-   layer on top. The beam burns to the host's OWN background (`--projector-burn-bg`: Home `#FFFFFF`,
-   Topic the body `#F7F7F7`) so the beam edge meets the page with no seam. Below
+   layer on top. The beam is **bright white light** (`--projector-burn-bg: #FFFFFF`) on **both**
+   hosts — the header reads as a lamp illuminating Wikipedia. On Home the white hero receives it
+   seamlessly; on Topic the *page top* carries a white→grey **illumination falloff**
+   (`--topic-illum-falloff`, white flush under the header easing to the body `#F7F7F7` over `96px`,
+   then flat grey) so the white beam lands on a white page top with no seam and the brightness falls
+   off to grey just under the lamp. The page, not the beam, carries the grey on Topic. Below
    `lg` the columns stack, there is no divider, and the lockup carries its `wiki | +plus` split
    **within itself** (§6.3) — no seam-alignment is applied. **Scroll transition:** on
    the Topic page the header is **Tier A** (lit aperture + full beam, seam on the divider) at
