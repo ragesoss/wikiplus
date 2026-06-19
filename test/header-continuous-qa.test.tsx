@@ -103,8 +103,11 @@ describe("AC#1 — one --topic-burn-y drives every burn-boundary edge (no seam b
     const spans = Array.from(
       container.querySelectorAll<HTMLElement>(".projector-band > span")
     );
+    // The cool field is the burn-to-white field on the scroll-aware host (`.projector-coolfield-burn`
+    // — it ends in content-white at its bottom edge so the full-width band bottom matches the white
+    // page top, killing the temperature hairline; #96 fix round).
     const coolField = spans.find((s) =>
-      s.className.includes("--color-header-field")
+      s.className.includes("projector-coolfield-burn")
     );
     const contentWhite = spans.find((s) =>
       s.className.includes("--projector-burn-bg")
@@ -142,6 +145,47 @@ describe("AC#1 — one --topic-burn-y drives every burn-boundary edge (no seam b
     window.scrollY = 200;
     fireEvent.scroll(window);
     await vi.waitFor(() => expect(v(header, "--topic-burn-y")).toBe(`${SLIM_BAR_HEIGHT}.00px`));
+  });
+});
+
+// ── #96 fix round (owner-reported) — kill the front-half temperature hairline. The cool field
+// (`#fafbfe`) butting the white page top (`#ffffff`) rendered a faint full-width light line at the
+// band bottom whenever the 2px ink border was at opacity 0 (the front half, p < 0.5). The fix burns
+// the cool field to content-white at its bottom edge so the full-width band bottom IS `#ffffff` and
+// meets the white page top with no step. We assert the WIRING: the Topic cool field carries the
+// burn class (so its bottom edge resolves to content-white), and Home does NOT (AC12 — Home keeps
+// the flat cool fill and is untouched). Pixel-absence of the line is the screenshot proof. ─────────
+describe("#96 fix round — no header/page temperature hairline in the front half", () => {
+  it("the Topic cool field burns to content-white at its bottom edge (`.projector-coolfield-burn`)", () => {
+    const { container } = renderTopic();
+    const spans = Array.from(
+      container.querySelectorAll<HTMLElement>(".projector-band > span")
+    );
+    const coolField = spans.find((s) =>
+      s.className.includes("projector-coolfield-burn")
+    );
+    expect(
+      coolField,
+      "Topic cool field seals to content-white at the band bottom"
+    ).toBeTruthy();
+    // It still spans to the live burn boundary (the seam invariant) and is not a flat cool fill.
+    expect(coolField!.style.height).toBe("var(--topic-burn-y)");
+    expect(coolField!.className).not.toContain("--color-header-field");
+  });
+
+  it("Home keeps the flat cool fill — no burn-to-white seal (AC12 untouched)", () => {
+    const { container } = render(<SiteHeader host="home" auth={<HeaderAuth />} />);
+    const spans = Array.from(
+      container.querySelectorAll<HTMLElement>(".projector-band > span")
+    );
+    expect(
+      spans.some((s) => s.className.includes("projector-coolfield-burn")),
+      "Home must NOT use the burn-to-white seal"
+    ).toBe(false);
+    expect(
+      spans.some((s) => s.className.includes("--color-header-field")),
+      "Home keeps the flat cool fluorescent fill"
+    ).toBe(true);
   });
 });
 

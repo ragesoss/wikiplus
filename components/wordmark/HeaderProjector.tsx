@@ -725,10 +725,19 @@ export function HeaderProjector({
           {/* cool fluorescent field above the burn boundary. #96 crux (§4.2): on the scroll-aware
               host the boundary is the LIVE band height (`--topic-burn-y`), not a fixed `burnY`, so
               the cool→white internal edge is pinned to the band's bottom edge at every `p` and no
-              independently-scrolling grey/white seam can form (defect #1). */}
+              independently-scrolling grey/white seam can form (defect #1). On the scroll-aware host
+              the field also BURNS to content-white over its last few px (`.projector-coolfield-burn`)
+              so the FULL-WIDTH band bottom is `#ffffff` — matching the white page top under the lamp
+              — with no `#fafbfe`/`#ffffff` temperature hairline at the header/page seam (#96 fix
+              round). The burn is a continuous gradient pinned to the same live bottom edge, so it
+              adds no second hard edge. Home keeps the flat cool fill (AC12 — unchanged). */}
           <span
             aria-hidden="true"
-            className="absolute inset-x-0 top-0 bg-[var(--color-header-field)]"
+            className={`absolute inset-x-0 top-0 ${
+              scrollAware
+                ? "projector-coolfield-burn"
+                : "bg-[var(--color-header-field)]"
+            }`}
             style={{ height: scrollAware ? "var(--topic-burn-y)" : burnY }}
           />
           {/* the burn-to-background fill from the burn boundary down — bright white light on BOTH

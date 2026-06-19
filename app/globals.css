@@ -193,6 +193,26 @@ body {
   border-bottom: 2px solid rgb(44 44 44 / var(--border-opacity, 0));
 }
 
+/* #96 fix round — kill the header/page temperature hairline. The Topic header band is the cool
+   fluorescent field (`#fafbfe`); the page top under the lamp is content-white (`#ffffff`, the
+   `.topic-illum` start). With the cool field painted as a FLAT fill all the way to the burn
+   boundary, the full-width band bottom was `#fafbfe` butting the page's `#ffffff` — a faint light
+   hairline visible across the front half of the transition (where the 2px ink border is still at
+   opacity 0). The seam-on-divider gold beam burns to white only inside its cone, so the line showed
+   everywhere the cone is not. Fix: the cool field BURNS to content-white over its last few px, so
+   the full-width band bottom edge IS `#ffffff` and meets the white page top with zero step. It is a
+   continuous gradient anchored to the bottom edge (`to top`, px stops), so it adds no second hard
+   edge and stays pinned to the live `--topic-burn-y` bottom — the single-edge seam invariant (§4.2)
+   holds. The bulk of the field above the burn stays the flat cool `#fafbfe`. */
+.projector-coolfield-burn {
+  background-color: var(--color-header-field);
+  background-image: linear-gradient(
+    to top,
+    var(--color-content-white) 0,
+    var(--color-header-field) 3px
+  );
+}
+
 /* #96 §7 — reduced motion: SiteHeader quantizes `p` to {0, 1} (snap to end-states, no intermediate
    frames). The vars therefore only ever hold the two end-state values, so no extra CSS is needed to
    suppress motion — and crucially NO per-property `transition` is added back in EITHER path (the
