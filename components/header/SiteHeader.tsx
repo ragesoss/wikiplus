@@ -64,16 +64,23 @@ const TOPIC_GEOMETRY: ProjectorGeometry = {
 // inline compact field ≥ md (AC6) and the icon-reveal disclosure < md (AC7), breakpoint-gated by
 // CSS so exactly one is interactive at a width. Exported so both consumers (TopicView and the
 // TopicHeader compat wrapper) build the slot identically. ─────────────────────────────────────
-export function TopicHeaderSearch() {
+export function TopicHeaderSearch({
+  prefill,
+}: {
+  /** External prefill + focus signal forwarded to the underlying TopicSearch (issue #19,
+   *  article-not-found §7). Both breakpoint variants receive it; the one that is
+   *  interactive at the current width focuses + seeds. */
+  prefill?: { value: string; nonce: number };
+} = {}) {
   return (
     <>
       {/* Inline compact field ≥ md (AC6). */}
       <div className="hidden min-w-0 md:flex">
-        <TopicSearch variant="topic-inline" />
+        <TopicSearch variant="topic-inline" prefill={prefill} />
       </div>
       {/* Icon-disclosure < md (AC7) — reveals the same field on tap. */}
       <div className="flex md:hidden">
-        <TopicSearch variant="topic-disclosure" />
+        <TopicSearch variant="topic-disclosure" prefill={prefill} />
       </div>
     </>
   );
