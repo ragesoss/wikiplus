@@ -513,11 +513,23 @@ function cleanFigures(root: HTMLElement) {
  * "Scientific classification" banner `<th>`; removing it leaves the banner heading
  * intact and never touches the taxobox lead image (a separate image cell), so that
  * image's `alt` is preserved.
+ *
+ * `#Timeline-row` is the geologic timebar graphic inside the taxobox "Temporal range:"
+ * cell. It is a `<div>` of ~12 child `<div>`s, each absolutely-positioned by inline
+ * `style` (pixel `left`/`width`, `background-color`) to form a colored bar. The X4
+ * sanitizer correctly strips those inline `style` attrs; stripped of positioning, each
+ * period's `<a>` stacks vertically into a broken-looking single-letter column (D1). The
+ * bar is purely decorative — the human-readable temporal range ("Holocene to present")
+ * is plain text in the same `<th>` cell, outside this div. Removing `#Timeline-row`
+ * eliminates the broken letter-stack while leaving the textual range intact (approach
+ * B from the UX spec: hide the orphaned graphic element, keep the text). The selector
+ * is a unique DOM id — it cannot match anything other than this one graphic.
  */
 function stripChrome(root: HTMLElement) {
   const junk = [
     ".mw-editsection", // [edit] section links
     ".taxobox-edit-taxonomy", // taxobox "Edit this classification" pencil (#74/D6)
+    "#Timeline-row", // geologic timebar graphic — decorative, broken without inline style (D1)
     ".navbox", // bottom navigation boxes (div.navbox on live markup)
     ".metadata", // maintenance/side-box metadata (e.g. div.side-box.metadata)
     ".mbox-text",
