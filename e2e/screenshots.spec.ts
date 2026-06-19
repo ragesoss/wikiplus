@@ -58,6 +58,21 @@ async function shot(page: Page, name: string, width: number, height: number) {
   await page.screenshot({ path: `${OUT}/${name}.png`, clip: { x: 0, y: 0, width, height } });
 }
 
+// A well-formed but NONEXISTENT title: Wikipedia's action API returns a `missing` page (no
+// `pageid`), which `resolvePage` treats as unresolved → TopicView's #19 "missing" not-found
+// state. Override the action route AFTER stubCommon so this (last-registered) handler wins.
+async function stubMissing(page: Page) {
+  await stub(page);
+  await page.route("**/w/api.php**", (route) => {
+    const url = decodeURIComponent(route.request().url());
+    const title = /[?&]titles=([^&]+)/.exec(url)?.[1]?.replace(/\+/g, " ") ?? "Asdfqwer";
+    route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({ query: { pages: { "-1": { ns: 0, title, missing: "" } } } }),
+    });
+  });
+}
+
 // ── HOME (landing) ────────────────────────────────────────────────────────────────────────────
 test.describe("@home home / landing", () => {
   test.skip(!ENABLED, "screenshot capture — run via scripts/dev/shots.sh");
@@ -176,5 +191,38 @@ test.describe("@topic topic page", () => {
     await page.getByRole("button", { name: /close search/i }).waitFor();
     await page.waitForTimeout(200);
     await shot(page, "topic-mobile-search-revealed", 390, 140);
+  });
+});
+
+// ── NOT FOUND (issue #19 — well-formed but nonexistent Wikipedia title) ─────────────────────────
+// The honest full-page `ArticleNotFound` "missing" state: header (the topic-search recovery path)
+// above the Indigo Press card. Distinct from the transient `ArticleError` retry card.
+test.describe("@notfound article not-found", () => {
+  test.skip(!ENABLED, "screenshot capture — run via scripts/dev/shots.sh");
+  test.beforeEach(async ({ page }) => stubMissing(page));
+
+  test("@notfound desktop logged-out", async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.goto("/topic/Asdfqwer/");
+    await page.getByRole("heading", { name: /no Wikipedia article by that title/i }).waitFor();
+    await page.waitForTimeout(300);
+    await shot(page, "notfound-desktop-logged-out", 1280, 560);
+  });
+
+  test("@notfound desktop logged-in", async ({ page, baseURL }) => {
+    await signIn(page, baseURL);
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.goto("/topic/Asdfqwer/");
+    await page.getByRole("heading", { name: /no Wikipedia article by that title/i }).waitFor();
+    await page.waitForTimeout(300);
+    await shot(page, "notfound-desktop-logged-in", 1280, 560);
+  });
+
+  test("@notfound mobile logged-out", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 850 });
+    await page.goto("/topic/Asdfqwer/");
+    await page.getByRole("heading", { name: /no Wikipedia article by that title/i }).waitFor();
+    await page.waitForTimeout(300);
+    await shot(page, "notfound-mobile-logged-out", 390, 600);
   });
 });
