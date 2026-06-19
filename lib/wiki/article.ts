@@ -310,6 +310,7 @@ export async function fetchFullArticle(
   rewriteLinks(root, title);
   cleanFigures(root);
   cleanMath(root);
+  prepClades(root);
   wrapTables(root);
   prepHatnotes(root);
 
@@ -651,6 +652,12 @@ function cleanMath(root: HTMLElement) {
  * two-column shell (B2). The "Scroll table →" hint (§4.2) is CSS-only, shown when
  * the table overflows. The infobox is tagged for its float frame + its images get
  * the figure treatment (B5).
+ *
+ * Cladograms (`table.clade`) are NOT generic data tables: they are drawn by the
+ * ported `Template:Clade/styles.css` (the `.clade` Style Reuse path — see
+ * {@link prepClades} + ARCHITECTURE "Article rendering / style reuse") and live in
+ * their own `div.clade` horizontal-scroll region. They are skipped here so the
+ * generic cell-border/header-shading grid never paints over the tree.
  */
 function wrapTables(root: HTMLElement) {
   // Wikipedia infobox → float-right frame (kept; NOT wrapped/scrolled). §4.3.
@@ -663,10 +670,21 @@ function wrapTables(root: HTMLElement) {
     }
   }
 
-  // Data tables → scroll-wrapped, keyboard-reachable region. Skip the infobox and
-  // any table that is itself the inner table of a chrome box already stripped.
+  // Data tables → scroll-wrapped, keyboard-reachable region. Skip the infobox, the
+  // cladogram tree tables (clade-styled, in their own div.clade scroll region), any
+  // table that merely hosts a cladogram (the `gallery-element` / `td.cladogram`
+  // carrier — it must not draw a data-table grid around the tree), and any table
+  // that is itself the inner table of a chrome box already stripped.
   for (const table of Array.from(root.querySelectorAll("table"))) {
     if (table.classList.contains("infobox")) continue;
+    if (table.classList.contains("clade")) continue; // clade tree — styled by clade CSS
+    if (table.querySelector("table.clade")) {
+      // A carrier table holding a cladogram (e.g. `gallery-element` with a
+      // `td.cladogram`): mark it so CSS drops its data-table grid, and let the
+      // inner `div.clade` own the scroll. Do not wrap it as a data table.
+      table.classList.add("wiki-clade-carrier");
+      continue;
+    }
     if (table.closest(".wiki-tablewrap")) continue; // already wrapped
     const doc = table.ownerDocument!;
     const wrap = doc.createElement("div");
@@ -678,6 +696,40 @@ function wrapTables(root: HTMLElement) {
     table.classList.add("wiki-table");
     table.replaceWith(wrap);
     wrap.appendChild(table);
+  }
+}
+
+/**
+ * Cladograms (wiki-style-reuse spec AC3, design §3.3). Phylogenetic trees are drawn
+ * ENTIRELY by `Template:Clade/styles.css` — per-cell `border-left`/`border-bottom`
+ * on `td.clade-label`/`td.clade-slabel`/`td.clade-bar` that join into the right-angled
+ * bracket tree. That TemplateStyles block arrives INSIDE the article body and is
+ * stripped at sanitize (X4 — page-embedded `<style>` is never trusted). The styling
+ * is reused the SAFE way instead: Wikipedia's own clade stylesheet is ported into our
+ * bundle (`app/globals.css` "clade style reuse"), re-scoped from `.mw-parser-output
+ * table.clade` to `.wiki-body table.clade`. It loads no remote CSS and re-permits no
+ * page-body CSS, so X4 is untouched; the clade `class` names (`clade`, `clade-label`,
+ * `clade-leaf`, `clade-slabel`, `clade-bar`, and the `first`/`last`/`reverse`
+ * modifiers) survive sanitize, so the ported rules land on the surviving DOM and the
+ * branch lines render.
+ *
+ * Here we make each tree's outer `div.clade` a contained, keyboard-scrollable region
+ * (a deep/wide tree scrolls horizontally inside it rather than widening the two-column
+ * shell — design §4) with the same "Scroll table →" overflow-hint affordance as wide
+ * data tables. The empty `mw-empty-elt` spans that wrapped the stripped TemplateStyles
+ * `<style>`/`<link>` dedup references are removed so they leave no stray inline gap.
+ */
+function prepClades(root: HTMLElement) {
+  // Drop the now-empty placeholders that held the stripped TemplateStyles refs.
+  for (const empty of Array.from(root.querySelectorAll(".clade .mw-empty-elt"))) {
+    if (!empty.textContent?.trim() && !empty.querySelector("img")) empty.remove();
+  }
+  for (const clade of Array.from(root.querySelectorAll("div.clade"))) {
+    if (clade.parentElement?.closest("div.clade")) continue; // only the outermost tree
+    clade.classList.add("wiki-clade");
+    clade.setAttribute("role", "region");
+    clade.setAttribute("tabindex", "0");
+    clade.setAttribute("aria-label", "Cladogram");
   }
 }
 

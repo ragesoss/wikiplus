@@ -502,23 +502,34 @@ figure.wikifig .credit {
   cursor: pointer;
 }
 
-/* Group B — data tables (design §4.1): faithful Wikipedia, NOT Indigo Press. */
-.wiki-body table {
+/* Group B — data tables (design §4.1): faithful Wikipedia, NOT Indigo Press. The
+   `:not(.clade):not(.wiki-clade-carrier)` guard keeps the generic data-table grid
+   (cell borders, header shading) off the cladogram tree tables and the carrier table
+   that merely hosts a tree — those are drawn by the ported clade stylesheet below, not
+   by the data-table rules (wiki-style-reuse AC3/AC4). */
+.wiki-body table:not(.clade):not(.wiki-clade-carrier) {
   border-collapse: collapse;
   font-size: 0.85rem;
   margin: 0 0 0.9em;
   background: #fff;
 }
-.wiki-body table th,
-.wiki-body table td {
+.wiki-body table:not(.clade):not(.wiki-clade-carrier) th,
+.wiki-body table:not(.clade):not(.wiki-clade-carrier) td {
   border: 1px solid var(--color-wikirule);
   padding: 4px 8px;
   text-align: left;
   vertical-align: top;
 }
-.wiki-body table th {
+.wiki-body table:not(.clade):not(.wiki-clade-carrier) th {
   background: #eaecf0; /* Wikipedia table-header grey — NOT indigo. */
   font-weight: 700;
+}
+/* A cladogram tree nested inside a non-clade carrier cell still draws via the clade
+   stylesheet, never the data-table grid — override any inherited cell border/shading. */
+.wiki-body table.clade th,
+.wiki-body table.clade td {
+  border: 0;
+  background: none;
 }
 .wiki-body table caption {
   font-weight: 700;
@@ -544,6 +555,154 @@ figure.wikifig .credit {
    layout; the hint renders solely off that flag. Text-labeled, never color/glyph
    alone (A7/B2). */
 .wiki-tablewrap[data-overflow]::after {
+  content: "Scroll table →";
+  display: block;
+  font-size: 0.7rem;
+  color: var(--color-muted);
+  padding: 2px 0 0;
+}
+
+/* ── Clade style reuse (wiki-style-reuse spec §4 / AC3, design §3.3). ──
+   The cladogram trees are drawn ENTIRELY by Wikipedia's own `Template:Clade/styles.css`
+   (per-cell borders that join into the right-angled bracket tree). That TemplateStyles
+   block ships INSIDE the article body and is stripped at sanitize (X4 — page-embedded
+   `<style>` is never trusted). The styling is reused the SAFE way: Wikipedia's own clade
+   stylesheet is ported here verbatim in intent, re-scoped from `.mw-parser-output
+   table.clade` → `.wiki-body table.clade`. No remote CSS is loaded and no page-body CSS
+   is re-permitted, so the X4 anti-XSS guarantee is untouched (it is the runtime fetch /
+   inline-style trust that X4 forbids — neither is used here). The clade `class` names
+   survive sanitize, so these rules land on the surviving DOM and the branch lines render.
+
+   Branch lines use `border: …px solid` with NO color → they inherit `currentColor`
+   (the article ink `#2c2c2c`), which clears AA ≥ 3:1 for a meaningful boundary on the
+   white column (design §6). This is faithful-Wikipedia only — no Indigo Press (AC6). */
+.wiki-body table.clade {
+  border-spacing: 0;
+  border-collapse: separate;
+  margin: 0;
+  font-size: 100%;
+  line-height: 100%;
+  width: auto;
+  display: table;
+  background: none;
+}
+.wiki-body table.clade table.clade {
+  width: 100%;
+  line-height: inherit;
+}
+.wiki-body table.clade td.clade-label {
+  min-width: 0.7em;
+  width: 0.7em;
+  padding: 0.1em 0.25em;
+  vertical-align: bottom;
+  text-align: center;
+  border-left: 1px solid;
+  border-bottom: 1px solid;
+  white-space: nowrap;
+}
+.wiki-body table.clade td.clade-label::before,
+.wiki-body table.clade td.clade-slabel::before {
+  content: "\2060 ";
+}
+.wiki-body table.clade td.clade-fixed-width {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.wiki-body table.clade td.clade-fixed-width:hover {
+  overflow: visible;
+}
+.wiki-body table.clade td.clade-label.first {
+  border-left: none;
+  border-right: none;
+}
+.wiki-body table.clade td.clade-label.reverse {
+  border-left: none;
+  border-right: 1px solid;
+}
+.wiki-body table.clade td.clade-slabel {
+  padding: 0.1em 0.25em;
+  vertical-align: top;
+  text-align: center;
+  border-left: 1px solid;
+  white-space: nowrap;
+}
+.wiki-body table.clade td.clade-slabel:hover {
+  overflow: visible;
+}
+.wiki-body table.clade td.clade-slabel.last {
+  border-left: none;
+  border-right: none;
+}
+.wiki-body table.clade td.clade-slabel.reverse {
+  border-left: none;
+  border-right: 1px solid;
+}
+.wiki-body table.clade td.clade-bar {
+  vertical-align: middle;
+  text-align: left;
+  padding: 0 0.5em;
+  position: relative;
+}
+.wiki-body table.clade td.clade-bar.reverse {
+  text-align: right;
+  position: relative;
+}
+.wiki-body table.clade td.clade-leaf {
+  border: 0;
+  padding: 0;
+  text-align: left;
+}
+.wiki-body table.clade td.clade-leaf p {
+  padding-right: 5px;
+  padding-left: 2px;
+  margin: 0;
+}
+.wiki-body table.clade td.clade-leafR {
+  border: 0;
+  padding: 0;
+  text-align: right;
+}
+.wiki-body table.clade td.clade-leafR p {
+  padding-left: 5px;
+  padding-right: 2px;
+  margin: 0;
+}
+.wiki-body table.clade td.clade-leaf.reverse {
+  text-align: right;
+}
+.wiki-body table.clade td.clade-leaf.reverse p {
+  padding-left: 5px;
+  padding-right: 2px;
+}
+
+/* The outer tree container: a contained, keyboard-scrollable region so a deep/wide
+   tree scrolls horizontally inside it and never widens the two-column shell (design
+   §4). The `wiki-clade-carrier` table (the `gallery-element`/`td.cladogram` host) is
+   stripped of any data-table chrome so only the tree shows. The "Scroll table →" hint
+   reuses the wide-table overflow affordance (text-labeled, never color/glyph alone). */
+.wiki-body .wiki-clade {
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  max-width: 100%;
+  margin: 0 0 0.9em;
+}
+.wiki-body .wiki-clade p {
+  font-size: inherit;
+}
+.wiki-body table.wiki-clade-carrier,
+.wiki-body table.wiki-clade-carrier > * > tr > td,
+.wiki-body table.wiki-clade-carrier > * > tr > th {
+  border: 0;
+  background: none;
+  padding: 0;
+}
+.wiki-body table.wiki-clade-carrier > * > tr.header > th {
+  font-weight: 700;
+  text-align: left;
+  padding: 0 0 0.3em;
+}
+.wiki-body .wiki-clade[data-overflow]::after {
   content: "Scroll table →";
   display: block;
   font-size: 0.7rem;
