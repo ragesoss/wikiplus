@@ -83,6 +83,15 @@ and wouldn't have found on their own — and, just as important, should **unders
 weigh each one**: what's established fact, what's the creator's opinion, and how reliable it
 is. Quality and trust of curation matter more than volume.
 
+**Reader/learner utility comes first; curation is the secondary flywheel that produces it.** The
+plus side exists to help someone learn a topic through well-weighed short video — so every plus
+surface should first serve the **self-directed learner who will never contribute**, including on
+a topic no one has curated yet (orient them to what the plus side adds and give them a path to the
+suggested videos). The invitation to curate is essential — it is how the contextualized clips come
+to exist and how the knowledge representation broadens — but it is pitched **honestly and
+secondarily** ("help the next learner"), never as the headline that crowds out reading and
+browsing. A non-curating reader getting value is the goal; curation is the means.
+
 ## Possible future directions (not committed)
 
 Community moderation and reputation, multilingual topics, non-video media types, in-product

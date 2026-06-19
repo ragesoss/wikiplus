@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>wiki+ · ＋plus overview redesign — Direction B (Editorial pitch card)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Sans+Pro:wght@400;600;700;900&family=Open+Sans:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  :root{
+    --indigo:#676EB4; --violet:#5248AF; --teal:#2A8270; --teal-dk:#1F6757;
+    --blue:#1F6F95; --red:#C44949; --gold:#E5AB28;
+    --ink:#2C2C2C; --ink2:#595959; --muted:#717171;
+    --bg:#F7F7F7; --bg2:#F0F1F3; --bd:#D9D9D9;
+  }
+  body{ font-family:'Open Sans', system-ui, sans-serif; color:var(--ink); background:var(--bg); }
+  .plus-disp{ font-family:'Source Sans Pro', system-ui, sans-serif; font-weight:900; letter-spacing:-.02em; line-height:.95; }
+  .plus-sans{ font-family:'Source Sans Pro', system-ui, sans-serif; }
+  .plus-body{ font-family:'Open Sans', system-ui, sans-serif; }
+  .plus-card{ background:#fff; border:2px solid var(--ink); box-shadow:4px 4px 0 var(--ink); }
+  .hardbox-sm{ border:2px solid var(--ink); box-shadow:4px 4px 0 var(--ink); }
+  .bignum{ font-family:'Source Sans Pro', system-ui, sans-serif; font-weight:900; line-height:.85; letter-spacing:-.03em; }
+  :focus-visible{ outline:3px solid var(--indigo); outline-offset:2px; border-radius:2px; }
+  .lab{ font-family:'Source Sans Pro', system-ui, sans-serif; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.14em; color:var(--ink2); }
+</style>
+</head>
+<body class="p-6">
+<div class="max-w-[1100px] mx-auto">
+  <h1 class="plus-disp text-2xl mb-1">Direction B — “Editorial pitch card”</h1>
+  <p class="plus-body text-sm text-[color:var(--ink2)] mb-6 max-w-3xl">Two distinct treatments. The empty state is a bold editorial “zine cover” that sells the plus side — big display headline, a one-line how-it-works, then the unvetted volume and a quiet curation hook. The curated state is the calmer counts panel. Higher contrast between states; more vertical space in empty.</p>
+
+  <div class="grid md:grid-cols-2 gap-8">
+
+    <!-- EMPTY: zine pitch -->
+    <div>
+      <div class="lab mb-2">Empty (0 curated)</div>
+      <div class="plus-card overflow-hidden">
+        <div class="bg-[color:var(--indigo)] text-white px-4 py-3 border-b-2 border-[color:var(--ink)]">
+          <div class="flex items-baseline gap-2 mb-2">
+            <span class="plus-disp text-lg leading-none">＋plus</span>
+            <span class="plus-sans text-[11px] uppercase tracking-widest opacity-90 font-bold">on this topic</span>
+          </div>
+          <p class="plus-disp text-2xl leading-[1.05] text-white">Learn this topic<br>by video.</p>
+        </div>
+        <div class="px-4 py-4">
+          <p class="plus-body text-[13px] leading-snug text-[color:var(--ink2)]">
+            wiki+ gathers short creator videos for what you’re reading and — once a human vouches for one — tells you what’s solid fact and what’s the creator’s take.
+          </p>
+          <div class="mt-3 flex items-center gap-2.5 border-2 border-dashed border-[color:var(--bd)] bg-[color:var(--bg2)] px-3 py-2.5">
+            <p class="bignum text-4xl text-[color:var(--indigo)] leading-none">12</p>
+            <p class="plus-sans text-[12px] font-bold leading-tight text-[color:var(--ink)]">videos found<br><span class="plus-body font-normal text-[11px] text-[color:var(--ink2)]">unreviewed — start watching</span></p>
+          </div>
+          <a href="#" class="mt-3 block w-full text-center plus-sans text-[14px] font-bold px-3 py-2.5 bg-[color:var(--indigo)] text-white border-2 border-[color:var(--ink)] hardbox-sm hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-none transition">
+            Browse the videos ↓
+          </a>
+        </div>
+        <div class="px-4 py-3 border-t-2 border-[color:var(--ink)] bg-[color:var(--bg2)]">
+          <p class="plus-body text-[12px] text-[color:var(--ink2)] leading-snug">
+            <strong class="text-[color:var(--ink)]">Help the next learner:</strong> watch one, then vouch for it with a note on what’s fact vs. opinion.
+            <button class="mt-2 plus-sans text-[12px] font-bold text-[color:var(--teal-dk)] underline decoration-2 underline-offset-2" aria-haspopup="dialog">＋ Curate a video →</button>
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- CURATED -->
+    <div>
+      <div class="lab mb-2">Fully-curated</div>
+      <div class="plus-card overflow-hidden">
+        <div class="bg-[color:var(--indigo)] text-white px-4 py-2.5 border-b-2 border-[color:var(--ink)] flex items-baseline gap-2">
+          <span class="plus-disp text-lg leading-none">＋plus</span>
+          <span class="plus-sans text-[11px] uppercase tracking-widest opacity-90 font-bold">on this topic</span>
+        </div>
+        <div class="px-4 pt-3">
+          <p class="plus-body text-[12px] leading-snug text-[color:var(--ink2)]">Curated short videos, each weighed for fact vs. opinion.</p>
+        </div>
+        <div class="px-4 pt-3 grid grid-cols-3 divide-x-2 divide-[color:var(--ink)] border-2 border-[color:var(--ink)] mx-4 mb-0" style="margin-left:1rem;margin-right:1rem;">
+          <div class="px-2 py-3 text-center"><p class="bignum text-3xl text-[color:var(--indigo)]">6</p><p class="lab mt-1 !text-[10px]">Videos</p></div>
+          <div class="px-2 py-3 text-center"><p class="bignum text-3xl text-[color:var(--indigo)]">5</p><p class="lab mt-1 !text-[10px]">Creators</p></div>
+          <div class="px-2 py-3 text-center"><p class="bignum text-3xl text-[color:var(--indigo)]">3</p><p class="lab mt-1 !text-[10px]">Curators</p></div>
+        </div>
+        <div class="px-4 pt-3 pb-1">
+          <a href="#" class="block w-full text-center plus-sans text-[13px] font-bold px-3 py-2 border-2 border-[color:var(--ink)] bg-white hover:bg-[color:var(--bg2)] transition">Jump to videos ↓</a>
+        </div>
+        <div class="px-4 py-3 mt-1 border-t-2 border-[color:var(--ink)] bg-[color:var(--bg2)]">
+          <p class="plus-body text-[12px] text-[color:var(--ink2)] leading-snug">
+            Know a clip that belongs here?
+            <button class="plus-sans text-[12px] font-bold text-[color:var(--teal-dk)] underline decoration-2 underline-offset-2" aria-haspopup="dialog">＋ Add &amp; curate one →</button>
+          </p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+</body>
+</html>

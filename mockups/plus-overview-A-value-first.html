@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>wiki+ · ＋plus overview redesign — Direction A (Value-first masthead)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Sans+Pro:wght@400;600;700;900&family=Open+Sans:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  :root{
+    --indigo:#676EB4; --violet:#5248AF; --teal:#2A8270; --teal-dk:#1F6757;
+    --blue:#1F6F95; --red:#C44949; --gold:#E5AB28;
+    --ink:#2C2C2C; --ink2:#595959; --muted:#717171;
+    --bg:#F7F7F7; --bg2:#F0F1F3; --bd:#D9D9D9;
+  }
+  body{ font-family:'Open Sans', system-ui, sans-serif; color:var(--ink); background:var(--bg); }
+  .plus-disp{ font-family:'Source Sans Pro', system-ui, sans-serif; font-weight:900; letter-spacing:-.02em; line-height:.95; }
+  .plus-sans{ font-family:'Source Sans Pro', system-ui, sans-serif; }
+  .plus-body{ font-family:'Open Sans', system-ui, sans-serif; }
+  .plus-card{ background:#fff; border:2px solid var(--ink); box-shadow:4px 4px 0 var(--ink); }
+  .hardbox-sm{ border:2px solid var(--ink); box-shadow:4px 4px 0 var(--ink); }
+  .bignum{ font-family:'Source Sans Pro', system-ui, sans-serif; font-weight:900; line-height:.85; letter-spacing:-.03em; }
+  :focus-visible{ outline:3px solid var(--indigo); outline-offset:2px; border-radius:2px; }
+  .lab{ font-family:'Source Sans Pro', system-ui, sans-serif; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.14em; color:var(--ink2); }
+</style>
+</head>
+<body class="p-6">
+
+<div class="max-w-[1100px] mx-auto">
+  <h1 class="plus-disp text-2xl mb-1">Direction A — “Value-first masthead”</h1>
+  <p class="plus-body text-sm text-[color:var(--ink2)] mb-6 max-w-3xl">One structure across both states. The panel always opens with a one-line statement of what the plus side adds, then a counts row that reframes meaningfully in each state, then a single secondary curation invitation. No “synced” plumbing on the reader surface.</p>
+
+  <div class="grid md:grid-cols-2 gap-8">
+
+    <!-- ============ EMPTY ============ -->
+    <div>
+      <div class="lab mb-2">Empty (0 curated)</div>
+      <div class="plus-card overflow-hidden">
+        <!-- header block -->
+        <div class="bg-[color:var(--indigo)] text-white px-4 py-2.5 border-b-2 border-[color:var(--ink)] flex items-baseline gap-2">
+          <span class="plus-disp text-lg leading-none">＋plus</span>
+          <span class="plus-sans text-[11px] uppercase tracking-widest opacity-90 font-bold">on this topic</span>
+        </div>
+        <!-- value statement (the lead — same in both states) -->
+        <div class="px-4 pt-4">
+          <p class="plus-sans text-[15px] font-bold leading-snug text-[color:var(--ink)]">
+            Short videos to learn this topic, each weighed for what’s fact vs. opinion.
+          </p>
+        </div>
+        <!-- counts / status row -->
+        <div class="px-4 pt-3">
+          <div class="flex items-center gap-2 border-2 border-dashed border-[color:var(--bd)] bg-[color:var(--bg2)] px-3 py-2.5">
+            <div>
+              <p class="bignum text-3xl text-[color:var(--indigo)] leading-none">12</p>
+            </div>
+            <div class="leading-tight">
+              <p class="plus-sans text-[12px] font-bold text-[color:var(--ink)]">videos found to weigh in</p>
+              <p class="plus-body text-[11px] text-[color:var(--ink2)]">none vouched for yet — these are unreviewed suggestions</p>
+            </div>
+          </div>
+        </div>
+        <!-- browse affordance (useful to a non-curator) -->
+        <div class="px-4 pt-3">
+          <a href="#" class="block w-full text-center plus-sans text-[13px] font-bold px-3 py-2 border-2 border-[color:var(--ink)] bg-white text-[color:var(--ink)] hover:bg-[color:var(--bg2)] transition">
+            Browse suggested videos ↓
+          </a>
+        </div>
+        <!-- secondary curation invite -->
+        <div class="px-4 py-3 mt-1 border-t-2 border-[color:var(--ink)]">
+          <p class="plus-body text-[12px] text-[color:var(--ink2)] leading-snug mb-2">
+            Watched one worth keeping? <strong class="text-[color:var(--ink)]">Vouch for it</strong> and write a note so the next learner knows how to weigh it.
+          </p>
+          <button class="w-full plus-sans text-[13px] font-bold px-3 py-2 bg-[color:var(--teal)] text-white border-2 border-[color:var(--ink)] hardbox-sm hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-none transition" aria-haspopup="dialog">
+            ＋ Curate a video
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ CURATED (fully-curated) ============ -->
+    <div>
+      <div class="lab mb-2">Fully-curated (≥1 curated, 0 suggestions)</div>
+      <div class="plus-card overflow-hidden">
+        <div class="bg-[color:var(--indigo)] text-white px-4 py-2.5 border-b-2 border-[color:var(--ink)] flex items-baseline gap-2">
+          <span class="plus-disp text-lg leading-none">＋plus</span>
+          <span class="plus-sans text-[11px] uppercase tracking-widest opacity-90 font-bold">on this topic</span>
+        </div>
+        <div class="px-4 pt-4">
+          <p class="plus-sans text-[15px] font-bold leading-snug text-[color:var(--ink)]">
+            Short videos to learn this topic, each weighed for what’s fact vs. opinion.
+          </p>
+        </div>
+        <!-- counts -->
+        <div class="px-4 pt-3">
+          <div class="grid grid-cols-3 divide-x-2 divide-[color:var(--ink)] border-2 border-[color:var(--ink)]">
+            <div class="px-2 py-3 text-center"><p class="bignum text-3xl text-[color:var(--indigo)]">6</p><p class="lab mt-1 !text-[10px]">Videos</p></div>
+            <div class="px-2 py-3 text-center"><p class="bignum text-3xl text-[color:var(--indigo)]">5</p><p class="lab mt-1 !text-[10px]">Creators</p></div>
+            <div class="px-2 py-3 text-center"><p class="bignum text-3xl text-[color:var(--indigo)]">3</p><p class="lab mt-1 !text-[10px]">Curators</p></div>
+          </div>
+        </div>
+        <div class="px-4 pt-3">
+          <a href="#" class="block w-full text-center plus-sans text-[13px] font-bold px-3 py-2 border-2 border-[color:var(--ink)] bg-white text-[color:var(--ink)] hover:bg-[color:var(--bg2)] transition">
+            Jump to videos ↓
+          </a>
+        </div>
+        <div class="px-4 py-3 mt-1 border-t-2 border-[color:var(--ink)]">
+          <p class="plus-body text-[12px] text-[color:var(--ink2)] leading-snug mb-2">
+            Know a clip that belongs here? <strong class="text-[color:var(--ink)]">Add &amp; curate one</strong> to broaden how this topic is shown.
+          </p>
+          <button class="w-full plus-sans text-[13px] font-bold px-3 py-2 bg-white text-[color:var(--ink)] border-2 border-[color:var(--ink)] hover:bg-[color:var(--bg2)] transition" aria-haspopup="dialog">
+            ＋ Add a video
+          </button>
+        </div>
+      </div>
+
+      <!-- mixed variant note -->
+      <div class="lab mb-2 mt-6">Mixed (≥1 curated + suggestions)</div>
+      <div class="plus-card overflow-hidden">
+        <div class="bg-[color:var(--indigo)] text-white px-4 py-2.5 border-b-2 border-[color:var(--ink)] flex items-baseline gap-2">
+          <span class="plus-disp text-lg leading-none">＋plus</span>
+          <span class="plus-sans text-[11px] uppercase tracking-widest opacity-90 font-bold">on this topic</span>
+        </div>
+        <div class="px-4 pt-4">
+          <p class="plus-sans text-[15px] font-bold leading-snug">Short videos to learn this topic, each weighed for what’s fact vs. opinion.</p>
+        </div>
+        <div class="px-4 pt-3">
+          <div class="grid grid-cols-3 divide-x-2 divide-[color:var(--ink)] border-2 border-[color:var(--ink)]">
+            <div class="px-2 py-3 text-center"><p class="bignum text-3xl text-[color:var(--indigo)]">3</p><p class="lab mt-1 !text-[10px]">Videos</p></div>
+            <div class="px-2 py-3 text-center"><p class="bignum text-3xl text-[color:var(--indigo)]">3</p><p class="lab mt-1 !text-[10px]">Creators</p></div>
+            <div class="px-2 py-3 text-center"><p class="bignum text-3xl text-[color:var(--indigo)]">2</p><p class="lab mt-1 !text-[10px]">Curators</p></div>
+          </div>
+          <p class="plus-body text-[12px] text-[color:var(--ink2)] mt-2 text-center">3 curated · <span class="font-bold">9 suggested</span> to weigh in</p>
+        </div>
+        <div class="px-4 py-3 mt-1 border-t-2 border-[color:var(--ink)]">
+          <button class="w-full plus-sans text-[13px] font-bold px-3 py-2 bg-white text-[color:var(--ink)] border-2 border-[color:var(--ink)] hover:bg-[color:var(--bg2)] transition" aria-haspopup="dialog">＋ Add a video</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+</body>
+</html>
