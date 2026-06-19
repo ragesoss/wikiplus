@@ -30,6 +30,11 @@ test-results
 playwright-report
 coverage
 e2e
+# The Playwright config lives at the repo root (so it isn't caught by `e2e` above), but it
+# imports from ./e2e (stripped above) and Playwright never runs inside the production image.
+# Excluding it keeps the build context minimal AND stops `next build`'s project-wide
+# type-check from choking on the now-unresolvable ./e2e/db-server import (issue #47 fix).
+playwright.config.ts
 
 # docs, mockups, agent config — not part of the app build
 docs
