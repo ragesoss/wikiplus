@@ -489,9 +489,20 @@ figure.wikifig .credit {
   padding: 2px 0 0;
 }
 
-/* Group B — Wikipedia infobox (design §4.3): faithful Wikipedia, float-right in the
-   article column like a wikifig. Distinct from the right-rail WIKI+ PANEL (indigo
-   hardbox) by language alone — and structurally in a different grid column (B4). */
+/* Group B — Wikipedia infobox + taxobox (design §4.3; #74 contract Part 2). Faithful
+   Wikipedia, float-right in the article column like a wikifig. Distinct from the
+   right-rail WIKI+ PANEL (indigo hardbox) by language alone — and structurally in a
+   different grid column (B4). NO Indigo Press bleed: grey frame, never the hardbox.
+
+   The internal layout is STRUCTURE-KEYED, not one generic approximation. Wikipedia
+   ships each box's real layout in inline `style`/TemplateStyles that the sanitizer
+   strips (the X4 anti-XSS guarantee). We reach faithful layout off the Parsoid classes
+   + element structure that survive sanitize (#74 mechanism: option a — no allowlist
+   change). The two box shapes share the same primitives:
+     - MODERN box (vcard/settlement/bio): semantic `infobox-*` classes on every cell.
+     - TAXOBOX (`infobox biota`): classless raw `<th colspan="2">` banners + `<td>`
+       data cells; its inline styling (centered banners, the taxon-colored band, the
+       ~200px width) is gone with sanitize, so we re-key off the structure. */
 .wiki-body table.wiki-infobox,
 .wiki-body table.infobox {
   float: right;
@@ -502,18 +513,85 @@ figure.wikifig .credit {
   border: 1px solid var(--color-wikirule);
   background: #f8f9fa;
   font-size: 0.82rem;
-}
-.wiki-body table.wiki-infobox th,
-.wiki-body table.infobox th {
-  background: #eaecf0;
   text-align: left;
 }
-.wiki-body table.wiki-infobox caption,
-.wiki-body table.infobox caption {
-  background: #eaecf0;
-  font-weight: 700;
+/* Taxobox is slimmer than a dense modern infobox — it matches Wikipedia's narrow
+   taxon column rather than the 320px modern width (D3). The exact inline `width:200px`
+   is stripped; ~22em/max-320px reads faithfully and still floats cleanly. */
+.wiki-body table.infobox.biota {
+  width: 22em;
+  max-width: 320px;
+}
+
+/* The shared BANNER primitive (A.3): the taxobox title/section `<th colspan>` rows AND
+   the modern `.infobox-above`/`.infobox-header` are the SAME visual element — a
+   centered, bold, grey-shaded, full-width band with a hairline below. This is the
+   precise fix for the old over-broad `th { text-align: left }` that mis-aligned the
+   banners (D1/D2). Taxobox key cells are plain `<td>` (never `<th>`), so `th[colspan]`
+   catches ONLY banners, never a data row (verified against live Parsoid markup of
+   Dendrobium kingianum / Lion / Marie Curie / San Francisco / Aagaard Glacier).
+   Band = Wikipedia header grey #eaecf0 (NEVER indigo); the exact per-taxon color is a
+   known structural-only limit (see §C / ARCHITECTURE). */
+.wiki-body table.infobox th[colspan],
+.wiki-body table.infobox .infobox-above,
+.wiki-body table.infobox .infobox-header {
   text-align: center;
-  padding: 4px;
+  font-weight: 700;
+  background: #eaecf0;
+  border-bottom: 1px solid var(--color-wikirule);
+  padding: 4px 6px;
+  color: var(--color-ink);
+}
+/* The box title (`.infobox-above`) is the largest band; section dividers (`.infobox-header`,
+   taxobox section `<th colspan>`) match the title's band minus the size. */
+.wiki-body table.infobox .infobox-above {
+  font-size: 1.05rem;
+}
+
+/* Modern sub-caption under the title (e.g. "Consolidated city-county") — a `<td colspan>`,
+   centered + muted, NOT a banner (D8). */
+.wiki-body table.infobox .infobox-subheader {
+  text-align: center;
+  font-size: 0.8rem;
+  color: var(--color-ink2);
+  padding: 2px 6px;
+}
+
+/* Image cell + caption (taxobox image `<td colspan>` + the modern `.infobox-image`):
+   centered, full box width; caption = small grey type (the figure-credit scale). */
+.wiki-body table.infobox .infobox-image,
+.wiki-body table.infobox .infobox-caption {
+  text-align: center;
+}
+.wiki-body table.infobox .infobox-caption {
+  font-size: 0.8rem;
+  color: var(--color-ink2);
+  padding: 2px 6px;
+}
+
+/* Key/value rows — LEFT-aligned two columns. Modern: `th.infobox-label` (the
+   `th scope="row"` key, no colspan) + `td.infobox-data`/`.infobox-full-data`. Taxobox:
+   the plain `<td>` pairs in `tr.taxonrow` (and the first Kingdom row, a bare `<tr>` of
+   two `<td>`). Keys not bold — Wikipedia doesn't bold the taxon ranks (D5). The
+   source `<i>` on clade ranks is kept by sanitize. Tight rhythm so the ladder reads
+   compactly. `.infobox-full-data` spans both columns. */
+.wiki-body table.infobox .infobox-label {
+  text-align: left;
+  font-weight: 600;
+  vertical-align: top;
+  padding: 2px 6px;
+}
+.wiki-body table.infobox .infobox-data,
+.wiki-body table.infobox .infobox-full-data {
+  text-align: left;
+  vertical-align: top;
+  padding: 2px 6px;
+}
+.wiki-body table.infobox.biota tr.taxonrow td,
+.wiki-body table.infobox.biota tr > td:not([colspan]) {
+  text-align: left;
+  vertical-align: top;
+  padding: 2px 4px;
 }
 .wiki-body table.wiki-infobox img,
 .wiki-body table.infobox img {
@@ -556,11 +634,14 @@ figure.wikifig .credit {
   padding-left: 0;
 }
 
-/* Responsive: < lg the infobox stacks full-width (a 42% float is unreadable in a
-   single narrow column) and data-table wraps go full-bleed (design §7). */
+/* Responsive: < lg the infobox (and the slim taxobox) stacks full-width — a narrow
+   float is unreadable in a single narrow column — and data-table wraps go full-bleed
+   (design §7 / #74 §B). The banner rows stay centered + grey-shaded at BOTH breakpoints
+   (the banner rules above are not breakpoint-scoped — the issue's "Done when"). */
 @media (max-width: 1023px) {
   .wiki-body table.wiki-infobox,
-  .wiki-body table.infobox {
+  .wiki-body table.infobox,
+  .wiki-body table.infobox.biota {
     float: none;
     width: 100%;
     max-width: 100%;
