@@ -180,66 +180,103 @@ describe("AC3 — wordmark is a home link with accessible name 'wiki+' on both h
   });
 });
 
-// ── AC4 — scroll-aware transition. At scrollY≈0 the band is Tier-A height (104) with the beam
-// present (opacity not faded); after scrolling past the threshold the band collapses to 56 and the
-// header is marked [data-collapsed] (the CSS fades the beam opacity→0 — §4.3). ─────────────────
-describe("AC4 — scroll-aware: Tier A at top → slim sticky (beam faded, band collapsed) scrolled", () => {
-  it("at scrollY=0 the band is the Tier-A height and the header is NOT collapsed", () => {
+// ── AC4 (#96) — CONTINUOUS scroll-linked transition. There is no boolean `[data-collapsed]` flip
+// anymore: SiteHeader writes a normalized progress `p` and the derived band height + layer/border
+// opacities as CSS custom properties on the header element every frame (§3.2). At scrollY=0 it is
+// the full Tier-A state (p=0, band 104, beam opacity 1, flat 0); scrolling past PROGRESS_END (104)
+// it is the slim state (p=1, band 56, beam 0, flat 1); scrolling back retraces it. ──────────────
+describe("AC4 (#96) — continuous: p drives band height + layer opacities via CSS vars", () => {
+  // Read a CSS custom property the scroll handler writes on the header element.
+  const v = (header: Element, name: string) =>
+    (header as HTMLElement).style.getPropertyValue(name).trim();
+
+  it("at scrollY=0 it is the full Tier-A state (p=0, band 104, beam 1, flat 0, border 0)", async () => {
     window.scrollY = 0;
     const { container } = renderTopicHeader();
     const header = container.querySelector("header.header-shared")!;
     const band = container.querySelector(".header-band") as HTMLElement;
+    // The mount evaluate() writes p=0 from scrollY=0.
+    await vi.waitFor(() => expect(v(header, "--p")).toBe("0.0000"));
+    expect(v(header, "--topic-burn-y")).toBe(`${TOPIC_BURN_Y}.00px`);
+    expect(v(header, "--beam-opacity")).toBe("1.0000");
+    expect(v(header, "--flat-opacity")).toBe("0.0000");
+    expect(v(header, "--border-opacity")).toBe("0.0000");
+    // The band height tracks the live burn-y var (the single edge — #96 §4.2).
+    expect(band.style.height).toBe("var(--topic-burn-y)");
+    // No boolean attribute remains (the boolean model is gone — §3.4).
     expect(header.hasAttribute("data-collapsed")).toBe(false);
-    expect(band.style.height).toBe(`${TOPIC_BURN_Y}px`);
     // The header is sticky (stays reachable while scrolled).
     expect(header.className).toMatch(/sticky/);
   });
 
-  it("scrolling past the threshold collapses the band to the slim height + marks [data-collapsed]", async () => {
+  it("scrolling past PROGRESS_END (104) lands the slim end-state (p=1, band 56, beam 0, flat 1, border 1)", async () => {
     const { container } = renderTopicHeader();
     const header = container.querySelector("header.header-shared")!;
-    const band = container.querySelector(".header-band") as HTMLElement;
-    // Scroll past burnY (104) → collapse.
     window.scrollY = 200;
     fireEvent.scroll(window);
-    await vi.waitFor(() => expect(header.hasAttribute("data-collapsed")).toBe(true));
-    expect(band.style.height).toBe(`${SLIM_BAR_HEIGHT}px`);
+    await vi.waitFor(() => expect(v(header, "--p")).toBe("1.0000"));
+    expect(v(header, "--topic-burn-y")).toBe(`${SLIM_BAR_HEIGHT}.00px`);
+    expect(v(header, "--beam-opacity")).toBe("0.0000");
+    expect(v(header, "--flat-opacity")).toBe("1.0000");
+    expect(v(header, "--border-opacity")).toBe("1.0000");
   });
 
-  it("scrolling back to the top restores Tier A (hysteresis: restore < 64)", async () => {
+  it("at a mid offset (~50%, scrollY=52) p is ~0.5, band recedes, no border yet, beam still reads", async () => {
+    const { container } = renderTopicHeader();
+    const header = container.querySelector("header.header-shared")!;
+    window.scrollY = 52; // 52/104 = 0.5
+    fireEvent.scroll(window);
+    await vi.waitFor(() => expect(v(header, "--p")).toBe("0.5000"));
+    // Band height between the two ends (104 − 48·0.5 = 80).
+    expect(v(header, "--topic-burn-y")).toBe("80.00px");
+    // Border is held at 0 through the front half (gated to p ≥ 0.5 → starts exactly here at 0).
+    expect(Number(v(header, "--border-opacity"))).toBe(0);
+    // Beam still partly present (not yet 0), flat still mostly hidden.
+    expect(Number(v(header, "--beam-opacity"))).toBeGreaterThan(0);
+    expect(Number(v(header, "--beam-opacity"))).toBeLessThan(1);
+  });
+
+  it("scrolling back up retraces the path (no hysteresis): same scrollY → same p", async () => {
     const { container } = renderTopicHeader();
     const header = container.querySelector("header.header-shared")!;
     window.scrollY = 200;
     fireEvent.scroll(window);
-    await vi.waitFor(() => expect(header.hasAttribute("data-collapsed")).toBe(true));
-    // In the hysteresis band (64–104) it KEEPS its state (stays collapsed).
-    window.scrollY = 100;
+    await vi.waitFor(() => expect(v(header, "--p")).toBe("1.0000"));
+    // A mid value going UP gives exactly the same p a down-scroll would (pure function of scrollY).
+    window.scrollY = 78; // 78/104 = 0.75
     fireEvent.scroll(window);
-    await vi.waitFor(() => expect(header.hasAttribute("data-collapsed")).toBe(true));
-    // Below the restore threshold → Tier A.
+    await vi.waitFor(() => expect(v(header, "--p")).toBe("0.7500"));
     window.scrollY = 0;
     fireEvent.scroll(window);
-    await vi.waitFor(() => expect(header.hasAttribute("data-collapsed")).toBe(false));
+    await vi.waitFor(() => expect(v(header, "--p")).toBe("0.0000"));
   });
 });
 
-// ── AC5 — the transition is reduced-motion-gated. The animating properties live under a
-// `@media (prefers-reduced-motion: no-preference)` block in globals.css, so with reduced motion
-// preferred the end-states apply with no tween. We assert the CSS source contains the gate. ───
-describe("AC5 — beam/band transition is gated behind prefers-reduced-motion: no-preference", () => {
-  it("globals.css gates the header transition on (prefers-reduced-motion: no-preference)", async () => {
+// ── AC5 (#96) — NO per-property CSS transition. With `p` driven every frame a CSS tween would
+// fight the scroll (#96 §6), so the 180ms height/opacity transitions are REMOVED. We assert the
+// header layers no longer carry a `transition` rule in globals.css, and that the reduced-motion
+// degradation is handled by quantizing `p` (in SiteHeader), not by a CSS media gate. ────────────
+describe("AC5 (#96) — no per-property CSS transition fights the scroll", () => {
+  it("globals.css does NOT add a transition to the header band / beam / lockup layers", async () => {
     const fs = await import("node:fs");
     const path = await import("node:path");
     const css = fs.readFileSync(
       path.resolve(process.cwd(), "app/globals.css"),
       "utf8"
     );
-    // The header-shared transition block sits inside the no-preference media query.
-    const gateIdx = css.indexOf("@media (prefers-reduced-motion: no-preference)");
-    expect(gateIdx).toBeGreaterThan(-1);
-    const afterGate = css.slice(gateIdx);
-    expect(afterGate).toMatch(/\.header-shared .header-band\s*\{[^}]*transition:\s*height/);
-    expect(afterGate).toMatch(/\.header-shared .header-beam[\s\S]*transition:\s*opacity/);
+    // Isolate the .header-shared cross-fade block region (the rule selector, not a comment
+    // mention) up to the .topic-illum RULE, and assert no `transition:` rule targets the band or
+    // the cross-fade layers.
+    const start = css.indexOf("\n.header-shared .projector-beamfade");
+    const end = css.search(/^\.topic-illum\s*\{/m);
+    expect(start).toBeGreaterThan(-1);
+    expect(end).toBeGreaterThan(start);
+    const block = css.slice(start, end);
+    expect(block).not.toMatch(/\.header-shared .header-band\s*\{[^}]*transition/);
+    expect(block).not.toMatch(/transition:\s*opacity/);
+    // The opacities are var-driven (the continuous model).
+    expect(block).toMatch(/opacity:\s*var\(--beam-opacity/);
+    expect(block).toMatch(/opacity:\s*var\(--flat-opacity/);
   });
 });
 
@@ -420,20 +457,20 @@ describe("AC13 — accessibility on the unified Topic header", () => {
   });
 });
 
-// ── A4 — the muted slim-state title cue appears ONLY when collapsed (not at Tier A). ──────────
+// ── A4 (#96) — the muted slim-state title cue is gated on the derived slim boolean (p ≥ 0.5), not a
+// `[data-collapsed]` flag: absent while the beam still reads, present once the slim bar lands. ───
 describe("A4 — the muted article-title cue shows only in the slim sticky state", () => {
-  it("is absent at scroll-top (Tier A) and present once collapsed", async () => {
+  it("is absent at scroll-top (p=0) and present once slim (p ≥ 0.5)", async () => {
     window.scrollY = 0;
     const { container } = renderTopicHeader("Jane Austen");
+    const header = container.querySelector("header.header-shared")! as HTMLElement;
     // At Tier A the article <h1> is on the page, so no header echo (the cue is absent).
     expect(screen.queryByTestId("slim-title-cue")).toBeNull();
-    // Scroll → collapse → the cue appears, muted + non-heading + aria-hidden.
+    // Scroll past the slim gate → the cue appears, muted + non-heading + aria-hidden.
     window.scrollY = 200;
     fireEvent.scroll(window);
     await vi.waitFor(() =>
-      expect(
-        container.querySelector("header.header-shared")!.hasAttribute("data-collapsed")
-      ).toBe(true)
+      expect(header.style.getPropertyValue("--p").trim()).toBe("1.0000")
     );
     const cue = screen.getByTestId("slim-title-cue");
     expect(cue.tagName.toLowerCase()).toBe("span"); // NOT a heading
@@ -470,24 +507,25 @@ describe("DEFECT-B — single-origin cross-fade (no double wordmark)", () => {
     expect(flat.style.top).toBe(lit.style.top);
   });
 
-  it("the CSS fades the lit + flat lockups by OPACITY only (one origin), reduced-motion gated", async () => {
+  it("the CSS fades the lit + flat lockups by var-driven OPACITY only (one origin), no tween", async () => {
     const fs = await import("node:fs");
     const path = await import("node:path");
     const css = fs.readFileSync(
       path.resolve(process.cwd(), "app/globals.css"),
       "utf8"
     );
-    // The three co-located layers are driven by [data-collapsed] opacity (no position animation).
+    // The three co-located layers read the host's `p`-derived CSS vars (no position animation, #96).
     expect(css).toMatch(
-      /\.header-shared\[data-collapsed\][\s\S]*\.projector-flatlockup\s*\{\s*opacity:\s*1/
+      /\.header-shared \.projector-flatlockup\s*\{\s*opacity:\s*var\(--flat-opacity/
     );
     expect(css).toMatch(
-      /\.header-shared\[data-collapsed\][\s\S]*\.projector-litlockup\s*\{\s*opacity:\s*0/
+      /\.header-shared \.projector-beamfade[\s\S]*?opacity:\s*var\(--beam-opacity/
     );
-    // The opacity transition is reduced-motion gated (AC5).
-    const gateIdx = css.indexOf("@media (prefers-reduced-motion: no-preference)");
-    const afterGate = css.slice(gateIdx);
-    expect(afterGate).toMatch(/\.projector-flatlockup[\s\S]*transition:\s*opacity/);
+    // No per-property transition fights the scroll (#96 §6) — the focus reveal is the only opacity
+    // override and it is NOT a transition.
+    const start = css.indexOf("\n.header-shared .projector-beamfade");
+    const end = css.search(/^\.topic-illum\s*\{/m);
+    expect(css.slice(start, end)).not.toMatch(/transition\s*:/);
   });
 });
 

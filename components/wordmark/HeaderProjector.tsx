@@ -84,13 +84,15 @@ export interface HeaderProjectorProps {
   href?: string;
   /** Per-instance geometry overrides (AC10). Omit on the landing page — defaults are the config. */
   geometry?: ProjectorGeometry;
-  /** #72 DEFECT-B: the scroll-aware cross-fade, OWNED by the Tier-A "projector" variant so both the
-   * lit lockup+beam and the flat slim lockup share ONE lockup origin (the live `apexX`) — only
+  /** #72/#96 DEFECT-B: the scroll-aware cross-fade, OWNED by the Tier-A "projector" variant so both
+   * the lit lockup+beam and the flat slim lockup share ONE lockup origin (the live `apexX`) — only
    * opacity animates, never position, so there is NO two-wordmark ghost mid-transition. When
-   * `collapsed` is true the lit lockup + beam fade out and a FLAT lockup fades in at the SAME
-   * origin; that flat lockup is the interactive home link (the lit layer is decorative). Undefined
-   * (the landing page) ⇒ no slim layer, beam always shown — the landing header is unchanged (AC12). */
-  collapsed?: boolean;
+   * `continuous` is set the lit lockup + beam fade out and a FLAT lockup fades in at the SAME origin
+   * — driven CONTINUOUSLY by the `p`-derived CSS vars the host writes (`--beam-opacity`,
+   * `--flat-opacity`) and the live burn boundary `--topic-burn-y` (#96 §3.2/§4.2). The flat lockup
+   * is the interactive home link (the lit layer is decorative). Undefined (the landing page) ⇒ no
+   * slim layer, beam always shown — the landing header is unchanged (AC12). */
+  continuous?: boolean;
   className?: string;
 }
 
@@ -508,7 +510,7 @@ export function HeaderProjector({
   as = "div",
   href,
   geometry,
-  collapsed,
+  continuous,
   className = "",
 }: HeaderProjectorProps) {
   // Stable id for SVG defs (avoids collisions if two instances ever render). Derived from the
@@ -613,12 +615,18 @@ export function HeaderProjector({
         ? leftInset + apertureX // left-anchored: inset + aperture-within-lockup
         : cw / 2; // centered desktop: aperture at the content-column center
 
+  // #96: scroll-awareness is driven by the `continuous` flag — the host writes the `p`-derived CSS
+  // vars (`--beam-opacity`, `--flat-opacity`, `--topic-burn-y`) and CSS/this component consume them,
+  // so the lit→flat cross-fade and the band-height recession happen in lockstep every frame with no
+  // boolean state here. `continuous` undefined (the landing page) ⇒ scrollAware off: no flat layer,
+  // the beam is always lit (AC12 — unchanged).
+  const scrollAware = continuous === true;
+
   // #72 DEFECT-A — the squeeze (scroll-aware host only): below SQUEEZE_BREAKPOINT the full lockup
   // would crowd the upper-left search, so collapse the wordmark to the Tier-D glyph tile (design
   // §5.5/§5.6). `cw > 0` guards against the SSR/jsdom zero-width false-positive (keep the full
   // lockup until a real width is measured). Only the scroll-aware Topic host squeezes.
-  const squeeze =
-    collapsed !== undefined && cw > 0 && cw < SQUEEZE_BREAKPOINT;
+  const squeeze = scrollAware && cw > 0 && cw < SQUEEZE_BREAKPOINT;
 
   // ── Tier D — the glyph tile alone (favicon/app-icon scale). Defined-but-minimal. ──
   if (variant === "glyph") {
@@ -657,13 +665,11 @@ export function HeaderProjector({
   // Tier B/C wrappers below remain DEFINED for the future Topic-page shared header (and
   // forced-colors, §8.5). `forced-colors: active` forces the flat Tier-C lockup via
   // `forced-colors-flat` (globals.css) — the burn-to-white/gold cannot survive a forced palette.
-  // #72 DEFECT-B: when the Topic host drives `collapsed`, the SAME instance owns the cross-fade.
+  // #72/#96 DEFECT-B: when the Topic host sets `continuous`, the SAME instance owns the cross-fade.
   // Both the lit lockup and the flat slim lockup are positioned at the IDENTICAL origin (the live
   // apexX + the same `translate(-apertureX,-50%)`), so only opacity ever animates between them —
-  // there is never a second wordmark at a different x. `collapsed === undefined` (the landing page)
-  // ⇒ scrollAware is off: no flat layer, the beam is always lit (AC12 — unchanged).
-  const scrollAware = collapsed !== undefined;
-  const isCollapsed = collapsed === true;
+  // there is never a second wordmark at a different x. The opacities are the host's `p`-derived CSS
+  // vars; there is no mid-transition boolean here — only `p`.
   // The shared lockup-origin style — both layers use it verbatim so they co-locate exactly.
   const lockupOriginStyle: React.CSSProperties = {
     left: apexX,
@@ -716,24 +722,35 @@ export function HeaderProjector({
       >
         {/* The full-bleed two-temperature header band. min-height holds the flare room. */}
         <div ref={bandRef} className="projector-band relative w-full" style={{ minHeight: burnY }}>
-          {/* cool fluorescent field above the burn boundary */}
-          <span aria-hidden="true" className="absolute inset-x-0 top-0 bg-[var(--color-header-field)]" style={{ height: burnY }} />
+          {/* cool fluorescent field above the burn boundary. #96 crux (§4.2): on the scroll-aware
+              host the boundary is the LIVE band height (`--topic-burn-y`), not a fixed `burnY`, so
+              the cool→white internal edge is pinned to the band's bottom edge at every `p` and no
+              independently-scrolling grey/white seam can form (defect #1). */}
+          <span
+            aria-hidden="true"
+            className="absolute inset-x-0 top-0 bg-[var(--color-header-field)]"
+            style={{ height: scrollAware ? "var(--topic-burn-y)" : burnY }}
+          />
           {/* the burn-to-background fill from the burn boundary down — bright white light on BOTH
               hosts (--projector-burn-bg: #FFFFFF, spec Decision 2 / AC6). On Topic the page top is a
               white→grey illumination falloff (.topic-illum) so the white beam meets a white page top
-              with no seam; the page, not the beam, falls off to grey just under the lamp. */}
-          <span aria-hidden="true" className="absolute inset-x-0 bg-[var(--projector-burn-bg)]" style={{ top: burnY, bottom: 0 }} />
+              with no seam; the page, not the beam, falls off to grey just under the lamp. Its top
+              tracks the same live burn boundary as the cool field above (#96 §4.2). */}
+          <span
+            aria-hidden="true"
+            className="absolute inset-x-0 bg-[var(--projector-burn-bg)]"
+            style={{ top: scrollAware ? "var(--topic-burn-y)" : burnY, bottom: 0 }}
+          />
 
           {/* The geometric "+" beam — true-scale stem + fixed 0.6 angle + ASYMMETRICAL arms,
               each drawn to its own real edge; the bottom extends below burnY and CLIPS at burnY
               so no horizontal gold line is drawn at the boundary (design §4.7). On the scroll-aware
-              host the beam fades out when collapsed (the `.projector-beamfade` opacity, gated on
-              reduced motion in globals.css). */}
+              host the beam fades out as `p` rises (the `.projector-beamfade` opacity reads the host's
+              `--beam-opacity` var; reduced motion handled in globals.css). */}
           {fullBleed && (
             <span
               aria-hidden={scrollAware ? true : undefined}
               className={scrollAware ? "projector-beamfade" : undefined}
-              data-beam-collapsed={scrollAware && isCollapsed ? "" : undefined}
             >
               <Beam
                 cw={cw}
@@ -752,12 +769,11 @@ export function HeaderProjector({
               aperture (not the lockup midpoint) lands on the apex. The beam projects straight
               down from the lamp. The inner `.projector-lockup-fit` SCALES the lockup down on the
               smallest phones (transform-origin = the aperture so the apex stays put) BEFORE the
-              auth is allowed to wrap (§7.5). On the scroll-aware host it fades out when collapsed. */}
+              auth is allowed to wrap (§7.5). On the scroll-aware host it fades out as `p` rises. */}
           <div
             className={`absolute ${
               scrollAware ? "projector-litlockup" : ""
             }`}
-            data-lit-collapsed={scrollAware && isCollapsed ? "" : undefined}
             style={lockupOriginStyle}
             aria-hidden={scrollAware ? true : undefined}
           >
@@ -780,7 +796,6 @@ export function HeaderProjector({
               href={href ?? "/"}
               aria-label={accessibleName}
               className="projector-flatlockup pointer-events-auto absolute"
-              data-flat-collapsed={isCollapsed ? "" : undefined}
               style={lockupOriginStyle}
             >
               <span

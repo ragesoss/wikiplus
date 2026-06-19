@@ -130,27 +130,38 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
-/* ── Shared Daylight Projector header (#72) — the Topic host's scroll-aware Tier-A ↔ slim sticky
-   transition (docs/design/shared-header.md §4 + §0a). ONE header, two compositions cross-faded by
-   a SINGLE HeaderProjector instance (DEFECT-B fix) so both states share one lockup origin:
-   • Tier A (scroll-top): the lit aperture + full beam (.projector-beamfade / .projector-litlockup),
+/* ── Shared Daylight Projector header (#72/#96) — the Topic host's CONTINUOUS, scroll-linked
+   Tier-A → slim sticky transition (docs/design/continuous-header-transition.md). ONE header, two
+   compositions cross-faded by a SINGLE HeaderProjector instance (DEFECT-B fix) so both states share
+   one lockup origin, with a single normalized progress `p` (and the derived band height / layer
+   opacities / border opacity, written as CSS vars on the header every frame) driving everything in
+   lockstep — no boolean flip, no per-property tween:
+   • p = 0 (scroll-top): the lit aperture + full beam (.projector-beamfade / .projector-litlockup),
      seam on the divider; the band is TOPIC_BURN_Y (104px) tall; the flat slim lockup is opacity-0.
-   • Slim (scrolled, [data-collapsed]): the lit layers fade opacity → 0, the band collapses to 56px,
-     and the flat Tier-C lockup (.projector-flatlockup — the interactive home link) fades IN at the
-     SAME origin (no horizontal jump, no double wordmark).
-   The chrome row (search + title cue + auth) and the wordmark link are the SAME DOM in both states
-   (no remount, focus preserved — AC9/AC13); only opacity + band height animate (one origin). The
-   article body is untouched (§9.3). */
+   • p = 1 (scrolled past the band height): the lit layers are at opacity 0, the band has receded to
+     56px, the flat Tier-C lockup (.projector-flatlockup — the interactive home link) is at opacity 1
+     at the SAME origin (no horizontal jump, no double wordmark), and the 2px ink rule is at full
+     strength. Every value between is a continuous function of `p`.
+   The chrome row (search + title cue + auth) and the wordmark link are the SAME DOM at every `p`
+   (no remount, focus preserved — AC9/AC13). The article body is untouched (§9.3). */
 
-/* #72 DEFECT-B — the cross-fade is now OWNED by the single HeaderProjector layer: the lit lockup +
+/* #72/#96 DEFECT-B — the cross-fade is OWNED by the single HeaderProjector layer: the lit lockup +
    beam and the flat slim lockup are positioned at ONE shared origin inside one instance, so only
    OPACITY animates between them — there is never a second wordmark at a different x (no double
-   vision). The header's [data-collapsed] state drives the three co-located layers:
-   • .projector-beamfade   — the descending beam: opacity 1 at Tier A → 0 when collapsed.
-   • .projector-litlockup  — the lit aperture lockup: opacity 1 at Tier A → 0 when collapsed.
-   • .projector-flatlockup — the flat Tier-C lockup (the interactive home link): opacity 0 at Tier A
-                             → 1 when collapsed. It stays in the DOM + focusable in BOTH states so
-                             the wordmark is always a reachable "wiki+" → / link (AC3/AC13). */
+   vision). Under #96 the transition is CONTINUOUS and scroll-linked: a single normalized progress
+   `p` (and the derived opacities/height/border) is written every frame as CSS custom properties on
+   the header element by SiteHeader's rAF-gated scroll handler, and the three co-located layers read
+   those vars directly — no boolean `[data-collapsed]` flip, no per-property CSS tween (the scroll
+   IS the animation, so a tween would fight it — #96 §6):
+   • .projector-beamfade   — the descending beam: opacity = --beam-opacity (1 → 0, easeOutCubic).
+   • .projector-litlockup  — the lit aperture lockup: opacity = --beam-opacity (fades with the beam).
+   • .projector-flatlockup — the flat Tier-C lockup (the interactive home link): opacity =
+                             --flat-opacity (0 → 1, easeInCubic). It stays in the DOM + focusable at
+                             every `p` so the wordmark is always a reachable "wiki+" → / link.
+   The band HEIGHT recedes via --topic-burn-y on the inline `height` (SiteHeader), and the projector's
+   internal cool→white burn boundary is pinned to that same --topic-burn-y (#96 §4.2), so there is
+   only ONE edge and no grey/white seam can form. SSR/first-paint fallbacks are set inline on the
+   header so a no-JS / pre-hydration render is the full Tier-A state (--beam-opacity 1, --flat 0). */
 /* The beam is bright white light on BOTH hosts (design header-topic-integration §3.2 / AC6): the
    beam interior + the band below burnY resolve to #FFFFFF everywhere — no Topic-host override. On
    Topic the *page* (not the beam) carries the grey, via the .topic-illum white→grey falloff at the
@@ -159,45 +170,34 @@ body {
 
 .header-shared .projector-beamfade,
 .header-shared .projector-litlockup {
-  opacity: 1;
-}
-.header-shared[data-collapsed] .projector-beamfade,
-.header-shared[data-collapsed] .projector-litlockup {
-  opacity: 0;
+  opacity: var(--beam-opacity, 1);
 }
 .header-shared .projector-flatlockup {
-  opacity: 0;
+  opacity: var(--flat-opacity, 0);
 }
-.header-shared[data-collapsed] .projector-flatlockup {
-  opacity: 1;
-}
-/* Keep the focus ring visible even when the flat mark is opacity-0 at Tier A: if it receives
-   keyboard focus, reveal it so the focus target is never invisible (AC13). */
+/* Keep the focus ring visible even when the flat mark is at --flat-opacity 0 (p = 0): if it
+   receives keyboard focus, reveal it so the focus target is never invisible (#96 §8 / AC13). This
+   rule comes AFTER the var-driven opacity above and matches a more specific selector, so it wins —
+   a keyboard user tabbing to the wordmark at scroll-top sees a visible ring. */
 .header-shared .projector-flatlockup:focus-within,
 .header-shared .projector-flatlockup:focus {
   opacity: 1;
 }
 
-/* The bottom chrome rule — a defined edge over the scrolling article in the slim state (§4.2). At
-   Tier A the beam burns to the content's own white, so no rule; when collapsed the 2px ink rule
-   appears (the committed Topic header's bottom rule). */
-.header-shared[data-collapsed] {
-  border-bottom: 2px solid var(--color-ink);
+/* The bottom chrome rule — a defined edge over the scrolling article. It FADES IN continuously with
+   `p` (opacity 0 → 1, easeInQuad gated to the back half, #96 §3.3) rather than toggling: the 2px
+   ink rule is always present but transparent until the back half of the gesture, arriving at full
+   strength as the slim bar lands (defect #3). Driving border-color's alpha via --border-opacity (a
+   0..1 scalar) keeps the rule's 2px box reserved at every `p` with no layout shift. */
+.header-shared {
+  border-bottom: 2px solid rgb(44 44 44 / var(--border-opacity, 0));
 }
 
-/* Motion: animate the transition ONLY when the user has no reduced-motion preference (AC5). With
-   reduced motion the end-states apply instantly (no tween) — the slim state is still reached. */
-@media (prefers-reduced-motion: no-preference) {
-  .header-shared .header-band {
-    transition: height 180ms ease-out;
-  }
-  .header-shared .header-beam,
-  .header-shared .projector-beamfade,
-  .header-shared .projector-litlockup,
-  .header-shared .projector-flatlockup {
-    transition: opacity 180ms ease-out;
-  }
-}
+/* #96 §7 — reduced motion: SiteHeader quantizes `p` to {0, 1} (snap to end-states, no intermediate
+   frames). The vars therefore only ever hold the two end-state values, so no extra CSS is needed to
+   suppress motion — and crucially NO per-property `transition` is added back in EITHER path (the
+   scroll is the animation; a tween would fight it — #96 §6). The end-states apply instantly at the
+   midpoint crossing, exactly the spirit of the prior reduced-motion behaviour. */
 
 /* Forced-colors: the burn-to-white + gold beam cannot survive a forced palette (§7.5). Drop the
    beam + lit lockup and keep the flat slim wordmark visible at every scroll state — the lockup

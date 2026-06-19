@@ -29,6 +29,11 @@ import {
   type ProjectorGeometry,
 } from "@/components/wordmark/HeaderProjector";
 import { TopicSearch } from "@/components/search/TopicSearch";
+import {
+  computeProgress,
+  deriveHeaderProgress,
+  quantizeProgress,
+} from "@/lib/header/progress";
 
 // ── Topic Tier-A geometry. This is the SHARED Tier-A geometry both hosts render (spec Decision 1 /
 // §10.1 no-fork): the beam flares over a 104px band with the wordmark row at cyMid=28 (cone length
@@ -42,11 +47,17 @@ export const TOPIC_BURN_Y = 104; // band height / burn boundary — cone length 
 export const TOPIC_CY_MID = 28;
 // The slim sticky bar height (#72 §4.2). Also the `HEAD` scroll-sync constant in TopicView (§8).
 export const SLIM_BAR_HEIGHT = 56;
-// Scroll thresholds + hysteresis (#72 §4.3): collapse when scrollY > burnY (104), restore when
-// scrollY < burnY − 40 (64). Between 64 and 104 the state is sticky (keeps its last value) so it
-// never flickers on a pixel boundary (AC11).
-const COLLAPSE_AT = TOPIC_BURN_Y; // 104
-const RESTORE_AT = TOPIC_BURN_Y - 40; // 64
+// The continuous scroll-progress range (#96 §3.1). `p = clamp(scrollY / PROGRESS_END, 0, 1)` drives
+// EVERY transitioning property in lockstep (band height, burn boundary, the layer opacities, the
+// bottom-border opacity). The transition begins the instant the reader leaves the top (no dead
+// zone) and completes exactly as the Tier-A band height of article has scrolled by — so the band
+// reads as receding WITH the page, not snapping at a threshold. There is no boolean, no hysteresis,
+// no per-property tween: the scroll IS the animation (§3.4).
+const PROGRESS_END = TOPIC_BURN_Y; // 104 — p reaches 1 here
+// The slim-state gate point: derived booleans (the title cue A4 / §5.1) flip at p ≥ this. A muted
+// aria-hidden span, so a hard show at the midpoint is fine — it must never appear while the beam
+// still reads and must be present once the slim bar lands.
+const SLIM_GATE_P = 0.5;
 // `lg` (the Topic grid's side-by-side ↔ stacked breakpoint; #72 decision (a)). Seam-on-divider
 // applies ONLY at ≥ lg, where a real divider exists (§3 / AC2 / AC10).
 const LG_BREAKPOINT = 1024;
@@ -163,31 +174,65 @@ function TopicSiteHeader({
   search?: ReactNode;
   articleTitle?: string;
 }) {
-  // ── Scroll-aware collapse (AC4/AC11). A passive, rAF-gated scroll listener reading ONLY
-  // window.scrollY (a cheap read — no layout flush) flips a single boolean with hysteresis. It
-  // never re-measures the column divider per scroll (that is mount/resize only — §3.3). ─────────
-  const [collapsed, setCollapsed] = useState(false);
+  // ── Continuous, scroll-linked collapse (#96). A passive, rAF-gated scroll listener reads ONLY
+  // window.scrollY (a cheap read — no layout flush, no getBoundingClientRect), computes the
+  // normalized progress `p`, and writes it (and the derived band height + layer/border opacities)
+  // as CSS custom properties on the header ELEMENT via a ref — NOT per-frame setState, so a 120Hz
+  // scroll does not re-render the React tree 120×/s (§6). One value drives every transitioning
+  // property in lockstep, so no property can lag another and no independently-scrolling seam can
+  // form. The seam probe stays mount/resize-only (§2) — `p` never triggers a re-measure. ─────────
+  const headerRef = useRef<HTMLElement>(null);
+  // `isSlim` is a coarse derived boolean (p ≥ SLIM_GATE_P) used ONLY to gate the muted title cue
+  // (A4 / §5.1). It flips at most twice across the whole gesture (once each way at the midpoint) —
+  // NOT a per-frame re-render. The continuous visual transition is driven entirely by CSS vars.
+  const [isSlim, setIsSlim] = useState(false);
   useEffect(() => {
     let raf = 0;
+    // Reduced-motion: snap to {0,1} end-states (§7) — the header is either the full projector or
+    // the slim bar, no intermediate frames. A tiny dead-band avoids 1px chatter in this quantized
+    // (re-booleanized) path. Read once on mount + react to changes.
+    const reduceQuery =
+      typeof window !== "undefined" && window.matchMedia
+        ? window.matchMedia("(prefers-reduced-motion: reduce)")
+        : null;
+    let quantized: 0 | 1 = 0;
+
     const evaluate = () => {
       raf = 0;
+      const el = headerRef.current;
+      if (!el) return;
       const y = window.scrollY;
-      // Hysteresis: cross COLLAPSE_AT going down → slim; cross RESTORE_AT going up → Tier A; in
-      // between, keep the last state (the functional updater reads the current value).
-      setCollapsed((prev) => {
-        if (y > COLLAPSE_AT) return true;
-        if (y < RESTORE_AT) return false;
-        return prev;
+      let p = computeProgress(y, PROGRESS_END);
+      if (reduceQuery?.matches) {
+        quantized = quantizeProgress(p, quantized);
+        p = quantized; // 0 or 1 — apply the end-state instantly (no intermediate frame)
+      }
+      const d = deriveHeaderProgress(p, TOPIC_BURN_Y, SLIM_BAR_HEIGHT);
+      // Write the derived values as CSS custom properties on the header element (cheap; one
+      // element, a few props, once per frame). CSS + the projector consume them — §6.
+      el.style.setProperty("--p", p.toFixed(4));
+      el.style.setProperty("--topic-burn-y", `${d.bandHeight.toFixed(2)}px`);
+      el.style.setProperty("--beam-opacity", d.beamOpacity.toFixed(4));
+      el.style.setProperty("--flat-opacity", d.flatOpacity.toFixed(4));
+      el.style.setProperty("--border-opacity", d.borderOpacity.toFixed(4));
+      setIsSlim((prev) => {
+        const next = p >= SLIM_GATE_P;
+        return next === prev ? prev : next;
       });
     };
     const onScroll = () => {
       if (raf) return; // rAF-gate: at most one evaluation per frame
       raf = requestAnimationFrame(evaluate);
     };
-    evaluate(); // initial state (e.g. a deep-linked scroll position / refresh mid-article)
+    evaluate(); // initial state (a deep-linked scroll position / refresh mid-article — §5)
     window.addEventListener("scroll", onScroll, { passive: true });
+    // Re-evaluate when the reduced-motion preference changes (so the quantized ↔ continuous path
+    // swaps without a reload).
+    const onMedia = () => evaluate();
+    reduceQuery?.addEventListener?.("change", onMedia);
     return () => {
       window.removeEventListener("scroll", onScroll);
+      reduceQuery?.removeEventListener?.("change", onMedia);
       if (raf) cancelAnimationFrame(raf);
     };
   }, []);
@@ -250,10 +295,12 @@ function TopicSiteHeader({
     };
   }, [measureSeam]);
 
-  // The Tier-A geometry, with the measured seam fraction driven through projectionX (≥ lg only) and
-  // the collapsed flag the projector uses to OWN the cross-fade (DEFECT-B): both the lit lockup and
-  // the flat slim lockup live in ONE HeaderProjector instance at ONE shared origin, so only opacity
-  // animates — never two wordmarks at two positions (§4.2 single-origin transition).
+  // The Tier-A geometry, with the measured seam fraction driven through projectionX (≥ lg only).
+  // The single HeaderProjector instance OWNS the cross-fade (DEFECT-B): both the lit lockup and the
+  // flat slim lockup live at ONE shared origin, so only opacity animates — never two wordmarks at
+  // two positions (§4.2 single-origin transition). Under #96 those opacities (and the projector's
+  // internal burn boundary) are driven by the same `p`-derived CSS vars this header writes, in
+  // continuous mode.
   const tierAGeometry: ProjectorGeometry = {
     ...TOPIC_GEOMETRY,
     projectionX: seamProjectionX,
@@ -261,32 +308,47 @@ function TopicSiteHeader({
 
   return (
     <header
+      ref={headerRef}
       className="header-shared sticky top-0 z-40 bg-[var(--color-header-field)]"
-      data-collapsed={collapsed ? "" : undefined}
+      // Initial CSS-var values so SSR/first paint is the full Tier-A state (p = 0) before the
+      // scroll handler runs; the mount evaluate() immediately corrects a deep-linked position (§5).
+      style={
+        {
+          "--p": "0",
+          "--topic-burn-y": `${TOPIC_BURN_Y}px`,
+          "--beam-opacity": "1",
+          "--flat-opacity": "0",
+          "--border-opacity": "0",
+        } as React.CSSProperties
+      }
     >
-      {/* ── The band. Its HEIGHT is what collapses (104 → 56) on scroll (AC4): a height transition,
-          gated on reduced motion (AC5) via the .header-shared CSS. The chrome controls (search,
-          title cue, auth) live in the top SLIM_BAR_HEIGHT row so they are reachable in BOTH states.
-          The WORDMARK (lit beam + flat slim lockup + the squeeze glyph) is owned by the single
-          HeaderProjector layer below, which cross-fades by OPACITY ONLY at one shared origin. ── */}
+      {/* ── The band. Its HEIGHT recedes continuously (104 → 56) with `p` (#96 §3.2): driven by the
+          `--topic-burn-y` CSS var the scroll handler writes every frame — NO per-property tween (the
+          scroll is the animation). The chrome controls (search, title cue, auth) live in the top
+          SLIM_BAR_HEIGHT row so they are reachable at every `p`. The WORDMARK (lit beam + flat slim
+          lockup + the squeeze glyph) is owned by the single HeaderProjector layer below, which
+          cross-fades by OPACITY ONLY at one shared origin. ── */}
       <div
         className="header-band relative w-full"
-        style={{ height: collapsed ? SLIM_BAR_HEIGHT : TOPIC_BURN_Y }}
+        style={{ height: "var(--topic-burn-y)" }}
       >
         {/* ── The single Tier-A PROJECTOR layer — full-bleed, BEHIND the chrome controls. It owns
-            the wordmark in BOTH scroll states: the lit aperture + descending beam (seam on the
-            divider ≥ lg) fade out and the flat Tier-C lockup fades IN at the IDENTICAL origin when
-            `collapsed` (DEFECT-B — no double wordmark), and below SQUEEZE_BREAKPOINT it collapses to
-            the Tier-D glyph so the search has room (DEFECT-A). The band is pointer-events:none; the
-            ONLY interactive node is the flat/glyph home link (so it never intercepts the search/auth
-            — DEFECT-A pointer-events fix). The seam probe (the gutter span) lives here so
-            getBoundingClientRect reads the REAL gutter centre (§3.3 / AC2), at mount/resize only
-            (AC11). The layer is the FULL Tier-A band height so the beam has its flare room; it
-            overflows the slim band visually only via the projector's own paint (decorative). ── */}
+            the wordmark at every `p`: the lit aperture + descending beam (seam on the divider ≥ lg)
+            fade out and the flat Tier-C lockup fades IN at the IDENTICAL origin as `p` rises
+            (DEFECT-B — no double wordmark), and below SQUEEZE_BREAKPOINT it collapses to the Tier-D
+            glyph so the search has room (DEFECT-A). The band is pointer-events:none; the ONLY
+            interactive node is the flat/glyph home link (so it never intercepts the search/auth —
+            DEFECT-A pointer-events fix). The seam probe (the gutter span) lives here so
+            getBoundingClientRect reads the REAL gutter centre (§3.3 / AC2), at mount/resize only —
+            `p` never re-measures it. ── */}
         <div
           data-testid="tier-a-beam"
           className="header-beam absolute inset-x-0 top-0 z-0 overflow-hidden"
-          style={{ height: TOPIC_BURN_Y }}
+          // #96 crux (§4.2): the beam layer is clipped to the LIVE band height (`--topic-burn-y`),
+          // NOT a fixed 104. So the projector's internal cool→white edge is pinned to the band's
+          // bottom edge at every `p` — there is only ONE edge and no independently-scrolling
+          // white/grey seam can ever form (defect #1).
+          style={{ height: "var(--topic-burn-y)" }}
         >
           {/* The seam probe: a zero-height grid mirroring the Topic page grid (max-w-[1200px] px-5
               gap-7 lg:grid-cols-[1fr_360px]). The marker spans the 28px gutter so its rect centre
@@ -303,14 +365,15 @@ function TopicSiteHeader({
               </div>
             </div>
           </div>
-          {/* The ONE projector: lit + beam (Tier A) cross-fading to the flat slim lockup (collapsed)
-              at one shared origin, or the glyph at the squeeze. `collapsed` makes it scroll-aware
-              (the flat layer + the interactive home link live inside it now — AC3/AC13). Seam on the
-              divider (≥ lg) / self-contained past the reserved search (< lg — AC10). */}
+          {/* The ONE projector: lit + beam (Tier A) cross-fading continuously to the flat slim
+              lockup at one shared origin, or the glyph at the squeeze. `continuous` makes it
+              scroll-aware via the `p`-derived CSS vars (the flat layer + the interactive home link
+              live inside it now — AC3/AC13). Seam on the divider (≥ lg) / self-contained past the
+              reserved search (< lg — AC10). */}
           <HeaderProjector
             variant="projector"
             geometry={tierAGeometry}
-            collapsed={collapsed}
+            continuous
             href="/"
           />
         </div>
@@ -340,7 +403,7 @@ function TopicSiteHeader({
               It sits left-of-centre on the article side (after the reserved search) and is the FIRST
               to yield under width pressure (min-w-0 + truncate, hidden < md). The auth's ml-auto
               keeps it pushed right, so the cue takes only the slack between search and auth. */}
-          {articleTitle && collapsed ? (
+          {articleTitle && isSlim ? (
             <span
               aria-hidden="true"
               className="pointer-events-none hidden min-w-0 shrink truncate font-serif text-[0.95rem] text-slate-500 md:inline"
