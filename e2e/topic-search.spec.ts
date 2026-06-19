@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { actionApiBody, type ActionPageStub } from "./fixtures";
 
 // E2E for the navbar topic search (#12) against the Node SSR server (issue #37). The
 // sandbox has no network egress, so the Wikipedia typeahead (REST search/title),
@@ -30,23 +31,26 @@ async function stubWikipedia(page: Page) {
     });
   });
 
-  // title→QID (Wikipedia action API pageprops/wikibase_item) — resolves any title.
+  // title→QID (Wikipedia action API) — resolves any title. Returns the FULL resolve shape
+  // (pageid + title + displaytitle + QID): resolvePage treats a page with no pageid as
+  // unresolved, so the bare-pageprops shape made every UNSEEDED title (Quantum entanglement,
+  // Catalonia) fall to the resolve-error state instead of opening a working Topic page (AC5).
   await page.route("**/w/api.php**", (route) => {
     const url = decodeURIComponent(route.request().url());
-    const qid = url.includes("Catalonia")
-      ? "Q5705"
-      : url.includes("Quantum")
-        ? "Q4378"
-        : url.includes("Photosynthesis")
-          ? "Q11982"
-          : "Q146";
-    route.fulfill({
-      contentType: "application/json",
-      body: JSON.stringify({
-        query: { pages: { "1": { pageprops: { wikibase_item: qid } } } },
-      }),
-    });
+    let stub: ActionPageStub;
+    if (url.includes("Catalonia")) stub = { title: "Catalonia", qid: "Q5705" };
+    else if (url.includes("Quantum"))
+      stub = { title: "Quantum entanglement", qid: "Q4378" };
+    else if (url.includes("Photosynthesis"))
+      stub = { title: "Photosynthesis", qid: "Q11982" };
+    else stub = { title: "Cat", qid: "Q146" };
+    route.fulfill({ contentType: "application/json", body: actionApiBody(stub) });
   });
+  // YouTube candidate source is enabled at build (placeholder key); these search-only flows do
+  // not assert suggestion volume, so return an empty result set deterministically.
+  await page.route("**/youtube/v3/search**", (route) =>
+    route.fulfill({ contentType: "application/json", body: JSON.stringify({ items: [] }) })
+  );
 
   await page.route("**/api/rest_v1/page/html/**", (route) => {
     const url = decodeURIComponent(route.request().url());

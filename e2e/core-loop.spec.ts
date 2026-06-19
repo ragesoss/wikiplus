@@ -1,10 +1,14 @@
 import { expect, test, type Page } from "@playwright/test";
+import { signIn } from "./auth";
+import { RESP_YT_ITEMS, stubCommon } from "./fixtures";
 
 // E2E of the core loop (find topic → read → watch & weigh → contribute) against the
 // Node SSR server (`next build` → `next start`; issue #37). The sandbox has no network
-// egress, so the live MediaWiki + Wikidata calls are INTERCEPTED with deterministic
-// fixtures; the plus side renders from the seeded localStorage DataStore (seeded on
-// first visit by the app).
+// egress, so the live MediaWiki + Wikidata + YouTube calls are INTERCEPTED with deterministic
+// fixtures (e2e/fixtures.ts + the per-spec article HTML below). The plus side renders from the
+// SHARED Postgres DataStore (issue #45) — globalSetup boots a seeded ephemeral Postgres for the
+// webServer (see playwright.config.ts / e2e/db-server.ts), so the curated Photosynthesis clips
+// come from the seed; the uncurated-topic suggestions come from the YouTube search stub.
 
 const PHOTOSYNTHESIS_HTML = `<!DOCTYPE html><html><body>
   <section><p>Photosynthesis is the <a href="./Process">process</a> used by plants.</p></section>
@@ -19,37 +23,45 @@ const RESP_HTML = `<!DOCTYPE html><html><body>
   <section><h2 id="Citric_acid_cycle">Citric acid cycle</h2><p>Citric acid cycle body.</p></section>
 </body></html>`;
 
+// A generic two-section article for the UNSEEDED dismiss-test topic ("Osmosis"). Its section
+// titles share no keyword with RESP_YT_ITEMS, so all five candidates land in the General band.
+const OSMOSIS_HTML = `<!DOCTYPE html><html><body>
+  <section><p>Osmosis lead.</p></section>
+  <section><h2 id="Mechanism">Mechanism</h2><p>Mechanism body.</p></section>
+</body></html>`;
+
 async function stubWikipedia(page: Page) {
-  await page.route("**/wikidata.org/**", (route) =>
-    route.fulfill({
-      contentType: "application/json",
-      body: JSON.stringify({
-        entities: {
-          Q11982: { sitelinks: { enwiki: { title: "Photosynthesis" } } },
-          Q189603: { sitelinks: { enwiki: { title: "Cellular respiration" } } },
-        },
-      }),
-    })
-  );
-  // Canonical title route resolves title→QID under the hood via the Wikipedia action
-  // API (pageprops/wikibase_item). Stub it so an unseeded wikilink target also resolves.
-  await page.route("**/w/api.php**", (route) => {
-    const url = decodeURIComponent(route.request().url());
-    const qid = url.includes("Cellular")
-      ? "Q189603"
-      : url.includes("Process")
-        ? "Q3249551"
-        : "Q11982";
-    route.fulfill({
-      contentType: "application/json",
-      body: JSON.stringify({
-        query: { pages: { "1": { pageprops: { wikibase_item: qid } } } },
-      }),
-    });
+  await stubCommon(page, {
+    wikidata: {
+      Q11982: "Photosynthesis",
+      Q189603: "Cellular respiration",
+      Q170165: "Osmosis",
+    },
+    // Canonical title route resolves title→QID under the hood via the Wikipedia action API
+    // (pageprops/wikibase_item). The stub returns the full resolve shape (pageid + title +
+    // displaytitle + QID) so an UNSEEDED wikilink target ("Process"/"Osmosis") also resolves
+    // (without pageid/title, resolvePage returns all-null and the page falls to its resolve-error
+    // state).
+    resolve: (url) => {
+      if (url.includes("Cellular"))
+        return { title: "Cellular respiration", qid: "Q189603" };
+      if (url.includes("Process")) return { title: "Process", qid: "Q3249551" };
+      if (url.includes("Osmosis")) return { title: "Osmosis", qid: "Q170165" };
+      return { title: "Photosynthesis", qid: "Q11982" };
+    },
+    // Uncurated-topic suggestions: a fixed 5-item YouTube result (none overlap the articles'
+    // section keywords → all five land in the General band → exactly "5 auto-suggestions").
+    // Photosynthesis is fully curated (clips lead), so its candidate volume is not asserted; the
+    // same fixture is harmless there.
+    youtube: () => RESP_YT_ITEMS,
   });
   await page.route("**/api/rest_v1/page/html/**", (route) => {
     const url = decodeURIComponent(route.request().url());
-    const body = url.includes("Cellular") ? RESP_HTML : PHOTOSYNTHESIS_HTML;
+    const body = url.includes("Cellular")
+      ? RESP_HTML
+      : url.includes("Osmosis")
+        ? OSMOSIS_HTML
+        : PHOTOSYNTHESIS_HTML;
     route.fulfill({ contentType: "text/html", body });
   });
 }
@@ -80,7 +92,7 @@ test.describe("Curated topic — read & weigh (AC1–AC13)", () => {
     await expect(page.getByText(/CC BY-SA 4\.0 · Wikidata Q11982/)).toBeVisible();
 
     // AC7 — infobox counts; AC8 — General strip; AC9 — chips
-    await expect(page.getByText("Videos")).toBeVisible();
+    await expect(page.getByText("Videos", { exact: true })).toBeVisible();
     await expect(page.getByText("＋ General").first()).toBeVisible();
     await expect(page.getByText("Explainer").first()).toBeVisible();
     await expect(page.getByText("Curator note").first()).toBeVisible();
@@ -105,7 +117,7 @@ test.describe("Curated topic — read & weigh (AC1–AC13)", () => {
     page,
   }) => {
     await page.goto("/topic/Photosynthesis/");
-    await expect(page.getByText("Videos")).toBeVisible();
+    await expect(page.getByText("Videos", { exact: true })).toBeVisible();
 
     // No iframe on initial render (embed-never-host facade).
     await expect(page.locator("iframe")).toHaveCount(0);
@@ -128,7 +140,7 @@ test.describe("Curated topic — read & weigh (AC1–AC13)", () => {
     page,
   }) => {
     await page.goto("/topic/Photosynthesis/");
-    await expect(page.getByText("Videos")).toBeVisible();
+    await expect(page.getByText("Videos", { exact: true })).toBeVisible();
     await page.getByRole("link", { name: "Calvin cycle" }).first().click();
     const heading = page.locator("#h-calvin-cycle");
     await expect(heading).toBeInViewport();
@@ -138,7 +150,7 @@ test.describe("Curated topic — read & weigh (AC1–AC13)", () => {
     page,
   }) => {
     await page.goto("/topic/Photosynthesis/");
-    await expect(page.getByText("Videos")).toBeVisible();
+    await expect(page.getByText("Videos", { exact: true })).toBeVisible();
     // A clip card's "↳ <section>" link drives goTo (rail → article jump-to).
     await page
       .getByRole("button", { name: /Light-dependent reactions/ })
@@ -151,12 +163,20 @@ test.describe("Curated topic — read & weigh (AC1–AC13)", () => {
     page,
   }) => {
     await page.goto("/topic/Photosynthesis/");
-    await expect(page.getByText("Videos")).toBeVisible();
+    await expect(page.getByText("Videos", { exact: true })).toBeVisible();
     // Scroll a clip-bearing section past the reading line; the article→rail sync
     // (TopicView onScroll, AC12) sets `.sec.active` on that section. This auto-follow
     // is layout-dependent (real geometry), so it is only verifiable in a real browser.
     const sec = page.locator("#sec-calvin-cycle");
-    await sec.scrollIntoViewIfNeeded();
+    await expect(sec).toBeVisible();
+    // Bring the heading to the line, then drive REAL wheel events: the article→rail onScroll
+    // handler is rAF-debounced and needs genuine scroll events, not a single synthetic
+    // scrollIntoView jump (mirrors the D5/D6 article-fidelity scroll-sync technique).
+    await sec.getByRole("heading", { name: "Calvin cycle" }).scrollIntoViewIfNeeded();
+    for (let i = 0; i < 8; i++) {
+      await page.mouse.wheel(0, 50);
+      await page.waitForTimeout(120);
+    }
     await expect(sec).toHaveClass(/\bactive\b/);
   });
 });
@@ -183,7 +203,11 @@ test.describe("Uncurated topic — empty state & contribute (AC14–AC19)", () =
 
   test("AC18 — Search YouTube / TikTok deep-links open in a new tab; Add opens the modal", async ({
     page,
+    baseURL,
   }) => {
+    // Add is a contribute action → auth-gated as of issue C (a logged-out click opens the login
+    // gate, not the Add modal). Sign in so the assertion exercises the REAL Add modal. (#47)
+    await signIn(page, baseURL);
     await page.goto("/topic/Cellular_respiration/");
     const yt = page.getByRole("link", { name: /Search YouTube/ });
     await expect(yt).toHaveAttribute("target", "_blank");
@@ -195,14 +219,29 @@ test.describe("Uncurated topic — empty state & contribute (AC14–AC19)", () =
 
   test("AC19 — Promote opens the Curate modal with the closed-enum selects + CC BY-SA notice", async ({
     page,
+    baseURL,
   }) => {
+    // Curate is a contribute action → auth-gated as of issue C (a logged-out click opens the login
+    // gate, whose copy happens to contain "curate this clip" — so without signing in this test
+    // would assert against the gate, not the real modal). Sign in to exercise the REAL CurateModal.
+    await signIn(page, baseURL);
     await page.goto("/topic/Cellular_respiration/");
-    await page.getByRole("button", { name: /Promote and curate/ }).first().click();
+    // The candidate-card "Curate" action (verb changed Promote→Curate in #14; the accessible
+    // name is `Curate this clip: <caption>`). Distinct from the empty-state "Be the first to
+    // curate this topic" CTA, which carries no per-clip caption.
+    await page
+      .getByRole("button", { name: /^Curate this clip:/ })
+      .first()
+      .click();
     const dialog = page.getByRole("dialog");
     await expect(dialog).toBeVisible();
     await expect(dialog.getByText("Curate this clip")).toBeVisible();
+    // The required CC BY-SA note-license agreement (CURATION §5.3). The verbatim copy is the
+    // checkbox label from lib/curation/note-license.ts ("I agree to release my context note
+    // under CC BY-SA 4.0."); match its load-bearing substring (the earlier regex predated that
+    // wording).
     await expect(
-      dialog.getByText(/release your context note under CC BY-SA 4\.0/)
+      dialog.getByText(/release my context note under CC BY-SA 4\.0/)
     ).toBeVisible();
     // closed stance enum (Myth-busting present)
     await expect(dialog.getByRole("option", { name: "Myth-busting" })).toBeAttached();
@@ -210,8 +249,15 @@ test.describe("Uncurated topic — empty state & contribute (AC14–AC19)", () =
 
   test("AC19 — 'Not relevant' dismisses a candidate and decrements the count", async ({
     page,
+    baseURL,
   }) => {
-    await page.goto("/topic/Cellular_respiration/");
+    // Dismiss is a contribute action → auth-gated as of issue C (a logged-out click opens the
+    // login gate WITHOUT hiding the card — design §2d). Sign in so the optimistic dismiss runs and
+    // the count decrements. Uses an UNSEEDED topic ("Osmosis") so the dismissal stays in-session
+    // only (recordDismissal no-ops against an unknown topic) — no shared-DB write that could bleed
+    // into a parallel test's count. (#47)
+    await signIn(page, baseURL);
+    await page.goto("/topic/Osmosis/");
     await expect(page.getByText(/5 auto-suggestions/)).toBeVisible();
     await page
       .getByRole("button", { name: /Dismiss as not relevant/ })
@@ -225,19 +271,23 @@ test.describe("Article fetch error (design §7.2)", () => {
   test("shows the inline error card with retry when Wikipedia is unreachable", async ({
     page,
   }) => {
-    await page.route("**/wikidata.org/**", (route) =>
-      route.fulfill({
-        contentType: "application/json",
-        body: JSON.stringify({
-          entities: { Q11982: { sitelinks: { enwiki: { title: "Photosynthesis" } } } },
-        }),
-      })
-    );
+    // Resolve Photosynthesis cleanly (wikidata + the full action-API shape), but ABORT the article
+    // HTML fetch so the article column reaches its error state while the plus side stays useful.
+    await stubCommon(page, {
+      wikidata: { Q11982: "Photosynthesis" },
+      resolve: () => ({ title: "Photosynthesis", qid: "Q11982" }),
+      youtube: () => RESP_YT_ITEMS,
+    });
     await page.route("**/api/rest_v1/page/html/**", (route) => route.abort());
     await page.goto("/topic/Photosynthesis/");
-    await expect(page.getByRole("alert")).toContainText("Couldn't load the article");
+    // Scope to the error CARD's alert: Next's route announcer is also `role="alert"` (and empty),
+    // so the bare role matches two elements under strict mode — filter to the one with the copy.
+    const errorCard = page
+      .getByRole("alert")
+      .filter({ hasText: "Couldn't load the article" });
+    await expect(errorCard).toBeVisible();
     await expect(page.getByRole("button", { name: "Try again" })).toBeVisible();
     // the plus side stays useful
-    await expect(page.getByText("Videos")).toBeVisible();
+    await expect(page.getByText("Videos", { exact: true })).toBeVisible();
   });
 });

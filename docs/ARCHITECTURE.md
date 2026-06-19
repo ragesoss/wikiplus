@@ -736,6 +736,21 @@ build on additively.
   `test/helpers/pglite-db.ts`). The view/integration tests mock the `@/lib/data` seam to a
   localStorage-backed double (`test/helpers/data-mock.ts`) — the component state machine is what they
   exercise; the data backend is incidental.
+- **E2E (Playwright) backing (issue #47).** `yarn test:e2e` runs against the **real** Node SSR server
+  (`yarn build && yarn start`), so — unlike the view tests — its store Server Actions hit a real
+  Postgres and its contribute actions hit the real auth gate. `globalSetup` (`e2e/global-setup.ts` →
+  `e2e/db-server.ts`) boots an **ephemeral, seeded Postgres** (system `initdb`/`pg_ctl`, the same
+  `yarn db:migrate` deploy path) and `playwright.config.ts`'s `webServer.env` supplies `DATABASE_URL`,
+  a throwaway `AUTH_SECRET`, and a placeholder `NEXT_PUBLIC_YOUTUBE_API_KEY` (build-inlined so the
+  candidate source is enabled; the search call is then stubbed). All external HTTP (Wikidata, the
+  action API, REST article HTML, `search/title`, YouTube `search.list`) is intercepted in-spec with
+  complete shapes — **the contract is documented in `e2e/fixtures-contract.md`** (the durable artifact;
+  builders in `e2e/fixtures.ts`). The action-API stub MUST return `pageid` + `title` (not just
+  `pageprops.wikibase_item`), or `resolvePage` treats the page as unresolved. Contribute tests sign in
+  by minting the exact Auth.js JWT cookie via the app's own `@auth/core/jwt.encode` (`e2e/auth.ts`) —
+  a test precondition, not OAuth coverage. (One open app bug split out as **#68** — the wide-table
+  overflow hint's `useTableOverflow` measurement races the article paint; the B2 e2e assertion for
+  that hint is parked there, suite green modulo it.)
 - **Still deferred:** ISR + the Redis shared `cacheHandler`, the production read-path caching,
   `article_index`, moving Wikipedia/QID/YouTube server-side, Cloudflare edge cache, Redis in compose,
   and real sign-in (**C**) + the curation-action product layer (**D**).
