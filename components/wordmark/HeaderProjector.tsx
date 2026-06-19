@@ -488,9 +488,16 @@ export function HeaderProjector({
   const [narrow, setNarrow] = useState<boolean>(false);
 
   // Measure "Wiki"'s real advance once (refines the SSR estimate to the real Georgia glyph width).
+  // Use `offsetWidth` (the LAYOUT width), NOT getBoundingClientRect().width: at narrow widths the
+  // lockup is scaled down by `.projector-lockup-fit`, and getBoundingClientRect returns the
+  // POST-transform (shrunken) width. Mixing that scaled width with the unscaled CUT_CX — and
+  // feeding it to the scale's transform-origin — made the computed aperture x diverge from where
+  // the cutout actually renders, landing the beam apex LEFT of the "+". offsetWidth ignores the
+  // ancestor transform, so apertureX is the true unscaled aperture offset and (since the scale's
+  // transform-origin is this same apertureX) the cutout stays exactly on the apex at every width.
   useEffect(() => {
     if (wikiRef.current) {
-      const w = wikiRef.current.getBoundingClientRect().width;
+      const w = wikiRef.current.offsetWidth;
       if (w > 0) setApertureX(w + 2 + CUT_CX); // "Wiki" advance + block margin + cut inset
     }
   }, []);
