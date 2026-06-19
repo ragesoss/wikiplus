@@ -44,13 +44,15 @@ describe("AddModal — 'Resolved via oEmbed' eyebrow appears ONLY in state C (QA
     // Entry (A): nothing resolved yet.
     expect(screen.queryByText("Resolved via oEmbed")).toBeNull();
 
-    // Placeholder arm (G — unsupported TikTok): honest placeholder, still NO eyebrow.
+    // Placeholder arm (G — unsupported Instagram): honest placeholder, still NO eyebrow.
     await userEvent.type(
       screen.getByPlaceholderText(/youtu\.be/),
-      "https://www.tiktok.com/@u/video/123"
+      "https://www.instagram.com/reel/ABC123/"
     );
     await userEvent.click(screen.getByRole("button", { name: "Fetch details" }));
-    expect(await screen.findByText("Unresolved TikTok clip")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Unresolved Instagram clip")
+    ).toBeInTheDocument();
     expect(screen.queryByText("Resolved via oEmbed")).toBeNull();
     // The unsupported arm offers NO "Try again" (retrying a support limitation won't help — AC6).
     expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();

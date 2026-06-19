@@ -222,8 +222,25 @@ export async function fetchFullArticle(
   //   - `data-mw-group`                 → distinguishes the `note` footnote group
   //   - `data-mw-footnote-number`       → reference-list <li> numbering (display)
   //   - `aria-label`, `aria-labelledby` → preserved if Parsoid emits them
+  //   - `colspan`, `rowspan`, `scope`   → table-cell SPAN + header SCOPE (see hook)
   //   `style` is STILL NOT allowed (inline-style injection stays blocked, X4) — we
   //   re-apply the small set of layout styles we need ourselves in CSS/JS.
+  //
+  // TABLE-LAYOUT/A11Y attr preservation (#74). `colspan`/`rowspan` (numeric cell spans)
+  //   and `scope` (`row`/`col` header scope) are inert layout/a11y attributes carrying
+  //   no script or style — and they are LOAD-BEARING for faithful tables/infoboxes: the
+  //   taxobox/infobox banner rows are `<th colspan="2">`, so without `colspan` the
+  //   banner-vs-data-row distinction the CSS keys off (D1/D2) would not exist in the
+  //   produced DOM, and multi-column data tables would collapse. DOMPurify 3.x, once a
+  //   custom `ALLOWED_URI_REGEXP` is set (we set one to control link routing),
+  //   URI-validates these attribute VALUES and drops them (`"row"`/`"2"` fail the link
+  //   regexp) even though they are listed in `ALLOWED_ATTR`. A scoped
+  //   `uponSanitizeAttribute` hook re-permits EXACTLY these three names via
+  //   `forceKeepAttr` (a hardcoded 3-name set) — it cannot rescue any other
+  //   attribute, and it is removed right after this sanitize call so it never
+  //   leaks to other callers of the shared DOMPurify singleton. X4 is untouched
+  //   (`<script>`/`<style>`/`<math>`/`<svg>`/inline `style`/event handlers/`javascript:`
+  //   URIs all still die; asserted by test/article*.test.ts X4).
   //
   // MATH render mechanism (C4 — DECIDED FROM LIVE PARSOID OUTPUT, Pythagorean_theorem):
   //   Parsoid emits, per equation, a `<span class="mwe-math-element">` containing
@@ -238,27 +255,44 @@ export async function fetchFullArticle(
   //   an empty hidden span we drop), and we move accessibility onto the image by
   //   UN-hiding it (`stripChrome`/`cleanMath` removes its `aria-hidden`) so the `alt`
   //   (TeX) is announced (C3/§5.3). No KaTeX/client dependency needed.
-  const clean = DOMPurify.sanitize(rawHtml, {
-    ALLOWED_TAGS: [
-      "section", "p", "div", "span", "br", "hr",
-      "h1", "h2", "h3", "h4", "h5", "h6",
-      "ul", "ol", "li", "dl", "dt", "dd",
-      "b", "strong", "i", "em", "sub", "sup", "small", "abbr",
-      "a", "figure", "figcaption", "img",
-      "table", "thead", "tbody", "tr", "th", "td", "caption",
-      "blockquote", "cite", "code", "pre",
-    ],
-    ALLOWED_ATTR: [
-      "href", "src", "srcset", "alt", "title",
-      "id", "class", "colspan", "rowspan", "rel", "target",
-      "width", "height", "data-mw-section-id",
-      // Article-fidelity additions (render/a11y/anchor-routing only — all inert):
-      "aria-hidden", "role", "aria-label", "aria-labelledby",
-      "data-mw-group", "data-mw-footnote-number",
-    ],
-    // We rewrite links ourselves; allow http(s) + relative + in-page anchors.
-    ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto):|\.{0,2}\/|#)/i,
-  });
+  // The hook's allow-set is a HARDCODED set of exactly these three inert
+  // layout/a11y attribute names — it can rescue nothing else (not `style`, not
+  // `on*`, not `href`/`src`). It is removed in `finally` so it never leaks into
+  // any other DOMPurify.sanitize call (DOMPurify is a global singleton here).
+  const KEEP_INERT_ATTRS = new Set(["colspan", "rowspan", "scope"]);
+  const keepInertAttrs: Parameters<typeof DOMPurify.addHook>[1] = (
+    _node,
+    data
+  ) => {
+    if (KEEP_INERT_ATTRS.has(data.attrName)) data.forceKeepAttr = true;
+  };
+  DOMPurify.addHook("uponSanitizeAttribute", keepInertAttrs);
+  let clean: string;
+  try {
+    clean = DOMPurify.sanitize(rawHtml, {
+      ALLOWED_TAGS: [
+        "section", "p", "div", "span", "br", "hr",
+        "h1", "h2", "h3", "h4", "h5", "h6",
+        "ul", "ol", "li", "dl", "dt", "dd",
+        "b", "strong", "i", "em", "sub", "sup", "small", "abbr",
+        "a", "figure", "figcaption", "img",
+        "table", "thead", "tbody", "tr", "th", "td", "caption",
+        "blockquote", "cite", "code", "pre",
+      ],
+      ALLOWED_ATTR: [
+        "href", "src", "srcset", "alt", "title",
+        "id", "class", "colspan", "rowspan", "scope", "rel", "target",
+        "width", "height", "data-mw-section-id",
+        // Article-fidelity additions (render/a11y/anchor-routing only — all inert):
+        "aria-hidden", "role", "aria-label", "aria-labelledby",
+        "data-mw-group", "data-mw-footnote-number",
+      ],
+      // We rewrite links ourselves; allow http(s) + relative + in-page anchors.
+      ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto):|\.{0,2}\/|#)/i,
+    });
+  } finally {
+    DOMPurify.removeHook("uponSanitizeAttribute", keepInertAttrs);
+  }
 
   const doc = new DOMParser().parseFromString(clean, "text/html");
   const root = doc.body;
@@ -471,10 +505,18 @@ function cleanFigures(root: HTMLElement) {
  * navboxes are `div.navbox` (with an inner table), maintenance side-boxes are
  * `.metadata`/`.side-box`, and the old `table.infobox`/`sup.reference`/`.reference`/
  * `.mw-references-wrap`/`.reflist`/`.hatnote` entries are DELIBERATELY removed.
+ *
+ * `.taxobox-edit-taxonomy` is the taxobox's "Edit this classification" pencil — an
+ * editing affordance with no function in wiki+, same family as `.mw-editsection`
+ * (#74/D6). It is a `<span>` wrapping the edit link + its icon, nested in the
+ * "Scientific classification" banner `<th>`; removing it leaves the banner heading
+ * intact and never touches the taxobox lead image (a separate image cell), so that
+ * image's `alt` is preserved.
  */
 function stripChrome(root: HTMLElement) {
   const junk = [
     ".mw-editsection", // [edit] section links
+    ".taxobox-edit-taxonomy", // taxobox "Edit this classification" pencil (#74/D6)
     ".navbox", // bottom navigation boxes (div.navbox on live markup)
     ".metadata", // maintenance/side-box metadata (e.g. div.side-box.metadata)
     ".mbox-text",

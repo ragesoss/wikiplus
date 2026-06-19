@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import DOMPurify from "dompurify";
 import { fetchFullArticle } from "@/lib/wiki/article";
 
 // Article-fidelity build (#24–#27): the transform behavior for the four restored
@@ -275,6 +276,186 @@ describe("D — navigational tail & hatnotes (#27)", () => {
   });
 });
 
+// ───────────────────── #74 — infobox / taxobox layout fidelity ─────────────────────
+// Fixtures mirror the LIVE Parsoid markup inspected for Dendrobium_kingianum (the anchor
+// taxobox) and Marie_Curie / San_Francisco (modern semantic-class infoboxes). The internal
+// layout is reached by STRUCTURE-KEYED CSS in globals.css (mechanism option (a) — no
+// DOMPurify allowlist change); these tests assert the transform leaves the structure the
+// CSS keys off INTACT after sanitize (and that the inline `style` it relied on is gone).
+
+// A taxobox section banner is a classless <th colspan="2"> (its centering + taxon band live
+// in inline style that sanitize strips). The "Scientific classification" banner wraps the
+// .taxobox-edit-taxonomy pencil. The lead image is a SEPARATE classless <td colspan="2"> cell
+// (NO `.infobox-image` class), its caption the classless <td colspan="2"> in the row right
+// after it. The synonyms are a classless <td colspan="2"> wrapping a <ul> under the "Synonyms"
+// <th colspan="2"> banner. These four classless `td[colspan]` shapes are why the image-centering
+// CSS keys off the `<img>` element + the image-bearing row, NOT `td[colspan]` broadly — so the
+// LEFT-aligned synonyms list is never caught. (Mirrors live Parsoid markup of Dendrobium kingianum.)
+const TAXOBOX = (opts: { withEdit?: boolean } = {}) =>
+  `<table class="infobox biota" style="text-align: left; width: 200px">` +
+  `<tbody>` +
+  `<tr><th colspan="2" style="text-align:center;background-color:rgb(180,250,180)">Pink rock orchid</th></tr>` +
+  `<tr><td colspan="2" style="text-align:center"><img src="//up.example/orchid.jpg" ` +
+  `alt="Dendrobium kingianum flower" width="250" height="188"/></td></tr>` +
+  `<tr><td colspan="2" style="text-align:center">Dendrobium kingianum flower detail</td></tr>` +
+  `<tr><th colspan="2" style="text-align:center;background-color:rgb(180,250,180)">` +
+  `<a rel="mw:WikiLink" href="./Taxonomy" title="Taxonomy">Scientific classification</a>` +
+  (opts.withEdit
+    ? `<span class="plainlinks taxobox-edit-taxonomy skin-invert" style="float:right">` +
+      `<a href="./Template:Taxonomy/Dendrobium" title="Edit this classification">` +
+      `<img alt="Edit this classification" src="//up.example/edit.png" width="15" height="15"/></a></span>`
+    : "") +
+  `</th></tr>` +
+  `<tr><td>Kingdom:</td><td><a rel="mw:WikiLink" href="./Plant" title="Plant">Plantae</a></td></tr>` +
+  `<tr class="taxonrow"><td><i>Clade</i>:</td>` +
+  `<td><a rel="mw:WikiLink" href="./Embryophyte" title="Embryophyte">Embryophytes</a></td></tr>` +
+  `<tr><th colspan="2" style="text-align:center;background-color:rgb(180,250,180)">Binomial name</th></tr>` +
+  `<tr><td colspan="2" style="text-align:center"><span class="binomial">Dendrobium kingianum</span></td></tr>` +
+  `<tr><th colspan="2" style="text-align:center;background-color:rgb(180,250,180)">Synonyms</th></tr>` +
+  `<tr><td colspan="2" style="text-align:left"><ul><li>Callista kingiana</li>` +
+  `<li>Dendrocoryne kingianum</li></ul></td></tr>` +
+  `</tbody></table>`;
+
+const MODERN_INFOBOX =
+  `<table class="infobox biography vcard">` +
+  `<tbody>` +
+  `<tr><th colspan="2" class="infobox-above"><div class="fn">Marie Curie</div></th></tr>` +
+  `<tr><td colspan="2" class="infobox-image"><img src="//up.example/curie.jpg" ` +
+  `alt="Head shot of Curie" width="250" height="340"/>` +
+  `<div class="infobox-caption">Marie Skłodowska Curie</div></td></tr>` +
+  `<tr><th scope="row" class="infobox-label">Born</th>` +
+  `<td class="infobox-data">7 November 1867</td></tr>` +
+  `<tr><th colspan="2" class="infobox-header">Government</th></tr>` +
+  `<tr><td colspan="2" class="infobox-subheader">Consolidated city-county</td></tr>` +
+  `<tr><td colspan="2" class="infobox-full-data">Footer note</td></tr>` +
+  `</tbody></table>`;
+
+describe("#74 — infobox / taxobox layout fidelity", () => {
+  it("D6 strips the .taxobox-edit-taxonomy pencil (editor chrome)", async () => {
+    const out = await fullHtml(`<section><p>x</p>${TAXOBOX({ withEdit: true })}</section>`);
+    expect(out).not.toContain("taxobox-edit-taxonomy");
+    expect(out).not.toContain("Edit this classification");
+    expect(out).not.toContain("up.example/edit.png");
+    // …while the "Scientific classification" banner heading itself stays.
+    expect(out).toContain("Scientific classification");
+  });
+
+  it("D6 preserves the taxobox lead image's alt while stripping the edit pencil", async () => {
+    const out = await fullHtml(`<section><p>x</p>${TAXOBOX({ withEdit: true })}</section>`);
+    const doc = new DOMParser().parseFromString(out, "text/html");
+    const leadImg = doc.querySelector('img[src*="orchid.jpg"]');
+    expect(leadImg).not.toBeNull();
+    expect(leadImg!.getAttribute("alt")).toBe("Dendrobium kingianum flower");
+  });
+
+  it("keeps the taxobox + tags it for the float frame; never scroll-wraps it", async () => {
+    const out = await fullHtml(`<section><p>x</p>${TAXOBOX()}</section>`);
+    expect(out).toContain("infobox biota"); // class retained (CSS keys `.infobox.biota`)
+    expect(out).toContain("wiki-infobox"); // tagged for the float frame
+    expect(out).not.toContain("wiki-tablewrap"); // the infobox is NOT scroll-wrapped (it floats)
+  });
+
+  it("banner <th colspan> rows are distinguishable from <td> data rows in the DOM (the CSS key)", async () => {
+    const out = await fullHtml(`<section><p>x</p>${TAXOBOX()}</section>`);
+    const doc = new DOMParser().parseFromString(out, "text/html");
+    const box = doc.querySelector("table.infobox.biota")!;
+    // Banners: every <th> carries colspan → `table.infobox th[colspan]` catches ALL and
+    // ONLY banner rows.
+    const ths = Array.from(box.querySelectorAll("th"));
+    expect(ths.length).toBeGreaterThan(0);
+    expect(ths.every((th) => th.hasAttribute("colspan"))).toBe(true);
+    // Data ladder cells are plain <td> WITHOUT colspan → not caught by the banner rule.
+    const ladderKeys = Array.from(box.querySelectorAll("tr.taxonrow td"));
+    expect(ladderKeys.length).toBeGreaterThan(0);
+    expect(ladderKeys.every((td) => !td.hasAttribute("colspan"))).toBe(true);
+    // The "Kingdom:" row is a bare <tr> of two <td> (no colspan) — also left-aligned by CSS.
+    expect(out).toContain("<td>Kingdom:</td>");
+  });
+
+  it("the taxobox lead image is a CLASSLESS td[colspan] (the centering CSS keys off the <img> + image row)", async () => {
+    // Guards the A.1.2 image-centering fix: the lead image has NO `.infobox-image` class and
+    // its inline `text-align:center` is stripped, so centering must key off the <img> element
+    // inside a classless `td[colspan]`. If a future markup/CSS change moves the image out of a
+    // classless `td[colspan]` (or adds a class the selector no longer matches), this fails —
+    // catching a silently-broken centering selector that a render test would miss.
+    const out = await fullHtml(`<section><p>x</p>${TAXOBOX()}</section>`);
+    const doc = new DOMParser().parseFromString(out, "text/html");
+    const box = doc.querySelector("table.infobox.biota")!;
+    const leadImg = box.querySelector('img[src*="orchid.jpg"]')!;
+    expect(leadImg).not.toBeNull();
+    // The image's cell is a colspanned <td> with no class — the structure the
+    // `table.infobox.biota td[colspan] img { margin-inline:auto }` rule targets.
+    const cell = leadImg.closest("td")!;
+    expect(cell.tagName).toBe("TD");
+    expect(cell.hasAttribute("colspan")).toBe(true);
+    expect(cell.getAttribute("class")).toBeNull();
+  });
+
+  it("the LEFT-aligned synonyms <ul> is a classless td[colspan] NOT in an image row (centering can't reach it)", async () => {
+    // Guards the A.1.5 constraint: synonyms stay left-aligned. The synonyms cell is the same
+    // classless `td[colspan]` shape as the image/caption cells, so the centering rule deliberately
+    // keys on the <img> element / an image-bearing row — never `td[colspan]` broadly. This asserts
+    // the synonyms `<ul>` lives in a `td[colspan]` whose row holds no <img> and is preceded by a
+    // <th> banner (not an image row), so neither the `td[colspan] img` nor the
+    // `tr:has(td[colspan] img) + tr` caption selector can center it.
+    const out = await fullHtml(`<section><p>x</p>${TAXOBOX()}</section>`);
+    const doc = new DOMParser().parseFromString(out, "text/html");
+    const box = doc.querySelector("table.infobox.biota")!;
+    const ul = box.querySelector("ul")!;
+    expect(ul).not.toBeNull();
+    const synCell = ul.closest("td")!;
+    expect(synCell.hasAttribute("colspan")).toBe(true);
+    expect(synCell.getAttribute("class")).toBeNull();
+    // The synonyms cell's own row carries no image (so `td[colspan] img` does not apply)…
+    const synRow = synCell.closest("tr")!;
+    expect(synRow.querySelector("img")).toBeNull();
+    // …and the row before it is the "Synonyms" <th> banner, not an image-bearing row (so the
+    // `tr:has(td[colspan] img) + tr` caption-centering rule does not apply either).
+    const prevRow = synRow.previousElementSibling as HTMLElement;
+    expect(prevRow.querySelector("th")).not.toBeNull();
+    expect(prevRow.querySelector("img")).toBeNull();
+  });
+
+  it("the inline style that carried the taxobox banner band/width is stripped (X4 — option a is necessary)", async () => {
+    const out = await fullHtml(`<section><p>x</p>${TAXOBOX()}</section>`);
+    expect(out).not.toMatch(/style=/i); // banners/box carry NO surviving inline style
+    expect(out).not.toContain("rgb(180,250,180)"); // the taxon band color does not survive
+    expect(out).not.toContain("width: 200px");
+  });
+
+  it("modern infobox-* semantic classes survive sanitize (the CSS keys off them)", async () => {
+    const out = await fullHtml(`<section><p>x</p>${MODERN_INFOBOX}</section>`);
+    for (const cls of [
+      "infobox-above",
+      "infobox-image",
+      "infobox-caption",
+      "infobox-label",
+      "infobox-data",
+      "infobox-header",
+      "infobox-subheader",
+      "infobox-full-data",
+    ]) {
+      expect(out).toContain(cls);
+    }
+    // The modern key cell is a `th scope="row"` WITHOUT colspan (left-aligned key, not a banner);
+    // the title/section bands ARE `th colspan` (banner). Both survive distinct.
+    const doc = new DOMParser().parseFromString(out, "text/html");
+    const box = doc.querySelector("table.infobox")!;
+    const label = box.querySelector("th.infobox-label")!;
+    expect(label.hasAttribute("colspan")).toBe(false);
+    expect(label.getAttribute("scope")).toBe("row");
+    const above = box.querySelector("th.infobox-above")!;
+    expect(above.hasAttribute("colspan")).toBe(true);
+  });
+
+  it("modern infobox image keeps its Parsoid alt", async () => {
+    const out = await fullHtml(`<section><p>x</p>${MODERN_INFOBOX}</section>`);
+    const doc = new DOMParser().parseFromString(out, "text/html");
+    const img = doc.querySelector('img[src*="curie.jpg"]')!;
+    expect(img.getAttribute("alt")).toBe("Head shot of Curie");
+  });
+});
+
 // ───────────────────────── X4 — sanitize still blocks XSS after widening ─────────
 describe("X4 — sanitize blocks XSS alongside the widened (citations/tables/math) markup", () => {
   it("drops <script>, event-handler attrs, javascript:/data:text/html, <style>, <math>, <svg>", async () => {
@@ -311,5 +492,44 @@ describe("X4 — sanitize blocks XSS alongside the widened (citations/tables/mat
     expect(out).toContain("wiki-tablewrap");
     expect(out).toContain("mwe-math-fallback-image-display");
     expect(out).toContain("data-cite-marker");
+  });
+
+  // #74: the `uponSanitizeAttribute` hook that re-permits the inert `colspan`/
+  // `rowspan`/`scope` attrs (which the custom ALLOWED_URI_REGEXP would otherwise
+  // drop, #74) must NOT rescue any other attribute and must NOT leak past the
+  // sanitize call. These two assertions guard the new XSS surface directly.
+  it("X4 (#74): the colspan-keeping hook rescues ONLY colspan/rowspan/scope — never style/on*/javascript:", async () => {
+    const out = await fullHtml(
+      `<section><table class="infobox biota"><tbody>` +
+        `<tr><th colspan="2" style="background:red" onclick="evil()">Banner</th></tr>` +
+        `<tr><td colspan="2" rowspan="3"><a href="javascript:alert(1)">x</a></td></tr>` +
+        `</tbody></table></section>`
+    );
+    expect(out).toContain('colspan="2"'); // load-bearing inert span survives
+    expect(out).toContain('rowspan="3"');
+    expect(out).not.toMatch(/style=/i); // the hook did NOT rescue style
+    expect(out).not.toMatch(/onclick/i); // …nor the event handler
+    expect(out.toLowerCase()).not.toContain("javascript:"); // …nor the hostile href
+  });
+
+  it("X4 (#74): the colspan-keeping hook is removed after sanitize — it does not leak to the global DOMPurify singleton", async () => {
+    // Run fetchFullArticle (adds the hook, then removes it in `finally`).
+    await fullHtml(
+      `<section><table class="infobox biota"><tbody>` +
+        `<tr><th colspan="2">Banner</th></tr></tbody></table></section>`
+    );
+    // A fresh, independent sanitize on the SAME singleton, with the same custom
+    // URI regexp but WITHOUT re-adding the hook: colspan/scope must drop again —
+    // proving the hook did not persist on the shared instance.
+    const leaked = DOMPurify.sanitize(
+      `<table><tbody><tr><th colspan="2" scope="col">B</th></tr></tbody></table>`,
+      {
+        ALLOWED_TAGS: ["table", "tbody", "tr", "th", "td"],
+        ALLOWED_ATTR: ["colspan", "rowspan", "scope", "class"],
+        ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto):|\.{0,2}\/|#)/i,
+      }
+    );
+    expect(leaked).not.toContain("colspan");
+    expect(leaked).not.toContain("scope");
   });
 });

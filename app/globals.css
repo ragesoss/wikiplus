@@ -23,6 +23,13 @@
   --color-bleed-warm-white: #fffcf6; /* tighter inner bleed "+" */
   --color-header-field: #fafbfe; /* cool fluorescent header band above the burn boundary */
   --color-content-white: #ffffff; /* hero surface + beam interior below the burn boundary */
+  --color-body-grey: #f7f7f7; /* the body / Topic page surface + the Topic illumination falloff's grey base */
+
+  /* The Topic-only illumination falloff distance (design header-topic-integration §3.2.1): the top
+     of the Topic page content brightens from #FFFFFF flush under the sticky header, easing (ease-out,
+     biased knee near #FCFCFC) to the body grey #F7F7F7 over this distance, then flat grey below — so
+     the white beam lands on a white page top and the brightness falls off just under the lamp. */
+  --topic-illum-falloff: 96px;
 }
 
 body {
@@ -49,9 +56,17 @@ body {
   --projector-beam-tan: 0.6; /* beamSlope — variant-01 arm angle */
   --projector-cross-up: 28px; /* beamCrossUp — crossbar height above burnY */
   --projector-edge-inset: 17px; /* beamEdgeInset — crossbar end inset before off-page */
-  --projector-burn-y: 130px; /* burnY — content boundary where the beam burns to white.
-     Cone length burnY − cyMid = 86px; the search sits just below the burn boundary so the beam
+  --projector-burn-y: 104px; /* burnY — band height / content boundary where the beam burns to the
+     host background. The SHARED Tier-A geometry both hosts render (the §10.1 no-fork rule): cone
+     length burnY − cyMid = 76px; the hero search sits just below the burn boundary so the beam
      burns INTO the search, not a far-off underline. */
+  --projector-cy-mid: 28px; /* cyMid — wordmark row centre from the band top (= SLIM_BAR_HEIGHT/2),
+     so the lit lockup aligns with a 56px chrome row and the flat lockup fills the slim bar. */
+  --projector-burn-bg: #ffffff; /* the surface the beam interior + the band below burnY burn TO.
+     The beam is BRIGHT WHITE LIGHT on BOTH hosts (design header-topic-integration §3.2 / AC6): no
+     host overrides this. On Home the white hero receives it seamlessly; on Topic the page top is a
+     white→grey illumination falloff (.topic-illum) so the white beam lands on white and the
+     brightness falls off to the body grey just under the lamp — the page, not the beam, carries grey. */
   --projector-seam-ratio: 0.5; /* seamRatio — 0.5 = centered lockup (single-column hero) */
   /* projectionX defaults to the content-column center via layout (the lockup is centered
      as a unit), not a px var — see HeaderProjector (design §4.3). fullBleed = true is the
@@ -136,6 +151,12 @@ body {
    • .projector-flatlockup — the flat Tier-C lockup (the interactive home link): opacity 0 at Tier A
                              → 1 when collapsed. It stays in the DOM + focusable in BOTH states so
                              the wordmark is always a reachable "wiki+" → / link (AC3/AC13). */
+/* The beam is bright white light on BOTH hosts (design header-topic-integration §3.2 / AC6): the
+   beam interior + the band below burnY resolve to #FFFFFF everywhere — no Topic-host override. On
+   Topic the *page* (not the beam) carries the grey, via the .topic-illum white→grey falloff at the
+   top of the page content (below) — so the white beam lands on a white page top and the brightness
+   falls off to the body grey just under the lamp. */
+
 .header-shared .projector-beamfade,
 .header-shared .projector-litlockup {
   opacity: 1;
@@ -190,6 +211,29 @@ body {
   .header-shared .projector-flatlockup {
     opacity: 1 !important;
   }
+}
+
+/* ── Topic illumination falloff (design header-topic-integration §3.2 / AC8 / AC8b). ──
+   The Topic page reads as bright white light illuminating Wikipedia: the white beam lands on a
+   white page top, and the brightness falls off to the body grey just under the lamp. This paints
+   that falloff as the BACKGROUND of the top page region (the first content beneath the sticky
+   header) — NOT a spacer, so it adds NO vertical height (the article title/lead do not shift down).
+   The gradient occupies the top `--topic-illum-falloff` (96px) and is flat #F7F7F7 below; over a
+   #F7F7F7 base so any region taller than the falloff stays the body grey. The eased (ease-out)
+   knee biases the midpoint near #FCFCFC so the falloff reads as illumination, not a hard band — no
+   seam at the header boundary (white meets the white beam) nor at the bottom (grey arrives by
+   gradient). It is decorative page content that scrolls away normally: by the collapse threshold
+   (scrollY > 104) the whole 96px field has scrolled past the slim bar, leaving flat grey under it. */
+.topic-illum {
+  background-color: var(--color-body-grey);
+  background-image: linear-gradient(
+    to bottom,
+    var(--color-content-white) 0%,
+    #fcfcfc 45%,
+    var(--color-body-grey) 100%
+  );
+  background-repeat: no-repeat;
+  background-size: 100% var(--topic-illum-falloff);
 }
 
 /* ── Hardbox language (design §5): white fill, 2px ink border, solid offset. ── */
@@ -489,9 +533,20 @@ figure.wikifig .credit {
   padding: 2px 0 0;
 }
 
-/* Group B — Wikipedia infobox (design §4.3): faithful Wikipedia, float-right in the
-   article column like a wikifig. Distinct from the right-rail WIKI+ PANEL (indigo
-   hardbox) by language alone — and structurally in a different grid column (B4). */
+/* Group B — Wikipedia infobox + taxobox (design §4.3; #74 contract Part 2). Faithful
+   Wikipedia, float-right in the article column like a wikifig. Distinct from the
+   right-rail WIKI+ PANEL (indigo hardbox) by language alone — and structurally in a
+   different grid column (B4). NO Indigo Press bleed: grey frame, never the hardbox.
+
+   The internal layout is STRUCTURE-KEYED, not one generic approximation. Wikipedia
+   ships each box's real layout in inline `style`/TemplateStyles that the sanitizer
+   strips (the X4 anti-XSS guarantee). We reach faithful layout off the Parsoid classes
+   + element structure that survive sanitize (#74 mechanism: option a — no allowlist
+   change). The two box shapes share the same primitives:
+     - MODERN box (vcard/settlement/bio): semantic `infobox-*` classes on every cell.
+     - TAXOBOX (`infobox biota`): classless raw `<th colspan="2">` banners + `<td>`
+       data cells; its inline styling (centered banners, the taxon-colored band, the
+       ~200px width) is gone with sanitize, so we re-key off the structure. */
 .wiki-body table.wiki-infobox,
 .wiki-body table.infobox {
   float: right;
@@ -502,18 +557,105 @@ figure.wikifig .credit {
   border: 1px solid var(--color-wikirule);
   background: #f8f9fa;
   font-size: 0.82rem;
-}
-.wiki-body table.wiki-infobox th,
-.wiki-body table.infobox th {
-  background: #eaecf0;
   text-align: left;
 }
-.wiki-body table.wiki-infobox caption,
-.wiki-body table.infobox caption {
-  background: #eaecf0;
-  font-weight: 700;
+/* Taxobox is slimmer than a dense modern infobox — it matches Wikipedia's narrow
+   taxon column rather than the 320px modern width (D3). The exact inline `width:200px`
+   is stripped; ~22em/max-320px reads faithfully and still floats cleanly. */
+.wiki-body table.infobox.biota {
+  width: 22em;
+  max-width: 320px;
+}
+
+/* The shared BANNER primitive (A.3): the taxobox title/section `<th colspan>` rows AND
+   the modern `.infobox-above`/`.infobox-header` are the SAME visual element — a
+   centered, bold, grey-shaded, full-width band with a hairline below. This is the
+   precise fix for the old over-broad `th { text-align: left }` that mis-aligned the
+   banners (D1/D2). Taxobox key cells are plain `<td>` (never `<th>`), so `th[colspan]`
+   catches ONLY banners, never a data row (verified against live Parsoid markup of
+   Dendrobium kingianum / Lion / Marie Curie / San Francisco / Aagaard Glacier).
+   Band = Wikipedia header grey #eaecf0 (NEVER indigo); the exact per-taxon color is a
+   known structural-only limit (see §C / ARCHITECTURE). */
+.wiki-body table.infobox th[colspan],
+.wiki-body table.infobox .infobox-above,
+.wiki-body table.infobox .infobox-header {
   text-align: center;
-  padding: 4px;
+  font-weight: 700;
+  background: #eaecf0;
+  border-bottom: 1px solid var(--color-wikirule);
+  padding: 4px 6px;
+  color: var(--color-ink);
+}
+/* The box title (`.infobox-above`) is the largest band; section dividers (`.infobox-header`,
+   taxobox section `<th colspan>`) match the title's band minus the size. */
+.wiki-body table.infobox .infobox-above {
+  font-size: 1.05rem;
+}
+
+/* Modern sub-caption under the title (e.g. "Consolidated city-county") — a `<td colspan>`,
+   centered + muted, NOT a banner (D8). */
+.wiki-body table.infobox .infobox-subheader {
+  text-align: center;
+  font-size: 0.8rem;
+  color: var(--color-ink2);
+  padding: 2px 6px;
+}
+
+/* Image cell + caption (taxobox image `<td colspan>` + the modern `.infobox-image`):
+   centered, full box width; caption = small grey type (the figure-credit scale). */
+.wiki-body table.infobox .infobox-image,
+.wiki-body table.infobox .infobox-caption {
+  text-align: center;
+}
+.wiki-body table.infobox .infobox-caption {
+  font-size: 0.8rem;
+  color: var(--color-ink2);
+  padding: 2px 6px;
+}
+
+/* Taxobox lead image (A.1.2): the taxobox emits its lead image as a CLASSLESS
+   `<td colspan="2">` — no `.infobox-image` to key off, and its inline `text-align:center`
+   is stripped at sanitize, so it would inherit the box's `text-align: left` and render
+   left-aligned. Center the `<img>` itself (image-only — `margin-inline:auto` on the block
+   image), then center the caption that sits in the row immediately after an image row.
+   Keying centering on the `<img>` element (and on an image-bearing row, not on
+   `td[colspan]` broadly) means the LEFT-aligned synonyms `<ul>` — a sibling classless
+   `<td colspan>` under the "Synonyms" banner, never after an image row (verified against
+   live Parsoid markup of Dendrobium kingianum / Lion) — is untouched (A.1.5). */
+.wiki-body table.infobox.biota td[colspan] img {
+  display: block;
+  margin-inline: auto;
+}
+.wiki-body table.infobox.biota tr:has(> td[colspan] img) + tr > td[colspan] {
+  text-align: center;
+  font-size: 0.8rem;
+  color: var(--color-ink2);
+  padding: 2px 6px;
+}
+
+/* Key/value rows — LEFT-aligned two columns. Modern: `th.infobox-label` (the
+   `th scope="row"` key, no colspan) + `td.infobox-data`/`.infobox-full-data`. Taxobox:
+   the plain `<td>` pairs in `tr.taxonrow` (and the first Kingdom row, a bare `<tr>` of
+   two `<td>`). Keys not bold — Wikipedia doesn't bold the taxon ranks (D5). The
+   source `<i>` on clade ranks is kept by sanitize. Tight rhythm so the ladder reads
+   compactly. `.infobox-full-data` spans both columns. */
+.wiki-body table.infobox .infobox-label {
+  text-align: left;
+  font-weight: 600;
+  vertical-align: top;
+  padding: 2px 6px;
+}
+.wiki-body table.infobox .infobox-data,
+.wiki-body table.infobox .infobox-full-data {
+  text-align: left;
+  vertical-align: top;
+  padding: 2px 6px;
+}
+.wiki-body table.infobox.biota tr.taxonrow td,
+.wiki-body table.infobox.biota tr > td:not([colspan]) {
+  text-align: left;
+  vertical-align: top;
+  padding: 2px 4px;
 }
 .wiki-body table.wiki-infobox img,
 .wiki-body table.infobox img {
@@ -556,11 +698,14 @@ figure.wikifig .credit {
   padding-left: 0;
 }
 
-/* Responsive: < lg the infobox stacks full-width (a 42% float is unreadable in a
-   single narrow column) and data-table wraps go full-bleed (design §7). */
+/* Responsive: < lg the infobox (and the slim taxobox) stacks full-width — a narrow
+   float is unreadable in a single narrow column — and data-table wraps go full-bleed
+   (design §7 / #74 §B). The banner rows stay centered + grey-shaded at BOTH breakpoints
+   (the banner rules above are not breakpoint-scoped — the issue's "Done when"). */
 @media (max-width: 1023px) {
   .wiki-body table.wiki-infobox,
-  .wiki-body table.infobox {
+  .wiki-body table.infobox,
+  .wiki-body table.infobox.biota {
     float: none;
     width: 100%;
     max-width: 100%;

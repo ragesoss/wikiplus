@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -10,6 +9,10 @@ import {
   ArticleSkeleton,
 } from "@/components/topic/ArticleBody";
 import { AddModal } from "@/components/topic/AddModal";
+import {
+  ArticleNotFound,
+  type ArticleNotFoundKind,
+} from "@/components/topic/ArticleNotFound";
 import { CandidateCard, CandidateSetHeader } from "@/components/topic/CandidateBits";
 import { CitationLayer } from "@/components/topic/CitationLayer";
 import { ClipCard } from "@/components/topic/ClipCard";
@@ -100,7 +103,29 @@ export function TopicView() {
     canonicalTitle: string;
     displayTitle: string;
   } | null>(null);
-  const [resolveError, setResolveError] = useState(false);
+  // Resolve outcome (issue #19): the resolve step distinguishes a NONEXISTENT well-formed
+  // title (`"missing"` — there's no Wikipedia article by that title, the #19 case) from a
+  // /topic/ URL with nothing to resolve at all (`"no-identifier"`). Both render the full-page
+  // `ArticleNotFound`, differing only by `kind`; `null` = still resolving / resolved fine.
+  // This replaces the prior single `resolveError` boolean that conflated the two.
+  const [resolveOutcome, setResolveOutcome] = useState<
+    null | ArticleNotFoundKind
+  >(null);
+  // The header topic-search prefill+focus signal (issue #19, article-not-found §7). The
+  // not-found page's primary action sets this; `TopicHeaderSearch` forwards it to the
+  // underlying `TopicSearch`, which seeds + focuses on each `nonce` bump (so re-searching
+  // the SAME attempted title still re-focuses). Keeps the reader IN-APP, prefilled — no
+  // bounce to Wikipedia and no navigation to a guessed/dead slug.
+  const [searchPrefill, setSearchPrefill] = useState<{
+    value: string;
+    nonce: number;
+  } | null>(null);
+  const onNotFoundSearch = useCallback((prefill: string) => {
+    setSearchPrefill((prev) => ({
+      value: prefill,
+      nonce: (prev?.nonce ?? 0) + 1,
+    }));
+  }, []);
 
   const [topic, setTopic] = useState<Topic | null>(null);
   const [clips, setClips] = useState<Clip[]>([]);
@@ -185,7 +210,7 @@ export function TopicView() {
   // the canonical /topic/<Title>/ so the QID never lingers in the address bar.
   useEffect(() => {
     let alive = true;
-    setResolveError(false);
+    setResolveOutcome(null);
     (async () => {
       if (routeTitle) {
         // `routeTitle` is already the clean space-form title (titleFromPathname
@@ -222,7 +247,10 @@ export function TopicView() {
         // existing not-found / resolve-error path (#19). Never canonicalize to an
         // empty/typed slug (AC6).
         if (!canonicalTitle && !page.qid && !known) {
-          setResolveError(true);
+          // A well-formed title that Wikipedia could not resolve → the #19 "missing" case
+          // (there IS an attempted title to echo + offer search for). Never canonicalize
+          // to the typed slug (AC6).
+          setResolveOutcome("missing");
           return;
         }
         const finalCanonical = canonicalTitle ?? routeTitle;
@@ -262,11 +290,14 @@ export function TopicView() {
           router.replace(topicHref(title));
           setResolved({ qid: qidParam, canonicalTitle: title, displayTitle: title });
         } else {
-          setResolveError(true);
+          // A `?qid=` that resolved to no title → "missing" (no attempted title to echo;
+          // ArticleNotFound shows the generic missing body since `attemptedTitle` is omitted).
+          setResolveOutcome("missing");
         }
         return;
       }
-      if (alive) setResolveError(true);
+      // No path title AND no `?qid=` at all — nothing to resolve, nothing to echo.
+      if (alive) setResolveOutcome("no-identifier");
     })();
     return () => {
       alive = false;
@@ -1259,16 +1290,32 @@ export function TopicView() {
     [article]
   );
 
-  // No title in the path and no resolvable ?qid= ⇒ nothing to show. (While resolving,
-  // `resolved` is null but `resolveError` is false → fall through to the loading shell.)
-  if (resolveError || (!resolved && !routeTitle && !qidParam)) {
+  // Not-found (issue #19). A NONEXISTENT well-formed title / unresolvable identifier reaches
+  // the full-page `ArticleNotFound` — distinct from the in-pane transient `ArticleError`
+  // (which only fires AFTER a page resolved and its article fetch failed; see fetchState
+  // below). `no-identifier` also covers a /topic/ URL with no title and no ?qid= that hasn't
+  // even reached the resolve branch yet. The page IS this state, so we return BEFORE the
+  // split-pane shell — but WITH the shared header so the reader has the topic search (§2/§7).
+  // The kind drives copy; for "missing" the attempted title is the path title (space-form).
+  const notFoundKind: ArticleNotFoundKind | null =
+    resolveOutcome ?? (!resolved && !routeTitle && !qidParam ? "no-identifier" : null);
+  if (notFoundKind) {
     return (
-      <p className="p-6 text-sm text-ink/60">
-        Topic not found.{" "}
-        <Link href="/" className="text-action underline">
-          Back home
-        </Link>
-      </p>
+      <>
+        <SiteHeader
+          host="topic"
+          articleTitle={undefined}
+          search={<TopicHeaderSearch prefill={searchPrefill ?? undefined} />}
+          auth={<HeaderAuth />}
+        />
+        <ArticleNotFound
+          kind={notFoundKind}
+          attemptedTitle={
+            notFoundKind === "missing" ? (routeTitle ?? undefined) : undefined
+          }
+          onSearch={onNotFoundSearch}
+        />
+      </>
     );
   }
 
@@ -1290,43 +1337,54 @@ export function TopicView() {
         auth={<HeaderAuth />}
       />
 
-      <div className="mx-auto max-w-[1200px] px-5">
-        {/* Masthead: title + attribution + lead (left) + infobox + TOC (right). */}
-        <div className="grid grid-cols-1 gap-7 pt-6 lg:grid-cols-[1fr_360px]">
-          <div className="min-w-0" onClick={onArticleClick}>
-            {fetchState === "loading" && <ArticleSkeleton />}
-            {fetchState === "error" && (
-              <ArticleError
-                url={`https://en.wikipedia.org/wiki/${encodeURIComponent(canonicalTitle)}`}
-                onRetry={loadArticle}
-              />
-            )}
-            {fetchState === "ready" && article && (
-              <ArticleLeadBlock
-                title={article.displayTitle}
-                url={article.url}
-                qid={qid}
-                lead={article.lead}
-              />
+      {/* Illumination falloff (design header-topic-integration Decision 2 / §3.2 / AC8 / AC8b):
+          the FIRST thing in the Topic page content, flush beneath the sticky header. It is a
+          FULL-BLEED, decorative BACKGROUND paint (the `.topic-illum` white→grey gradient over a grey
+          base) — NOT a spacer, so it adds NO vertical height (the masthead's pt-6 + the article
+          title/lead do not shift down — AC10). The white beam lands on the white page top with no
+          seam; the brightness falls off to the body grey over 96px, then flat grey. It is ordinary
+          page content that scrolls away with the article, so by the collapse threshold the field is
+          out of view and flat grey sits under the slim bar (AC8b). aria-hidden via no text; it never
+          intercepts pointer events over the masthead (the gradient is a passive background). */}
+      <div className="topic-illum">
+        <div className="mx-auto max-w-[1200px] px-5">
+          {/* Masthead: title + attribution + lead (left) + infobox + TOC (right). */}
+          <div className="grid grid-cols-1 gap-7 pt-6 lg:grid-cols-[1fr_360px]">
+            <div className="min-w-0" onClick={onArticleClick}>
+              {fetchState === "loading" && <ArticleSkeleton />}
+              {fetchState === "error" && (
+                <ArticleError
+                  url={`https://en.wikipedia.org/wiki/${encodeURIComponent(canonicalTitle)}`}
+                  onRetry={loadArticle}
+                />
+              )}
+              {fetchState === "ready" && article && (
+                <ArticleLeadBlock
+                  title={article.displayTitle}
+                  url={article.url}
+                  qid={qid}
+                  lead={article.lead}
+                />
+              )}
+            </div>
+
+            {storeReady && (
+              <aside className="space-y-4 lg:sticky lg:top-20 lg:self-start">
+                <Infobox
+                  hasCurated={hasCurated}
+                  stats={stats}
+                  suggestionCount={liveCandidates.length}
+                  storeError={storeError}
+                  onBrowse={browseVideos}
+                />
+                <Toc
+                  entries={tocEntries}
+                  currentSlug={activeSlug}
+                  onGo={goTo}
+                />
+              </aside>
             )}
           </div>
-
-          {storeReady && (
-            <aside className="space-y-4 lg:sticky lg:top-20 lg:self-start">
-              <Infobox
-                hasCurated={hasCurated}
-                stats={stats}
-                suggestionCount={liveCandidates.length}
-                storeError={storeError}
-                onBrowse={browseVideos}
-              />
-              <Toc
-                entries={tocEntries}
-                currentSlug={activeSlug}
-                onGo={goTo}
-              />
-            </aside>
-          )}
         </div>
       </div>
 

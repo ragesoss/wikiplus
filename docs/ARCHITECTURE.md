@@ -363,11 +363,12 @@ behavior in [`TOPIC_PAGE_DESIGN.md`](TOPIC_PAGE_DESIGN.md) §"Three states".)
   follow the same launch-and-add pattern.
 - **Add by link (logged-in).** A logged-in user pastes a **YouTube or TikTok share link**; we
   resolve it via **oEmbed** and start a curation for a clip auto-suggestion missed. **As-built
-  (issue #64 / D-add-link):** a recognized **YouTube** link resolves real `title`/`author_name`/
+  (D-add-link):** a recognized **YouTube or TikTok** link resolves real `title`/`author_name`/
   `author_url`/`thumbnail_url` via a **Server Action** (`lib/embed/oembed.ts` `resolveOEmbedAction`,
-  the CORS decision below); **TikTok/Instagram/other** land on an honest, clearly-labeled
-  **unresolved placeholder** (no fabricated creator, no fake link — CURATION §5.5/C10) rather than
-  resolving this loop. See *Prototype phase* → **D-add-link**.
+  the CORS decision below), with an honest, clearly-labeled **unresolved placeholder** fallback when
+  a fetch fails (no fabricated creator, no fake link — CURATION §5.5/C10); **Instagram/other** land
+  on that placeholder directly (no token-free oEmbed for our use). See *Prototype phase* →
+  **D-add-link**.
 - **Promote / rule out.** A candidate becomes a curated clip when a curator writes its
   `context_note` and sets `stance` / `accuracy_flag` (flipping `vetted` to true); "not relevant"
   dismisses it. Browsing candidates is anonymous; **promoting or adding requires login**.
@@ -592,10 +593,11 @@ it lives.
   *Prototype decision (Topic Page v1, `lib/wiki/article.ts`):* the client fetches **`/api/rest_v1/page/html/{title}`** (Parsoid HTML, CORS-enabled), sanitizes with an **explicit DOMPurify allowlist** (prose, headings h1–h6, lists, links, `figure`/`figcaption`/`img`, basic tables; scripts/styles/iframes/forms dropped), then **strips editor chrome** post-parse (`.mw-editsection`, references/reflist, navboxes, `table.infobox`/`sidebar`, hatnotes). Tables are allowed through sanitize but **hidden in CSS** this round (`.wiki-body table { display:none }`) — full table/infobox/math rendering is deferred. Sections are derived by walking the flattened Parsoid `<section>` stream: lead = everything before the first `h2`; each `h2`/`h3`/`h4` opens a section with a **stable kebab slug** (`slugify`, deduped), used for `#sec-<slug>`/`#h-<slug>` anchors, the TOC, and clip→section matching. Navigational sections (References/See also/External links/Further reading/etc.) are dropped.
   *Article-fidelity decision (#24–#27, `lib/wiki/article.ts` + `app/globals.css`) — the v1 deferral is now **FLIPPED**.* The four deferred categories (citations & references, tables & the Wikipedia infobox, math, the navigational tail & hatnotes) are **restored**, verified against the live Parsoid markup of the seeded science topics (`Photosynthesis`, `Cellular_respiration`) plus an infobox/math reference (`Lion`, `Pythagorean_theorem`). Concretely:
   - **Allowlist widened (safely):** the v1 TAG set is unchanged (`sup`/`span`/`table…`/`img` already pass); **`<math>`, `<svg>`, `<iframe>`, `<object>`, `<embed>`, `<form>`, `<style>`, `<link>`, `<script>` stay DROPPED** (the math MathML/SVG payloads, embeds, and CSS-injection surfaces — so the XSS guarantee holds). The only **new ATTRs** are inert render/a11y/anchor-routing ones: `aria-hidden`, `role`, `aria-label`, `aria-labelledby`, `data-mw-group`, `data-mw-footnote-number`. **`style` is still NOT allowed** (inline-style injection stays blocked). The sanitizer therefore still strips `<script>`, inline event-handler attrs, and `javascript:`/`vbscript:`/`data:text/html` URIs (asserted by `test/article.test.ts` + `test/article-fidelity.test.ts`, X4).
-  - **Kept strip list (precise — `stripChrome`):** `.mw-editsection`, `.navbox` (live markup = `div.navbox`), `.metadata` (e.g. `div.side-box.metadata`), `.mbox-text`, `.ambox`, `table.sidebar`, `table.vertical-navbox`, `.thumbcaption .magnify`, `style`, `link`. **Removed from the strip list** (now RESTORED): `table.infobox`, `sup.reference`/`.reference`, `.mw-references-wrap`/`.reflist`, `.hatnote`.
+  - **Kept strip list (precise — `stripChrome`):** `.mw-editsection`, `.taxobox-edit-taxonomy` (the taxobox "Edit this classification" pencil — editor chrome with no function in wiki+, same family as `.mw-editsection`; removing it leaves the "Scientific classification" banner heading intact and never touches the taxobox lead image, so that image's `alt` is preserved), `.navbox` (live markup = `div.navbox`), `.metadata` (e.g. `div.side-box.metadata`), `.mbox-text`, `.ambox`, `table.sidebar`, `table.vertical-navbox`, `.thumbcaption .magnify`, `style`, `link`. **Removed from the strip list** (RESTORED): `table.infobox`, `sup.reference`/`.reference`, `.mw-references-wrap`/`.reflist`, `.hatnote`.
   - **Sections:** `DROP_SECTIONS` is now **empty** — References, Notes, See also, Further reading, External links come through the same section walk as ordinary `ArticleSectionBody` entries (slug + heading + TOC row + `.sec` wrapper + scroll-sync). A footnote-style "Notes" block is a `note`-group reference list and stays its own section (its backlinks ARE its citation system, D7) — no duplication.
   - **Citations:** `prepCitations` normalizes the marker↔reference `./Title#cite_*` anchors to pure in-page `#cite_*` hashes (so `rewriteLinks` exempts them and they round-trip), tags markers/back-refs for the React layer; the `components/topic/CitationLayer.tsx` non-modal **Radix Popover** (`@radix-ui/react-popover`, added this round) shows the citation text on marker activation without touching scroll-sync.
   - **Math render mechanism (C4 DECISION):** render Parsoid's **visible SVG fallback `<img>`** (`mwe-math-fallback-image-{inline,display}`), **not** MathML and **not** KaTeX. The `<math>` MathML payload is an XSS surface this sanitizer deliberately strips; the SVG image is what Wikipedia shows, scales crisply, and carries the TeX as `alt`. `cleanMath` drops the now-empty hidden MathML a11y span and **un-hides the image** (removes `aria-hidden`) so its `alt` is screen-reader-announced (C3/§5.3) — the equation is non-visually perceivable without re-allowing `<math>`/`<svg>`.
+  - **Infobox + taxobox layout mechanism (#74 DECISION — option (a), structure-keyed CSS, no allowlist change):** the Wikipedia infobox and taxobox internal layout is reached entirely through **WP-class-/structure-keyed CSS in `app/globals.css`** keyed off the Parsoid classes and element structure that survive sanitize — **`style` stays disallowed** (X4 holds unchanged). Wikipedia ships each box's real layout (centered banners, the taxon-colored band, the slim `width:200px`) in inline `style`/TemplateStyles that the sanitizer strips; the structure that survives is enough to reach faithful layout. Two box shapes, one set of primitives: the **modern infobox** (`vcard`/settlement/biography) carries semantic `infobox-*` classes on every cell; the **taxobox** (`table.infobox.biota`) is classless raw `<th colspan="2">` banner rows + plain `<td>` data cells (its key cells are `<td>`, never `<th>` — verified against live Parsoid markup of Dendrobium kingianum / Lion / Marie Curie / San Francisco / Aagaard Glacier). The **shared banner** (centered, bold, grey `#eaecf0`, hairline below) targets the taxobox title/section rows via `table.infobox th[colspan]` **and** the modern `.infobox-above`/`.infobox-header`; key/value rows are left-aligned via `.infobox-label`/`.infobox-data`/`.infobox-full-data` (modern) and the taxobox `tr.taxonrow td` / bare `<td>` ladder cells; the taxobox floats slimmer (`width:22em`/`max 320px`) than the 320px modern box. The box keeps the faithful grey frame (`1px solid var(--color-wikirule)` on `#f8f9fa`) — never the wiki+ panel's indigo hardbox. **Taxon-color known limit:** the per-taxon banner band color (green for plants, etc.) and any per-cell infobox `background` are inline `style` Wikipedia ships per taxon; the sanitizer strips them (X4) and this is a **deliberate, accepted trade-off** — banners render as neutral Wikipedia grey, so faithful *structure* (a partitioned, centered, banded box) is the bar, not pixel-exact taxon colors. The structure carries the section signal (position + centering + bold + hairline + heading text), so the loss is AA-compliant (never color alone). Exact taxon colors would require a tightly-restricted layout-only inline-`style` allowlist (option (b)) that must independently re-prove X4 — out of scope.
 - **Internal-link resolution** edge cases: red links, disambiguation pages, non-article namespaces.
   *Prototype decision (Topic Page v1; owner directive — canonical title URLs):* article-namespace
   wikilinks are rewritten to the **canonical title route `/topic/<Title>/`** (encoded title, trailing
@@ -1155,34 +1157,41 @@ a host is provisioned (issue A.2).
   un-remove UI, an appeals workflow, a moderation dashboard / removal-log UI, auto-classification of
   abuse, an admin-grant UI, hard-deleting others' clips. **No** ISR/Redis (still deferred). **Closing
   D5c closes Milestone D.**
-- **Real video-metadata resolution on add-by-link (issue #64 / D-add-link).** The add-by-link flow
-  no longer labels a pasted clip with placeholder mock metadata ("Pasted clip (mock preview)" /
-  `creator.handle: "pasted"` / "Pasted {platform} clip"). A recognized **YouTube** link now resolves
-  **real** `title`→`caption`, `author_name`→`creator.name`, `author_url`→`creator.url`, a derived
-  `creator.handle` (the SAME derivation as the candidate pipeline — `lib/candidates/youtube.ts:111`,
-  `@`+name lowercased/spaces-removed; name-only when none derives — CURATION §5.5/C10), and
-  `thumbnail_url`→`thumbnailUrl` (a referenced URL, never hosted — embed-never-host preserved). The
-  preview updates **before** submit; the corrected modal shows "Resolved via oEmbed" **only** on a
-  real resolve (the prior mock claimed it over mock text). **CORS decision (landed):** the oEmbed
-  fetch runs in a **Server Action** (`lib/embed/oembed.ts` `resolveOEmbedAction`), **not** a client
-  fetch — `https://www.youtube.com/oembed` sends no `Access-Control-Allow-Origin`, so a browser fetch
-  would CORS-fail and push every add into the failure state; the server action sidesteps CORS and is
-  the natural home for the descriptive **`User-Agent`** (etiquette/AC8 — browsers forbid setting it).
-  It is **stateless**: **no schema change, no new secret** (YouTube oEmbed needs no key — independent
-  of the YouTube *Data API* search key), **no read-path cache** (`cache: "no-store"`), and it is
-  **not** auth-gated/rate-limited (a read-only metadata lookup; the *write* is still gated at
-  `addClipAction`). **D-TikTok decision (landed): the placeholder arm.** Only YouTube resolves this
-  loop; a recognized **TikTok / Instagram / other** link returns `{ ok: false, reason: "unsupported" }`
-  (no fetch) and lands on an **honest unresolved placeholder** — "Unresolved {Platform} clip" caption,
-  a NON-linked "Creator not resolved" credit (no fabricated name, no fake/dead `creator.url`, no
-  `"pasted"` handle, no false "resolved via oEmbed" — C10), plus an MVP-limitation line — consistent
-  with TikTok being already partial (auto-suggestion deferred). A YouTube **fetch failure** shows a
-  labeled, non-red "Couldn't fetch video details" state with **Try again / Add anyway / Cancel** (Add
-  anyway → the same honest placeholder), so the flow is never a dead end. The card's creator credit
-  (`ClipCard`) now **degrades to a non-linked span when `creator.url` is absent** (the read-path
+- **Real video-metadata resolution on add-by-link (D-add-link).** The add-by-link flow labels a
+  pasted clip with **real** resolved metadata, never placeholder mock strings. A recognized
+  **YouTube or TikTok** link resolves `title`→`caption`, `author_name`→`creator.name`,
+  `author_url`→`creator.url`, a `creator.handle`, and `thumbnail_url`→`thumbnailUrl` (a referenced
+  URL, never hosted — embed-never-host preserved). **Handle precedence (D1):** the canonical
+  `@handle` carried in the share URL when present (TikTok URLs embed it —
+  `tiktok.com/@junglygarden/video/…`; captured onto `ParsedVideo.creatorHandle`, an in-memory parse
+  field), else the author-name derivation (the SAME as the candidate pipeline —
+  `lib/candidates/youtube.ts:111`, `@`+name lowercased/spaces-removed; YouTube uses this floor since
+  its watch URLs carry no clean handle), else name-only — never `"pasted"` (CURATION §5.5/C10). The
+  preview updates **before** submit; the modal shows "Resolved via oEmbed" **only** on a real resolve.
+  **CORS decision (landed):** the oEmbed fetch runs in a **Server Action** (`lib/embed/oembed.ts`
+  `resolveOEmbedAction`), **not** a client fetch — neither `https://www.youtube.com/oembed` nor
+  `https://www.tiktok.com/oembed` sends `Access-Control-Allow-Origin`, so a browser fetch would
+  CORS-fail and push every add into the failure state; the server action sidesteps CORS and is the
+  natural home for the descriptive **`User-Agent`** (etiquette/AC8 — browsers forbid setting it). It
+  is **stateless**: **no schema change, no new secret** (both oEmbed endpoints are token-free —
+  independent of the YouTube *Data API* search key), **no read-path cache** (`cache: "no-store"`), a
+  bounded request timeout (`AbortSignal.timeout`, ~5s — a hang is a failure, not a stuck modal), and
+  it is **not** auth-gated/rate-limited (a read-only metadata lookup; the *write* is still gated at
+  `addClipAction`). The **resolve floor (D3)** is a non-empty `title` AND `author_name`; `author_url`
+  and `thumbnail_url` are optional and degrade gracefully (a missing link → a non-linked credit, a
+  missing thumb → the gradient fallback — both still a successful resolve). A **fetch failure**
+  (non-200 / network error / malformed JSON / floor-miss / timeout, D2) returns
+  `{ ok: false, reason: "failed" }` and shows a labeled, non-red "Couldn't fetch video details" state
+  with **Try again / Add anyway / Cancel** (Add anyway → an honest unresolved placeholder:
+  "Unresolved {Platform} clip" caption, a NON-linked "Creator not resolved" credit — no fabricated
+  name, no fake/dead `creator.url`, no `"pasted"` handle, no false "resolved via oEmbed" — C10), so
+  the flow is never a dead end. **Instagram / other** recognized links return
+  `{ ok: false, reason: "unsupported" }` (no fetch — no token-free oEmbed for our use) and land on
+  that honest placeholder directly, plus an MVP-limitation line. The card's creator credit
+  (`ClipCard`) **degrades to a non-linked span when `creator.url` is absent** (the read-path
   realization of C10 — never a dead/empty outbound link). The persisted `Clip`/`ClipMediaSource` shape
-  is unchanged (AC10); the only changes are the **values** in `caption`/`creator`/`thumbnailUrl` and
-  the modal **states**. The pre-persistence parse validation (unrecognized link → the existing red
+  is unchanged (no migration); the only changes are the **values** in `caption`/`creator`/`thumbnailUrl`
+  and the modal **states**. The pre-persistence parse validation (unrecognized link → the existing red
   "Unrecognized link" error, never reaches persistence) is unchanged.
 - **Server Actions (enabled #37; now the data-access boundary — issue #45).** The Node SSR runtime
   supports Server Actions; as of #45 they are the **data-access boundary** for shared Postgres

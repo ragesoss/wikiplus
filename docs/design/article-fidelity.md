@@ -288,6 +288,20 @@ could mean either.
 - **Position in the walk:** it floats at the **top of the lead** (it precedes the lead prose in
   Parsoid; keep it there so prose wraps around it, exactly as on Wikipedia).
 
+> **#74 refinement (taxobox/infobox fidelity).** This round's single generic infobox CSS rule
+> (`th { text-align: left }`, fixed `width: 320px`) mangled the classless **taxobox** (`infobox biota`),
+> whose banners are raw `<th colspan="2">` rows styled only by stripped inline `style`. Issue #74
+> re-targets `globals.css` to **structure-keyed** rules (mechanism option (a) — no DOMPurify allowlist
+> change; `style` stays disallowed, X4 unchanged), per the build-time contract
+> `docs/design/article-rendering-fidelity-survey.md` (Part 2): a **shared banner** primitive
+> (`table.infobox th[colspan]` **and** modern `.infobox-above`/`.infobox-header`) renders centered,
+> bold, grey `#eaecf0`, hairline-ruled at **both** breakpoints; key/value rows (`.infobox-label`/
+> `.infobox-data`, taxobox `tr.taxonrow td`) are left-aligned; the taxobox floats slimmer
+> (`width:22em`/`max 320px`); and `stripChrome` drops the non-functional `.taxobox-edit-taxonomy`
+> pencil (D6). The per-taxon band **color** is a deliberate structural-only limit (banners are neutral
+> grey; structure, not color, carries the section signal). See `docs/ARCHITECTURE.md` "Article
+> rendering" → the infobox/taxobox layout decision.
+
 **No-collision with the wiki+ panel (B4) — the key reassurance.** They **cannot** collide because
 they are in **different grid columns**: the Wikipedia infobox floats *inside* the left article
 column (`1fr`, `min-w-0`); the wiki+ panel lives in the right rail (`360px`). The grid gap (`gap-7`)

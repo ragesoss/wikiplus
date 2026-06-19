@@ -348,7 +348,7 @@ credit when oEmbed gives `author_name` + `author_url` but no guaranteed clean `@
 Development do not have to guess at attribution adequacy.
 
 - **Minimum acceptable creator credit is name + a working link.** §5.2 requires every curated clip
-  to credit its creator. For an oEmbed-resolved YouTube clip the **floor** is the real
+  to credit its creator. For an oEmbed-resolved clip (YouTube or TikTok) the **floor** is the real
   **`author_name`** (→ `creator.name`) shown as the creator, plus a **working link to the creator on
   their platform** — the real **`author_url`** (→ `creator.url`). Name-plus-link is the
   load-bearing part of §5.2 ("the credit links out to the creator on its platform"): it correctly
