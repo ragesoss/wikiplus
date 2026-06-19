@@ -204,7 +204,13 @@ login still works on the next sign-in. Rotating the consumer key/secret requires
 consumer at meta.wikimedia.org.
 
 - **Sessions are stateless JWT** — no Redis, no session table; `AUTH_SECRET` is the only new
-  server-secret surface. The OAuth scope is identify-only (no edit/act-on-behalf grant).
+  server-secret surface. The OAuth scope is identify-only (no edit/act-on-behalf grant). The
+  session `maxAge` is **7 days** (`lib/auth/config.ts`).
+- **Moderator role changes** (grant/revoke via `WIKIPLUS_MODERATORS` or the DB `is_moderator`
+  flag) take effect in a user's **UI affordances** only after they re-login or their JWT expires
+  (`maxAge` 7 days) — the role is stamped on the JWT at sign-in, not re-resolved per read. The
+  **write boundary enforces the role server-side immediately regardless**, so a stale claim only
+  affects which affordances show, never authorization.
 - **`AUTH_URL`** is pinned to `https://wikiplus.wikiedu.org` in the compose file (public, not a
   secret) so the OAuth `redirect_uri` matches the registered consumer callback behind Caddy/Cloudflare.
 - To inspect the box `.env` keys (read-only, values redacted), use `scripts/ops/box-secrets-check.sh`
