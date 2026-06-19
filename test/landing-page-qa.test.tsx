@@ -141,8 +141,8 @@ describe("AC10 — the geometry is parameterized, not baked constants", () => {
   it("a geometry override changes the rendered beam clip height (burnY is a real prop)", () => {
     const def = render(<HeaderProjector variant="projector" />);
     const defBeam = def.container.querySelector("[data-projector-beam]");
-    // The clip height = burnY − top0; top0 = apexY (cyMid=64; the cone apex sits at the aperture,
-    // behind the block), so with the default burnY=150 → 86.
+    // The clip height = burnY − top0; top0 = apexY (cyMid=44; the cone apex sits at the aperture,
+    // behind the block), so with the default burnY=130 → 86.
     const defClipH = defBeam?.getAttribute("data-beam-clip-h");
     def.unmount();
 
@@ -152,12 +152,13 @@ describe("AC10 — the geometry is parameterized, not baked constants", () => {
     const ovBeam = overridden.container.querySelector("[data-projector-beam]");
     const ovClipH = ovBeam?.getAttribute("data-beam-clip-h");
 
-    // The default burnY (150 — matches the mockup's pageY so the search sits just below the
-    // boundary, inside the projected light) and the override (240) produce DIFFERENT clip heights
-    // — proving the value flows from the prop, not a hardcoded inline constant. The default MUST
-    // stay in sync with the `--projector-burn-y` token in globals.css (AC10).
-    expect(defClipH).toBe("86.0"); // 150 − 64 (burnY − apexY)
-    expect(ovClipH).toBe("176.0"); // 240 − 64
+    // The default burnY (130 — trimmed from 150 alongside cyMid 64→44 to cut the top empty space;
+    // the search still sits just below the boundary, inside the projected light) and the override
+    // (240) produce DIFFERENT clip heights — proving the value flows from the prop, not a hardcoded
+    // inline constant. The default MUST stay in sync with the `--projector-burn-y` token in
+    // globals.css (AC10).
+    expect(defClipH).toBe("86.0"); // 130 − 44 (burnY − apexY)
+    expect(ovClipH).toBe("196.0"); // 240 − 44
     expect(ovClipH).not.toEqual(defClipH);
   });
 

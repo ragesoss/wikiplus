@@ -457,7 +457,7 @@ export function HeaderProjector({
   // Resolve geometry: explicit prop > pinned token default. For the SSR-rendered SVG paths we
   // need concrete numbers, so the JS defaults MIRROR the pinned `--projector-*` tokens in
   // globals.css — kept in sync intentionally (AC10). burnY default = 150 (Iteration 2, design §4.2).
-  const burnY = geometry?.burnY ?? 150;
+  const burnY = geometry?.burnY ?? 130;
   const beamSlope = geometry?.beamSlope ?? 0.6;
   const crossUp = geometry?.beamCrossUp ?? 28;
   const edgeInset = geometry?.beamEdgeInset ?? 17;
@@ -469,7 +469,11 @@ export function HeaderProjector({
   const projectionXFrac = geometry?.projectionX; // undefined on the landing page (layout-driven)
   void seamRatio; // API-shape only this round (AC10) — no dynamic re-seam; documented, unused.
 
-  const cyMid = 64; // wordmark row center from header top (design §4.2; matches the mockup)
+  // Wordmark row center from the header top (design §4.2). Lowered 64 → 44 with burnY 150 → 130
+  // (both by the SAME 20px) to cut the empty space above the wordmark + auth card without touching
+  // the beam: the cone length (burnY − cyMid = 86px), crossbar offset, and angle are all unchanged
+  // — the whole composition just shifts up 20px and the band is 20px shorter (owner, 2026-06-18).
+  const cyMid = 44;
 
   // ── Live geometry measurement (design §4.3 / §4.7, Iteration-3). The beam is drawn TRUE-SCALE
   // at the real canvas width `cw`, with the apex on the LIVE aperture x — so we measure both on

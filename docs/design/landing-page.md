@@ -308,10 +308,18 @@ width is the live viewport width.** The numbers below are revised for Iteration 
 composition** so the beam reads as a projection, not a divider (finding 2): the lockup sits lower (a
 short cone), `burnY` is the band that puts the search *immediately inside* the brackets.
 
+> **Iteration 4 (owner, 2026-06-18) — top-space trim.** The live band was later tightened to cut the
+> empty space above the wordmark + auth card: `cyMid` `64 → 44` and `burnY` `150 → 130` (**both
+> −20px**). This shifts the whole composition up 20px and shortens the band by 20px; the **beam
+> geometry is unchanged** — the cone length (`burnY − cyMid = 86px`), crossbar offset (`crossUp`), and
+> slope are all held constant, so only the top padding shrinks. The strip-canvas numbers
+> (`pageY=150`, `cyMid=64`) still describe the *mockup*; the **landing-target** column below carries
+> the trimmed live values.
+
 | Strip param | Strip value | Landing Tier-A target | Rationale |
 |---|---|---|---|
-| header field → content boundary `pageY` | `150px` of `250` | **`burnY` ≈ `150px`** from the top of the header band (default token `--projector-burn-y`) | Matches the mockup's `pageY=150` directly. Tall enough to flare; short enough that the gold edge isn't a far-off line. The search sits just below it (§4.4). |
-| wordmark row center `cyMid` | `64px` | **`64px`** from header top (matches the mockup) | Lockup sits with its block bottom at ≈`92px`; leaves a **short** cone (≈`86px → crossY`) so the cone reads as a recessed-lamp beam, not a long empty corridor. |
+| header field → content boundary `pageY` | `150px` of `250` | **`burnY` = `130px`** from the top of the header band (default token `--projector-burn-y`; trimmed from `150`, Iteration 4) | Tall enough to flare; short enough that the gold edge isn't a far-off line *and* that there's little dead space above the wordmark. The search sits just below it (§4.4). |
+| wordmark row center `cyMid` | `64px` | **`44px`** from header top (trimmed from `64`, Iteration 4) | Lockup sits with its block bottom at ≈`72px`; leaves the same **short** cone (length `burnY − cyMid ≈ 86px → crossY`) so the cone still reads as a recessed-lamp beam — just with less padding above it. |
 | block height `bh` | `56px` | **`56px`** (unchanged) | The lockup is identity-fixed; don't scale the block with the header. "Wiki" stays `42px` Georgia 600 / "plus" stays `round(bh·0.46)≈26px`. |
 | beam slope `tan` | `0.6` | **`0.6`** (default token `--projector-beam-tan`) | The variant-01 angle; **FIXED, drawn true-scale, never flattened by width** (Iteration-3 decision 5). At narrow widths the stem + angle are unchanged; only the two arm lengths shrink/grow (asymmetrically) — the true-scale beam mechanism (§4.7). |
 | crossbar inset `eM` | `17px` | **`17px`** (default token) | The crossbar ends sit `17px` from each page edge, then the brackets continue off-page — the off-page gold border (§4.5). |
@@ -319,9 +327,10 @@ short cone), `burnY` is the band that puts the search *immediately inside* the b
 | full page width | `cw` | **live viewport width** (the header is full-bleed) | The gold border must run off *both real page edges*; a boxed header would make it read as an underline. **`cw` is read at TRUE 1:1 scale — the beam is NOT a fixed `viewBox` stretched to fit (Iteration-3, §4.7).** The crossbar arms reach the real edges by being drawn the real arm-length, not by scaling the shape. |
 
 **Flare distance + the tight composition (the fix for finding 2).** Beam top `top0 = blockBottom +
-6px`; with `cyMid=64` and `bh=56`, `blockBottom = 92px`, so `top0 = 98px`. The crossbar sits `crossUp`
-above `burnY` (default `crossUp=28px` → `crossY = 122px`); the brackets then widen to off-page by
-`burnY=150px`. **Net: ~52px of vertical flare** between the block bottom and the burn boundary — a
+6px`; with the Iteration-4 `cyMid=44` and `bh=56`, `blockBottom = 72px`, so `top0 = 78px`. The
+crossbar sits `crossUp` above `burnY` (default `crossUp=28px` → `crossY = 102px`); the brackets then
+widen to off-page by `burnY=130px`. **Net: ~52px of vertical flare** between the block bottom and the
+burn boundary — unchanged from the pre-trim composition (every y shifted up 20px uniformly) — a
 *short* cone that reads as a recessed-lamp beam (this matches the mockup, where the cone is short and
 the crossbar sits only `28px` above the boundary). **The build's mistake was a ~82px corridor with the
 search far below `burnY=168`** — that empty band read as a divider. The corrected composition: short
@@ -528,7 +537,7 @@ length.** The beam is three conceptually separate things composed at the apex:
    return to the beam angle and **expand down off-page past `burnY`** (the `dn` downward expansion),
    enclosing the content region. **Arm length is the ONLY horizontal parameter that varies with layout
    or width** — everything else (stem width, angle, vertical proportions) is fixed.
-3. **The vertical proportions are FIXED:** `burnY = 150px`, `crossUp = 28px`, the cone height, the `dn`
+3. **The vertical proportions are FIXED:** `burnY = 130px` (Iteration 4; was 150), `crossUp = 28px`, the cone height, the `dn`
    bracket drop. They do not change with width. So the beam is never a stubby horizontal sliver and never
    a flattened line — it is always a legible projected "+": **narrow true-scale stem under the lamp →
    crossbar → arms to both real edges → brackets off-page enclosing the search.**
@@ -647,7 +656,7 @@ tokens so the call site doesn't carry magic constants):
 | `beamSlope` | `--projector-beam-tan` | `0.6` | Beam **flare angle** (the angled stem edges) — **FIXED at every width** (Iteration-3 decision 5; "maybe" varies later). Steeper/shallower flare if ever changed. Never distorted by width. |
 | `beamCrossUp` | `--projector-cross-up` | `28px` | How far above `burnY` the crossbar sits (flare timing). Fixed. |
 | `beamEdgeInset` | `--projector-edge-inset` | `17px` | Each crossbar arm's end inset from **its own** real page edge before the bracket goes off-page. Fixed. |
-| `burnY` | `--projector-burn-y` | **`150px`** (was 168 — Iteration-2 finding 2, tightened to match the mockup's `pageY`) | The content boundary — where the beam burns to white. On the landing page the search sits just below it (§4.2/§4.4). Fixed. |
+| `burnY` | `--projector-burn-y` | **`130px`** (was 168 → 150 in Iteration-2 to match the mockup's `pageY`; → 130 in Iteration 4 with `cyMid` 64→44 to trim the top space — beam unchanged) | The content boundary — where the beam burns to white. On the landing page the search sits just below it (§4.2/§4.4). Fixed. |
 | `projectionX` | `--projector-projection-x` | **the live aperture x** (centered on desktop / left-anchored at narrow widths — §4.3) | The beam apex x = **the aperture x** (decision 1/2). The apex is locked to the aperture, not to viewport center; this is the value the layout drives. The two arm lengths are derived from it (`apexX − edgeInset` left, `cw − edgeInset − apexX` right). |
 | `seamRatio` | `--projector-seam-ratio` | `0.5` (centered) | **The wiki/plus seam position driven by a column-ratio** — 0.5 = equal; >0.5 = Plus column wider, seam shifts left, etc. Reserved hook the future two-column header drives from its real column widths. (On the landing page the lockup's *anchor* — centered/left — is what places the aperture, not `seamRatio`.) |
 | `fullBleed` | `--projector-full-bleed` | `true` | Whether the gold border runs off real page edges. On the landing page this is **always `true` at every width** (the header is full-bleed; both arms reach their real edges — §4.7), so it never drops the off-page edge. (The Topic page may set `false` ⇒ Tier B per VISUAL_IDENTITY §6.3.) |

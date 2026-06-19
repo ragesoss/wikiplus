@@ -70,14 +70,14 @@ export default function HomePage() {
         <HeaderProjector variant="projector" />
         {/* The single AuthControl, right-anchored on the SAME row as the lockup at every width.
             No "Contribute" link (finding 4). The slot sits in the cool fluorescent band above the
-            burn boundary, vertically centered on the wordmark row (~cyMid=64px) so it reads as a
+            burn boundary, vertically centered on the wordmark row (~cyMid=44px) so it reads as a
             normal top-bar (lockup left, sign-in right) at narrow widths and as a top-right control
             at desktop. It is absolutely positioned so it never pushes the lockup off its anchor and
             NEVER folds to its own row beneath the lockup (§7.5). On the smallest phones the lockup
             scales down (`.projector-lockup-fit`) so the two coexist on one row without overlap. */}
         <div
           className="auth-slot absolute right-0 top-0 z-10 flex items-center justify-end px-3 sm:px-4 max-[479px]:max-w-[46%] max-[359px]:max-w-[120px]"
-          style={{ height: 128 /* 2×cyMid → vertically centers the auth on the wordmark row (y≈64) */ }}
+          style={{ height: 88 /* 2×cyMid → vertically centers the auth on the wordmark row (y≈44) */ }}
         >
           {/* On the smallest phones the wide "Log in with Wikipedia" button + the LEFT lockup are
               tight on one row; capping the slot lets the button label WRAP WITHIN the button (it
