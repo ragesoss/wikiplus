@@ -103,9 +103,10 @@ describe("AC#1 — one --topic-burn-y drives every burn-boundary edge (no seam b
     const spans = Array.from(
       container.querySelectorAll<HTMLElement>(".projector-band > span")
     );
-    // The cool field is the burn-to-white field on the scroll-aware host (`.projector-coolfield-burn`
-    // — it ends in content-white at its bottom edge so the full-width band bottom matches the white
-    // page top, killing the temperature hairline; #96 fix round).
+    // The cool field is the burn-to-page-surface field on the scroll-aware host
+    // (`.projector-coolfield-burn` — its bottom edge resolves to the page colour it meets, tracking
+    // `--p`, so the full-width band bottom matches the page with no step, killing the temperature
+    // hairline; #96 fix round).
     const coolField = spans.find((s) =>
       s.className.includes("projector-coolfield-burn")
     );
@@ -148,15 +149,17 @@ describe("AC#1 — one --topic-burn-y drives every burn-boundary edge (no seam b
   });
 });
 
-// ── #96 fix round (owner-reported) — kill the front-half temperature hairline. The cool field
-// (`#fafbfe`) butting the white page top (`#ffffff`) rendered a faint full-width light line at the
-// band bottom whenever the 2px ink border was at opacity 0 (the front half, p < 0.5). The fix burns
-// the cool field to content-white at its bottom edge so the full-width band bottom IS `#ffffff` and
-// meets the white page top with no step. We assert the WIRING: the Topic cool field carries the
-// burn class (so its bottom edge resolves to content-white), and Home does NOT (AC12 — Home keeps
-// the flat cool fill and is untouched). Pixel-absence of the line is the screenshot proof. ─────────
+// ── #96 fix round (owner-reported) — kill the front-half temperature hairline at the band bottom.
+// The cool field's bottom edge meeting a DIFFERENTLY-coloured page top rendered a faint full-width
+// line whenever the 2px ink border was at opacity 0 (the front half, p < 0.5). The page surface at
+// the seam drifts content-white → body-grey as `p` rises (the seam sits deeper into the illum
+// falloff), so a fixed-`#ffffff` band bottom over-shot once the page greyed and read as a bright
+// hairline. The fix burns the cool field to a `--p`-tracked colour so the band bottom matches the
+// page it meets at every front-half `p` (still content-white at p=0). We assert the WIRING: the
+// Topic cool field carries the burn class, and Home does NOT (AC12 — Home keeps the flat cool fill
+// and is untouched). Pixel-absence of the line is the screenshot proof. ────────────────────────────
 describe("#96 fix round — no header/page temperature hairline in the front half", () => {
-  it("the Topic cool field burns to content-white at its bottom edge (`.projector-coolfield-burn`)", () => {
+  it("the Topic cool field burns to the page surface at its bottom edge (`.projector-coolfield-burn`)", () => {
     const { container } = renderTopic();
     const spans = Array.from(
       container.querySelectorAll<HTMLElement>(".projector-band > span")
@@ -166,7 +169,7 @@ describe("#96 fix round — no header/page temperature hairline in the front hal
     );
     expect(
       coolField,
-      "Topic cool field seals to content-white at the band bottom"
+      "Topic cool field seals to the page surface at the band bottom"
     ).toBeTruthy();
     // It still spans to the live burn boundary (the seam invariant) and is not a flat cool fill.
     expect(coolField!.style.height).toBe("var(--topic-burn-y)");
