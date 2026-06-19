@@ -7,6 +7,7 @@ import type { Topic } from "@/lib/data/types";
 import { topicHref } from "@/lib/wiki/topicRoute";
 import { TopicSearch } from "@/components/search/TopicSearch";
 import { AuthControl } from "@/components/auth/AuthControl";
+import { SiteFooter } from "@/components/chrome/SiteFooter";
 import { HeaderProjector } from "@/components/wordmark/HeaderProjector";
 
 // The landing page (#15) — the product's FRONT DOOR. A single centered column (design §2):
@@ -143,6 +144,10 @@ export default function HomePage() {
           )}
         </div>
       </section>
+
+      {/* The slim shared footer (issue #66, design §4.3) — the persistent, signed-out-reachable
+          home for the "About your data" notice link (AC2). Aligned to the explore-section width. */}
+      <SiteFooter containerClassName="mx-auto max-w-5xl px-4" />
     </main>
   );
 }

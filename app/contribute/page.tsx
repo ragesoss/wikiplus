@@ -3,8 +3,9 @@
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { AuthControl } from "@/components/auth/AuthControl";
 import { LoginPromptPanel } from "@/components/auth/LoginPrompt";
+import { SiteFooter } from "@/components/chrome/SiteFooter";
+import { SiteHeader } from "@/components/chrome/SiteHeader";
 import { store } from "@/lib/data";
 import { AUTH_COPY } from "@/lib/auth/microcopy";
 import { isAuthRequired } from "@/lib/auth/auth-error";
@@ -24,17 +25,11 @@ const STANCES: Stance[] = STANCE_ORDER;
 const ACCURACY: AccuracyFlag[] = ACCURACY_ORDER;
 
 // A minimal home-style header row so the auth affordance + the login gate have a home on
-// /contribute (design §1b — the page had no app header before C).
+// /contribute (design §1b — the page had no app header before C). As of #66 this is the shared
+// SiteHeader, aligned to the page's max-w-xl reading column.
 function ContributeHeader() {
   return (
-    <header className="border-b border-ink/10">
-      <div className="mx-auto flex max-w-xl flex-wrap items-center justify-between gap-3 px-4 py-3">
-        <Link href="/" className="text-lg font-semibold text-brand">
-          wiki<span className="text-sprout">+</span>
-        </Link>
-        <AuthControl variant="home" />
-      </div>
-    </header>
+    <SiteHeader containerClassName="mx-auto flex max-w-xl flex-wrap items-center justify-between gap-3 px-4 py-3" />
   );
 }
 
@@ -177,6 +172,7 @@ export default function ContributePage() {
             View the topic →
           </Link>
         </div>
+        <SiteFooter containerClassName="mx-auto max-w-xl px-4" />
       </>
     );
   }
@@ -209,6 +205,7 @@ export default function ContributePage() {
             />
           )}
         </main>
+        <SiteFooter containerClassName="mx-auto max-w-xl px-4" />
       </>
     );
   }
@@ -303,6 +300,7 @@ export default function ContributePage() {
         {submitting ? "Adding…" : "Add clip"}
       </button>
       </form>
+      <SiteFooter containerClassName="mx-auto max-w-xl px-4" />
     </>
   );
 }

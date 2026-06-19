@@ -4,6 +4,7 @@ import { signIn } from "next-auth/react";
 import Link from "next/link";
 import { useId, useState } from "react";
 import { ModalShell } from "@/components/topic/ModalShell";
+import { AUTH_COPY } from "@/lib/auth/microcopy";
 import { currentCallbackUrl } from "@/lib/auth/callback-url";
 import { WikiGlyph } from "./WikiGlyph";
 
@@ -50,6 +51,32 @@ function LoginButton({
   );
 }
 
+/**
+ * The gate data disclosure (issue #66, design §3.3–§3.4). Rendered ONCE here, below the gate's own
+ * `{body}` and above the error slot, so EVERY gate (contribute / curate / add / dismiss / upvote)
+ * inherits the same disclosure with no per-gate drift. A quiet secondary note (hairline top rule,
+ * `text-ink2` body, the lead bold for legibility BY WEIGHT — never color), plus a real in-SPA
+ * `<Link>` to the anonymous-reachable `/about/data` for the fuller read (AC1/AC2). The WORD "About
+ * your data" is the complete accessible label; the trailing `→` is decorative reinforcement.
+ */
+function GateDataNotice() {
+  return (
+    <div className="border-t border-ink/15 pt-3">
+      <p className="text-[12px] leading-relaxed text-ink2">
+        <span className="font-bold text-ink">{AUTH_COPY.dataNotice.gateLead}</span>{" "}
+        {AUTH_COPY.dataNotice.gateBody}
+      </p>
+      <Link
+        href="/about/data"
+        className="mt-1 inline-block text-[12px] font-bold text-action hover:underline focus-visible:underline"
+      >
+        {AUTH_COPY.dataNotice.gateLinkLabel}{" "}
+        <span aria-hidden>→</span>
+      </Link>
+    </div>
+  );
+}
+
 /** An honest, non-blocking error notice (design §4 / §8). Full sentence, never color alone. */
 function ErrorNotice({ message }: { message: string }) {
   return (
@@ -87,6 +114,7 @@ export function LoginPromptPanel({
       </div>
       <div className="space-y-4 p-4">
         <p className="text-sm leading-relaxed text-ink2">{body}</p>
+        <GateDataNotice />
         {error && <ErrorNotice message={error} />}
         <div className="flex flex-wrap items-center gap-3">
           <LoginButton callbackUrl={callbackUrl} />
@@ -137,6 +165,7 @@ export function LoginPromptDialog({
         </div>
         <div className="space-y-4 p-4">
           <p className="text-sm leading-relaxed text-ink2">{body}</p>
+          <GateDataNotice />
           {error && <ErrorNotice message={error} />}
           <div className="flex flex-wrap gap-2">
             <LoginButton callbackUrl={callbackUrl} />
