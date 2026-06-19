@@ -185,13 +185,16 @@ describe("TopicView — empty state (AC14, AC16, AC20)", () => {
     });
   });
 
-  it("renders the '0 / videos curated' infobox + curate CTA (AC14) when the store has no clips (AC20)", async () => {
+  it("renders the empty ＋plus panel (volume + browse) when the store has no clips (AC20)", async () => {
     render(<TopicView />);
-    expect(await screen.findByText("videos curated")).toBeInTheDocument();
-    expect(screen.getByText("0")).toBeInTheDocument();
+    // The redesigned panel shows the dashed volume panel with 'uncurated videos' label,
+    // then the primary Browse scroll button (plus-overview-redesign §6.1).
+    await screen.findByText("uncurated videos");
     expect(
-      screen.getByRole("button", { name: "Be the first to curate this topic" })
+      screen.getByRole("button", { name: "Browse suggested videos" })
     ).toBeInTheDocument();
+    // No curate button — secondary block removed.
+    expect(screen.queryByRole("button", { name: "＋ Curate a video" })).toBeNull();
   });
 
   it("shows the 'Suggested videos · uncurated' band with the decluttered candidate treatment (#14 AC1/AC5)", async () => {
@@ -326,14 +329,19 @@ describe("TopicView — candidate dismiss (AC19)", () => {
   it("removes a candidate and decrements the visible suggestion count on 'Not relevant'", async () => {
     const { default: userEvent } = await import("@testing-library/user-event");
     render(<TopicView />);
-    // 5 seeded candidates → "5 auto-suggestions"
-    expect(await screen.findByText(/5 auto-suggestions/)).toBeInTheDocument();
+    // 5 seeded candidates → the empty ＋plus volume panel shows the suggestion numeral "5"
+    // (plus-overview-redesign §6.1). The numeral sits next to the stable volume label, so
+    // scope the assertion to that panel to disambiguate it from any other "5" on the page.
+    const volumePanel = (
+      await screen.findByText("uncurated videos")
+    ).closest("div")!.parentElement!;
+    expect(within(volumePanel).getByText("5")).toBeInTheDocument();
     const dismissBtns = await screen.findAllByRole("button", {
       name: /Dismiss as not relevant/,
     });
     await userEvent.click(dismissBtns[0]);
     await waitFor(() =>
-      expect(screen.getByText(/4 auto-suggestions/)).toBeInTheDocument()
+      expect(within(volumePanel).getByText("4")).toBeInTheDocument()
     );
   });
 });

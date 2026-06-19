@@ -841,22 +841,12 @@ export function TopicView() {
     },
     [requireLogin]
   );
-  // "Be the first to curate" — same curate gate (design §2b). The empty-state scroll fallback
-  // (no candidate to curate) is not a write, so it runs regardless of session.
-  const curateFirst = useCallback(() => {
-    const first = liveCandidates[0] ?? null;
-    if (!first) {
-      document.getElementById("general-band")?.scrollIntoView({ block: "start" });
-      return;
-    }
-    requireLogin({
-      gate: "curate",
-      action: () => {
-        setCurateFor(first);
-        setCurateOpen(true);
-      },
-    });
-  }, [liveCandidates, requireLogin]);
+  // ＋plus panel primary action (plus-overview-redesign §6 / §10): Browse/Jump ALWAYS scrolls
+  // to the General band / first video — never opens curate. Not a write, so it runs regardless
+  // of session. (Splits the formerly-overloaded `curateFirst`, which scrolled OR curated.)
+  const browseVideos = useCallback(() => {
+    document.getElementById("general-band")?.scrollIntoView({ block: "start" });
+  }, []);
   // Add video — gated (design §2c). Signed in → open AddModal; logged out → "Log in to add".
   const openAdd = useCallback(() => {
     requireLogin({ gate: "add", action: () => setAddOpen(true) });
@@ -1384,9 +1374,8 @@ export function TopicView() {
                   hasCurated={hasCurated}
                   stats={stats}
                   suggestionCount={liveCandidates.length}
-                  sources={sources}
-                  syncedLabel="just now"
-                  onCurateFirst={curateFirst}
+                  storeError={storeError}
+                  onBrowse={browseVideos}
                 />
                 <Toc
                   entries={tocEntries}

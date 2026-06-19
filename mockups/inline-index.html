@@ -24,6 +24,8 @@
   <main class="max-w-5xl mx-auto px-6 py-8">
     <h2 class="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-3">Current — canonical</h2>
     <div id="current" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5"></div>
+    <h2 class="mt-10 text-xs font-semibold uppercase tracking-wide text-slate-500 mb-3">Component studies — ＋plus overview panel (issue #16)</h2>
+    <div id="studies" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5"></div>
     <h2 class="mt-10 text-xs font-semibold uppercase tracking-wide text-slate-500 mb-3">Reference / history (kept for the docs that cite them)</h2>
     <div id="reference" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5"></div>
   </main>
@@ -39,6 +41,11 @@
    {file:"inline-indigo-empty.html", title:"Empty state — v1", grad:"from-[#2C2C2C] via-[#676EB4] to-[#1F6F95]", desc:"Earlier empty state, before the manual source paths were added. Kept for history."},
    {file:"inline-neon-sync.html", title:"Topic page — neon palette", grad:"from-cyan-400 via-purple-600 to-pink-500", desc:"Same layout, earlier neon palette — the styling that preceded the Indigo Press identity. Kept for reference."},
   ];
+  const studies=[
+   {file:"plus-overview-A-value-first.html", title:"＋plus overview — A (chosen)", grad:"from-[#676EB4] via-[#5248AF] to-[#2A8270]", desc:"★ Chosen direction (issue #16): value-first masthead, one structure across empty/mixed/curated. See docs/design/plus-overview-redesign.md."},
+   {file:"plus-overview-B-pitch-card.html", title:"＋plus overview — B", grad:"from-[#676EB4] via-[#5248AF] to-[#1F6F95]", desc:"Alternative: bold editorial 'zine pitch' empty state, two distinct treatments. Not chosen."},
+   {file:"plus-overview-C-tabs-utility.html", title:"＋plus overview — C", grad:"from-[#2C2C2C] via-[#676EB4] to-[#2A8270]", desc:"Alternative: utility-first compact (chip counts, collapsed invite). The pre-approved compactness fallback."},
+  ];
   const card = m => `
     <a href="${m.file}" class="group block bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-md hover:border-emerald-400 transition">
       <div class="thumb bg-gradient-to-br ${m.grad} relative flex items-center justify-center">
@@ -50,6 +57,7 @@
         <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span></div>
     </a>`;
   document.getElementById("current").innerHTML = current.map(card).join("");
+  document.getElementById("studies").innerHTML = studies.map(card).join("");
   document.getElementById("reference").innerHTML = reference.map(card).join("");
 </script>
 </body>

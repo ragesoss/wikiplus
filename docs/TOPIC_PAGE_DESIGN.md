@@ -99,14 +99,27 @@ visual languages, and the docs name them distinctly (resolving the article-fidel
   restored by the article-fidelity feature. It lives in the **left article column**, float-right at
   the top of the lead, and keeps **Wikipedia's visual language** (grey header rows, hairline
   borders) — it is part of "the Wiki world," never restyled into Indigo Press.
-- **wiki+ panel** — wiki+'s *own* element in the **right
-  rail**. It has **three faces** (issue #60 coexistence — see §"Three states: empty / mixed /
-  fully-curated"): the videos / creators / curators counts + synced status (fully-curated); the same
-  three numerals **plus a `{V} curated · {M} suggested` two-count line** (mixed); or the "0 videos
-  curated" + "N auto-suggestions from {sources}" + "Be the first to curate" CTA (empty). The CTA
-  appears **only at 0 curated**. It is **Indigo Press** (indigo header block, hardbox border + offset
-  shadow). Implemented in `components/topic/Infobox.tsx` (the filename is retained; its doc-facing
-  name is **the wiki+ panel**).
+- **wiki+ panel** — wiki+'s *own* element in the **right rail**, and the first thing a reader
+  meets on the plus side. It **leads with the plus-side value** — a constant one-line statement
+  ("Short videos to learn this topic, each weighed for what's fact vs. opinion") — so a
+  self-directed learner who will never curate is oriented and served before any counts or task
+  framing. Below the value line sits a **state-variant counts/volume block** and a **primary
+  Browse / Jump action** that scrolls to the videos (the non-curator's useful path), then a
+  **secondary, honestly-framed curation invite**. It has **three faces** (issue #60 coexistence —
+  see §"Three states") that reshape only the counts block: the videos / creators / curators
+  numerals (fully-curated); the same three numerals **plus a `{V} curated · {M} suggested to weigh
+  in` two-count line** (mixed); or, at 0 curated, a dashed "provisional" volume block ("{N} videos
+  found to weigh in — none vouched for yet") (empty). The curation invite explains the task (watch
+  → vouch → write a note) and is always **secondary**, never the headline; it is a teal `＋ Curate
+  a video` at 0 curated and a white `＋ Add a video` once the topic has content. The panel carries
+  **no "synced" status and no per-panel source provenance** — those are internal plumbing for a
+  reader (the once-per-context unvetted/source signal lives in the General band + rail set header,
+  #14). On a store-read failure it still shows the value line plus an honest "couldn't load stats"
+  line (no skeleton, no write button). It is **Indigo Press** (indigo header block, hardbox border +
+  offset shadow). Reference mockup: **`mockups/plus-overview-A-value-first.html`** (Direction A,
+  "value-first masthead"); full contract in `docs/design/plus-overview-redesign.md`. Implemented in
+  `components/topic/Infobox.tsx` (the filename is retained; its doc-facing name is **the wiki+
+  panel**).
 
 They **cannot collide**: at `lg+` they are in separate grid columns (the Wikipedia infobox floats
 *within* the article column, the wiki+ panel is the right rail beyond the grid gap); below `lg` the
@@ -229,8 +242,13 @@ fully-curated the unvetted signal is **absent everywhere**.
 
 Every topic starts with **zero curations**. The empty state still aims to be useful and to drive
 the curation flywheel, by bootstrapping the plus side with **auto-suggested, clearly unvetted
-candidates** plus prominent paths to curate. Reference mockup: **`mockups/inline-indigo-empty-v2.html`**
-(the settled design; `inline-indigo-empty.html` is the earlier v1 iteration, kept for history).
+candidates** plus prominent paths to curate. Crucially, the empty state must also serve a reader
+who will **never** curate: the **wiki+ panel leads with the plus-side value and a Browse path to
+the suggested videos** (see *Two infoboxes* and `docs/design/plus-overview-redesign.md`), so
+curation framing stays a secondary invitation rather than the empty state's headline. Reference
+mockups: the page layout is **`mockups/inline-indigo-empty-v2.html`**; the redesigned wiki+ panel
+is **`mockups/plus-overview-A-value-first.html`** (`inline-indigo-empty.html` is the earlier v1
+iteration, kept for history).
 
 - **Auto-suggestion is multi-platform by design.** The General bar is populated automatically with
   candidates from a video search for the topic — **YouTube and TikTok** (and potentially other
@@ -254,16 +272,19 @@ candidates** plus prominent paths to curate. Reference mockup: **`mockups/inline
   solid) borders, no solid offset shadow, a desaturated/hatched thumbnail. No stance/accuracy chips
   yet. TOC badges show suggestion counts in a dashed/outline style, distinct from curated counts.
   - *The unvetted / auto-suggested signal reads **once per context**, never once per card (issue
-    #14 declutter).* It lives in exactly three places: the **wiki+ panel** ("N auto-suggestions
-    from {sources}"), the **General band header** ("Suggested videos · uncurated — auto-found
+    #14 declutter).* It lives in exactly three places: the **wiki+ panel** (the dashed empty-state
+    volume block — "{N} videos found to weigh in — none vouched for yet … unreviewed suggestions";
+    the word *unreviewed/suggested* carries the unvetted meaning in text, and the panel names no
+    source — see `docs/design/plus-overview-redesign.md`), the **General band header** ("Suggested
+    videos · uncurated — auto-found
     candidates, not yet vetted"), and a **one-time "unvetted set" header** atop the rail candidate
     list ("Suggested · uncurated. Auto-found from {sources}. No context notes yet — a human hasn't
     reviewed these. Curate one to vouch for it."). There is **no per-card "SUGGESTED" badge** and
     **no repeated "Auto-suggested" / "no context yet" block** — the dashed container plus the
     once-per-context headers already carry the signal.
     - *In the **mixed** state these three locations are **rescoped** to introduce the suggestion
-      subset, not the whole topic (issue #60):* the wiki+ panel shows `{V} curated · {M} suggested`
-      (the panel count IS the rescoped signal); the General-band signal becomes the inline
+      subset, not the whole topic (issue #60):* the wiki+ panel shows `{V} curated · {M} suggested
+      to weigh in` (the panel count IS the rescoped signal); the General-band signal becomes the inline
       `Suggested · uncurated` **divider** after the curated group (the band's own `<h2>` is now
       `＋ General`); and the rail `CandidateSetHeader` rewords to "**The suggested videos below**
       are auto-found from {sources} — no context notes yet, not reviewed by a human. Curate one to

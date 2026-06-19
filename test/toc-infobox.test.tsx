@@ -98,16 +98,16 @@ describe("Toc (AC6 / AC17 / #60 §5.2)", () => {
 
 const stats: TopicStats = { videos: 14, creators: 9, curators: 6, synced: "2h ago" };
 
-describe("Infobox (AC7 curated / AC14 empty / #60 §5.1 mixed)", () => {
-  it("shows the three derived counts as big numerals when curated (AC7)", () => {
+// ＋plus overview panel — Direction A (docs/design/plus-overview-redesign.md). These cover the
+// component contract Dev built; QA authors the full acceptance matrix on top.
+describe("Infobox (plus-overview redesign — Direction A)", () => {
+  it("shows the three derived counts as big numerals when curated (§6.2/§6.3)", () => {
     render(
       <Infobox
         hasCurated
         stats={stats}
         suggestionCount={0}
-        sources="YouTube"
-        syncedLabel="now"
-        onCurateFirst={vi.fn()}
+        onBrowse={vi.fn()}
       />
     );
     expect(screen.getByText("14")).toBeInTheDocument();
@@ -116,108 +116,107 @@ describe("Infobox (AC7 curated / AC14 empty / #60 §5.1 mixed)", () => {
     expect(screen.getByText("Curators")).toBeInTheDocument();
   });
 
-  it("shows '0 / videos curated' and the curate CTA in the empty state (AC14)", () => {
+  it("shows the dashed volume panel with 'uncurated videos' label in the empty state (§6.1)", () => {
     render(
       <Infobox
         hasCurated={false}
         stats={{ videos: 0, creators: 0, curators: 0 }}
         suggestionCount={5}
-        sources="YouTube + TikTok"
-        syncedLabel="now"
-        onCurateFirst={vi.fn()}
+        onBrowse={vi.fn()}
       />
     );
-    expect(screen.getByText("0")).toBeInTheDocument();
-    expect(screen.getByText("videos curated")).toBeInTheDocument();
-    expect(screen.getByText(/5 auto-suggestions from YouTube \+ TikTok/)).toBeInTheDocument();
+    expect(screen.getByText("5")).toBeInTheDocument();
+    // The unvetted meaning is carried in TEXT (§9), not color/border alone.
+    expect(screen.getByText("uncurated videos")).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Be the first to curate this topic" })
+      screen.getByRole("button", { name: "Browse suggested videos" })
     ).toBeInTheDocument();
+    // No curate button — secondary block removed.
+    expect(screen.queryByRole("button", { name: "＋ Curate a video" })).toBeNull();
   });
 
-  // Issue #60 AC11 / §5.1: the mixed face — three numerals + the two-count line, NO CTA.
-  it("shows the '{V} curated · {M} suggested' two-count line in the mixed state (AC11)", () => {
+  // §6.2: the mixed face — three numerals + the trimmed two-count line + Jump button.
+  it("shows the '{V} curated · {M} suggested' line (without 'to weigh in') in mixed state (§6.2)", () => {
     render(
       <Infobox
         hasCurated
         stats={stats}
         suggestionCount={12}
-        sources="YouTube"
-        syncedLabel="now"
-        onCurateFirst={vi.fn()}
+        onBrowse={vi.fn()}
       />
     );
     expect(screen.getByText("14")).toBeInTheDocument(); // the curated numerals still show
-    expect(screen.getByText("14 curated · 12 suggested")).toBeInTheDocument();
-    // AC13: no "Be the first to curate" CTA in mixed.
+    expect(screen.getByText(/14 curated/)).toBeInTheDocument();
+    expect(screen.getByText(/12 suggested/)).toBeInTheDocument();
+    expect(screen.queryByText(/to\s+weigh in/)).toBeNull();
     expect(
-      screen.queryByRole("button", { name: "Be the first to curate this topic" })
-    ).toBeNull();
+      screen.getByRole("button", { name: "Jump to videos" })
+    ).toBeInTheDocument();
+    // No add button — secondary block removed.
+    expect(screen.queryByRole("button", { name: "＋ Add a video" })).toBeNull();
   });
 
-  // Issue #60 AC3 / AC13: fully-curated — numerals only, NO suggestion count, NO CTA.
-  it("shows no suggestion count and no CTA in the fully-curated state (AC3/AC13)", () => {
+  // §6.3: fully-curated — numerals only, NO suggestion count, NO unvetted line.
+  it("shows no suggestion count in the fully-curated state (§6.3)", () => {
     render(
       <Infobox
         hasCurated
         stats={stats}
         suggestionCount={0}
-        sources="YouTube"
-        syncedLabel="now"
-        onCurateFirst={vi.fn()}
+        onBrowse={vi.fn()}
       />
     );
     expect(screen.queryByText(/suggested/)).toBeNull();
-    expect(
-      screen.queryByRole("button", { name: "Be the first to curate this topic" })
-    ).toBeNull();
+    // No add button — secondary block removed.
+    expect(screen.queryByRole("button", { name: "＋ Add a video" })).toBeNull();
   });
 
-  // #14 AC10: the ＋plus panel header does not carry a "this topic" filler label.
-  it("renders the ＋plus header WITHOUT the 'this topic' label (#14 AC10)", () => {
+  it("renders the ＋plus header with the 'on this topic' label (§6.1)", () => {
     render(
       <Infobox
         hasCurated={false}
         stats={{ videos: 0, creators: 0, curators: 0 }}
         suggestionCount={5}
-        sources="YouTube"
-        syncedLabel="now"
-        onCurateFirst={vi.fn()}
+        onBrowse={vi.fn()}
       />
     );
     expect(screen.getByText("＋plus")).toBeInTheDocument();
-    expect(screen.queryByText("this topic")).toBeNull();
+    expect(screen.getByText("on this topic")).toBeInTheDocument();
   });
 
-  it("keeps the ＋plus header clean of 'this topic' in the curated state too (#14 AC10)", () => {
-    render(
-      <Infobox
-        hasCurated
-        stats={stats}
-        suggestionCount={0}
-        sources="YouTube"
-        syncedLabel="now"
-        onCurateFirst={vi.fn()}
-      />
-    );
-    expect(screen.queryByText("this topic")).toBeNull();
-  });
-
-  it("fires onCurateFirst when the CTA is activated (AC14)", async () => {
-    const onCurateFirst = vi.fn();
+  // §6.5: the store-read error floor — header + the honest line, no counts/buttons.
+  it("renders the honest error line and no counts/buttons on storeError (§6.5)", () => {
     render(
       <Infobox
         hasCurated={false}
         stats={{ videos: 0, creators: 0, curators: 0 }}
         suggestionCount={5}
-        sources="YouTube"
-        syncedLabel="now"
-        onCurateFirst={onCurateFirst}
+        storeError
+        onBrowse={vi.fn()}
+      />
+    );
+    expect(
+      screen.getByText(
+        "Couldn't load this topic's video stats. The article is unaffected."
+      )
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button")).toBeNull(); // no browse
+    expect(screen.queryByText("5")).toBeNull(); // no numerals
+  });
+
+  it("fires onBrowse (scroll) from the primary action (§10)", async () => {
+    const onBrowse = vi.fn();
+    render(
+      <Infobox
+        hasCurated={false}
+        stats={{ videos: 0, creators: 0, curators: 0 }}
+        suggestionCount={5}
+        onBrowse={onBrowse}
       />
     );
     await userEvent.click(
-      screen.getByRole("button", { name: "Be the first to curate this topic" })
+      screen.getByRole("button", { name: "Browse suggested videos" })
     );
-    expect(onCurateFirst).toHaveBeenCalledOnce();
+    expect(onBrowse).toHaveBeenCalledOnce();
   });
 });

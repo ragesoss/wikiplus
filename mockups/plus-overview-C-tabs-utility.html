@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>wiki+ · ＋plus overview redesign — Direction C (Utility-first compact)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Sans+Pro:wght@400;600;700;900&family=Open+Sans:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  :root{
+    --indigo:#676EB4; --violet:#5248AF; --teal:#2A8270; --teal-dk:#1F6757;
+    --blue:#1F6F95; --red:#C44949; --gold:#E5AB28;
+    --ink:#2C2C2C; --ink2:#595959; --muted:#717171;
+    --bg:#F7F7F7; --bg2:#F0F1F3; --bd:#D9D9D9;
+  }
+  body{ font-family:'Open Sans', system-ui, sans-serif; color:var(--ink); background:var(--bg); }
+  .plus-disp{ font-family:'Source Sans Pro', system-ui, sans-serif; font-weight:900; letter-spacing:-.02em; line-height:.95; }
+  .plus-sans{ font-family:'Source Sans Pro', system-ui, sans-serif; }
+  .plus-body{ font-family:'Open Sans', system-ui, sans-serif; }
+  .plus-card{ background:#fff; border:2px solid var(--ink); box-shadow:4px 4px 0 var(--ink); }
+  .hardbox-sm{ border:2px solid var(--ink); box-shadow:4px 4px 0 var(--ink); }
+  .bignum{ font-family:'Source Sans Pro', system-ui, sans-serif; font-weight:900; line-height:.85; letter-spacing:-.03em; }
+  :focus-visible{ outline:3px solid var(--indigo); outline-offset:2px; border-radius:2px; }
+  .lab{ font-family:'Source Sans Pro', system-ui, sans-serif; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.14em; color:var(--ink2); }
+</style>
+</head>
+<body class="p-6">
+<div class="max-w-[1100px] mx-auto">
+  <h1 class="plus-disp text-2xl mb-1">Direction C — “Utility-first compact”</h1>
+  <p class="plus-body text-sm text-[color:var(--ink2)] mb-6 max-w-3xl">Smallest footprint, keeps the sticky rail short. A compact one-line value strip under the header, an inline count chip (no big numeral block), a primary <em>Browse</em> action, and the curation invite collapsed to a single quiet link. Same structure both states; the count chip is the only thing that changes.</p>
+
+  <div class="grid md:grid-cols-2 gap-8">
+
+    <!-- EMPTY -->
+    <div>
+      <div class="lab mb-2">Empty (0 curated)</div>
+      <div class="plus-card overflow-hidden">
+        <div class="bg-[color:var(--indigo)] text-white px-4 py-2.5 border-b-2 border-[color:var(--ink)] flex items-baseline gap-2">
+          <span class="plus-disp text-lg leading-none">＋plus</span>
+          <span class="plus-sans text-[11px] uppercase tracking-widest opacity-90 font-bold">on this topic</span>
+        </div>
+        <div class="px-4 py-3">
+          <p class="plus-sans text-[13px] font-bold leading-snug text-[color:var(--ink)]">Short videos to learn this topic — weighed for fact vs. opinion.</p>
+          <div class="mt-3 flex items-center justify-between gap-2">
+            <span class="plus-sans text-[12px] font-bold px-2 py-1 border-2 border-dashed border-[color:var(--violet)] text-[color:var(--violet)] bg-white">12 suggested · unvetted</span>
+          </div>
+          <a href="#" class="mt-3 block w-full text-center plus-sans text-[13px] font-bold px-3 py-2 bg-[color:var(--indigo)] text-white border-2 border-[color:var(--ink)] hardbox-sm hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-none transition">Browse videos ↓</a>
+          <p class="plus-body text-[12px] text-[color:var(--ink2)] leading-snug mt-3">
+            Watched a good one? <button class="plus-sans font-bold text-[color:var(--teal-dk)] underline decoration-2 underline-offset-2" aria-haspopup="dialog">Vouch for it &amp; add a note →</button>
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- CURATED -->
+    <div>
+      <div class="lab mb-2">Fully-curated</div>
+      <div class="plus-card overflow-hidden">
+        <div class="bg-[color:var(--indigo)] text-white px-4 py-2.5 border-b-2 border-[color:var(--ink)] flex items-baseline gap-2">
+          <span class="plus-disp text-lg leading-none">＋plus</span>
+          <span class="plus-sans text-[11px] uppercase tracking-widest opacity-90 font-bold">on this topic</span>
+        </div>
+        <div class="px-4 py-3">
+          <p class="plus-sans text-[13px] font-bold leading-snug text-[color:var(--ink)]">Short videos to learn this topic — weighed for fact vs. opinion.</p>
+          <div class="mt-3 flex items-center gap-2 flex-wrap">
+            <span class="plus-sans text-[12px] font-bold px-2 py-1 border-2 border-[color:var(--ink)] bg-[color:var(--indigo)] text-white">6 videos</span>
+            <span class="plus-sans text-[12px] font-bold px-2 py-1 border-2 border-[color:var(--ink)] bg-white text-[color:var(--ink)]">5 creators</span>
+            <span class="plus-sans text-[12px] font-bold px-2 py-1 border-2 border-[color:var(--ink)] bg-white text-[color:var(--ink)]">3 curators</span>
+          </div>
+          <a href="#" class="mt-3 block w-full text-center plus-sans text-[13px] font-bold px-3 py-2 bg-[color:var(--indigo)] text-white border-2 border-[color:var(--ink)] hardbox-sm hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-none transition">Jump to videos ↓</a>
+          <p class="plus-body text-[12px] text-[color:var(--ink2)] leading-snug mt-3">
+            Know a clip that belongs? <button class="plus-sans font-bold text-[color:var(--teal-dk)] underline decoration-2 underline-offset-2" aria-haspopup="dialog">Add &amp; curate one →</button>
+          </p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+</body>
+</html>

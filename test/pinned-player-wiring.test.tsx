@@ -354,16 +354,21 @@ describe("AC3 — page stays interactive while the player is open (non-blocking)
     );
     await screen.findByRole("region", { name: "Video preview" });
 
-    // 4 seeded candidates → "4 auto-suggestions". Dismiss one WHILE the dock is open.
+    // 4 seeded candidates → the empty ＋plus volume panel shows the suggestion numeral "4"
+    // (plus-overview-redesign §6.1). Dismiss one WHILE the dock is open.
+    const volumePanel = (
+      await screen.findByText("uncurated videos")
+    ).closest("div")!.parentElement!;
+    expect(within(volumePanel).getByText("4")).toBeInTheDocument();
     const dismissBtns = await screen.findAllByRole("button", {
       name: /Dismiss as not relevant/,
     });
     await userEvent.click(dismissBtns[0]);
 
-    // The dismiss took effect (count decremented) → the page was fully interactive,
+    // The dismiss took effect (count decremented to 3) → the page was fully interactive,
     // the player did not block the candidate controls or trap focus (AC3/AC9).
     await waitFor(() =>
-      expect(screen.getByText(/3 auto-suggestions/)).toBeInTheDocument()
+      expect(within(volumePanel).getByText("3")).toBeInTheDocument()
     );
     // The dock is still present (the dismiss did not close it; it is independent).
     expect(queryDock()).not.toBeNull();
