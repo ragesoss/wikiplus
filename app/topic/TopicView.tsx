@@ -1320,7 +1320,7 @@ export function TopicView() {
   }
 
   const sources =
-    [...new Set(candidates.map((c) => c.source))].join(" + ") || "YouTube";
+    [...new Set(liveCandidates.map((c) => c.source))].join(" + ") || "YouTube";
 
   return (
     <>
