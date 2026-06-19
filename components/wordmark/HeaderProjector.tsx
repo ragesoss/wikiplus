@@ -64,6 +64,12 @@ export interface ProjectorGeometry {
   /** cyMid(px) — wordmark row centre from the band top. Token default 44 (landing). The Topic
    * host passes 40 (#72 design §3.4) — a shorter sticky chrome band. */
   cyMid?: number;
+  /** leftInset(px) — the SELF-CONTAINED (narrow / < lg, no `projectionX`) left edge of the lockup,
+   * i.e. where "Wiki" begins. Token default LANDING_PAD_X (16px — the landing hero's px-4 inset).
+   * The #72 Topic host passes a LARGER inset so the self-contained lockup clears the upper-left
+   * search slot (DEFECT-A fix: the lit lockup never overlaps the search at < lg). It has NO effect
+   * when `projectionX` is set (≥ lg seam-on-divider) — there the apex is the driven divider x. */
+  leftInset?: number;
 }
 
 export interface HeaderProjectorProps {
@@ -77,6 +83,13 @@ export interface HeaderProjectorProps {
   href?: string;
   /** Per-instance geometry overrides (AC10). Omit on the landing page — defaults are the config. */
   geometry?: ProjectorGeometry;
+  /** #72 DEFECT-B: the scroll-aware cross-fade, OWNED by the Tier-A "projector" variant so both the
+   * lit lockup+beam and the flat slim lockup share ONE lockup origin (the live `apexX`) — only
+   * opacity animates, never position, so there is NO two-wordmark ghost mid-transition. When
+   * `collapsed` is true the lit lockup + beam fade out and a FLAT lockup fades in at the SAME
+   * origin; that flat lockup is the interactive home link (the lit layer is decorative). Undefined
+   * (the landing page) ⇒ no slim layer, beam always shown — the landing header is unchanged (AC12). */
+  collapsed?: boolean;
   className?: string;
 }
 
@@ -119,6 +132,11 @@ const APERTURE_X_EST = WIKI_W_EST + 2 + CUT_CX;
 const CW_FALLBACK = 960;
 const MD_BREAKPOINT = 768;
 const LANDING_PAD_X = 16;
+// #72 DEFECT-A — the "squeeze" width (design §5.5/§5.6, DQ-2): below this the full lockup +
+// upper-left search + auth cannot coexist on one slim row, so the SCROLL-AWARE Topic host
+// collapses the wordmark to the Tier-D `glyph` tile (the "+" block alone) so the search has room.
+// The landing host never squeezes (no search slot — its lockup scales via .projector-lockup-fit).
+export const SQUEEZE_BREAKPOINT = 380;
 
 // 12-point "+" polygon (mockup plusPath). Used for the aperture knockout, the gold rim,
 // and the screen-blend bleed.
@@ -486,6 +504,7 @@ export function HeaderProjector({
   as = "div",
   href,
   geometry,
+  collapsed,
   className = "",
 }: HeaderProjectorProps) {
   // Stable id for SVG defs (avoids collisions if two instances ever render). Derived from the
@@ -574,12 +593,24 @@ export function HeaderProjector({
 
   // The live apex x in px (= the aperture x). Layout-driven: centered on desktop, left at narrow.
   // An explicit projectionX prop (the future Topic-page driver / AC10 dynamic hook) overrides.
+  // SELF-CONTAINED (no projectionX) narrow anchor: the lockup's left edge = `leftInset` (default
+  // LANDING_PAD_X), so apex = leftInset + apertureX. The #72 Topic host passes a larger leftInset
+  // so the self-contained lockup clears the upper-left search (DEFECT-A) — no effect when
+  // projectionX is set (≥ lg seam-on-divider).
+  const leftInset = geometry?.leftInset ?? LANDING_PAD_X;
   const apexX =
     projectionXFrac != null
       ? projectionXFrac * cw
       : narrow
-        ? LANDING_PAD_X + apertureX // left-anchored: pad + aperture-within-lockup
+        ? leftInset + apertureX // left-anchored: inset + aperture-within-lockup
         : cw / 2; // centered desktop: aperture at the content-column center
+
+  // #72 DEFECT-A — the squeeze (scroll-aware host only): below SQUEEZE_BREAKPOINT the full lockup
+  // would crowd the upper-left search, so collapse the wordmark to the Tier-D glyph tile (design
+  // §5.5/§5.6). `cw > 0` guards against the SSR/jsdom zero-width false-positive (keep the full
+  // lockup until a real width is measured). Only the scroll-aware Topic host squeezes.
+  const squeeze =
+    collapsed !== undefined && cw > 0 && cw < SQUEEZE_BREAKPOINT;
 
   // ── Tier D — the glyph tile alone (favicon/app-icon scale). Defined-but-minimal. ──
   if (variant === "glyph") {
@@ -618,18 +649,59 @@ export function HeaderProjector({
   // Tier B/C wrappers below remain DEFINED for the future Topic-page shared header (and
   // forced-colors, §8.5). `forced-colors: active` forces the flat Tier-C lockup via
   // `forced-colors-flat` (globals.css) — the burn-to-white/gold cannot survive a forced palette.
-  return (
-    <Container
-      as={as}
-      href={href}
-      accessibleName={accessibleName}
-      className={`header-projector forced-colors-flat ${className}`}
-    >
+  // #72 DEFECT-B: when the Topic host drives `collapsed`, the SAME instance owns the cross-fade.
+  // Both the lit lockup and the flat slim lockup are positioned at the IDENTICAL origin (the live
+  // apexX + the same `translate(-apertureX,-50%)`), so only opacity ever animates between them —
+  // there is never a second wordmark at a different x. `collapsed === undefined` (the landing page)
+  // ⇒ scrollAware is off: no flat layer, the beam is always lit (AC12 — unchanged).
+  const scrollAware = collapsed !== undefined;
+  const isCollapsed = collapsed === true;
+  // The shared lockup-origin style — both layers use it verbatim so they co-locate exactly.
+  const lockupOriginStyle: React.CSSProperties = {
+    left: apexX,
+    top: cyMid,
+    transform: `translate(${-apertureX}px, -50%)`,
+  };
+
+  // #72 DEFECT-A — the squeeze fallback (scroll-aware host, < SQUEEZE_BREAKPOINT). Render ONLY the
+  // Tier-D glyph tile as the home link, left-anchored at `leftInset` (clear of the upper-left
+  // search) and vertically centred on the wordmark row — no beam, no full lockup — so the search +
+  // auth always have room (design §5.5/§5.6, DQ-2). It is the same accessible "wiki+" → / link.
+  if (scrollAware && squeeze) {
+    return (
+      <div className={`header-projector forced-colors-flat pointer-events-none ${className}`}>
+        <div className="relative w-full" style={{ minHeight: cyMid * 2 }}>
+          <a
+            href={href ?? "/"}
+            aria-label={accessibleName}
+            data-projector-squeeze=""
+            className="pointer-events-auto absolute inline-flex items-center"
+            style={{ left: leftInset, top: cyMid, transform: "translateY(-50%)" }}
+          >
+            <span aria-hidden="true" className="inline-flex">
+              <GlyphTile />
+            </span>
+          </a>
+        </div>
+      </div>
+    );
+  }
+
+  // The Tier-A inner tree (band + beam + lit lockup + — on the scroll-aware host — the flat slim
+  // lockup link). On the LANDING host (`!scrollAware`) the whole projector is wrapped in the
+  // `Container` link (as today, AC12). On the scroll-aware Topic host the band is a decorative,
+  // pointer-events-none `div` and the INTERACTIVE home link is only the flat lockup box inside —
+  // so the projector never covers / intercepts the search or auth (DEFECT-A).
+  const tierA = (
+    <>
       {/* The full projector with the two-temperature band + true-scale beam — shown at EVERY
           width (no `hidden lg:block` drop, no top strip). The lockup is positioned by the
           live apex x, so on narrow widths it sits LEFT (apex left-of-center → short left arm,
           long right arm) and on desktop it is centered (apex at cw/2 → arms ~equal) — design
-          §4.3/§4.7. Exposes `--projector-apex-x` so the beam and lockup share the exact apex. */}
+          §4.3/§4.7. Exposes `--projector-apex-x` so the beam and lockup share the exact apex.
+          On the SCROLL-AWARE Topic host the whole projector band is decorative + pointer-events-
+          none; the interactive home link is ONLY the lockup-sized box below, so it never covers /
+          intercepts the search or auth (DEFECT-A pointer-events fix). */}
       <div
         className="tier-a block"
         style={{ ["--projector-apex-x" as string]: `${apexX.toFixed(1)}px` }}
@@ -643,32 +715,40 @@ export function HeaderProjector({
 
           {/* The geometric "+" beam — true-scale stem + fixed 0.6 angle + ASYMMETRICAL arms,
               each drawn to its own real edge; the bottom extends below burnY and CLIPS at burnY
-              so no horizontal gold line is drawn at the boundary (design §4.7). */}
+              so no horizontal gold line is drawn at the boundary (design §4.7). On the scroll-aware
+              host the beam fades out when collapsed (the `.projector-beamfade` opacity, gated on
+              reduced motion in globals.css). */}
           {fullBleed && (
-            <Beam
-              cw={cw}
-              burnY={burnY}
-              apexY={cyMid}
-              beamSlope={beamSlope}
-              crossUp={crossUp}
-              edgeInset={edgeInset}
-              apexX={apexX}
-            />
+            <span
+              aria-hidden={scrollAware ? true : undefined}
+              className={scrollAware ? "projector-beamfade" : undefined}
+              data-beam-collapsed={scrollAware && isCollapsed ? "" : undefined}
+            >
+              <Beam
+                cw={cw}
+                burnY={burnY}
+                apexY={cyMid}
+                beamSlope={beamSlope}
+                crossUp={crossUp}
+                edgeInset={edgeInset}
+                apexX={apexX}
+              />
+            </span>
           )}
 
-          {/* The lockup, placed so its APERTURE sits exactly on the live apex x (design §4.3):
+          {/* The LIT lockup, placed so its APERTURE sits exactly on the live apex x (design §4.3):
               left = apexX, then translate left by the aperture-within-lockup offset so the
               aperture (not the lockup midpoint) lands on the apex. The beam projects straight
               down from the lamp. The inner `.projector-lockup-fit` SCALES the lockup down on the
               smallest phones (transform-origin = the aperture so the apex stays put) BEFORE the
-              auth is allowed to wrap (§7.5). */}
+              auth is allowed to wrap (§7.5). On the scroll-aware host it fades out when collapsed. */}
           <div
-            className="absolute"
-            style={{
-              left: apexX,
-              top: cyMid,
-              transform: `translate(${-apertureX}px, -50%)`,
-            }}
+            className={`absolute ${
+              scrollAware ? "projector-litlockup" : ""
+            }`}
+            data-lit-collapsed={scrollAware && isCollapsed ? "" : undefined}
+            style={lockupOriginStyle}
+            aria-hidden={scrollAware ? true : undefined}
           >
             <span
               className="projector-lockup-fit block"
@@ -677,6 +757,29 @@ export function HeaderProjector({
               <Lockup lit={true} uid={`${uid}-a-${reactId}`} wikiRef={wikiRef} />
             </span>
           </div>
+
+          {/* #72 — the FLAT slim lockup, only on the scroll-aware Topic host. It is positioned at
+              the IDENTICAL origin as the lit lockup (`lockupOriginStyle`) so the cross-fade is pure
+              opacity — no horizontal jump, no double wordmark (DEFECT-B). It is the INTERACTIVE home
+              link (pointer-events restored on the link, the band being pointer-events-none); the lit
+              layer above is decoration. It stays in the DOM + focusable in BOTH states so the
+              wordmark is always a reachable "wiki+" → / link (AC3/AC13) — only opacity animates. */}
+          {scrollAware && (
+            <a
+              href={href ?? "/"}
+              aria-label={accessibleName}
+              className="projector-flatlockup pointer-events-auto absolute"
+              data-flat-collapsed={isCollapsed ? "" : undefined}
+              style={lockupOriginStyle}
+            >
+              <span
+                className="projector-lockup-fit block"
+                style={{ transformOrigin: `${apertureX}px center` }}
+              >
+                <Lockup lit={false} uid={`${uid}-flat-${reactId}`} />
+              </span>
+            </a>
+          )}
         </div>
       </div>
 
@@ -692,6 +795,30 @@ export function HeaderProjector({
       <div className="tier-c hidden bg-[var(--color-header-field)] px-4 pb-1 pt-3">
         <Lockup lit={false} uid={`${uid}-c`} />
       </div>
+    </>
+  );
+
+  // The LANDING host (`!scrollAware`) wraps the whole projector in the Container link (as today —
+  // AC12 unchanged). The scroll-aware Topic host renders the band as a decorative, pointer-events-
+  // none div (`aria-hidden`); its interactive home link is the flat lockup box inside `tierA`.
+  if (scrollAware) {
+    // NOT aria-hidden on the wrapper — the flat lockup link inside MUST stay in the a11y tree
+    // (AC3/AC13). Each DECORATIVE layer (beam, lit lockup) is aria-hidden individually; the band
+    // is pointer-events-none so only the flat lockup link (pointer-events-auto) is interactive.
+    return (
+      <div className={`header-projector forced-colors-flat pointer-events-none ${className}`}>
+        {tierA}
+      </div>
+    );
+  }
+  return (
+    <Container
+      as={as}
+      href={href}
+      accessibleName={accessibleName}
+      className={`header-projector forced-colors-flat ${className}`}
+    >
+      {tierA}
     </Container>
   );
 }

@@ -116,36 +116,44 @@ body {
 }
 
 /* ── Shared Daylight Projector header (#72) — the Topic host's scroll-aware Tier-A ↔ slim sticky
-   transition (docs/design/shared-header.md §4). ONE header, two compositions cross-faded:
-   • Tier A (scroll-top): the lit aperture + full beam (.header-beam), seam on the divider; the
-     band is TOPIC_BURN_Y (116px) tall; the flat slim wordmark (.header-flatmark) is hidden.
-   • Slim (scrolled, [data-collapsed]): the beam fades opacity → 0, the band collapses to 56px, and
-     the flat Tier-C wordmark fades IN.
-   The chrome row (search + flat wordmark + auth) is the SAME DOM in both states (no remount, focus
-   preserved — AC9/AC13); only the beam opacity + band height + the two wordmark opacities animate.
-   The article body is untouched (§9.3). */
+   transition (docs/design/shared-header.md §4 + §0a). ONE header, two compositions cross-faded by
+   a SINGLE HeaderProjector instance (DEFECT-B fix) so both states share one lockup origin:
+   • Tier A (scroll-top): the lit aperture + full beam (.projector-beamfade / .projector-litlockup),
+     seam on the divider; the band is TOPIC_BURN_Y (116px) tall; the flat slim lockup is opacity-0.
+   • Slim (scrolled, [data-collapsed]): the lit layers fade opacity → 0, the band collapses to 56px,
+     and the flat Tier-C lockup (.projector-flatlockup — the interactive home link) fades IN at the
+     SAME origin (no horizontal jump, no double wordmark).
+   The chrome row (search + title cue + auth) and the wordmark link are the SAME DOM in both states
+   (no remount, focus preserved — AC9/AC13); only opacity + band height animate (one origin). The
+   article body is untouched (§9.3). */
 
-/* The beam layer: visible at Tier A, faded out when collapsed (opacity — cheap, compositor-friendly,
-   reversible — AC4). */
-.header-shared .header-beam {
+/* #72 DEFECT-B — the cross-fade is now OWNED by the single HeaderProjector layer: the lit lockup +
+   beam and the flat slim lockup are positioned at ONE shared origin inside one instance, so only
+   OPACITY animates between them — there is never a second wordmark at a different x (no double
+   vision). The header's [data-collapsed] state drives the three co-located layers:
+   • .projector-beamfade   — the descending beam: opacity 1 at Tier A → 0 when collapsed.
+   • .projector-litlockup  — the lit aperture lockup: opacity 1 at Tier A → 0 when collapsed.
+   • .projector-flatlockup — the flat Tier-C lockup (the interactive home link): opacity 0 at Tier A
+                             → 1 when collapsed. It stays in the DOM + focusable in BOTH states so
+                             the wordmark is always a reachable "wiki+" → / link (AC3/AC13). */
+.header-shared .projector-beamfade,
+.header-shared .projector-litlockup {
   opacity: 1;
 }
-.header-shared[data-collapsed] .header-beam {
+.header-shared[data-collapsed] .projector-beamfade,
+.header-shared[data-collapsed] .projector-litlockup {
   opacity: 0;
 }
-
-/* The flat slim wordmark: hidden at Tier A (the seam-aligned lit lockup is the visible mark),
-   faded in when collapsed. It stays in the DOM + focusable in BOTH states so the wordmark is always
-   a reachable "wiki+" → / home link (AC3/AC13) — only its opacity changes. */
-.header-shared .header-flatmark {
+.header-shared .projector-flatlockup {
   opacity: 0;
 }
-.header-shared[data-collapsed] .header-flatmark {
+.header-shared[data-collapsed] .projector-flatlockup {
   opacity: 1;
 }
 /* Keep the focus ring visible even when the flat mark is opacity-0 at Tier A: if it receives
    keyboard focus, reveal it so the focus target is never invisible (AC13). */
-.header-shared .header-flatmark:focus-within {
+.header-shared .projector-flatlockup:focus-within,
+.header-shared .projector-flatlockup:focus {
   opacity: 1;
 }
 
@@ -163,20 +171,23 @@ body {
     transition: height 180ms ease-out;
   }
   .header-shared .header-beam,
-  .header-shared .header-flatmark {
+  .header-shared .projector-beamfade,
+  .header-shared .projector-litlockup,
+  .header-shared .projector-flatlockup {
     transition: opacity 180ms ease-out;
   }
 }
 
 /* Forced-colors: the burn-to-white + gold beam cannot survive a forced palette (§7.5). Drop the
-   beam layer entirely and keep the flat slim wordmark visible at every scroll state — the lockup
+   beam + lit lockup and keep the flat slim wordmark visible at every scroll state — the lockup
    shape + search + auth stay operable. (HeaderProjector's own .forced-colors-flat handles the mark
-   internals; this hides the beam container + reveals the flat mark.) */
+   internals; this hides the lit layers + reveals the flat mark.) */
 @media (forced-colors: active) {
-  .header-shared .header-beam {
+  .header-shared .projector-beamfade,
+  .header-shared .projector-litlockup {
     display: none !important;
   }
-  .header-shared .header-flatmark {
+  .header-shared .projector-flatlockup {
     opacity: 1 !important;
   }
 }

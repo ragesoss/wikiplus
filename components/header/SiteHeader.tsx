@@ -46,9 +46,18 @@ const RESTORE_AT = TOPIC_BURN_Y - 40; // 76
 // applies ONLY at ≥ lg, where a real divider exists (§3 / AC2 / AC10).
 const LG_BREAKPOINT = 1024;
 
+// #72 DEFECT-A — the reserved upper-left search box (px). The chrome row reserves this width for
+// the search slot, and the SELF-CONTAINED (< lg) lockup is anchored to START past it (`leftInset`),
+// so the lit lockup can never lay out over the search. Roomy enough for the px-5 (20px) page inset
+// + the disclosure magnifier / the compact inline field, before the lockup begins.
+const SEARCH_RESERVE = 64;
+
 const TOPIC_GEOMETRY: ProjectorGeometry = {
   burnY: TOPIC_BURN_Y,
   cyMid: TOPIC_CY_MID,
+  // The self-contained (< lg / narrow) lockup begins past the reserved search slot (DEFECT-A); no
+  // effect at ≥ lg where the seam is driven onto the divider via projectionX.
+  leftInset: SEARCH_RESERVE,
 };
 
 // The Topic search slot — the existing TopicSearch (no new component / variant, A3 / §5.5): an
@@ -229,7 +238,10 @@ function TopicSiteHeader({
     };
   }, [measureSeam]);
 
-  // The Tier-A geometry, with the measured seam fraction driven through projectionX (≥ lg only).
+  // The Tier-A geometry, with the measured seam fraction driven through projectionX (≥ lg only) and
+  // the collapsed flag the projector uses to OWN the cross-fade (DEFECT-B): both the lit lockup and
+  // the flat slim lockup live in ONE HeaderProjector instance at ONE shared origin, so only opacity
+  // animates — never two wordmarks at two positions (§4.2 single-origin transition).
   const tierAGeometry: ProjectorGeometry = {
     ...TOPIC_GEOMETRY,
     projectionX: seamProjectionX,
@@ -241,29 +253,33 @@ function TopicSiteHeader({
       data-collapsed={collapsed ? "" : undefined}
     >
       {/* ── The band. Its HEIGHT is what collapses (116 → 56) on scroll (AC4): a height transition,
-          gated on reduced motion (AC5) via the .header-shared CSS. Everything else overlays it. The
-          chrome controls live in the top SLIM_BAR_HEIGHT row (the cool field above the burn
-          boundary, §4.1) so they are reachable in BOTH states. ── */}
+          gated on reduced motion (AC5) via the .header-shared CSS. The chrome controls (search,
+          title cue, auth) live in the top SLIM_BAR_HEIGHT row so they are reachable in BOTH states.
+          The WORDMARK (lit beam + flat slim lockup + the squeeze glyph) is owned by the single
+          HeaderProjector layer below, which cross-fades by OPACITY ONLY at one shared origin. ── */}
       <div
         className="header-band relative w-full"
         style={{ height: collapsed ? SLIM_BAR_HEIGHT : TOPIC_BURN_Y }}
       >
-        {/* ── The Tier-A projector LAYER (lit aperture + descending beam, seam on the divider).
-            Full-bleed, absolutely positioned, BEHIND the chrome row. It fades opacity 1 → 0 when
-            collapsed (~180ms, reduced-motion-gated — AC4/AC5). aria-hidden + pointer-events:none —
-            it is decoration; the chrome row's wordmark link owns the home affordance. The probe
-            (the gutter span) lives here in a grid mirroring the page grid so getBoundingClientRect
-            reads the REAL gutter centre (§3.3 / AC2), measured at mount/resize only (AC11). ── */}
+        {/* ── The single Tier-A PROJECTOR layer — full-bleed, BEHIND the chrome controls. It owns
+            the wordmark in BOTH scroll states: the lit aperture + descending beam (seam on the
+            divider ≥ lg) fade out and the flat Tier-C lockup fades IN at the IDENTICAL origin when
+            `collapsed` (DEFECT-B — no double wordmark), and below SQUEEZE_BREAKPOINT it collapses to
+            the Tier-D glyph so the search has room (DEFECT-A). The band is pointer-events:none; the
+            ONLY interactive node is the flat/glyph home link (so it never intercepts the search/auth
+            — DEFECT-A pointer-events fix). The seam probe (the gutter span) lives here so
+            getBoundingClientRect reads the REAL gutter centre (§3.3 / AC2), at mount/resize only
+            (AC11). The layer is the FULL Tier-A band height so the beam has its flare room; it
+            overflows the slim band visually only via the projector's own paint (decorative). ── */}
         <div
-          aria-hidden="true"
           data-testid="tier-a-beam"
-          className="header-beam pointer-events-none absolute inset-x-0 top-0 z-0 overflow-hidden"
+          className="header-beam absolute inset-x-0 top-0 z-0 overflow-hidden"
           style={{ height: TOPIC_BURN_Y }}
         >
           {/* The seam probe: a zero-height grid mirroring the Topic page grid (max-w-[1200px] px-5
               gap-7 lg:grid-cols-[1fr_360px]). The marker spans the 28px gutter so its rect centre
               IS the gutter centre. Measured at mount/resize only (never per scroll — AC11). */}
-          <div className="absolute inset-x-0 top-0 mx-auto h-0 max-w-[1200px] px-5">
+          <div className="pointer-events-none absolute inset-x-0 top-0 mx-auto h-0 max-w-[1200px] px-5">
             <div className="grid h-0 grid-cols-1 gap-7 lg:grid-cols-[1fr_360px]">
               <div className="h-0" />
               <div className="relative h-0">
@@ -275,53 +291,59 @@ function TopicSiteHeader({
               </div>
             </div>
           </div>
-          {/* The lit projector with the beam, seam on the divider (≥ lg) / self-contained (< lg —
-              projectionX undefined, AC10). Decorative (aria-hidden via the wrapper). */}
-          <HeaderProjector variant="projector" geometry={tierAGeometry} />
+          {/* The ONE projector: lit + beam (Tier A) cross-fading to the flat slim lockup (collapsed)
+              at one shared origin, or the glyph at the squeeze. `collapsed` makes it scroll-aware
+              (the flat layer + the interactive home link live inside it now — AC3/AC13). Seam on the
+              divider (≥ lg) / self-contained past the reserved search (< lg — AC10). */}
+          <HeaderProjector
+            variant="projector"
+            geometry={tierAGeometry}
+            collapsed={collapsed}
+            href="/"
+          />
         </div>
 
-        {/* ── The PERSISTENT chrome row — the SAME nodes in both scroll states (AC9/AC13), pinned to
-            the top SLIM_BAR_HEIGHT (the wordmark row, vertically centred on cyMid=40 ≈ within the
-            56px row). z-10 → above the beam layer. Search left · flat wordmark · title cue · auth
-            right. The flat wordmark is the single home link, visible only when collapsed (at Tier A
-            the seam-aligned lit lockup in the beam layer is the visible mark; the flat link stays in
-            the DOM, focusable, so the wordmark is always a reachable home link — AC3/AC13). ── */}
+        {/* ── The chrome controls row — the SAME nodes in both scroll states (AC9/AC13), pinned to
+            the top SLIM_BAR_HEIGHT. z-10 → above the projector band. It reserves the upper-left
+            search box (so the lockup never overlaps it — DEFECT-A) and right-anchors the single
+            auth. The title cue (slim only) flexes in the middle, truncating first under pressure.
+            The wordmark is NOT in this row — it is the projector layer above, positioned at the
+            seam / left-inset — so search + auth own their own boxes and can never be overlapped. ── */}
         <div
-          className="header-chrome absolute inset-x-0 top-0 z-10 mx-auto flex max-w-[1200px] items-center gap-3 px-5"
+          className="header-chrome pointer-events-none absolute inset-x-0 top-0 z-10 mx-auto flex max-w-[1200px] items-center gap-3 px-5"
           style={{ height: SLIM_BAR_HEIGHT }}
         >
-          {/* Search — upper-left (AC6). The host passes topic-inline ≥ md / topic-disclosure < md
-              (breakpoint-gated), so this slot is breakpoint-agnostic. */}
+          {/* Search — upper-left (AC6/AC7). The host passes topic-inline ≥ md / topic-disclosure
+              < md. min-w-0 lets the inline field shrink; the disclosure icon is a fixed 44px box.
+              pointer-events-auto restores interactivity (the row is pointer-events-none so its empty
+              middle lets clicks fall through to the flat wordmark link behind it — DEFECT-A). */}
           {search ? (
-            <div className="flex min-w-0 items-center">{search}</div>
+            <div className="pointer-events-auto flex min-w-0 shrink items-center">
+              {search}
+            </div>
           ) : null}
-
-          {/* Flat Tier-C wordmark — the single persistent home link (AC3). Self-contained split (no
-              divider aim — §4.2). Visible only in the slim state; at Tier A it is opacity-0 (the lit
-              seam-aligned lockup is the visible mark) but remains in the DOM + focusable so the
-              wordmark is always a reachable "wiki+" → / link (AC13). */}
-          <div className="header-flatmark flex shrink-0 items-center">
-            <HeaderProjector variant="lockup-flat" as="a" href="/" />
-          </div>
 
           {/* A4 — the muted article-title cue, slim state ONLY (§4.4). One muted serif line,
               truncated, NOT a heading (a <span>), aria-hidden (the real <h1> is in the lead block).
-              FIRST to yield under width pressure (min-w-0 + truncate, hidden < md). */}
+              It sits left-of-centre on the article side (after the reserved search) and is the FIRST
+              to yield under width pressure (min-w-0 + truncate, hidden < md). The auth's ml-auto
+              keeps it pushed right, so the cue takes only the slack between search and auth. */}
           {articleTitle && collapsed ? (
             <span
               aria-hidden="true"
-              className="hidden min-w-0 shrink truncate font-serif text-[0.95rem] text-slate-500 md:inline"
+              className="pointer-events-none hidden min-w-0 shrink truncate font-serif text-[0.95rem] text-slate-500 md:inline"
               data-testid="slim-title-cue"
             >
-              <span aria-hidden="true" className="mr-2 text-slate-300">
-                ·
-              </span>
               {articleTitle}
             </span>
           ) : null}
 
-          {/* The single consolidated AuthControl, right-anchored (AC9). Same node in both states. */}
-          <div className="ml-auto flex shrink-0 items-center">{auth}</div>
+          {/* The single consolidated AuthControl, right-anchored (AC9). Same node in both states.
+              ml-auto pushes it right whether or not the title cue renders. pointer-events-auto
+              restores interactivity over the pointer-events-none row. */}
+          <div className="pointer-events-auto ml-auto flex shrink-0 items-center">
+            {auth}
+          </div>
         </div>
       </div>
     </header>

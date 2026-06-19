@@ -48,7 +48,10 @@ import {
   SLIM_BAR_HEIGHT,
 } from "@/components/header/SiteHeader";
 import { HeaderAuth } from "@/components/header/HeaderAuth";
-import { APERTURE_SEAM_OFFSET } from "@/components/wordmark/HeaderProjector";
+import {
+  APERTURE_SEAM_OFFSET,
+  SQUEEZE_BREAKPOINT,
+} from "@/components/wordmark/HeaderProjector";
 
 beforeEach(() => {
   routerPush.mockReset();
@@ -339,16 +342,26 @@ describe("AC9 — one consolidated AuthControl, reachable at every breakpoint", 
 // projectionX < lg, so the lit projector lays out self-contained (no --projector-apex-x driven by a
 // divider that does not exist). We assert the probe-driven measurement yields no projectionX < lg. ─
 describe("AC10 — < lg: seam-to-divider positioning is not applied (self-contained lockup)", () => {
-  it("at a < lg viewport the beam-layer projector has no externally-driven seam fraction", async () => {
+  it("at a < lg viewport the projector lays out self-contained (decorative lit layers aria-hidden)", async () => {
     setViewport(800); // < lg (1024)
     const { container } = renderTopicHeader();
     // The beam layer exists (the lockup carries its own split), but no divider-driven projectionX is
     // applied: the lit mark's apex resolves from its own layout (left-anchored), exactly like the
-    // landing page at narrow widths. We assert the data-collapsed gate is the only state attr and
-    // the beam layer is present + aria-hidden (decorative; the self-contained split is intact).
+    // landing page at narrow widths. The DECORATIVE lit layers (#72 DEFECT-B fix moved the
+    // cross-fade INTO the projector) are aria-hidden individually — the beam-fade span + the lit
+    // lockup div — while the flat lockup link stays in the a11y tree (AC3/AC13). The old assertion
+    // (the whole .header-beam wrapper aria-hidden) no longer holds: the interactive home link now
+    // lives inside that layer, so the wrapper must NOT be hidden.
     const beam = container.querySelector(".header-beam") as HTMLElement;
     expect(beam).not.toBeNull();
-    expect(beam.getAttribute("aria-hidden")).toBe("true");
+    expect(beam.getAttribute("aria-hidden")).not.toBe("true"); // holds the interactive home link
+    // The decorative lit layers are aria-hidden (no fragment is read; the named link is the flat one).
+    const litLockup = container.querySelector(".projector-litlockup") as HTMLElement;
+    expect(litLockup).not.toBeNull();
+    expect(litLockup.getAttribute("aria-hidden")).toBe("true");
+    expect(
+      container.querySelector(".projector-beamfade")?.getAttribute("aria-hidden")
+    ).toBe("true");
     // The serif "Wiki" + indigo "plus" still render as one self-contained unit (no broken aim).
     expect(screen.getAllByText("Wiki").length).toBeGreaterThan(0);
     expect((await screen.findAllByText("plus")).length).toBeGreaterThan(0);
@@ -426,5 +439,94 @@ describe("A4 — the muted article-title cue shows only in the slim sticky state
     expect(cue.tagName.toLowerCase()).toBe("span"); // NOT a heading
     expect(cue).toHaveAttribute("aria-hidden", "true");
     expect(cue).toHaveTextContent("Jane Austen");
+  });
+});
+
+// ── DEFECT-B (single-origin transition) — the cross-fade is owned by ONE HeaderProjector instance:
+// the lit lockup + beam and the flat slim lockup share one origin, so only opacity animates and
+// there is never a SECOND wordmark at a second position (no double vision). We assert the structural
+// invariants the fix guarantees: exactly ONE accessible "wiki+" link (the flat lockup, which lives
+// INSIDE the projector layer now), and the lit/beam layers are aria-hidden decoration. ───────────
+describe("DEFECT-B — single-origin cross-fade (no double wordmark)", () => {
+  it("renders exactly ONE accessible 'wiki+' home link (the flat lockup inside the projector)", () => {
+    const { container } = renderTopicHeader();
+    // One — not two — accessible wordmark links. Before the fix the flat chrome mark + the lit
+    // overlay were two separately-positioned marks; now the lit overlay is decorative and the flat
+    // lockup is the sole link, co-located at the same origin.
+    const links = screen.getAllByRole("link", { name: "wiki+" });
+    expect(links).toHaveLength(1);
+    expect(links[0]).toHaveAttribute("href", "/");
+    // The flat lockup link lives inside the projector beam layer (one instance owns both states).
+    const beam = container.querySelector(".header-beam") as HTMLElement;
+    expect(beam.contains(links[0])).toBe(true);
+    // The lit lockup + the flat lockup are positioned with the IDENTICAL inline origin style (left +
+    // transform), so the cross-fade is pure opacity — no horizontal jump / no second position.
+    const lit = container.querySelector(".projector-litlockup") as HTMLElement;
+    const flat = container.querySelector(".projector-flatlockup") as HTMLElement;
+    expect(lit).not.toBeNull();
+    expect(flat).not.toBeNull();
+    expect(flat.style.left).toBe(lit.style.left);
+    expect(flat.style.transform).toBe(lit.style.transform);
+    expect(flat.style.top).toBe(lit.style.top);
+  });
+
+  it("the CSS fades the lit + flat lockups by OPACITY only (one origin), reduced-motion gated", async () => {
+    const fs = await import("node:fs");
+    const path = await import("node:path");
+    const css = fs.readFileSync(
+      path.resolve(process.cwd(), "app/globals.css"),
+      "utf8"
+    );
+    // The three co-located layers are driven by [data-collapsed] opacity (no position animation).
+    expect(css).toMatch(
+      /\.header-shared\[data-collapsed\][\s\S]*\.projector-flatlockup\s*\{\s*opacity:\s*1/
+    );
+    expect(css).toMatch(
+      /\.header-shared\[data-collapsed\][\s\S]*\.projector-litlockup\s*\{\s*opacity:\s*0/
+    );
+    // The opacity transition is reduced-motion gated (AC5).
+    const gateIdx = css.indexOf("@media (prefers-reduced-motion: no-preference)");
+    const afterGate = css.slice(gateIdx);
+    expect(afterGate).toMatch(/\.projector-flatlockup[\s\S]*transition:\s*opacity/);
+  });
+});
+
+// ── DEFECT-A (pointer-events + reserved search) — the invisible Tier-A layer must NOT intercept the
+// search/auth taps, and the chrome row must reserve its control boxes so the lockup never overlaps.
+// The fix: the projector band is pointer-events:none (only the flat/glyph home link is auto), and
+// the chrome row is pointer-events:none with the search + auth restored to auto. ─────────────────
+describe("DEFECT-A — the projector never intercepts the search/auth (pointer-events discipline)", () => {
+  it("the projector band is pointer-events-none; the flat home link restores pointer-events-auto", () => {
+    const { container } = renderTopicHeader();
+    // The HeaderProjector wrapper on the scroll-aware host is pointer-events-none (decoration).
+    const projector = container.querySelector(".header-beam .header-projector") as HTMLElement;
+    expect(projector).not.toBeNull();
+    expect(projector.className).toMatch(/pointer-events-none/);
+    // The ONLY interactive node inside is the flat lockup home link (pointer-events-auto).
+    const flat = container.querySelector(".projector-flatlockup") as HTMLElement;
+    expect(flat.className).toMatch(/pointer-events-auto/);
+    // The lit lockup layer (the formerly tap-stealing invisible overlay) is NOT interactive: it is
+    // aria-hidden and carries no link/auto pointer-events.
+    const lit = container.querySelector(".projector-litlockup") as HTMLElement;
+    expect(lit.getAttribute("aria-hidden")).toBe("true");
+    expect(lit.className).not.toMatch(/pointer-events-auto/);
+  });
+
+  it("the chrome row is pointer-events-none with search + auth restored to auto (clicks fall through)", () => {
+    const { container } = renderTopicHeader();
+    const chrome = container.querySelector(".header-chrome") as HTMLElement;
+    expect(chrome.className).toMatch(/pointer-events-none/);
+    // Search + auth each restore pointer-events-auto so they are operable while the empty middle of
+    // the row lets a click fall through to the wordmark link behind it.
+    const autoBoxes = chrome.querySelectorAll(".pointer-events-auto");
+    expect(autoBoxes.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("the self-contained (< lg) lockup is anchored past a reserved search box (leftInset)", () => {
+    // The Topic geometry passes a leftInset so the self-contained lockup begins to the RIGHT of the
+    // upper-left search slot — the lit lockup can no longer lay out over the search at < lg/< md.
+    // The squeeze threshold is a sane phone width (the glyph fallback kicks in below it).
+    expect(SQUEEZE_BREAKPOINT).toBeGreaterThan(320);
+    expect(SQUEEZE_BREAKPOINT).toBeLessThan(480);
   });
 });

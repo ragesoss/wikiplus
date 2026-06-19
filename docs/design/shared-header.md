@@ -25,6 +25,40 @@ re-evaluates the built header against `VISUAL_IDENTITY.md` §10.3 + this spec.
 
 ---
 
+## 0a. As-built reconciliation (fix round, #72 — QA/UX defects)
+
+The first build (`6a0013c`) was reviewed and two defects + two spec self-contradictions were fixed.
+This section records the as-built calls; where they differ from the prose below, **this section
+wins** (the prose is corrected inline too).
+
+- **DEFECT-A (narrow-width search overlap / tap-steal) — fixed.** At Tier A the lit lockup laid out
+  independently over the upper-left search, and the invisible flat wordmark link (`opacity:0`,
+  `pointer-events:auto`) stole the search tap. As built: (1) the chrome row **reserves the search
+  box** and is `pointer-events:none` with only the search + auth restored to `auto`, so the empty
+  middle lets a wordmark click fall through; (2) the projector band is `pointer-events:none` and the
+  **only interactive node is the wordmark home link** (so it can never intercept search/auth);
+  (3) the self-contained (< lg) lockup is anchored **past the reserved search** via a `leftInset`
+  geometry prop; (4) **below `SQUEEZE_BREAKPOINT` (380px)** the wordmark collapses to the sanctioned
+  **Tier-D `glyph` tile** (§5.5/§5.6, DQ-2) so the search has full room.
+- **DEFECT-B (double-vision cross-fade) — fixed via a single shared origin (option A).** The two
+  states no longer cross-fade two separately-positioned lockups. **One `HeaderProjector` instance
+  owns both** the lit lockup+beam and the flat slim lockup, positioned at the **identical origin**
+  (`apexX` + the same translate), so **only opacity animates** — there is never a second wordmark at
+  a second x. This supersedes §4.2's "lockup left-of-search / drops seam-alignment in the slim bar":
+  **as built the flat slim lockup stays at the same shared origin** (the seam stays on the divider at
+  ≥ lg even in the slim bar). This is AC-compliant (AC4 needs a slim sticky bar, not a left-anchored
+  one) and is what makes the transition jump-free.
+- **§5.2 "left-anchored" md–lg wording — corrected.** The md–lg lockup is **centered** (apex at
+  `cw/2`), as built (and as AC10 permits); the prose said "left-anchored." Corrected inline.
+- **§7.4 tab order — verified, prose kept.** The as-built order is **wordmark link → search → auth**
+  (the wordmark home link sits in the projector layer, which precedes the chrome row in the DOM), and
+  it is identical in both scroll states (the wordmark link persists across the cross-fade — one DOM
+  node now owns both states). This matches §7.4 as written; the issue's worry that the build shipped
+  "search → wordmark → auth" applied to the *first* build's chrome-row flat mark, which the DEFECT-B
+  single-origin refactor removed (the flat mark is now in the projector layer). No change needed.
+
+---
+
 ## 0. Summary of the load-bearing decisions (read this first)
 
 The numbers and calls Dev must build to — each is justified in the section cited.
@@ -277,14 +311,15 @@ Once scrolled past the threshold (§4.3) the header **collapses to a slim, stick
 **search** control, and the **auth** control are the *same instances* — they do **not** unmount/
 remount on scroll. Only the **beam + the tall cool band collapse**. Specifically:
 
-- **Wordmark:** swaps from `variant="projector"` (Tier A) to `variant="lockup-flat"` (Tier C) — the
-  flat indigo "+" block, no lamp, no beam, no ghost. In the slim bar the seam **no longer aims at the
-  divider** — the slim bar is a normal app top-bar (lockup left-of-search or directly after the
-  search icon), so the lockup carries its own self-contained `wiki|+plus` split (the same self-
-  contained read as the < lg case, §5.6). *(Justification for dropping seam-alignment here: the slim
-  bar is `56px` chrome; the beam — the thing the seam-on-divider labels — is gone, so aligning a
-  flat seam to an invisible projection adds nothing and would cost a per-scroll column measurement,
-  against AC11.)*
+- **Wordmark:** the lit lockup+beam (Tier A) cross-fade to the **flat indigo "+" block** (Tier C —
+  no lamp, no beam, no ghost). **As built (fix round, §0a / DEFECT-B):** both are ONE
+  `HeaderProjector` instance positioned at the **same shared origin** (`apexX`), so only opacity
+  animates and there is no horizontal jump / no double wordmark. The flat slim lockup therefore
+  **stays on the same origin** — at ≥ lg the seam keeps straddling the divider even in the slim bar
+  (a still-on-brand read, and it adds no per-scroll cost: the origin is the mount/resize-measured
+  one, never re-measured on scroll — AC11). *(The original draft here dropped seam-alignment in the
+  slim bar and put the lockup left-of-search; that produced the double-vision defect because the two
+  states then had two origins ~406px apart. The single-shared-origin build is the correction.)*
 - **Search:** unchanged control, same variant per breakpoint (inline ≥ md, disclosure < md). Moves
   to the slim bar's left.
 - **Auth:** unchanged `AuthControl` instance, right-anchored.
@@ -412,7 +447,7 @@ At `md–lg` the Topic grid is **already single-column** (`grid-cols-1` below `l
 
 | | Tier A (scroll-top) | Slim (scrolled) |
 |---|---|---|
-| **Layout** | Full band (`116px`): search left · wordmark **self-contained split** (no divider to aim at — §5.6) · auth right. Beam still renders (true-scale, apex on the aperture wherever the lockup is anchored — left-anchored here, asymmetrical arms). | Slim bar (`56px`): search-inline · flat Tier-C wordmark · muted title cue · auth right. |
+| **Layout** | Full band (`116px`): search left · wordmark **self-contained split** (no divider to aim at — §5.6) · auth right. Beam still renders (true-scale, asymmetrical arms). *(As built, §0a: the md–lg lockup is **centered** — apex at `cw/2` — not left-anchored; the search reserves the upper-left and the centered lockup clears it. The `leftInset` self-contained anchor only governs the `< md` narrow range.)* | Slim bar (`56px`): search-inline · flat Tier-C wordmark · muted title cue · auth right. |
 | **Logged-out** | "Log in with Wikipedia" button, right. | Same, slim. |
 | **Logged-in** | `SignedIn` avatar + username + menu, right. | Same, slim. |
 
@@ -554,9 +589,12 @@ reused as a UI/state color. The scroll transition uses **no** gold signaling (th
 does not change gold meaning).
 
 ### 7.4 Keyboard reachability in BOTH Tier-A and slim states (AC13)
-- **Tab order (both hosts, both scroll states):** wordmark link → search → auth. (On Topic, search
-  is upper-left, so it precedes auth.) This is a sensible reading order (logo, then the page's search,
-  then account).
+- **Tab order (Topic host, both scroll states):** **wordmark link → search → auth** — as built and
+  verified (the wordmark home link sits in the projector layer, which precedes the chrome row in the
+  DOM; search then auth follow). This is a sensible reading order (logo/home, then the page's search,
+  then account), and it is identical in both scroll states because all three are the same DOM nodes
+  (the wordmark link persists across the cross-fade — §0a / DEFECT-B). All three are keyboard-
+  reachable in both states.
 - **At Tier A:** Tab to the wordmark (Enter → home); Tab to the search (type, ↓/↑ suggestions, Enter
   to navigate — the #12 keyboard model, unchanged); Tab to the auth (operate the login button or open
   the `SignedIn` Radix menu).
