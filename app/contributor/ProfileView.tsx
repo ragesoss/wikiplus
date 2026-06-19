@@ -5,7 +5,8 @@ import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import { SiteFooter } from "@/components/chrome/SiteFooter";
-import { SiteHeader } from "@/components/chrome/SiteHeader";
+import { AuthControl } from "@/components/auth/AuthControl";
+import { SiteHeader } from "@/components/header/SiteHeader";
 import { useRequireLogin } from "@/components/auth/useRequireLogin";
 import { DeleteConfirmDialog } from "@/components/topic/DeleteConfirmDialog";
 import { EditModal } from "@/components/topic/EditModal";
@@ -272,14 +273,12 @@ export function ProfileView() {
   );
 }
 
-// ── The simple app header (design §3.1): the profile is NOT a Topic page, so it uses the global
-// header context (the AuthControl identity affordance is reachable — a signed-in viewer keeps
-// their account menu; a logged-out reader sees "Log in with Wikipedia"), not the two-world
-// TopicHeader. The profile itself requires no login.
+// ── The app header (VISUAL_IDENTITY §10.1): the profile is NOT a Topic page, so it uses the
+// universal Daylight Projector header (host="home") — the same full-bleed projector beam all
+// non-topic views share. Auth affordance (account menu / "Log in") is present for both
+// signed-in and logged-out readers.
 function ProfileHeader() {
-  return (
-    <SiteHeader containerClassName="mx-auto flex max-w-[760px] flex-wrap items-center justify-between gap-3 px-5 py-3" />
-  );
+  return <SiteHeader auth={<AuthControl variant="home" />} />;
 }
 
 // ── §4 the public identity header — public identity ONLY (AC2): username + granted avatar +
