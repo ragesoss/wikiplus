@@ -110,3 +110,62 @@ describe("Content-absent (§9) — additive & inert when content missing", () =>
     expect(o).toContain("Plain prose only.");
   });
 });
+
+// ─── D1 — Taxobox geologic timebar degradation ───────────────────────────────
+// The `#Timeline-row` graphic in the taxobox "Temporal range:" cell is a `<div>` of
+// ~12 child divs, each absolutely-positioned by inline `style` to form a colored bar.
+// After X4 sanitization those inline styles are stripped, causing each period's link to
+// stack vertically into a broken single-letter column (D1). `stripChrome` removes
+// `#Timeline-row` entirely; the human-readable textual range outside it is kept.
+describe("D1 — geologic timebar removed; textual temporal range survives", () => {
+  // Faithful structural reproduction of the live Cat Parsoid markup: the noprint span
+  // wraps the Ma range text + the Timeline-row bar; the textual range ("Holocene to
+  // present") is a direct sibling in the wrapping div, outside the noprint span.
+  const TIMELINE_TH = `
+<table class="infobox biota"><tbody>
+  <tr><th colspan="2">
+    <div>Temporal range: <span class="noprint">
+      <span>0.0095–0 Ma</span>
+      <div id="Timeline-row">
+        <div><a href="./Precambrian">Pre&#42850;</a></div>
+        <div><a href="./Cambrian">&#42830;</a></div>
+        <div><a href="./Ordovician">O</a></div>
+        <div><a href="./Silurian">S</a></div>
+        <div><a href="./Devonian">D</a></div>
+        <div><a href="./Carboniferous">C</a></div>
+        <div><a href="./Permian">P</a></div>
+        <div><a href="./Triassic">T</a></div>
+        <div><a href="./Jurassic">J</a></div>
+        <div><a href="./Cretaceous">K</a></div>
+        <div><a href="./Paleogene">Pg</a></div>
+        <div><a href="./Neogene">N</a></div>
+      </div>
+    </span><br/>
+    <a href="./Holocene">Holocene</a> to present (9,500 years ago)</div>
+  </th></tr>
+</tbody></table>`;
+
+  it("removes the #Timeline-row bar graphic (no broken letter-stack)", async () => {
+    const o = await out(TIMELINE_TH);
+    const d = live(o);
+    // The Timeline-row div must be gone — no broken letter-stack element in the DOM.
+    expect(d.querySelector("#Timeline-row")).toBeNull();
+    // The individual period link texts that formed the broken stack must be absent.
+    // (They were only in the bar; the textual range below uses "Holocene", not the codes.)
+    expect(o).not.toContain("Precambrian");
+  });
+
+  it("keeps the human-readable textual temporal range", async () => {
+    const o = await out(TIMELINE_TH);
+    // The plain-text range outside the bar graphic must survive intact.
+    expect(o).toContain("Holocene");
+    expect(o).toContain("9,500 years ago");
+    // The Ma notation inside the noprint span also survives as plain text.
+    expect(o).toContain("Ma");
+  });
+
+  it("the Ma range text inside .noprint is kept as plain text (noprint is inert without Wikipedia CSS)", async () => {
+    const o = await out(TIMELINE_TH);
+    expect(o).toContain("0.0095");
+  });
+});
