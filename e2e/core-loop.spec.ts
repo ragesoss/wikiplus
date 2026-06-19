@@ -76,9 +76,11 @@ test.describe("Curated topic — read & weigh (AC1–AC13)", () => {
   }) => {
     await page.goto("/topic/Photosynthesis/");
 
-    // AC1 — split wordmark
-    await expect(page.getByText("Wiki", { exact: true })).toBeVisible();
-    await expect(page.getByText("plus", { exact: true })).toBeVisible();
+    // AC1 — the seam-aligned wiki+ wordmark (#72: the shared Daylight Projector header renders the
+    // split as a lit Tier-A lockup + a flat slim lockup cross-faded, so "Wiki"/"plus" each appear
+    // more than once — assert the first is present).
+    await expect(page.getByText("Wiki", { exact: true }).first()).toBeVisible();
+    await expect(page.getByText("plus", { exact: true }).first()).toBeVisible();
 
     // AC2/AC3 — real article title + section headings render
     await expect(

@@ -675,6 +675,18 @@ config with the defaults above**, such that the landing render is `<HeaderProjec
 specifying the **API shape only**; verification is "geometry is passed via props/typed config with
 defaults; the dynamic behavior itself is not implemented" (AC10 verify line).
 
+> **Update (#72) — `projectionX` / `seamRatio` now have a SECOND, dynamic consumer.** The "reserved
+> hook the future two-column header drives" named above is no longer landing-only. The shared
+> "Daylight Projector" header (#72, `components/header/SiteHeader.tsx`) is the Topic host: at `≥ lg`
+> it **measures** the real article↔plus gutter centre (a mount/resize probe, never per-scroll) and
+> drives `projectionX` so the lockup's **seam** lands on the divider — the dynamic re-projection this
+> spec reserved, now implemented for the Topic page (below `lg` it passes no `projectionX`, so the
+> lockup is self-contained, exactly as the landing page is at narrow widths). The **landing render is
+> unchanged** — it still passes no geometry and the token defaults stand (the #72 AC12 guardrail).
+> The Topic instance passes a `geometry` override (`burnY=116`, `cyMid=40`, the measured
+> `projectionX`) without mutating the landing `--projector-*` defaults. See
+> `docs/design/shared-header.md` §3.
+
 ### 5.3 Tokens to pin (VISUAL_IDENTITY §4.2 — the gold + surface tokens)
 
 Pin in the Tailwind `@theme` / CSS variables, disciplined per the gold-as-accent rule:

@@ -119,10 +119,17 @@ describe("TopicView — curated state (AC1, AC2, AC3, AC4, AC7, AC20)", () => {
     fetchFullArticle.mockResolvedValue(article);
   });
 
-  it("renders the split Wiki / ＋plus wordmark (AC1)", async () => {
+  it("renders the seam-aligned wiki+ wordmark as a home link (AC1; #72 AC1/AC3)", async () => {
     render(<TopicView />);
-    expect(screen.getByText("Wiki")).toBeInTheDocument();
-    expect(await screen.findByText("plus")).toBeInTheDocument();
+    // #72: the bespoke two-block TopicHeader is retired for the shared Daylight Projector header.
+    // The wordmark renders the split serif "Wiki" + the indigo "plus" block (now via HeaderProjector,
+    // cross-faded Tier-A lit + flat slim mark, so each appears more than once — tolerate multiples),
+    // and is a real link to / with the accessible name "wiki+" (the universal home affordance, AC3).
+    expect(screen.getAllByText("Wiki").length).toBeGreaterThan(0);
+    expect((await screen.findAllByText("plus")).length).toBeGreaterThan(0);
+    const homeLinks = screen.getAllByRole("link", { name: "wiki+" });
+    expect(homeLinks.length).toBeGreaterThanOrEqual(1);
+    homeLinks.forEach((l) => expect(l).toHaveAttribute("href", "/"));
   });
 
   it("renders the real article title + sections once the fetch resolves (AC2/AC3)", async () => {

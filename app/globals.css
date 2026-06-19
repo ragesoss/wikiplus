@@ -115,6 +115,72 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+/* ── Shared Daylight Projector header (#72) — the Topic host's scroll-aware Tier-A ↔ slim sticky
+   transition (docs/design/shared-header.md §4). ONE header, two compositions cross-faded:
+   • Tier A (scroll-top): the lit aperture + full beam (.header-beam), seam on the divider; the
+     band is TOPIC_BURN_Y (116px) tall; the flat slim wordmark (.header-flatmark) is hidden.
+   • Slim (scrolled, [data-collapsed]): the beam fades opacity → 0, the band collapses to 56px, and
+     the flat Tier-C wordmark fades IN.
+   The chrome row (search + flat wordmark + auth) is the SAME DOM in both states (no remount, focus
+   preserved — AC9/AC13); only the beam opacity + band height + the two wordmark opacities animate.
+   The article body is untouched (§9.3). */
+
+/* The beam layer: visible at Tier A, faded out when collapsed (opacity — cheap, compositor-friendly,
+   reversible — AC4). */
+.header-shared .header-beam {
+  opacity: 1;
+}
+.header-shared[data-collapsed] .header-beam {
+  opacity: 0;
+}
+
+/* The flat slim wordmark: hidden at Tier A (the seam-aligned lit lockup is the visible mark),
+   faded in when collapsed. It stays in the DOM + focusable in BOTH states so the wordmark is always
+   a reachable "wiki+" → / home link (AC3/AC13) — only its opacity changes. */
+.header-shared .header-flatmark {
+  opacity: 0;
+}
+.header-shared[data-collapsed] .header-flatmark {
+  opacity: 1;
+}
+/* Keep the focus ring visible even when the flat mark is opacity-0 at Tier A: if it receives
+   keyboard focus, reveal it so the focus target is never invisible (AC13). */
+.header-shared .header-flatmark:focus-within {
+  opacity: 1;
+}
+
+/* The bottom chrome rule — a defined edge over the scrolling article in the slim state (§4.2). At
+   Tier A the beam burns to the content's own white, so no rule; when collapsed the 2px ink rule
+   appears (the committed Topic header's bottom rule). */
+.header-shared[data-collapsed] {
+  border-bottom: 2px solid var(--color-ink);
+}
+
+/* Motion: animate the transition ONLY when the user has no reduced-motion preference (AC5). With
+   reduced motion the end-states apply instantly (no tween) — the slim state is still reached. */
+@media (prefers-reduced-motion: no-preference) {
+  .header-shared .header-band {
+    transition: height 180ms ease-out;
+  }
+  .header-shared .header-beam,
+  .header-shared .header-flatmark {
+    transition: opacity 180ms ease-out;
+  }
+}
+
+/* Forced-colors: the burn-to-white + gold beam cannot survive a forced palette (§7.5). Drop the
+   beam layer entirely and keep the flat slim wordmark visible at every scroll state — the lockup
+   shape + search + auth stay operable. (HeaderProjector's own .forced-colors-flat handles the mark
+   internals; this hides the beam container + reveals the flat mark.) */
+@media (forced-colors: active) {
+  .header-shared .header-beam {
+    display: none !important;
+  }
+  .header-shared .header-flatmark {
+    opacity: 1 !important;
+  }
+}
+
 /* ── Hardbox language (design §5): white fill, 2px ink border, solid offset. ── */
 .plus-card {
   background: #fff;

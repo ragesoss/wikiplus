@@ -61,6 +61,9 @@ export interface ProjectorGeometry {
   seamRatio?: number;
   /** fullBleed — gold border runs off real page edges (Tier A requires true). Default true. */
   fullBleed?: boolean;
+  /** cyMid(px) — wordmark row centre from the band top. Token default 44 (landing). The Topic
+   * host passes 40 (#72 design §3.4) — a shorter sticky chrome band. */
+  cyMid?: number;
 }
 
 export interface HeaderProjectorProps {
@@ -88,6 +91,13 @@ const ARM_B = Math.min(BH * 0.32, 18); // "+" arm reach
 const CORE = 44; // white-hot aperture core box
 const PEDIA_OPACITY = 0.24; // halation ghost (VISUAL_IDENTITY §2.8 / o.pedia)
 const CUT_CX = 27; // aperture x within the block (mockup cutCx clamp → ~27 at this scale)
+
+// ── Seam → aperture offset (#72 §3.3). The lockup is positioned so its APERTURE lands on the
+// live apex x; the SEAM (where "Wiki" ends and the indigo block begins) sits this many px to the
+// LEFT of the aperture: the block's 2px left margin + the cut inset within the block. So a Topic
+// host that wants the SEAM on the gutter centre drives the apex (projectionX) to
+// gutter_centre + APERTURE_SEAM_OFFSET. Exported so the seam-on-divider math lives in ONE place.
+export const APERTURE_SEAM_OFFSET = 2 + CUT_CX; // ≈ 29px
 
 // SSR-safe tight estimate of the "Wiki" serif advance (Georgia 600 42px). The mockup measures
 // `crisp.offsetWidth` (~95px); we use that REAL advance. It is only the no-JS fallback for the
@@ -498,9 +508,10 @@ export function HeaderProjector({
   const projectionXFrac = geometry?.projectionX; // undefined on the landing page (layout-driven)
   void seamRatio; // API-shape only (AC10) — no dynamic re-seam; documented, unused.
 
-  // Wordmark row center from the header top (design §4.2). With burnY = 130 the cone length is
-  // burnY − cyMid = 86px; the crossbar offset and flare angle complete the beam geometry.
-  const cyMid = 44;
+  // Wordmark row center from the header top (design §4.2). Landing default 44 (with burnY 130);
+  // the Topic host passes 40 (with burnY 116) for a shorter sticky chrome band (§3.4). The cone
+  // length is burnY − cyMid; nothing else about the beam changes.
+  const cyMid = geometry?.cyMid ?? 44;
 
   // ── Live geometry measurement (design §4.3 / §4.7). The beam is drawn TRUE-SCALE
   // at the real canvas width `cw`, with the apex on the LIVE aperture x — so we measure both on
@@ -714,8 +725,12 @@ function Container({
   children: React.ReactNode;
 }) {
   if (as === "a") {
+    // `block` (not inline-block) so the link form is layout-equivalent to the `div` form for the
+    // full-bleed projector band — the wordmark→home link (#72 AC3) must NOT shrink-wrap the band and
+    // break the beam (the AC12 landing no-regression guarantee). The flat lockup in a flex row is a
+    // block child of a flex item, which is harmless.
     return (
-      <a href={href ?? "#"} aria-label={accessibleName} className={`inline-block ${className}`}>
+      <a href={href ?? "#"} aria-label={accessibleName} className={`block ${className}`}>
         {children}
       </a>
     );
