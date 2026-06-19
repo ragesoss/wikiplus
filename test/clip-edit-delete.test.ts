@@ -405,6 +405,26 @@ describe("H-1 — over-length modifier/slug/label fields are rejected before any
     ).rejects.toThrow(/sectionSlug exceeds/);
     expect(await h.db.select().from(clip)).toHaveLength(before.length);
   });
+
+  it("rejects an over-length accuracyModifier on addClipAction and writes no clip row", async () => {
+    await signInAs("Owner", "sub-owner");
+    await upsertTopicAction({ qid: "Q11982", title: "Photosynthesis" });
+    const before = await h.db.select().from(clip);
+    await expect(
+      addClipAction({ ...baseClip(), accuracyModifier: OVER }, true)
+    ).rejects.toThrow(/accuracyModifier exceeds/);
+    expect(await h.db.select().from(clip)).toHaveLength(before.length);
+  });
+
+  it("rejects an over-length sectionLabel on addClipAction and writes no clip row", async () => {
+    await signInAs("Owner", "sub-owner");
+    await upsertTopicAction({ qid: "Q11982", title: "Photosynthesis" });
+    const before = await h.db.select().from(clip);
+    await expect(
+      addClipAction({ ...baseClip(), sectionLabel: OVER }, true)
+    ).rejects.toThrow(/sectionLabel exceeds/);
+    expect(await h.db.select().from(clip)).toHaveLength(before.length);
+  });
 });
 
 describe("AC10 — a chip/section-only or whitespace-only edit does NOT re-stamp the agreement", () => {
