@@ -26,8 +26,9 @@ import { SiteHeader } from "@/components/header/SiteHeader";
 //       - narrow  (< md): lockup LEFT-anchored (HeaderProjector positions it left → off-center
 //         apex → short left arm + long right arm), auth at the RIGHT of the same row.
 //   • There is no "Contribute" link in the header.
-//   • The hero (search) is pulled UP so its top sits just below the burn boundary (burnY=130px),
-//     INSIDE the bracket arms — the beam burns into the search, not a far-off underline (§4.4).
+//   • The hero (search) is pulled UP so its top sits just below the burn boundary (burnY=104px —
+//     the shared Tier-A geometry), INSIDE the bracket arms — the beam burns into the search, not a
+//     far-off underline (§4.4).
 // See docs/specs/landing-page.md + docs/design/landing-page.md.
 
 export default function HomePage() {

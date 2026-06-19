@@ -50,7 +50,8 @@ export interface ProjectorGeometry {
   beamCrossUp?: number;
   /** beamEdgeInset(px) — crossbar end inset before brackets go off-page. Token: --projector-edge-inset (17). */
   beamEdgeInset?: number;
-  /** burnY(px) — content boundary where the beam burns to white. Token: --projector-burn-y (130). */
+  /** burnY(px) — band height / content boundary where the beam burns to the host background.
+   * Token: --projector-burn-y (104 — the shared Tier-A default both hosts render). */
   burnY?: number;
   /** projectionX — beam apex x as a fraction (0..1) of width. The reserved AC10 dynamic hook the
    * future Topic-page header drives. On the landing page it is OMITTED — the apex x is the LIVE
@@ -61,8 +62,8 @@ export interface ProjectorGeometry {
   seamRatio?: number;
   /** fullBleed — gold border runs off real page edges (Tier A requires true). Default true. */
   fullBleed?: boolean;
-  /** cyMid(px) — wordmark row centre from the band top. Token default 44 (landing). The Topic
-   * host passes 40 (#72 design §3.4) — a shorter sticky chrome band. */
+  /** cyMid(px) — wordmark row centre from the band top. Token default 28 (the shared Tier-A
+   * default both hosts render = SLIM_BAR_HEIGHT/2). */
   cyMid?: number;
   /** leftInset(px) — the SELF-CONTAINED (narrow / < lg, no `projectionX`) left edge of the lockup,
    * i.e. where "Wiki" begins. Token default LANDING_PAD_X (16px — the landing hero's px-4 inset).
@@ -381,10 +382,12 @@ function Beam({
         data-beam-right-arm={(cw - edgeInset - apexX).toFixed(1)}
       >
         {/* viewBox width = cw (1:1 px) — the stem + angle are TRUE-SCALE, never stretched.
-            non-scaling-stroke keeps the 2px gold edge crisp. */}
+            non-scaling-stroke keeps the 2px gold edge crisp. The interior burns to the host's own
+            background (--projector-burn-bg: Home #FFFFFF / Topic #F7F7F7) so the beam edge meets the
+            page with no seam (spec Decision 2 / AC6) — the gold stroke stays the signal-carrying edge. */}
         <path
           d={d}
-          fill="#ffffff"
+          fill="var(--projector-burn-bg)"
           stroke={`rgb(${GOLD_RIM_RGB})`}
           strokeWidth={2}
           strokeLinejoin="round"
@@ -514,8 +517,9 @@ export function HeaderProjector({
 
   // Resolve geometry: explicit prop > pinned token default. For the SSR-rendered SVG paths we
   // need concrete numbers, so the JS defaults MIRROR the pinned `--projector-*` tokens in
-  // globals.css — kept in sync intentionally (AC10). burnY default = 130 (design §4.2).
-  const burnY = geometry?.burnY ?? 130;
+  // globals.css — kept in sync intentionally (AC3/AC10). burnY default = 104 (the SHARED Tier-A
+  // band height both hosts render — Home passes no override; Topic's TOPIC_GEOMETRY equals it).
+  const burnY = geometry?.burnY ?? 104;
   const beamSlope = geometry?.beamSlope ?? 0.6;
   const crossUp = geometry?.beamCrossUp ?? 28;
   const edgeInset = geometry?.beamEdgeInset ?? 17;
@@ -527,11 +531,13 @@ export function HeaderProjector({
   const projectionXFrac = geometry?.projectionX; // undefined on the landing page (layout-driven)
   void seamRatio; // API-shape only (AC10) — no dynamic re-seam; documented, unused.
 
-  // Wordmark row center from the header top (design §4.2). Landing default 44 (with burnY 130);
-  // the Topic host passes 28 (with burnY 104) for a shorter sticky chrome band whose wordmark row
-  // aligns with the 56px chrome-row centre (§3.4). The cone
-  // length is burnY − cyMid; nothing else about the beam changes.
-  const cyMid = geometry?.cyMid ?? 44;
+  // Wordmark row center from the header top. The SHARED default is 28 (with burnY 104): the
+  // wordmark row centres on the 56px chrome-row centre (SLIM_BAR_HEIGHT/2), so the lit lockup
+  // aligns with the search + auth cards and the flat 56px lockup fills the slim bar exactly
+  // (spec Decision 1 / §2.3). Both hosts use this default — Home passes no override; the Topic
+  // host's TOPIC_GEOMETRY passes the same 28 (a no-op equal to the default). The cone length is
+  // burnY − cyMid (= 76); nothing else about the beam changes.
+  const cyMid = geometry?.cyMid ?? 28;
 
   // ── Live geometry measurement (design §4.3 / §4.7). The beam is drawn TRUE-SCALE
   // at the real canvas width `cw`, with the apex on the LIVE aperture x — so we measure both on
@@ -711,8 +717,10 @@ export function HeaderProjector({
         <div ref={bandRef} className="projector-band relative w-full" style={{ minHeight: burnY }}>
           {/* cool fluorescent field above the burn boundary */}
           <span aria-hidden="true" className="absolute inset-x-0 top-0 bg-[var(--color-header-field)]" style={{ height: burnY }} />
-          {/* warm content white from the burn boundary down (the hero resolves into this) */}
-          <span aria-hidden="true" className="absolute inset-x-0 bg-[var(--color-content-white)]" style={{ top: burnY, bottom: 0 }} />
+          {/* the burn-to-background fill from the burn boundary down — the host's OWN page surface
+              (Home #FFFFFF, Topic #F7F7F7), driven by --projector-burn-bg so the area beneath the
+              header resolves into the page with no seam (spec Decision 2). */}
+          <span aria-hidden="true" className="absolute inset-x-0 bg-[var(--projector-burn-bg)]" style={{ top: burnY, bottom: 0 }} />
 
           {/* The geometric "+" beam — true-scale stem + fixed 0.6 angle + ASYMMETRICAL arms,
               each drawn to its own real edge; the bottom extends below burnY and CLIPS at burnY

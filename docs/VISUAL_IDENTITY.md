@@ -630,10 +630,13 @@ stands unchanged. **What is new is strictly the header treatment** — and with 
    `≥ lg` the seam aligns to the **gutter centre** — the midpoint of the `gap-7` (28px) channel
    between the `1fr` article column and the `360px` rail — driven onto the lockup via the
    `projectionX`/`seamRatio` hook off the **measured** column geometry (a mount/resize probe, never a
-   per-scroll measure). The mockup's strip-canvas numbers are mapped to the real Topic band as
-   `burnY=104`, `cyMid=28` — a shorter sticky chrome band than the landing hero's `burnY=130`, with
-   the wordmark row centred on the `56px` chrome-row centre (`SLIM_BAR_HEIGHT/2`) so the lit lockup
-   aligns with the search + auth cards and the flat lockup fills the slim bar exactly. Below
+   per-scroll measure). The Tier-A band geometry is `burnY=104`, `cyMid=28` (cone length 76) — ONE
+   shared geometry both hosts (Home + Topic) render at Tier A (the §10.1 no-fork rule: the
+   `--projector-*` defaults equal these and Home passes no overrides), with the wordmark row centred
+   on the `56px` chrome-row centre (`SLIM_BAR_HEIGHT/2`) so the lit lockup aligns with the search +
+   auth cards and the flat lockup fills the slim bar exactly. Topic alone adds the scroll-collapse
+   layer on top. The beam burns to the host's OWN background (`--projector-burn-bg`: Home `#FFFFFF`,
+   Topic the body `#F7F7F7`) so the beam edge meets the page with no seam. Below
    `lg` the columns stack, there is no divider, and the lockup carries its `wiki | +plus` split
    **within itself** (§6.3) — no seam-alignment is applied. **Scroll transition:** on
    the Topic page the header is **Tier A** (lit aperture + full beam, seam on the divider) at
