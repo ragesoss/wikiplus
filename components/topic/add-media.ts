@@ -29,9 +29,11 @@ export function deriveHandle(authorName: string): string | undefined {
 
 /**
  * RESOLVED media source (design state C, AC1/AC2). Maps the oEmbed metadata into the existing
- * `ClipMediaSource` shape (D-YouTube): `title → caption`, `author_name → creator.name`,
- * `author_url → creator.url`, derived `creator.handle`, and `thumbnail_url → thumbnailUrl`
- * (a referenced URL, never hosted — AC7) falling back to the parser's `i.ytimg.com` thumb.
+ * `ClipMediaSource` shape: `title → caption`, `author_name → creator.name`,
+ * `author_url → creator.url`, and `thumbnail_url → thumbnailUrl` (a referenced URL, never hosted —
+ * AC7) falling back to the parser's derived thumb. `creator.handle` follows the D1 precedence: the
+ * canonical `@handle` from the share URL (TikTok) when present, else `deriveHandle(author_name)`
+ * (the YouTube floor), else omitted (name-only) — never "pasted".
  */
 export function resolvedMediaSource(
   parsed: ParsedVideo,
@@ -52,8 +54,9 @@ export function resolvedMediaSource(
     caption: meta.title,
     creator: {
       name: meta.authorName,
-      // Derived handle, or omitted (name-only) when none derives — never "pasted" (C10).
-      handle: deriveHandle(meta.authorName) ?? "",
+      // Handle precedence (D1): the canonical `@handle` from the share URL (TikTok), else the
+      // author-name derivation (the YouTube floor), else omitted (name-only) — never "pasted" (C10).
+      handle: parsed.creatorHandle ?? deriveHandle(meta.authorName) ?? "",
       platform: parsed.platform,
       // The C10 minimum-credit outbound link; omitted only if oEmbed gave no author_url.
       url: meta.authorUrl,

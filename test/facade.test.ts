@@ -38,12 +38,30 @@ describe("parseVideoUrl — YouTube (AC11 youtube-nocookie embed)", () => {
 });
 
 describe("parseVideoUrl — TikTok / Instagram (AC18)", () => {
-  it("parses a TikTok video link", () => {
+  it("parses a TikTok video link and captures the URL @handle (D1)", () => {
     const p = parseVideoUrl(
       "https://www.tiktok.com/@theactionlabshorts/video/7183824397071846699"
     );
     expect(p?.platform).toBe("tiktok");
     expect(p?.videoId).toBe("7183824397071846699");
+    expect(p?.creatorHandle).toBe("@theactionlabshorts");
+  });
+
+  it("captures the @junglygarden handle from the motivating-case URL (D1/AC3)", () => {
+    const p = parseVideoUrl(
+      "https://www.tiktok.com/@junglygarden/video/7242553660062944558"
+    );
+    expect(p?.creatorHandle).toBe("@junglygarden");
+  });
+
+  it("leaves creatorHandle undefined for a TikTok form without an @segment", () => {
+    const p = parseVideoUrl("https://www.tiktok.com/video/7183824397071846699");
+    expect(p?.platform).toBe("tiktok");
+    expect(p?.creatorHandle).toBeUndefined();
+  });
+
+  it("leaves creatorHandle undefined for YouTube (no clean URL handle — AC12)", () => {
+    expect(parseVideoUrl("https://youtu.be/abc123")?.creatorHandle).toBeUndefined();
   });
 
   it("parses an Instagram reel link", () => {

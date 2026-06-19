@@ -3,12 +3,13 @@ import { resolve } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 
-// QA & Review hardening for issue #64 (independent, non-author). The author's tests
-// (test/add-link-metadata.test.tsx, test/add-modal-resolve.test.tsx, test/modals.test.tsx)
-// cover AC1–AC6/AC9 and the C10 credit shape. These add the SECURITY + invariant guards QA
-// owns: the SSRF posture of the new Server-Action fetch surface, AC10 (no schema field / no
-// secret), and the C10 read-path realization on the card (a non-linked credit when
-// `creator.url` is absent — never a dead/empty href).
+// QA & Review hardening for the add-by-link oEmbed resolver (independent, non-author). The
+// author's tests (test/add-link-metadata.test.tsx, test/add-modal-resolve.test.tsx,
+// test/modals.test.tsx) cover the resolve/failure ACs and the C10 credit shape. These add the
+// SECURITY + invariant guards QA owns: the SSRF posture of the Server-Action fetch surface (now
+// two fixed hosts — YouTube and TikTok), the no-schema-field / no-secret invariant, and the C10
+// read-path realization on the card (a non-linked credit when `creator.url` is absent — never a
+// dead/empty href).
 
 import {
   placeholderMediaSource,
@@ -25,9 +26,10 @@ afterEach(() => vi.restoreAllMocks());
 // ── SECURITY: SSRF / open-proxy posture of resolveOEmbedAction ────────────────────────────────
 // The Server Action fetches a remote URL derived from USER-PASTED input. A Server Action's args
 // are fully client-controllable (the type signature is not a runtime guard), so QA treats both
-// `platform` and `watchUrl` as attacker-controlled and proves the fetch can ONLY ever hit the
-// fixed YouTube oEmbed host, with the pasted URL confined to a query parameter.
-describe("resolveOEmbedAction — SSRF posture (QA security review, issue #64)", () => {
+// `platform` and `watchUrl` as attacker-controlled and proves the fetch can ONLY ever hit a fixed
+// per-platform oEmbed host (YouTube or TikTok — D-TikTok), with the pasted URL confined to a query
+// parameter. The host comes from the constant `OEMBED_ENDPOINT` map, never from input.
+describe("resolveOEmbedAction — SSRF posture (QA security review, issue #64 / D-TikTok)", () => {
   function spyFetch(json: Record<string, unknown> = {}) {
     return vi
       .spyOn(globalThis, "fetch")
@@ -43,6 +45,18 @@ describe("resolveOEmbedAction — SSRF posture (QA security review, issue #64)",
     const fetched = new URL(fetchSpy.mock.calls[0][0] as string);
     // The fixed endpoint — host/origin/path are constants in the resolver, not from input.
     expect(fetched.origin).toBe("https://www.youtube.com");
+    expect(fetched.pathname).toBe("/oembed");
+  });
+
+  it("fetches ONLY the fixed www.tiktok.com/oembed host — the host is never user-controlled (D-TikTok)", async () => {
+    const fetchSpy = spyFetch({ title: "T", author_name: "A" });
+    await resolveOEmbedAction(
+      "tiktok",
+      "https://www.tiktok.com/@u/video/123"
+    );
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    const fetched = new URL(fetchSpy.mock.calls[0][0] as string);
+    expect(fetched.origin).toBe("https://www.tiktok.com");
     expect(fetched.pathname).toBe("/oembed");
   });
 
@@ -62,10 +76,22 @@ describe("resolveOEmbedAction — SSRF posture (QA security review, issue #64)",
     expect(fetched.searchParams.get("format")).toBe("json");
   });
 
-  it("makes NO fetch at all for any non-YouTube platform (gate is BEFORE the network call)", async () => {
+  it("confines a malicious pasted URL on the TikTok arm too — host stays the fixed TikTok endpoint", async () => {
+    const fetchSpy = spyFetch({ title: "T", author_name: "A" });
+    const evil =
+      "http://169.254.169.254/latest/meta-data#@evil.test/?x=y&z\r\nHost: evil";
+    await resolveOEmbedAction("tiktok", evil);
+    const fetched = new URL(fetchSpy.mock.calls[0][0] as string);
+    expect(fetched.origin).toBe("https://www.tiktok.com");
+    expect(fetched.pathname).toBe("/oembed");
+    expect(fetched.searchParams.get("url")).toBe(evil);
+    expect(fetched.searchParams.get("format")).toBe("json");
+  });
+
+  it("makes NO fetch at all for an unsupported platform (gate is BEFORE the network call)", async () => {
     const fetchSpy = spyFetch();
-    // Every non-youtube platform value — including a bogus/forged one — must short-circuit.
-    for (const p of ["tiktok", "instagram", "other", "evil" as never]) {
+    // Instagram/other (and any bogus/forged value) have no endpoint → short-circuit, no fetch.
+    for (const p of ["instagram", "other", "evil" as never]) {
       expect(await resolveOEmbedAction(p as never, "http://10.0.0.1/internal")).toEqual({
         ok: false,
         reason: "unsupported",

@@ -170,22 +170,133 @@ describe("AddModal — #64 failure → fallback (state D / E, AC4/AC5, C10)", ()
   });
 });
 
-describe("AddModal — #64 TikTok/unsupported placeholder arm (state G, AC6, D-TikTok)", () => {
+describe("AddModal — TikTok resolves through the YouTube path (D-TikTok: AC1/AC3/AC10)", () => {
   beforeEach(() => resolveOEmbed.mockReset());
 
-  it("AC6 — a recognized TikTok link goes straight to the honest placeholder + MVP-limitation line (no 'Try again')", async () => {
+  it("AC1/AC3 — a good TikTok resolve shows the real preview with the URL @handle (D1)", async () => {
+    resolveOEmbed.mockResolvedValue({
+      ok: true,
+      meta: {
+        // author_name DIVERGES from the URL handle — D1 must still show @junglygarden.
+        title: "Repotting a Dendrobium kingianum",
+        authorName: "Jungly Garden Official",
+        authorUrl: "https://www.tiktok.com/@junglygarden",
+        thumbnailUrl: "https://p16.tiktokcdn.com/thumb.jpg",
+      },
+    });
+    const onSubmit = makeOk();
+    renderAdd(onSubmit);
+    await fetchDetailsFor(
+      "https://www.tiktok.com/@junglygarden/video/7242553660062944558"
+    );
+
+    expect(
+      await screen.findByText("Repotting a Dendrobium kingianum")
+    ).toBeInTheDocument();
+    expect(screen.getByText("Jungly Garden Official")).toBeInTheDocument();
+    expect(screen.getByText("Resolved via oEmbed")).toBeInTheDocument();
+    // D1: the URL handle shows in the credit, not the author-name slug.
+    expect(screen.getByText("@junglygarden · TikTok")).toBeInTheDocument();
+    // AC10: no "we don't fetch TikTok" copy ever renders on the TikTok path.
+    expect(
+      screen.queryByText(/We don't fetch TikTok video details yet/)
+    ).toBeNull();
+    const credit = screen.getByText("Jungly Garden Official").closest("a");
+    expect(credit).toHaveAttribute("href", "https://www.tiktok.com/@junglygarden");
+
+    await fillNoteAndAgree();
+    await userEvent.click(screen.getByRole("button", { name: /Add & curate/ }));
+    // The persisted handle matches the previewed handle (D1).
+    const [clip] = onSubmit.mock.calls[0];
+    expect(clip.platform).toBe("tiktok");
+    expect(clip.caption).toBe("Repotting a Dendrobium kingianum");
+    expect(clip.creator).toMatchObject({
+      name: "Jungly Garden Official",
+      handle: "@junglygarden",
+      url: "https://www.tiktok.com/@junglygarden",
+    });
+  });
+
+  it("AC4 — a TikTok resolve missing author_url shows a non-linked credit (still state C)", async () => {
+    resolveOEmbed.mockResolvedValue({
+      ok: true,
+      meta: {
+        title: "No-link clip",
+        authorName: "Jungly Garden",
+        // no authorUrl, no thumbnailUrl
+      },
+    });
+    renderAdd();
+    await fetchDetailsFor(
+      "https://www.tiktok.com/@junglygarden/video/7242553660062944558"
+    );
+    expect(await screen.findByText("No-link clip")).toBeInTheDocument();
+    expect(screen.getByText("Resolved via oEmbed")).toBeInTheDocument();
+    // No outbound link — the name is NOT wrapped in an anchor (C10 name-without-link).
+    expect(screen.getByText("Jungly Garden").closest("a")).toBeNull();
+    // The URL handle still shows as text in the non-linked credit.
+    expect(screen.getByText("@junglygarden · TikTok")).toBeInTheDocument();
+  });
+
+  it("AC6/D2 — a TikTok fetch failure routes to state D (Try again / Add anyway), never 'unsupported' copy", async () => {
+    resolveOEmbed.mockResolvedValue({ ok: false, reason: "failed" });
+    renderAdd();
+    await fetchDetailsFor(
+      "https://www.tiktok.com/@junglygarden/video/7242553660062944558"
+    );
+    expect(
+      await screen.findByText("Couldn't fetch video details")
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Try again" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Add anyway" })).toBeInTheDocument();
+    // AC10: never the "we don't fetch TikTok" line on a platform we now fetch.
+    expect(
+      screen.queryByText(/We don't fetch TikTok video details yet/)
+    ).toBeNull();
+    expect(screen.queryByText("Resolved via oEmbed")).toBeNull();
+  });
+
+  it("AC7 — Add anyway from a TikTok failure yields the honest placeholder (no fabricated handle)", async () => {
+    resolveOEmbed.mockResolvedValue({ ok: false, reason: "failed" });
+    const onSubmit = makeOk();
+    renderAdd(onSubmit);
+    await fetchDetailsFor(
+      "https://www.tiktok.com/@junglygarden/video/7242553660062944558"
+    );
+    await screen.findByText("Couldn't fetch video details");
+    await userEvent.click(screen.getByRole("button", { name: "Add anyway" }));
+    expect(await screen.findByText("Unresolved TikTok clip")).toBeInTheDocument();
+    expect(screen.getByText("Creator not resolved")).toBeInTheDocument();
+
+    await fillNoteAndAgree();
+    await userEvent.click(screen.getByRole("button", { name: /Add & curate/ }));
+    const [clip] = onSubmit.mock.calls[0];
+    expect(clip.platform).toBe("tiktok");
+    expect(clip.caption).toBe("Unresolved TikTok clip");
+    expect(clip.creator.name).toBe("Creator not resolved");
+    expect(clip.creator.url).toBeUndefined();
+    expect(clip.creator.handle).toBe(""); // never the URL handle on the unresolved placeholder.
+  });
+});
+
+describe("AddModal — Instagram/other still use the unsupported placeholder arm (state G, AC8)", () => {
+  beforeEach(() => resolveOEmbed.mockReset());
+
+  it("a recognized Instagram link goes straight to the honest placeholder + MVP-limitation line (no 'Try again')", async () => {
     resolveOEmbed.mockResolvedValue({ ok: false, reason: "unsupported" });
     const onSubmit = makeOk();
     renderAdd(onSubmit);
     await userEvent.type(
       screen.getByPlaceholderText(/youtu\.be/),
-      "https://www.tiktok.com/@user/video/7183824397071846699"
+      "https://www.instagram.com/reel/ABC123/"
     );
     await userEvent.click(screen.getByRole("button", { name: "Fetch details" }));
 
-    expect(await screen.findByText("Unresolved TikTok clip")).toBeInTheDocument();
     expect(
-      screen.getByText(/We don't fetch TikTok video details yet/)
+      await screen.findByText("Unresolved Instagram clip")
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/We don't fetch Instagram video details yet/)
     ).toBeInTheDocument();
     // No retry on the support-limitation arm (retrying won't help).
     expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
@@ -194,8 +305,8 @@ describe("AddModal — #64 TikTok/unsupported placeholder arm (state G, AC6, D-T
     await fillNoteAndAgree();
     await userEvent.click(screen.getByRole("button", { name: /Add & curate/ }));
     const [clip] = onSubmit.mock.calls[0];
-    expect(clip.platform).toBe("tiktok");
-    expect(clip.caption).toBe("Unresolved TikTok clip");
+    expect(clip.platform).toBe("instagram");
+    expect(clip.caption).toBe("Unresolved Instagram clip");
     expect(clip.creator.name).toBe("Creator not resolved");
     expect(clip.creator.url).toBeUndefined();
   });
