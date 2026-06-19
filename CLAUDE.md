@@ -89,6 +89,20 @@ behind Cloudflare, Auth.js OAuth (Wikimedia for the MVP).
 - **Accessibility is baseline** — AA contrast, focus states, keyboard support, text-labeled
   signals (never color alone).
 
+## Comments & docs — no history cruft
+
+Inline comments and the **timeless docs** (this file, `README.md`, and the `docs/` source-of-truth
+docs — `ARCHITECTURE.md`, `VISION.md`, `TOPIC_PAGE_DESIGN.md`, `VISUAL_IDENTITY.md`,
+`CURATION_STANDARD.md`) describe the **current state and design intentions** — what the code/design
+*is* and *why*. Do **not** narrate code history in them: no "used to / previously / formerly / no
+longer / renamed / removed in favor of," no "Iteration N / finding N / PR #N," no before→after value
+trails (e.g. "burnY 150→130 to trim the top space"). State the current value and the rationale; when
+something changed, just describe what it is now. Git history, commit messages, and the **per-build
+`docs/specs/` + `docs/design/` artifacts** are the legitimate record of how it got here — that
+exclusion is the point: those files may carry change history; timeless docs and comments may not.
+(Runtime-state language is fine: "ignore a superseded request," "the clip no longer shows after
+removal" describe behavior, not code history.)
+
 ## Commits
 
 Follow the project commit format: subject line, then `## Changes`, then `## Process` (session

@@ -11,26 +11,25 @@
 // §8 (a11y). Geometry source of truth:
 // mockups/wordmark-projector-illuminate.html buildScene() (variant 01).
 //
-// ── Iteration 2 (PR #61, owner findings — design "Iteration 2" note + revised §4.3/§4.7/§7): ──
+// Key layout properties (design §4.3/§4.7/§7):
 //   1. TIGHT SEAM. The lockup is laid out as a shrink-to-fit inline-flex row: "Wiki" takes its
 //      INTRINSIC width (no fixed WIKI_W) and the zine block butts immediately against "Wiki"'s
 //      right edge (no gap). The ghost "Wikipedia"/"pedia" is covered by the block from the seam
 //      rightward and is glimpsed ONLY through the lit "+" aperture — never floating in a gap.
-//   2. burnY 168 → 150 (matches the mockup's pageY); cyMid 52 → 64 (matches the mockup) so the
-//      composition is TIGHT (short cone, crossbar near burnY) and reads as a projection landing
-//      ON the search, not a far-off underline.
+//   2. TIGHT COMPOSITION. burnY and cyMid sit close together (short cone, crossbar near burnY) so
+//      the mark reads as a projection landing ON the search, not a far-off underline.
 //   3. BEAM AT EVERY WIDTH (fluid). The landing page renders Tier A "projector" at ALL widths —
-//      no tier-drop. The beam is a preserveAspectRatio="none" full-width SVG whose viewBox width
-//      is a fixed canvas mapped to 100%, so the brackets always reach both real page edges and
-//      the beam scales fluidly (design §4.7). The Tier B/C/D variants remain DEFINED for the
-//      future Topic-page shared header, but the landing call (variant="projector") shows the full
-//      projector at every viewport.
+//      no tier-drop. The beam is drawn TRUE-SCALE: a full-width SVG whose viewBox width = the real
+//      canvas width in px (no preserveAspectRatio stretch), so the stem width and flare angle are
+//      identical at every viewport while the brackets always reach both real page edges (design
+//      §4.7). The Tier B/C/D variants remain DEFINED for the future Topic-page shared header, but
+//      the landing call (variant="projector") shows the full projector at every viewport.
 //
 // SCOPE (AC10): the geometry below is exposed as named props/typed config with the Tier-A
 // landing defaults pinned as CSS variables (`--projector-*`, app/globals.css `.header-projector`).
 // The landing render is ONE configuration — `<HeaderProjector variant="projector" />` with NO
 // inline geometry numbers at the call site. The DYNAMIC behavior (live column-ratio measurement,
-// runtime re-projection) is NOT implemented this round — only the API shape.
+// runtime re-projection) is NOT implemented — only the API shape.
 
 import { useEffect, useId, useRef, useState } from "react";
 
@@ -51,7 +50,7 @@ export interface ProjectorGeometry {
   beamCrossUp?: number;
   /** beamEdgeInset(px) — crossbar end inset before brackets go off-page. Token: --projector-edge-inset (17). */
   beamEdgeInset?: number;
-  /** burnY(px) — content boundary where the beam burns to white. Token: --projector-burn-y (150). */
+  /** burnY(px) — content boundary where the beam burns to white. Token: --projector-burn-y (130). */
   burnY?: number;
   /** projectionX — beam apex x as a fraction (0..1) of width. The reserved AC10 dynamic hook the
    * future Topic-page header drives. On the landing page it is OMITTED — the apex x is the LIVE
@@ -91,17 +90,17 @@ const PEDIA_OPACITY = 0.24; // halation ghost (VISUAL_IDENTITY §2.8 / o.pedia)
 const CUT_CX = 27; // aperture x within the block (mockup cutCx clamp → ~27 at this scale)
 
 // SSR-safe tight estimate of the "Wiki" serif advance (Georgia 600 42px). The mockup measures
-// `crisp.offsetWidth` (~95px); we use that REAL advance — NOT the old inflated 110 that opened a
-// gap (Iteration-2 finding 1). It is only the no-JS fallback for the beam apex x; the tight seam
-// itself comes from the shrink-to-fit inline-flex layout (no fixed width on "Wiki"), so this
-// constant never opens a gap. The live aperture x is measured once and exposed as a CSS var.
+// `crisp.offsetWidth` (~95px); we use that REAL advance. It is only the no-JS fallback for the
+// beam apex x; the tight seam itself comes from the shrink-to-fit inline-flex layout (no fixed
+// width on "Wiki"), so this constant never opens a gap. The live aperture x is measured once and
+// exposed as a CSS var.
 const WIKI_W_EST = 95;
 // SSR fallback for the aperture center's x within the full lockup, from the lockup's left edge:
 // "Wiki" advance + the block's 2px margin + the cut inset. Used to land the aperture (not the
 // lockup midpoint) on the beam apex (§4.3) before the measure resolves.
 const APERTURE_X_EST = WIKI_W_EST + 2 + CUT_CX;
 
-// SSR fallbacks + layout breakpoint for the true-scale beam (design §4.7, Iteration-3). The beam
+// SSR fallbacks + layout breakpoint for the true-scale beam (design §4.7). The beam
 // viewBox width = the REAL band width `cw`; before the client measures it we draw at a sensible
 // desktop fallback so SSR renders a coherent (centered) beam without JS. MD_BREAKPOINT mirrors
 // Tailwind's `md` (768px) — the desktop(centered) vs. narrow(left-anchored) layout switch (§7.5).
@@ -249,9 +248,9 @@ function ApertureBleed() {
   );
 }
 
-// ── The geometric "+" beam (VISUAL_IDENTITY §5.6 / design §4.7, Iteration-3). ──────────────────
+// ── The geometric "+" beam (VISUAL_IDENTITY §5.6 / design §4.7). ──────────────────
 //
-// TRUE-SCALE, ASYMMETRICAL-ARM model (the root-cause fix — design §4.7, Iteration-3 decisions):
+// TRUE-SCALE, ASYMMETRICAL-ARM model (design §4.7):
 //   • The SVG is full-width but its viewBox width = the REAL canvas width `cw` in pixels, with NO
 //     `preserveAspectRatio="none"` override — so the coordinate system is 1:1 px (option (b) of
 //     §4.7, exactly what the mockup's buildScene() does: viewBox="0 0 {cw} {svgH}", no PAR). The
@@ -262,7 +261,7 @@ function ApertureBleed() {
 //     two crossbar arms are ASYMMETRICAL: the left arm runs apex→`edgeInset` (length apexX −
 //     edgeInset), the right arm runs apex→`cw − edgeInset` (length cw − edgeInset − apexX). Arm
 //     length is the ONLY horizontal thing that varies with layout/width.
-//   • THE UNDERLINE FIX: the polygon's bottom vertices sit at `coneBot`, which is BELOW `burnY`
+//   • NO BOUNDARY UNDERLINE: the polygon's bottom vertices sit at `coneBot`, which is BELOW `burnY`
 //     (like the mockup's `coneBot` below `pageY`). The whole span is then CLIPPED at `burnY`
 //     (`height: burnY; overflow: hidden`), so the polygon's bottom CLOSING EDGE (the horizontal
 //     segment joining the two bottom vertices) lies below the clip line and is NEVER drawn as a
@@ -294,12 +293,13 @@ function Beam({
   // The cone's apex is a POINT at the aperture center (apexY), which sits BEHIND the zine block
   // (the block, drawn after the beam, occludes the apex region). So the beam has NO horizontal
   // gold cap at the top (the apex is a zero-width point, not a flat top edge) and NO gap — it
-  // emerges flush from under the block's bottom (black zine) edge, exactly touching it. (Owner,
-  // Iteration-3 follow-up: "no top gold border on the apex; the beam touches the black zine edge".)
+  // emerges flush from under the block's bottom (black zine) edge, exactly touching it: no top
+  // gold border on the apex; the beam touches the black zine edge.
   const top0 = apexY;
   const crossY = burnY - crossUp; // crossbar sits crossUp above the burn boundary
-  // The polygon extends BELOW burnY to coneBot, then the span clips at burnY (the underline fix —
-  // the bottom closing edge lies below the clip line). Mirrors the mockup's coneBot below pageY;
+  // The polygon extends BELOW burnY to coneBot, then the span clips at burnY (so the bottom
+  // closing edge lies below the clip line and no line is drawn at the boundary). Mirrors the
+  // mockup's coneBot below pageY;
   // svgH spans top0→coneBot. The exact coneBot only needs to be safely below burnY so the bottom
   // edge clips away; the brackets reach the edges well before it. Use the mockup's relationship.
   const coneBot = burnY + 96; // comfortably below burnY (mockup: ~96px below pageY=150 → 246)
@@ -377,7 +377,7 @@ function Beam({
 }
 
 // ── The lockup unit: ghost "Wikipedia" + crisp "Wiki" + "pedia" halation + the zine block.
-// Laid out as a SHRINK-TO-FIT inline-flex row (Iteration-2 finding 1): "Wiki" is an UNSIZED
+// Laid out as a SHRINK-TO-FIT inline-flex row: "Wiki" is an UNSIZED
 // inline span (intrinsic width) and the block follows with no left padding, so the seam is
 // tight at every width and NO magic width is load-bearing for the gap.
 //
@@ -456,7 +456,7 @@ export function HeaderProjector({
 
   // Resolve geometry: explicit prop > pinned token default. For the SSR-rendered SVG paths we
   // need concrete numbers, so the JS defaults MIRROR the pinned `--projector-*` tokens in
-  // globals.css — kept in sync intentionally (AC10). burnY default = 150 (Iteration 2, design §4.2).
+  // globals.css — kept in sync intentionally (AC10). burnY default = 130 (design §4.2).
   const burnY = geometry?.burnY ?? 130;
   const beamSlope = geometry?.beamSlope ?? 0.6;
   const crossUp = geometry?.beamCrossUp ?? 28;
@@ -467,15 +467,13 @@ export function HeaderProjector({
   // on the landing page the apex x is the LIVE aperture x, computed from the layout below. When
   // a caller passes projectionX explicitly we honor it as a fraction (the dynamic-API shape).
   const projectionXFrac = geometry?.projectionX; // undefined on the landing page (layout-driven)
-  void seamRatio; // API-shape only this round (AC10) — no dynamic re-seam; documented, unused.
+  void seamRatio; // API-shape only (AC10) — no dynamic re-seam; documented, unused.
 
-  // Wordmark row center from the header top (design §4.2). Lowered 64 → 44 with burnY 150 → 130
-  // (both by the SAME 20px) to cut the empty space above the wordmark + auth card without touching
-  // the beam: the cone length (burnY − cyMid = 86px), crossbar offset, and angle are all unchanged
-  // — the whole composition just shifts up 20px and the band is 20px shorter (owner, 2026-06-18).
+  // Wordmark row center from the header top (design §4.2). With burnY = 130 the cone length is
+  // burnY − cyMid = 86px; the crossbar offset and flare angle complete the beam geometry.
   const cyMid = 44;
 
-  // ── Live geometry measurement (design §4.3 / §4.7, Iteration-3). The beam is drawn TRUE-SCALE
+  // ── Live geometry measurement (design §4.3 / §4.7). The beam is drawn TRUE-SCALE
   // at the real canvas width `cw`, with the apex on the LIVE aperture x — so we measure both on
   // the client (resize-tracked). The apex x is LAYOUT-DRIVEN, not center-locked:
   //   • desktop (≥ md, ~≥ 768px): the lockup is CENTERED → aperture (= apex) at cw/2.
@@ -574,7 +572,7 @@ export function HeaderProjector({
 
   // ── Tier A — the full projector. On the LANDING page this renders at EVERY width (no
   // tier-drop — design §4.7 / §7); the beam is drawn TRUE-SCALE at the real band width with the
-  // apex on the live aperture x and ASYMMETRICAL arms (Iteration-3). The header is ONE row at
+  // apex on the live aperture x and ASYMMETRICAL arms. The header is ONE row at
   // every width — the lockup is centered on desktop / LEFT-anchored at narrow (the auth control
   // sits at the right in the page host); there is NO top strip and NO folded second row. The
   // Tier B/C wrappers below remain DEFINED for the future Topic-page shared header (and

@@ -81,7 +81,7 @@ export async function findOrCreateContributor(
 
   if (existing[0]) {
     // Refresh the display handle to the current Wikimedia username. Collision-safe: `handle` is
-    // non-unique, so a rename into another contributor's handle no longer violates a constraint.
+    // non-unique, so renaming into another contributor's handle does not violate a constraint.
     await db
       .update(contributor)
       .set({ handle: username, displayName: username })

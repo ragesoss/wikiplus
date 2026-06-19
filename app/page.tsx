@@ -13,26 +13,26 @@ import { HeaderProjector } from "@/components/wordmark/HeaderProjector";
 //   Daylight Projector header (Tier A, the fluid beam at EVERY width) → "Find a topic" search
 //   (the dominant focus, AC1, sitting INSIDE the projected light) → the concise VISION-sourced
 //   explanation (AC6) → a quiet rule → the DEMOTED topic list under "Explore example topics"
-//   (AC7, all four states preserved).
+//   (AC7, all four states).
 // The search is REUSED unforked (one TopicSearch import, variant="home" — AC2).
 //
-// ── Iteration 3 (PR #61, 3rd owner review — design §7.5 / §4.7): ──
+// ── Header layout (design §7.5 / §4.7): ──
 //   • The projector renders Tier A at EVERY width (no tier-drop, design §4.7), with the beam
 //     drawn TRUE-SCALE and the apex on the LIVE aperture x (asymmetrical arms).
-//   • The header is ONE ROW at every width — the lockup + a single AuthControl. NO top strip,
-//     NO folded second row (the Iteration-2 top-strip is RETRACTED, finding 5 + Iteration-3):
+//   • The header is ONE ROW at every width — the lockup + a single AuthControl, no top strip and
+//     no second row:
 //       - desktop (≥ md): lockup CENTERED in the band, auth pinned top-right.
 //       - narrow  (< md): lockup LEFT-anchored (HeaderProjector positions it left → off-center
 //         apex → short left arm + long right arm), auth at the RIGHT of the same row.
-//   • The "Contribute" link is REMOVED entirely (finding 4) — gone, not relocated.
-//   • The hero (search) is pulled UP so its top sits just below the burn boundary (burnY=150px),
+//   • There is no "Contribute" link in the header.
+//   • The hero (search) is pulled UP so its top sits just below the burn boundary (burnY=130px),
 //     INSIDE the bracket arms — the beam burns into the search, not a far-off underline (§4.4).
 // See docs/specs/landing-page.md + docs/design/landing-page.md.
 
 export default function HomePage() {
   const [topics, setTopics] = useState<Topic[] | null>(null);
   // Read-error floor (design §6.1): a server read can fail (DB down) — show an honest line
-  // rather than hang on "Loading…" forever. Preserved verbatim from the prior page (AC7).
+  // rather than hang on "Loading…" forever (AC7).
   const [loadError, setLoadError] = useState(false);
 
   useEffect(() => {
@@ -60,16 +60,16 @@ export default function HomePage() {
 
       {/* ── The Daylight Projector header (full-bleed so the gold border runs off both real
           page edges). The projector renders Tier A at EVERY width (true-scale beam — design §4.7),
-          so the band is tall (burnY=150px) at every width and the header chrome is ONE ROW:
+          so the band is tall (burnY=130px) at every width and the header chrome is ONE ROW:
           the lockup (centered on desktop / LEFT-anchored at narrow — positioned by HeaderProjector
           on the live apex) + a single AuthControl right-anchored on the wordmark row. The auth
           slot is ABSOLUTELY positioned right + vertically centered on the wordmark row so it never
           pushes the lockup off its anchor and NEVER folds to its own row under the lockup — NO top
-          strip, NO second row at any width (§7.5, findings 4–6 + Iteration-3). ── */}
+          strip, NO second row at any width (§7.5). ── */}
       <div className="relative bg-[var(--color-header-field)]">
         <HeaderProjector variant="projector" />
         {/* The single AuthControl, right-anchored on the SAME row as the lockup at every width.
-            No "Contribute" link (finding 4). The slot sits in the cool fluorescent band above the
+            No "Contribute" link. The slot sits in the cool fluorescent band above the
             burn boundary, vertically centered on the wordmark row (~cyMid=44px) so it reads as a
             normal top-bar (lockup left, sign-in right) at narrow widths and as a top-right control
             at desktop. It is absolutely positioned so it never pushes the lockup off its anchor and

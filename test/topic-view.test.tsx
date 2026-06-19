@@ -440,8 +440,8 @@ describe("TopicView — live candidate flow (F5: AC2/AC9/AC11 through the view)"
   it("(c) revisiting within the TTL does not call the source again (AC11)", async () => {
     const fetchSpy = mockYtSearch([ytItem("v1", "Glycolysis explained step by step")]);
     const { unmount } = render(<TopicView />);
-    // v1 matches the Glycolysis section → appears in the plus rail (#21 retired the
-    // inline copy, so it is no longer also rendered in the article body).
+    // v1 matches the Glycolysis section → appears in the plus rail (not also rendered
+    // inline in the article body).
     await screen.findAllByText("Glycolysis explained step by step");
     await waitFor(() => expect(fetchSpy).toHaveBeenCalledTimes(1));
     // Revisit (warm 24h cache): the source must NOT be called a second time.

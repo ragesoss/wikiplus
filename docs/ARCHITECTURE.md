@@ -77,7 +77,7 @@ GitHub-hosted runner and pushes it to **GHCR** (`ghcr.io/ragesoss/wikiplus`, tag
 + `:<sha>`), passing the YouTube key as a `--build-arg`; job 2 SSHes to the box and runs
 `docker compose pull && docker compose up -d`. **The 1GB box never builds Next.js** (it would
 OOM) — it only pulls + runs. This is the deploy leg of the cloud, mobile-drivable
-prompt → staging loop, re-enabled here after #37 paused it.
+prompt → staging loop.
 
 ### Self-hosted Next.js gotcha to design around (decide now, not later)
 
@@ -469,9 +469,9 @@ multi-provider OAuth support, so launching single-provider costs us nothing late
   the C fix round additively **dropped the `contributor.handle` UNIQUE constraint** (migration
   `drizzle/0001_loose_blockbuster.sql`) so the handle is purely display — the only C migration,
   applied cleanly on top of #45 with the `@prototype` stub preserved (AC9).
-- **The `@prototype` stub is superseded for new writes.** The seeded stub contributor stays as
-  attribution for clips curated **before** C (no retro-rewrite — Decision D6); only new writes
-  attribute to the real signed-in contributor. The stub has **no browsable public profile** (issue
+- **The `@prototype` stub attributes only pre-auth clips.** The seeded stub contributor is the
+  attribution for clips curated **before sign-in existed** (no retro-rewrite — Decision D6); new
+  writes attribute to the real signed-in contributor. The stub has **no browsable public profile** (issue
   #54 / D3, Decision 4): `/contributor/@prototype` resolves to not-found, and a `@prototype` clip's
   curator attribution is the non-linked `seed clip · no curator` label.
 - **Public identity is browsable; non-public identity is never exposed (issue #54 / D3).** A
@@ -816,8 +816,8 @@ a host is provisioned (issue A.2).
   var is read at **build time** and inlined into the **client** bundle (search runs client-side this
   round), so it is **visible in the shipped bundle by design** — the HTTP-referrer restriction and a
   quota cap are the guard, not secrecy. Unset in local/CI builds → the live search **no-ops** (falls
-  back to the seeded/empty candidate set), unchanged by the SSR switch. (The now-paused `deploy.yml`
-  read it from a GitHub Actions secret; when search moves **server-side** in the production read-path it
+  back to the seeded/empty candidate set), unchanged by the SSR switch. (The `deploy.yml` build reads
+  it from a GitHub Actions secret; when search moves **server-side** in the production read-path it
   becomes a server secret, not a client-inlined var.)
 - **Data:** all access goes through the `DataStore` interface (`lib/data/store.ts`). **As of #45 the
   deployed app uses `DrizzleDataStore` (shared Postgres) reached via Server Actions** — see
@@ -840,8 +840,8 @@ a host is provisioned (issue A.2).
   callback `https://wikiplus.wikiedu.org/api/auth/callback/wikimedia` registered at
   meta.wikimedia.org.
 - **In-product Promote / Add-by-link now persist (issue #52 / D1).** The two Topic-page curation
-  modals (`components/topic/CurateModal.tsx`, `AddModal.tsx`) — previously `// mock submit` — now
-  write through the **auth-gated Server Actions boundary**: `CurateModal` → `addClipAction`;
+  modals (`components/topic/CurateModal.tsx`, `AddModal.tsx`) write through the **auth-gated Server
+  Actions boundary**: `CurateModal` → `addClipAction`;
   `AddModal` → (`upsertTopicAction` if the topic is not yet in the store →) `addClipAction`. The
   host (`app/topic/TopicView.tsx`) owns the write + the in-memory clip-state update (the new clip
   renders with no reload, flipping empty→curated when first) + dropping the promoted candidate from

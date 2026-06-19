@@ -1,4 +1,4 @@
-// wiki+ mockups shared content (round 4 — inline/TOC iteration).
+// wiki+ mockups shared content.
 // Article: real English Wikipedia 'Photosynthesis' (CC BY-SA 4.0) with wikilinks (lead_html/sections[].html),
 // real Wikimedia Commons images (leadImage, sections[].image). Clips: 14 real oEmbed-verified videos,
 // split into a 'general' bucket (sectionId 'general') and section-anchored clips. stats has full-set counts.

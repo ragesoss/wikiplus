@@ -93,7 +93,7 @@ visual languages, and the docs name them distinctly (resolving the article-fidel
   restored by the article-fidelity feature. It lives in the **left article column**, float-right at
   the top of the lead, and keeps **Wikipedia's visual language** (grey header rows, hairline
   borders) — it is part of "the Wiki world," never restyled into Indigo Press.
-- **wiki+ panel** (formerly called "the +plus infobox") — wiki+'s *own* element in the **right
+- **wiki+ panel** — wiki+'s *own* element in the **right
   rail**. It has **three faces** (issue #60 coexistence — see §"Three states: empty / mixed /
   fully-curated"): the videos / creators / curators counts + synced status (fully-curated); the same
   three numerals **plus a `{V} curated · {M} suggested` two-count line** (mixed); or the "0 videos
@@ -233,14 +233,9 @@ candidates** plus prominent paths to curate. Reference mockup: **`mockups/inline
   candidate to its section in the plus rail** (and increments that section's TOC suggestion count) —
   it is **not** rendered inside the article body. The Wiki column stays plus-free except for the one
   General-strip crossover; matching governs *where in the rail* a candidate is anchored, not whether
-  it crosses into the article column.
-  - *Note (issue #21 — inline-under-section placement retired; see
-    `docs/specs/wiki-column-no-plus.md`):* an earlier version of this bullet had a section-matched
-    candidate "surface as a single inline candidate under that section," i.e. inside the article
-    body. That contradicted §"The General strip — the one crossover" and was removed. Section
-    **matching** is unchanged — only the inline *placement* it once implied is retired; the matched
-    candidate now appears only in the plus rail (consistent with §"Clip placement: General vs.
-    section-anchored").
+  it crosses into the article column. A section-matched candidate appears only in the plus rail,
+  never inline under the section in the article body (consistent with §"Clip placement: General
+  vs. section-anchored").
   - *MVP limitation (pragmatic, not a design choice):* only **YouTube** auto-suggestion is wired up
     at first, because TikTok lacks an easily-accessible search API (see ARCHITECTURE). TikTok
     auto-suggestion switches on when it becomes practical — the design already accommodates it.

@@ -50,11 +50,8 @@ body {
   --projector-cross-up: 28px; /* beamCrossUp — crossbar height above burnY */
   --projector-edge-inset: 17px; /* beamEdgeInset — crossbar end inset before off-page */
   --projector-burn-y: 130px; /* burnY — content boundary where the beam burns to white.
-     150→130 alongside cyMid 64→44 (both −20px) to trim the empty space above the wordmark +
-     auth card; the beam is unchanged (cone length burnY − cyMid = 86px held constant), the
-     whole composition just shifts up and the band shortens (owner, 2026-06-18). Iteration 2 had
-     168→150 to match the mockup's pageY; the search still sits just below the burn boundary so
-     the beam burns INTO the search, not a far-off underline. */
+     Cone length burnY − cyMid = 86px; the search sits just below the burn boundary so the beam
+     burns INTO the search, not a far-off underline. */
   --projector-seam-ratio: 0.5; /* seamRatio — 0.5 = centered lockup (single-column hero) */
   /* projectionX defaults to the content-column center via layout (the lockup is centered
      as a unit), not a px var — see HeaderProjector (design §4.3). fullBleed = true is the
@@ -82,9 +79,9 @@ body {
   }
 }
 
-/* ── Header layout: ONE ROW at every width (design §7 / §4.7 / §7.5, Iteration-3). The beam stays
+/* ── Header layout: ONE ROW at every width (design §7 / §4.7 / §7.5). The beam stays
    a beam at every width (no tier-drop) and the header is a SINGLE row — there is NO top strip and
-   NO folded second row (the Iteration-2 top-strip is RETRACTED).
+   NO folded second row.
    • Desktop (≥ md): the lockup is CENTERED (apex at cw/2) and the auth sits top-right — they
      coexist on one row with room to spare.
    • Narrow (< md): the lockup is LEFT-anchored (apex left-of-center → short left arm, long right
@@ -167,7 +164,7 @@ body {
 /* One-time "unvetted set" header that introduces the rail candidate list (#14, design
    D2). Dashed-outline block — echoes the candidate language without the solid offset
    shadow, so it reads as part of the unvetted set. Carries the once-per-context
-   framing; the per-card "No context yet…" sentence was removed in favor of this. */
+   framing — a single header rather than a per-card "No context yet…" note. */
 .candsethead {
   background: #fff;
   border: 2px dashed var(--color-ink);

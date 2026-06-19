@@ -9,15 +9,13 @@ import type {
 } from "./types";
 
 // The `DataStore` interface — the data-access seam. `./index.ts` is the single place that
-// wires the concrete implementation: as of issue #45 that's `DrizzleDataStore` (shared
-// Postgres, lib/db/drizzle-store.ts) reached through the Server Actions boundary
-// (lib/server/actions.ts); the localStorage store is retired for the deployed app, kept
-// only as a reference impl + test double.
+// wires the concrete implementation: `DrizzleDataStore` (shared Postgres,
+// lib/db/drizzle-store.ts) reached through the Server Actions boundary (lib/server/actions.ts);
+// the localStorage store is kept only as a reference impl + test double.
 //
-// This seam localizes *which store* is active to one file — but it is NOT a "swap one line"
-// boundary, despite earlier framing. Moving off localStorage forced the store server-side,
-// which meant standing up the Server Actions boundary AND rewiring the (previously
-// client-only) call sites to await it. Treat a store change as "pick the impl in index.ts +
+// This seam localizes *which store* is active to one file, but it is NOT a "swap one line"
+// boundary: the store runs server-side behind the Server Actions boundary, and the call sites
+// await it across the client/server split. Treat a store change as "pick the impl in index.ts +
 // reconcile the client/server split," not a single-line edit.
 //
 // Data model the seam carries (extended for Topic Page v1 — see types.ts and
@@ -58,7 +56,7 @@ export interface DataStore {
    *     is enabled (a key is present), or
    *   - `null` when no source is enabled (the no-key no-op, AC1) — the caller then
    *     falls back to `listCandidates` (seeded/empty).
-   * The change stays behind this seam; component call sites are untouched.
+   * This stays behind the seam, so component call sites are unaffected.
    */
   suggestCandidates(input: {
     topicQid: string;
@@ -67,19 +65,19 @@ export interface DataStore {
     /** `platform:videoId` keys already curated for this topic (AC8 dedup). */
     curatedVideoKeys: Set<string>;
     /**
-     * `platform:videoId` keys dismissed for this topic (AC9 dedup). As of issue #45
-     * dismissals are shared/durable in Postgres; the client fetches them (via the server
-     * boundary) and passes them in here so the live pipeline stays pure + client-side (AC8).
+     * `platform:videoId` keys dismissed for this topic (AC9 dedup). Dismissals are
+     * shared/durable in Postgres; the client fetches them (via the server boundary) and
+     * passes them in here so the live pipeline stays pure + client-side (AC8).
      */
     dismissedVideoKeys: Set<string>;
   }): Promise<Candidate[] | null>;
 
   /**
-   * Persist a curated clip. As of issue C the curator is the REAL signed-in contributor:
-   * the Server Action boundary resolves the session and passes `curatorId` (the
-   * authenticated `contributor.id`); the store no longer falls back to the `@prototype`
-   * stub for new writes (AC6). `curatorId` is optional only so the store-level tests +
-   * the localStorage reference impl can call it without a session.
+   * Persist a curated clip. The curator is the REAL signed-in contributor: the Server Action
+   * boundary resolves the session and passes `curatorId` (the authenticated `contributor.id`);
+   * the store does not fall back to the `@prototype` stub for new writes (AC6). `curatorId` is
+   * optional only so the store-level tests + the localStorage reference impl can call it without
+   * a session.
    *
    * The note-license agreement (issue #52 / D1, AC7) flows differently per side of the seam,
    * and the two trailing params model both honestly without minting trust on the client:

@@ -10,15 +10,12 @@ import { barePathRedirectTarget } from "@/lib/routing/reserved";
 // docs/specs/bare-path-redirect.md and docs/design/bare-path-redirect.md; recorded in
 // docs/ARCHITECTURE.md ("Prototype phase → routing").
 //
-// Under the Node SSR server (issue #37) this component is reached only for paths Next
-// can't match to a route — chiefly a BARE single-segment path (`/San_Francisco`). It is
-// NO LONGER the `404.html` SPA shell: the static export emitted this as `404.html` and
-// leaned on it to render unseeded `/topic/<Title>/` deep links, but with a server the
-// `/topic/[[...slug]]` catch-all now renders EVERY `/topic/...` path on demand
-// (`dynamicParams = true`), so this file's job shrinks to the bare-path hop. Next still
-// server-renders not-found per request, so the server's first HTML for a bare path must
-// be the neutral loading shell (the `redirecting === null` branch) — never a "not found"
-// flash that the client would then replace.
+// Under the Node SSR server this component is reached only for paths Next can't match to
+// a route — chiefly a BARE single-segment path (`/San_Francisco`). The `/topic/[[...slug]]`
+// catch-all renders EVERY `/topic/...` path on demand (`dynamicParams = true`), so this
+// file's job is the bare-path hop. Next server-renders not-found per request, so the
+// server's first HTML for a bare path must be the neutral loading shell (the `redirecting
+// === null` branch) — never a "not found" flash that the client would then replace.
 //
 // The ONE critical ordering requirement (design spec): for a bare title that is a real
 // topic, the user must NEVER see the "Topic not found." flash. We decide the redirect on
@@ -26,7 +23,7 @@ import { barePathRedirectTarget } from "@/lib/routing/reserved";
 // existing ArticleSkeleton) — never `TopicView`'s resolveError branch — so the hop reads
 // as one continuous load. A non-redirect unmatched path (a reserved or multi-segment one
 // the catch-all didn't claim) falls through to `TopicView`, ending in its graceful
-// "Topic not found. Back home" dead end — unchanged by this spec.
+// "Topic not found. Back home" dead end.
 export default function NotFound() {
   const router = useRouter();
   // Start "true" so the very first client paint after a redirect-eligible boot is the
@@ -81,7 +78,7 @@ export default function NotFound() {
 
   // Not a bare-title redirect: an unmatched path the catch-all didn't claim (a reserved
   // or multi-segment form). Render TopicView, which ends in its graceful "Topic not
-  // found. Back home" dead end — unchanged by this spec. (Unseeded `/topic/<Title>/`
-  // deep links no longer reach here: the server's catch-all renders them on demand.)
+  // found. Back home" dead end. (Unseeded `/topic/<Title>/` deep links do not reach here —
+  // the server's catch-all renders them on demand.)
   return <TopicView />;
 }

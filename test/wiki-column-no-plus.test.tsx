@@ -8,14 +8,12 @@ import type { FullArticle } from "@/lib/wiki/article";
 // The boundary under test: the General strip is the ONLY place plus content crosses
 // into the Wikipedia article column. Section-matched candidates live exclusively in
 // the plus rail (via CandidateCard) — NEVER interleaved inline in the article body.
-// (The inline-under-section placement, formerly InlineCandidate, was retired here.)
 //
 // The wiki module is MOCKED (no network egress in the sandbox), mirroring topic-view.test.tsx.
 
 // A two-section article whose section slugs match seeded section-anchored candidates
-// on the uncurated demo topic (Q189603): "glycolysis" and "citric-acid-cycle". Before
-// #21 each of these sections rendered a SECOND, inline candidate copy in the article
-// body; after #21 they must not.
+// on the uncurated demo topic (Q189603): "glycolysis" and "citric-acid-cycle". These
+// sections must NOT render a second, inline candidate copy in the article body.
 const cellularRespiration: FullArticle = {
   title: "Cellular respiration",
   displayTitle: "Cellular respiration",

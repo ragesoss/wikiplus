@@ -32,12 +32,11 @@ import { getDb } from "@/lib/db/client";
 //
 // Each READ here is a thin wrapper over one DrizzleDataStore method. The WRITE actions
 // (`upsertTopicAction`, `addClipAction`, `recordDismissalAction`, `toggleUpvoteAction`,
-// `updateClipAction`, `deleteClipAction`) are AUTH-GATED as of issue C (AC7/AC8, Decision D1):
-// they resolve the signed-in contributor via `requireContributor()` and REJECT (throw
-// `AuthRequiredError`) when there is no session — the gate is in the Server Action, not only a
-// hidden client button — then attribute the write to the REAL contributor (no more `@prototype`
-// for new writes). Reads stay anonymous (no `requireContributor`), so the cached read path adds no
-// per-user/auth work (AC11).
+// `updateClipAction`, `deleteClipAction`) are AUTH-GATED (AC7/AC8, Decision D1): they resolve the
+// signed-in contributor via `requireContributor()` and REJECT (throw `AuthRequiredError`) when
+// there is no session — the gate is in the Server Action, not only a hidden client button — then
+// attribute the write to the REAL contributor (not the `@prototype` stub). Reads stay anonymous
+// (no `requireContributor`), so the cached read path adds no per-user/auth work (AC11).
 //
 // RATE LIMIT (issue #57 / D5a): every COUNTED gated write passes a per-identity window check
 // (`checkWriteRateLimit`) AFTER the auth gate and BEFORE any persisting DB write — the
@@ -45,8 +44,8 @@ import { getDb } from "@/lib/db/client";
 // overridable) it throws `RateLimitedError` with NO side effect, so the write does not happen (AC2);
 // under the cap the write proceeds and `recordWriteEvent` appends ONE `write_event` ledger row AFTER
 // it lands (counting only successful writes). Reads are NEVER limited and write no ledger row (AC6).
-// Full validation/ownership/agreement capture is issue D. The store is instantiated lazily per
-// call; the underlying DB connection is opened lazily + memoized in lib/db/client.
+// The store is instantiated lazily per call; the underlying DB connection is opened lazily +
+// memoized in lib/db/client.
 //
 // NOT here (stays client-side, AC8): title→QID resolution, the article body/TOC fetch, and
 // the live YouTube `suggestCandidates` pipeline. The server never calls Wikipedia/YouTube.
@@ -55,13 +54,11 @@ function store(): DrizzleDataStore {
   return new DrizzleDataStore();
 }
 
-// ── Minimal input stopgap on the PUBLIC write boundary (issue #45 fix round) ────────────
-// These anonymous write actions are reachable by anyone (no auth until issue C). This is a
-// CHEAP server-side stopgap before D's full validation/auth: a length cap on free text so an
-// open endpoint can't be used to store absurd blobs, and a closed-set guard so the curation
-// enums (stance / accuracy / platform) can't be poisoned with out-of-vocabulary values that
-// would break chip rendering downstream. It is deliberately minimal — D owns real validation,
-// auth-gating, ownership, and the CC BY-SA agreement capture.
+// ── Input validation on the write boundary ──────────────────────────────────────────────
+// Cheap server-side guards that run alongside the auth gate + rate limit above: a length cap on
+// free text so a write can't store absurd blobs, and a closed-set guard so the curation enums
+// (stance / accuracy / platform) can't be poisoned with out-of-vocabulary values that would
+// break chip rendering downstream.
 
 /** Max length for free-text fields (`context_note`, `caption`). A sane cap, not a UX limit. */
 const MAX_TEXT = 5000;
