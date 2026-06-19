@@ -805,13 +805,45 @@ build on additively.
   `NOT NULL DEFAULT true`, the review-hold state, existing rows backfilled published) and
   `contributor.is_moderator` (boolean `NOT NULL DEFAULT false`, the binary reviewer role) — a clean
   additive, non-destructive change (no drop, no type change, no data loss).
-- **Migration + seed run on DEPLOY, never at build or per-request.** A compose **`migrate` one-shot**
-  (same app image, `command: node dist/migrate.cjs`) applies pending Drizzle migrations then runs the
-  idempotent seed (`lib/db/seed.ts`, ported from the prototype seed) against Postgres **before** the
+- **Migration runs on DEPLOY, never at build or per-request.** A compose **`migrate` one-shot**
+  (same app image, `command: node dist/migrate.cjs`) applies pending Drizzle migrations **before** the
   app server starts (`app depends_on migrate: service_completed_successfully`). So a push to `main`
-  that changes the schema lands a migrated + seeded DB with no manual SSH. The migrate entrypoint is
-  bundled (`scripts/build-migrate.mjs` → `dist/migrate.cjs`) so the tiny standalone runtime image runs
-  it with plain `node` (no tsx / drizzle-kit / full `node_modules`).
+  that changes the schema lands a migrated DB with no manual SSH. The migrate entrypoint is bundled
+  (`scripts/build-migrate.mjs` → `dist/migrate.cjs`) so the tiny standalone runtime image runs it with
+  plain `node` (no tsx / drizzle-kit / full `node_modules`).
+- **Production seed policy — the demo seed is a TEST/LOCAL-DEV FIXTURE, gated OFF in production.** The
+  seed (`lib/db/seed.ts` `seedDatabase` — the three demo topics + the curated Photosynthesis demo clips +
+  the `@prototype` stub) is **environment-agnostic** and runs **directly** in tests + local dev so the
+  contract is exercised in CI with no setup. In **production** it does **not** run: a reader should see only
+  genuine, human-vouched curation, so an uncurated topic reads honestly as "not yet curated" rather than
+  padded with fabricated demo clips attributed to a non-person stub. The deploy entrypoint
+  (`scripts/migrate.ts`) gates the seed behind the **`SEED_DEMO_CONTENT`** env flag:
+  - **Default ON.** The flag is read at the entrypoint (`seedDemoContentEnabled()`), **not** inside
+    `seedDatabase` (which stays unchanged so the test/local-dev fixture path needs no flag). Seeding runs
+    **unless** `SEED_DEMO_CONTENT` is the literal `"false"` or `"0"` (trimmed, case-insensitive); unset /
+    empty / any other value seeds. So local dev and tests (flag unset) seed as before.
+  - **OFF in production only.** The compose `migrate` service sets `SEED_DEMO_CONTENT: "false"`
+    (`deploy/docker-compose.yml`) — the prod-scoped place; the `app` service and local/test runs are
+    unaffected. When the flag is off, migrations still apply, the entrypoint logs that the seed was
+    skipped, and the run exits 0 (a skipped seed is a clean success).
+- **Removing the existing production demo rows — one-time, owner/ops-run `scripts/purge-demo-content.ts`.**
+  Gating the seed off stops *re-seeding* but does not delete demo rows a prior deploy already inserted, so
+  a **standalone, idempotent** purge removes them once. It is an explicit, auditable, human-initiated step —
+  deliberately **not** folded into the deploy path (a destructive `DELETE` on every deploy is a sharp edge
+  against the production curation tables, which now hold real hand-built curations). It (a) deletes the
+  seeded Photosynthesis demo clips, scoped to the Photosynthesis topic **and** matched on the seeded set's
+  stable identity (the seed `watchUrl`s from `lib/data/seed.ts`, derived at runtime), so a non-seeded (real)
+  clip on the topic survives; (b) removes the `@prototype` stub contributor **only when it has no remaining
+  clips** (orphan-only); (c) is **idempotent** (a second run is a safe no-op); and (d) leaves the three
+  seeded topic rows intact. The owner/ops runs it **once** against the live prod DB, with `tsx` (not the
+  deploy bundle):
+
+  ```sh
+  DATABASE_URL="postgres://USER:PASS@HOST:5432/wikiplus" yarn tsx scripts/purge-demo-content.ts
+  ```
+
+  Sequence: deploy the gate first (so re-seeding stops), then run the purge once, then confirm the
+  Photosynthesis topic shows zero clips and the `@prototype` contributor is gone.
 - **Interim attribution (stub contributor) — superseded by C.** B introduced no sign-in: every write
   was attributed to a single seeded **`@prototype`** contributor. **Issue C swapped this for real
   per-user identity** — new writes attribute to the signed-in Wikimedia contributor; the stub stays
