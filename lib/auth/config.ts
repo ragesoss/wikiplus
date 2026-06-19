@@ -81,7 +81,11 @@ export const authConfig: NextAuthConfig = {
   // production automatically (HTTPS host) — Ops verifies the TLS path (spec Dependencies).
   trustHost: true,
   // Stateless JWT session cookie (AC4/D3): ordinary reads need no session/account DB lookup.
-  session: { strategy: "jwt" },
+  // `maxAge` (7 days) bounds the lifetime of the at-sign-in claims below — notably the
+  // affordance-only `isModerator` stamp — so a stale claim cannot outlive a re-login by more
+  // than a week (issue #79). The write boundary still re-resolves the role server-side, so this
+  // window only affects which UI affordances show, never authorization.
+  session: { strategy: "jwt", maxAge: 7 * 24 * 60 * 60 },
   providers: [
     Wikimedia({
       clientId,
@@ -110,6 +114,13 @@ export const authConfig: NextAuthConfig = {
         // server-side, so a stale/forged claim never authorizes a write. Resolving it in the
         // sign-in pass (alongside the one find-or-create write) keeps ordinary reads JWT-only (AC4
         // / read-path discipline): no per-read role query.
+        //
+        // STALENESS TRADEOFF (issue #79): because the claim is stamped here and not re-resolved per
+        // read, a role grant/revoke (WIKIPLUS_MODERATORS or the DB flag) only changes a user's UI
+        // affordances after they re-login or their JWT expires. The session `maxAge` (7 days, above)
+        // bounds that stale-affordance window. This is acceptable because the claim is affordance-only:
+        // the write boundary (`holdClipAction`/`reviewClipAction`) re-resolves the role server-side
+        // and enforces it immediately, so a stale stamp never grants or withholds an actual write.
         token.isModerator = await isModeratorContributor(
           getDb(),
           resolved.contributorId

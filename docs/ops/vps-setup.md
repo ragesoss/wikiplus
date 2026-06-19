@@ -184,7 +184,13 @@ sed -E 's/=.*/=<set>/' .env
 ```
 
 - **Sessions are stateless JWT** — no Redis, no session table; `AUTH_SECRET` is the only new
-  server-secret surface. The OAuth scope is identify-only (no edit/act-on-behalf grant).
+  server-secret surface. The OAuth scope is identify-only (no edit/act-on-behalf grant). The
+  session `maxAge` is **7 days** (`lib/auth/config.ts`).
+- **Moderator role changes** (grant/revoke via `WIKIPLUS_MODERATORS` or the DB `is_moderator`
+  flag) take effect in a user's **UI affordances** only after they re-login or their JWT expires
+  (`maxAge` 7 days) — the role is stamped on the JWT at sign-in, not re-resolved per read. The
+  **write boundary enforces the role server-side immediately regardless**, so a stale claim only
+  affects which affordances show, never authorization.
 - **`trustHost: true`** is set in the app config (it runs behind Caddy), so **no `AUTH_URL` /
   `NEXTAUTH_URL` env var is needed** — Auth.js derives the origin from the (trusted) host header.
 - After editing `.env`, the change takes effect on the next `docker compose up -d` (the deploy job,
