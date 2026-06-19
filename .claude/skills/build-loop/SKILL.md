@@ -98,7 +98,11 @@ only). `scripts/dev/test-db.sh up|down` — a local Postgres for integration tes
 uses in-process pglite). `scripts/dev/qa-gate.sh` — the pre-PR `typecheck + test + build` gate in one
 command (Dev's Phase-3 self-check; `--no-build` for a faster inner loop). `scripts/dev/shoot.sh
 <file.html|/route> [--montage] [--crop WxH+X+Y]` — render mockups or live routes to PNG for UX design
-+ Phase-4 evaluation evidence, replacing the chrome-screenshot + ImageMagick ritual. `scripts/ops/
++ Phase-4 evaluation evidence, replacing the chrome-screenshot + ImageMagick ritual. `scripts/dev/shots.sh
+[--all|--home|--topic] [--pr N]` — the **standard PR screenshot matrix** (home + Topic × logged-out/logged-in
+× desktop/tablet/mobile × the Tier-A/slim scroll states) rendered through the e2e harness (seeded DB + the
+signed-in cookie, no real OAuth); `--pr N` attaches the gallery to a PR (hosted on the never-merged
+`screenshots` branch, SHA-pinned). Run it for any **UI-significant** change — see Phases 4–5. `scripts/ops/
 wait-deploy.sh [sha]` — poll the `main` deploy run to completion, then chain `verify-live.sh`
 (Operations, Phase 5). `scripts/ops/box-sync-compose.sh` mutates the live box and is deliberately
 **not** allowlisted (keep one confirmation). **Invoke each script directly** (e.g.
@@ -215,7 +219,17 @@ The reviewer charters (fresh, non-author eyes):
   `test/*.test.ts` — rather than standing one up. The report must map **each acceptance-criterion ID to
   pass/fail with a test reference**; an unmapped criterion = fail. "No tests written" = fail, not pass.
 - **`ux-designer`** (Opus): evaluate the built UI against the design spec + user stories — fidelity,
-  interaction, usability, accessibility-in-practice.
+  interaction, usability, accessibility-in-practice. For a **UI-significant** change, render the
+  **standard screenshot matrix** (`scripts/dev/shots.sh`) as the evaluation evidence rather than ad-hoc
+  one-off shots — it covers logged-out/logged-in × widths × states across home + Topic, so the
+  evaluation (and the PR gallery in Phase 5) work from the same reproducible set.
+
+**Screenshots are a default-on expectation for UI-significant changes — the owner should not have to
+ask.** A change that alters what the app *looks like* (layout, a component, a page/flow, responsive
+behavior) gets the standard gallery attached to its PR (Phase 5) without prompting; a non-visual
+logic/infra change skips it. This is an *expectation*, not a hard gate: if the harness genuinely
+can't render (e.g. an infra-only PR with no UI), note it and proceed — do not report BLOCKED over a
+missing gallery.
 
 **Round handling:** if either reports defects, spawn **`developer`** with the specific defects routed
 to it, then re-spawn only the failing reviewer(s). Bound this to **2** fix→re-verify rounds; track the
@@ -256,6 +270,13 @@ Operations owns these git mechanics — do not hand-roll them in the orchestrato
 issue, the landing commit or PR carries **`Closes #N`** so the issue closes when the work merges to
 `main`. **If bundling several issues, repeat the keyword per number** — `Closes #24, closes #25, closes
 #26` — or GitHub auto-closes only the first.
+
+**Attach the screenshot gallery (UI-significant changes).** When the change is UI-significant and the
+landing path opens a PR (case 2 before merge, or case 3), Operations runs **`scripts/dev/shots.sh --pr
+N`** (scope it with `--topic`/`--home` when only one surface changed) so the PR carries the standard
+before-your-eyes gallery — the owner should not have to ask for it. This is the default-on expectation
+from Phase 4, realized on the PR; skip it only for a non-visual (logic/infra) change.
+
 **Gate:** **not deployed** until a commit actually lands on `main`, the Actions run goes green, **and**
 (for a stateful change) the live site is verified healthy — **or** a PR to `main` is open and reported
 (case 3). Pushing only a feature branch is **not** a deploy; never report "deployed" on a branch push
