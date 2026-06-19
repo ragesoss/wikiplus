@@ -30,10 +30,12 @@ import {
 } from "@/components/wordmark/HeaderProjector";
 import { TopicSearch } from "@/components/search/TopicSearch";
 
-// ── Topic Tier-A geometry (#72 design §3.4). Shorter than the landing hero (sticky chrome, not a
-// hero): the beam flares over a 104px band with the wordmark row at cyMid=28. The rest are the
-// token defaults (do NOT mutate the landing --projector-* defaults — AC12). ────────────────────
-export const TOPIC_BURN_Y = 104; // band height / burn boundary — cone length burnY − cyMid = 76 (vs landing 130)
+// ── Topic Tier-A geometry. This is the SHARED Tier-A geometry both hosts render (spec Decision 1 /
+// §10.1 no-fork): the beam flares over a 104px band with the wordmark row at cyMid=28 (cone length
+// burnY − cyMid = 76). These values now EQUAL the --projector-* token defaults, so burnY/cyMid in
+// TOPIC_GEOMETRY are no-ops that simply re-assert the shared geometry; the Topic host adds only the
+// scroll-collapse layer + the seam-on-divider projectionX + the leftInset on top. ────────────────
+export const TOPIC_BURN_Y = 104; // band height / burn boundary — cone length burnY − cyMid = 76
 // Wordmark row centre = the chrome-row / slim-bar centre (SLIM_BAR_HEIGHT/2 = 28), so the lit lockup
 // aligns with the search + auth cards (which sit centred in the 56px chrome row) and the 56px-tall
 // flat lockup fills the slim bar exactly.
@@ -126,11 +128,11 @@ function HomeSiteHeader({ auth }: { auth: ReactNode }) {
       <HeaderProjector variant="projector" as="a" href="/" />
       {/* The single AuthControl, right-anchored on the SAME row as the lockup at every width. The
           slot sits in the cool fluorescent band above the burn boundary, vertically centred on the
-          wordmark row (~cyMid=44px → height 88). Absolutely positioned so it never pushes the
+          wordmark row (cyMid=28 → height 56 = cyMid·2). Absolutely positioned so it never pushes the
           lockup off its anchor and never folds to a second row (§4.5 / #61 §7.5). */}
       <div
         className="auth-slot absolute right-0 top-0 z-10 flex items-center justify-end px-3 sm:px-4 max-[479px]:max-w-[46%] max-[359px]:max-w-[120px]"
-        style={{ height: 88 }}
+        style={{ height: 56 }}
       >
         {auth}
       </div>
