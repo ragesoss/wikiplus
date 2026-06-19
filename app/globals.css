@@ -260,6 +260,28 @@ body {
   background-size: 100% var(--topic-illum-falloff);
 }
 
+/* ── The content-page beam-landing surface — the universal counterpart to `.topic-illum` for any
+   page that uses the scroll-aware `host="page"` header (it is emitted by that host, so a content
+   page gets it for free). Same illumination falloff (content-white → body grey over the top
+   `--topic-illum-falloff`), painted full-bleed behind the TOP of the page content so the white beam
+   lands on a white page top and the band-bottom burn matches the page surface (#96). It carries its
+   OWN height (the falloff distance) but pulls the following content back over itself with an equal
+   negative bottom margin, so its NET layout height is zero — the page content overlaps it rather
+   than being pushed down, exactly as `.topic-illum` wraps the Topic masthead with no added height.
+   As the reader scrolls, the white top recedes under the collapsing band, leaving flat body grey. */
+.beam-page-illum {
+  height: var(--topic-illum-falloff);
+  margin-bottom: calc(-1 * var(--topic-illum-falloff));
+  background-image: linear-gradient(
+    to bottom,
+    var(--color-content-white) 0%,
+    #fcfcfc 45%,
+    var(--color-body-grey) 100%
+  );
+  background-repeat: no-repeat;
+  background-size: 100% var(--topic-illum-falloff);
+}
+
 /* ── Hardbox language (design §5): white fill, 2px ink border, solid offset. ── */
 .plus-card {
   background: #fff;

@@ -250,6 +250,75 @@ describe("AC4 (#96) — continuous: p drives band height + layer opacities via C
   });
 });
 
+// ── host="page" — the universal scroll-aware CONTENT-PAGE header. Same continuous beam→slim
+// collapse as Topic (driven by the shared useHeaderScrollProgress hook + the same `p`-derived CSS
+// vars), but with no search / seam / title cue — just the beam + a single right-anchored auth, plus
+// the beam-landing page surface emitted for free. /about/data, /contribute, /contributor use it. ──
+describe("host=page — content-page scroll-aware header (beam→slim, no search/title)", () => {
+  const v = (header: Element, name: string) =>
+    (header as HTMLElement).style.getPropertyValue(name).trim();
+
+  function renderPageHeader() {
+    return render(<SiteHeader host="page" auth={<HeaderAuth />} />);
+  }
+
+  it("is sticky and marked header-page + header-shared", () => {
+    const { container } = renderPageHeader();
+    const header = container.querySelector("header.header-page");
+    expect(header, "page host renders a header.header-page").not.toBeNull();
+    expect(header!.className).toMatch(/header-shared/); // shares the 2px slim-bar bottom rule
+    expect(header!.className).toMatch(/sticky/);
+  });
+
+  it("drives the same p-derived CSS vars: full Tier-A at top, slim end-state when scrolled", async () => {
+    window.scrollY = 0;
+    const { container } = renderPageHeader();
+    const header = container.querySelector("header.header-page")!;
+    await vi.waitFor(() => expect(v(header, "--p")).toBe("0.0000"));
+    expect(v(header, "--topic-burn-y")).toBe(`${TOPIC_BURN_Y}.00px`);
+    expect(v(header, "--beam-opacity")).toBe("1.0000");
+    expect(v(header, "--border-opacity")).toBe("0.0000");
+    window.scrollY = 200;
+    fireEvent.scroll(window);
+    await vi.waitFor(() => expect(v(header, "--p")).toBe("1.0000"));
+    expect(v(header, "--topic-burn-y")).toBe(`${SLIM_BAR_HEIGHT}.00px`);
+    expect(v(header, "--beam-opacity")).toBe("0.0000");
+    expect(v(header, "--border-opacity")).toBe("1.0000");
+  });
+
+  it("has the beam layer + a single wordmark home link, but NO search slot", () => {
+    const { container } = renderPageHeader();
+    expect(container.querySelector(".header-beam"), "the projector beam layer").not.toBeNull();
+    // The wordmark home link (accessible name "wiki+", href "/") — AC3. The lit lockup is a
+    // decorative div; only the flat lockup is the link, so there is exactly one.
+    const homes = screen.getAllByRole("link", { name: "wiki+" });
+    expect(homes).toHaveLength(1);
+    expect(homes[0]).toHaveAttribute("href", "/");
+    // No header search on a content page (the Topic search renders a combobox; none here — AC6).
+    expect(
+      screen.queryByRole("combobox"),
+      "no search control on the content-page header"
+    ).toBeNull();
+  });
+
+  it("emits the beam-landing page surface (.beam-page-illum) for free", () => {
+    const { container } = renderPageHeader();
+    expect(
+      container.querySelector(".beam-page-illum"),
+      "the content-page beam-landing surface is emitted by the host"
+    ).not.toBeNull();
+  });
+
+  it("renders exactly one AuthControl (AC9)", async () => {
+    renderPageHeader();
+    await vi.waitFor(() =>
+      expect(
+        screen.getAllByRole("button", { name: /account: TestCurator/i })
+      ).toHaveLength(1)
+    );
+  });
+});
+
 // ── AC5 (#96) — NO per-property CSS transition. With `p` driven every frame a CSS tween would
 // fight the scroll (#96 §6), so the 180ms height/opacity transitions are REMOVED. We assert the
 // header layers no longer carry a `transition` rule in globals.css, and that the reduced-motion

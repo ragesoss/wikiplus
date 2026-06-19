@@ -26,7 +26,7 @@ export const metadata: Metadata = {
 export default function AboutDataPage() {
   return (
     <>
-      <SiteHeader auth={<AuthControl variant="home" />} />
+      <SiteHeader host="page" auth={<AuthControl variant="home" />} />
       <main className="mx-auto max-w-[640px] px-4 py-8">
         <h1 className="text-2xl font-semibold text-ink sm:text-3xl">About your data</h1>
 

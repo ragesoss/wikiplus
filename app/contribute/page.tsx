@@ -26,9 +26,10 @@ const STANCES: Stance[] = STANCE_ORDER;
 const ACCURACY: AccuracyFlag[] = ACCURACY_ORDER;
 
 // Header for the /contribute route. Uses the universal Daylight Projector header (VISUAL_IDENTITY
-// §10.1) — the same full-bleed projector beam all app views share.
+// §10.1), host="page": the same full-bleed projector beam all app views share, with the sticky,
+// scroll-aware beam → slim-bar collapse + the beam-landing page surface every content page gets.
 function ContributeHeader() {
-  return <SiteHeader auth={<AuthControl variant="home" />} />;
+  return <SiteHeader host="page" auth={<AuthControl variant="home" />} />;
 }
 
 export default function ContributePage() {

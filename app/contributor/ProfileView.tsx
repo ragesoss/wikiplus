@@ -274,11 +274,12 @@ export function ProfileView() {
 }
 
 // ── The app header (VISUAL_IDENTITY §10.1): the profile is NOT a Topic page, so it uses the
-// universal Daylight Projector header (host="home") — the same full-bleed projector beam all
-// non-topic views share. Auth affordance (account menu / "Log in") is present for both
-// signed-in and logged-out readers.
+// universal Daylight Projector header host="page" — the same full-bleed projector beam all
+// non-topic views share, with the sticky, scroll-aware beam → slim-bar collapse + the beam-landing
+// page surface. Auth affordance (account menu / "Log in") is present for both signed-in and
+// logged-out readers.
 function ProfileHeader() {
-  return <SiteHeader auth={<AuthControl variant="home" />} />;
+  return <SiteHeader host="page" auth={<AuthControl variant="home" />} />;
 }
 
 // ── §4 the public identity header — public identity ONLY (AC2): username + granted avatar +

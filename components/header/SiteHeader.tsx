@@ -102,14 +102,20 @@ export function TopicHeaderSearch({
   );
 }
 
-type Host = "home" | "topic";
+type Host = "home" | "topic" | "page";
 
 interface SiteHeaderProps {
-  /** Which host config (design §2). Default "home" (the unchanged landing hero). */
+  /** Which host config (design §2). Default "home" (the unchanged landing hero).
+   *  - "home"  — the free-standing landing hero: full beam, NOT sticky, no collapse (AC12).
+   *  - "topic" — the sticky, scroll-aware, seam-on-divider Topic header (search + title cue).
+   *  - "page"  — the sticky, scroll-aware CONTENT-PAGE header: the same continuous beam→slim
+   *    collapse as Topic, but with no search / seam / title cue — just the wordmark beam and a
+   *    right-anchored auth. Any content page gets the smooth beam transition AND a beam-landing
+   *    page-top surface for free by choosing this host (no per-page scroll wiring or illum). */
   host?: Host;
   /** The auth control node (exactly ONE AuthControl per header — AC9). */
   auth: ReactNode;
-  /** Optional search slot. Unset on Home (no header search — AC6/AC12); set on Topic. */
+  /** Optional search slot. Unset on Home/Page (no header search — AC6/AC12); set on Topic. */
   search?: ReactNode;
   /** Topic only — the article display title for the slim-state cue (A4 / §4.4). */
   articleTitle?: string;
@@ -126,7 +132,146 @@ export function SiteHeader({
       <TopicSiteHeader auth={auth} search={search} articleTitle={articleTitle} />
     );
   }
+  if (host === "page") {
+    return <PageSiteHeader auth={auth} />;
+  }
   return <HomeSiteHeader auth={auth} />;
+}
+
+// ── The initial CSS-var values written on a scroll-aware header element so SSR/first paint is the
+// full Tier-A state (p = 0) before the scroll handler runs; the mount evaluate() immediately
+// corrects a deep-linked position (§5). Shared by the Topic and Page hosts. ──────────────────────
+const INITIAL_HEADER_VARS = {
+  "--p": "0",
+  "--topic-burn-y": `${TOPIC_BURN_Y}px`,
+  "--beam-opacity": "1",
+  "--border-opacity": "0",
+} as React.CSSProperties;
+
+// ── The shared scroll-linked progress driver (#96 §6). A passive, rAF-gated scroll listener reads
+// ONLY window.scrollY (a cheap read — no layout flush), computes the normalized progress `p`, and
+// writes it + the derived band height / layer & border opacities as CSS custom properties on the
+// header ELEMENT via its ref — NOT per-frame setState, so a 120Hz scroll never re-renders the tree
+// (§6). One value drives every transitioning property in lockstep. Both the Topic and Page hosts
+// use it; `onSlim` (optional) is called when p crosses the slim gate so a host can flip a coarse
+// derived boolean (the Topic title cue) — the Page host omits it (nothing gated). ────────────────
+function useHeaderScrollProgress(
+  headerRef: React.RefObject<HTMLElement | null>,
+  onSlim?: (slim: boolean) => void
+) {
+  // Hold the latest callback in a ref so the effect can stay mount-only ([] deps) without going
+  // stale — the listener is set up once and never torn down on a callback identity change.
+  const onSlimRef = useRef(onSlim);
+  onSlimRef.current = onSlim;
+  useEffect(() => {
+    let raf = 0;
+    // Reduced-motion: snap to {0,1} end-states (§7) — the header is either the full projector or
+    // the slim bar, no intermediate frames. A tiny dead-band avoids 1px chatter in this quantized
+    // path. Read once on mount + react to changes.
+    const reduceQuery =
+      typeof window !== "undefined" && window.matchMedia
+        ? window.matchMedia("(prefers-reduced-motion: reduce)")
+        : null;
+    let quantized: 0 | 1 = 0;
+
+    const evaluate = () => {
+      raf = 0;
+      const el = headerRef.current;
+      if (!el) return;
+      const y = window.scrollY;
+      let p = computeProgress(y, PROGRESS_END);
+      if (reduceQuery?.matches) {
+        quantized = quantizeProgress(p, quantized);
+        p = quantized; // 0 or 1 — apply the end-state instantly (no intermediate frame)
+      }
+      const d = deriveHeaderProgress(p, TOPIC_BURN_Y, SLIM_BAR_HEIGHT);
+      el.style.setProperty("--p", p.toFixed(4));
+      el.style.setProperty("--topic-burn-y", `${d.bandHeight.toFixed(2)}px`);
+      el.style.setProperty("--beam-opacity", d.beamOpacity.toFixed(4));
+      el.style.setProperty("--border-opacity", d.borderOpacity.toFixed(4));
+      onSlimRef.current?.(p >= SLIM_GATE_P);
+    };
+    const onScroll = () => {
+      if (raf) return; // rAF-gate: at most one evaluation per frame
+      raf = requestAnimationFrame(evaluate);
+    };
+    evaluate(); // initial state (a deep-linked scroll position / refresh mid-page — §5)
+    window.addEventListener("scroll", onScroll, { passive: true });
+    const onMedia = () => evaluate();
+    reduceQuery?.addEventListener?.("change", onMedia);
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      reduceQuery?.removeEventListener?.("change", onMedia);
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, [headerRef]);
+}
+
+// ── Host C — content pages (#issue: universal scroll-aware beam). The sticky, scroll-aware header
+// every NON-Topic content page (/about/data, /contribute, /contributor) uses: the same continuous
+// Tier-A beam → slim Tier-C collapse as Topic, driven by the same `p`-derived CSS vars, but with NO
+// search slot, NO seam-on-divider probe, and NO title cue — just the projector beam (self-contained
+// lockup, centred desktop / left at narrow, exactly like Home) and a single right-anchored
+// AuthControl. It ALSO emits a full-bleed beam-landing page surface (`.beam-page-illum`) right after
+// the sticky header so the beam lands on a white→grey page top with the band-bottom burn matching
+// the page (the #96 burn-to-page-surface fix) — for free, with no per-page wiring. Home stays the
+// free-standing hero (AC12); this is the universal default for ordinary pages. ───────────────────
+function PageSiteHeader({ auth }: { auth: ReactNode }) {
+  const headerRef = useRef<HTMLElement>(null);
+  useHeaderScrollProgress(headerRef);
+  return (
+    <>
+      <header
+        ref={headerRef}
+        // bg content-white (NOT the cool field): the visible cool band is painted by the
+        // projector's own coolfield span, so the header element's bg only shows through the
+        // reserved 2px bottom border (transparent in the front half) — white there matches the
+        // page top, no `#fafbfe` hairline at the band bottom (the same rule as the Topic host).
+        className="header-shared header-page sticky top-0 z-40 bg-[var(--color-content-white)]"
+        style={INITIAL_HEADER_VARS}
+      >
+        <div
+          className="header-band relative w-full"
+          style={{ height: "var(--topic-burn-y)" }}
+        >
+          {/* The single Tier-A projector layer — full-bleed, BEHIND the chrome. It owns the
+              wordmark at every `p`: the flat Tier-C lockup is always opaque (the home link) and the
+              lit aperture glow + descending beam fade out ON TOP of it as `p` rises, while the band
+              collapses 104 → 56. Clipped to the LIVE band height so the projector's internal
+              cool→white edge is pinned to the band bottom (#96 §4.2). No seam probe (no divider on a
+              content page) — the lockup is self-contained (centred desktop / left at narrow). */}
+          <div
+            data-testid="page-beam"
+            className="header-beam absolute inset-x-0 top-0 z-0 overflow-hidden"
+            style={{ height: "var(--topic-burn-y)" }}
+          >
+            <HeaderProjector variant="projector" continuous href="/" />
+          </div>
+          {/* The chrome row — the single AuthControl, right-anchored, pinned to the top slim-bar
+              height so it is reachable at every `p`. pointer-events-none row so its empty space lets
+              clicks fall through to the flat wordmark home link behind it; the auth restores its own
+              pointer events. No search, no title cue. */}
+          <div
+            className="header-chrome pointer-events-none absolute inset-x-0 top-0 z-10 mx-auto flex max-w-[1200px] items-center px-5"
+            style={{ height: SLIM_BAR_HEIGHT }}
+          >
+            <div className="pointer-events-auto ml-auto flex shrink-0 items-center">
+              {auth}
+            </div>
+          </div>
+        </div>
+      </header>
+      {/* The beam-landing page surface — a full-bleed illumination falloff (content-white → body
+          grey) painted behind the TOP of the page content, flush beneath the sticky header. It has
+          NET-ZERO layout height (its own height is the falloff distance, pulled back by an equal
+          negative bottom margin) so the page content overlaps it rather than being pushed down: the
+          beam lands on a white page top, the brightness falls to the body grey just under the lamp,
+          and as the reader scrolls the white top recedes under the collapsing band — the same
+          white→grey-page mechanic the Topic page gets from `.topic-illum`, here for free for any
+          `host="page"` page. Decorative (no content, behind the page). */}
+      <div aria-hidden className="beam-page-illum pointer-events-none" />
+    </>
+  );
 }
 
 // ── Host A — Home. Exactly today's landing header markup (AC12), now through the wrapper. No
@@ -176,67 +321,19 @@ function TopicSiteHeader({
   search?: ReactNode;
   articleTitle?: string;
 }) {
-  // ── Continuous, scroll-linked collapse (#96). A passive, rAF-gated scroll listener reads ONLY
-  // window.scrollY (a cheap read — no layout flush, no getBoundingClientRect), computes the
-  // normalized progress `p`, and writes it (and the derived band height + layer/border opacities)
-  // as CSS custom properties on the header ELEMENT via a ref — NOT per-frame setState, so a 120Hz
-  // scroll does not re-render the React tree 120×/s (§6). One value drives every transitioning
-  // property in lockstep, so no property can lag another and no independently-scrolling seam can
-  // form. The seam probe stays mount/resize-only (§2) — `p` never triggers a re-measure. ─────────
+  // ── Continuous, scroll-linked collapse (#96) — driven by the shared `useHeaderScrollProgress`
+  // hook (the rAF-gated scroll listener writing the `p`-derived CSS vars on the header element; see
+  // its definition above). One value drives every transitioning property in lockstep, so no
+  // property can lag another and no independently-scrolling seam can form. The seam probe stays
+  // mount/resize-only (§2) — `p` never triggers a re-measure. ─────────────────────────────────────
   const headerRef = useRef<HTMLElement>(null);
   // `isSlim` is a coarse derived boolean (p ≥ SLIM_GATE_P) used ONLY to gate the muted title cue
   // (A4 / §5.1). It flips at most twice across the whole gesture (once each way at the midpoint) —
   // NOT a per-frame re-render. The continuous visual transition is driven entirely by CSS vars.
   const [isSlim, setIsSlim] = useState(false);
-  useEffect(() => {
-    let raf = 0;
-    // Reduced-motion: snap to {0,1} end-states (§7) — the header is either the full projector or
-    // the slim bar, no intermediate frames. A tiny dead-band avoids 1px chatter in this quantized
-    // (re-booleanized) path. Read once on mount + react to changes.
-    const reduceQuery =
-      typeof window !== "undefined" && window.matchMedia
-        ? window.matchMedia("(prefers-reduced-motion: reduce)")
-        : null;
-    let quantized: 0 | 1 = 0;
-
-    const evaluate = () => {
-      raf = 0;
-      const el = headerRef.current;
-      if (!el) return;
-      const y = window.scrollY;
-      let p = computeProgress(y, PROGRESS_END);
-      if (reduceQuery?.matches) {
-        quantized = quantizeProgress(p, quantized);
-        p = quantized; // 0 or 1 — apply the end-state instantly (no intermediate frame)
-      }
-      const d = deriveHeaderProgress(p, TOPIC_BURN_Y, SLIM_BAR_HEIGHT);
-      // Write the derived values as CSS custom properties on the header element (cheap; one
-      // element, a few props, once per frame). CSS + the projector consume them — §6.
-      el.style.setProperty("--p", p.toFixed(4));
-      el.style.setProperty("--topic-burn-y", `${d.bandHeight.toFixed(2)}px`);
-      el.style.setProperty("--beam-opacity", d.beamOpacity.toFixed(4));
-      el.style.setProperty("--border-opacity", d.borderOpacity.toFixed(4));
-      setIsSlim((prev) => {
-        const next = p >= SLIM_GATE_P;
-        return next === prev ? prev : next;
-      });
-    };
-    const onScroll = () => {
-      if (raf) return; // rAF-gate: at most one evaluation per frame
-      raf = requestAnimationFrame(evaluate);
-    };
-    evaluate(); // initial state (a deep-linked scroll position / refresh mid-article — §5)
-    window.addEventListener("scroll", onScroll, { passive: true });
-    // Re-evaluate when the reduced-motion preference changes (so the quantized ↔ continuous path
-    // swaps without a reload).
-    const onMedia = () => evaluate();
-    reduceQuery?.addEventListener?.("change", onMedia);
-    return () => {
-      window.removeEventListener("scroll", onScroll);
-      reduceQuery?.removeEventListener?.("change", onMedia);
-      if (raf) cancelAnimationFrame(raf);
-    };
-  }, []);
+  useHeaderScrollProgress(headerRef, (slim) =>
+    setIsSlim((prev) => (slim === prev ? prev : slim))
+  );
 
   // ── Seam-on-divider geometry (AC2/AC10/AC11), measured at MOUNT + on RESIZE only (never on
   // scroll). The probe (a zero-height div spanning the grid's gutter, rendered in the overlay)

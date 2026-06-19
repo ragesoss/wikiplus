@@ -611,12 +611,18 @@ stands unchanged. **What is new is strictly the header treatment** — and with 
    app — not just home + Topic. **Every view gets it:** any new page/view, and any existing view
    redesigned, that does not yet use the projector header **should adopt `SiteHeader`** rather than
    introduce a bespoke header. New surfaces pick the matching host config (or add one in the same
-   wrapper) — never fork the mark. Today's two host configs: the home page (a free-standing Tier-A
-   hero, Tier A at every width, no scroll collapse) and the Topic page (the scroll-aware shared
-   "Daylight Projector" header — **Tier A** lit aperture + full beam at scroll-top, collapsing to a
-   flat **Tier C** slim bar when scrolled; see §10.2 #6 + the scroll-transition decision below). One
-   component, host configs per surface — there is no separate per-page header implementation. See
-   `docs/specs/shared-header.md` + `docs/design/shared-header.md`.
+   wrapper) — never fork the mark. The host configs: (a) **home** — a free-standing Tier-A hero,
+   Tier A at every width, no scroll collapse; (b) **topic** — the scroll-aware shared "Daylight
+   Projector" header with the upper-left search + seam-on-divider lockup + slim-state title cue;
+   (c) **page** — the universal scroll-aware header every ordinary content page (`/about/data`,
+   `/contribute`, `/contributor`) uses: the same continuous **Tier A** lit aperture + full beam at
+   scroll-top collapsing to a flat **Tier C** slim sticky bar when scrolled (beam opacity → 0, band
+   `104 → 56px`), but with no search / seam / title cue — just the beam and a right-anchored auth.
+   The `page` host also emits a full-bleed beam-landing surface (the `content-white → body grey`
+   illumination falloff) behind the page top, so a content page gets both the transition and the
+   correct beam landing for free, with no per-page wiring. One component, host configs per surface —
+   there is no separate per-page header implementation. See `docs/specs/shared-header.md` +
+   `docs/design/shared-header.md`.
 
 ### 10.2 Open design questions (resolve with Product/Dev)
 
