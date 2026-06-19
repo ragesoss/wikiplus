@@ -816,23 +816,6 @@ export function TopicView() {
   const browseVideos = useCallback(() => {
     document.getElementById("general-band")?.scrollIntoView({ block: "start" });
   }, []);
-  // ＋plus panel secondary action (plus-overview-redesign §6 / §10): Curate/Add ALWAYS opens the
-  // curate/add entry, login-gated as the other contribute paths are. When there is a remaining
-  // suggestion, curate it (Promote); otherwise fall through to add-by-link (the empty-rail case).
-  const curateOrAdd = useCallback(() => {
-    const first = liveCandidates[0] ?? null;
-    if (first) {
-      requireLogin({
-        gate: "curate",
-        action: () => {
-          setCurateFor(first);
-          setCurateOpen(true);
-        },
-      });
-      return;
-    }
-    requireLogin({ gate: "add", action: () => setAddOpen(true) });
-  }, [liveCandidates, requireLogin]);
   // Add video — gated (design §2c). Signed in → open AddModal; logged out → "Log in to add".
   const openAdd = useCallback(() => {
     requireLogin({ gate: "add", action: () => setAddOpen(true) });
@@ -1336,7 +1319,6 @@ export function TopicView() {
                 suggestionCount={liveCandidates.length}
                 storeError={storeError}
                 onBrowse={browseVideos}
-                onCurate={curateOrAdd}
               />
               <Toc
                 entries={tocEntries}

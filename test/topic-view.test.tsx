@@ -185,22 +185,16 @@ describe("TopicView — empty state (AC14, AC16, AC20)", () => {
     });
   });
 
-  it("renders the empty ＋plus panel (value + volume + curate invite) when the store has no clips (AC20)", async () => {
+  it("renders the empty ＋plus panel (volume + browse) when the store has no clips (AC20)", async () => {
     render(<TopicView />);
-    // The redesigned panel leads with the value statement, then the dashed volume panel,
-    // then the secondary teal Curate invite (plus-overview-redesign §6.1).
-    expect(
-      await screen.findByText(
-        "Short videos to learn this topic, each weighed for what's fact vs. opinion."
-      )
-    ).toBeInTheDocument();
-    expect(screen.getByText("videos found to weigh in")).toBeInTheDocument();
+    // The redesigned panel shows the dashed volume panel with 'uncurated videos' label,
+    // then the primary Browse scroll button (plus-overview-redesign §6.1).
+    await screen.findByText("uncurated videos");
     expect(
       screen.getByRole("button", { name: "Browse suggested videos" })
     ).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "＋ Curate a video" })
-    ).toBeInTheDocument();
+    // No curate button — secondary block removed.
+    expect(screen.queryByRole("button", { name: "＋ Curate a video" })).toBeNull();
   });
 
   it("shows the 'Suggested videos · uncurated' band with the decluttered candidate treatment (#14 AC1/AC5)", async () => {
@@ -339,7 +333,7 @@ describe("TopicView — candidate dismiss (AC19)", () => {
     // (plus-overview-redesign §6.1). The numeral sits next to the stable volume label, so
     // scope the assertion to that panel to disambiguate it from any other "5" on the page.
     const volumePanel = (
-      await screen.findByText("videos found to weigh in")
+      await screen.findByText("uncurated videos")
     ).closest("div")!.parentElement!;
     expect(within(volumePanel).getByText("5")).toBeInTheDocument();
     const dismissBtns = await screen.findAllByRole("button", {

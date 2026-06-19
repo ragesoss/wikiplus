@@ -1,13 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { FullArticle } from "@/lib/wiki/article";
 
-// QA call-site integration for the ＋plus panel handler split (issue #16 / design §10): proves
-// the split is wired CORRECTLY through TopicView — `onCurate` (Curate/Add) preserves the
-// `requireLogin` gate (logged-out → the login gate, NOT the modal), and `onBrowse` (Browse/Jump)
-// is a pure scroll that opens NO gate and fires NO write regardless of session. The wiki module is
-// MOCKED (no network egress). Drives the EMPTY topic (no clips → the empty panel face).
+// QA call-site integration for the ＋plus panel handler (issue #16 / design §10): proves
+// `onBrowse` (Browse/Jump) is a pure scroll that opens NO gate and fires NO write regardless
+// of session. The secondary curate block is removed — this file now covers only the browse
+// path. The wiki module is MOCKED (no network egress). Drives the EMPTY topic (no clips →
+// the empty panel face).
 
 const article: FullArticle = {
   title: "Cellular respiration",
@@ -46,7 +46,6 @@ vi.mock("@/lib/wiki/article", () => ({
   fetchFullArticle: (...a: unknown[]) => fetchFullArticle(...a),
 }));
 
-// LOGGED OUT — the curate gate must NOT clear; clicking ＋ Curate a video opens the login gate.
 let sessionStatus: "authenticated" | "unauthenticated" = "unauthenticated";
 vi.mock("next-auth/react", () => ({
   useSession: () =>
@@ -78,14 +77,13 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-describe("TopicView — ＋plus panel handler split wiring (issue #16 §10)", () => {
-  it("onCurate (＋ Curate a video) preserves the login gate when logged out — opens the gate, not the modal", async () => {
+describe("TopicView — ＋plus panel handler wiring (issue #16 §10)", () => {
+  it("the curate/add button is NOT present in the panel (secondary block removed)", async () => {
     render(<TopicView />);
-    const curate = await screen.findByRole("button", { name: "＋ Curate a video" });
-    await userEvent.click(curate);
-    // The login gate ("Log in to curate") appears — the curate modal ("Curate this clip") does NOT.
-    expect(await screen.findByText("Log in to curate")).toBeInTheDocument();
-    expect(screen.queryByText("Curate this clip")).toBeNull();
+    // Wait for the panel to appear (empty state).
+    await screen.findByText("uncurated videos");
+    expect(screen.queryByRole("button", { name: "＋ Curate a video" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "＋ Add a video" })).toBeNull();
   });
 
   it("onBrowse (Browse suggested videos) is a pure scroll — no login gate, no modal, even logged out", async () => {
@@ -101,17 +99,5 @@ describe("TopicView — ＋plus panel handler split wiring (issue #16 §10)", ()
     // It scrolled (to the General band) — the pure non-write path.
     expect(scrollSpy).toHaveBeenCalled();
     scrollSpy.mockRestore();
-  });
-
-  it("onCurate opens the real Curate modal when logged in (gate clears, split still curates)", async () => {
-    sessionStatus = "authenticated";
-    render(<TopicView />);
-    const curate = await screen.findByRole("button", { name: "＋ Curate a video" });
-    await userEvent.click(curate);
-    // Signed in → the curate gate clears and the real modal opens (there is a suggestion to promote).
-    await waitFor(() =>
-      expect(screen.getByText("Curate this clip")).toBeInTheDocument()
-    );
-    expect(screen.queryByText("Log in to curate")).toBeNull();
   });
 });

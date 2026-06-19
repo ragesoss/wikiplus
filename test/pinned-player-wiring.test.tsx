@@ -357,7 +357,7 @@ describe("AC3 — page stays interactive while the player is open (non-blocking)
     // 4 seeded candidates → the empty ＋plus volume panel shows the suggestion numeral "4"
     // (plus-overview-redesign §6.1). Dismiss one WHILE the dock is open.
     const volumePanel = (
-      await screen.findByText("videos found to weigh in")
+      await screen.findByText("uncurated videos")
     ).closest("div")!.parentElement!;
     expect(within(volumePanel).getByText("4")).toBeInTheDocument();
     const dismissBtns = await screen.findAllByRole("button", {
