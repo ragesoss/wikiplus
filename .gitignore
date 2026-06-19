@@ -41,3 +41,6 @@ Thumbs.db
 coverage/
 test-results/
 playwright-report/
+
+# scripts/dev/shoot.sh default output dir (design-review screenshots)
+screenshots/
