@@ -349,6 +349,54 @@ describe("AC5 (#96) — no per-property CSS transition fights the scroll", () =>
   });
 });
 
+// ── #96 fix round — kill the band-bottom seam line + the scroll jitter on the scroll-aware hosts.
+//   1. The collapsing sticky band reflows the page as `p` tracks scrollY; the browser's scroll
+//      anchoring then nudges scrollY to compensate, re-driving the collapse → the whole page jitters
+//      ~1px. We opt the document scroller out of scroll anchoring on exactly the collapsing-header
+//      pages (`html:has(header.header-shared)`), so scrollY is the sole stable input.
+//   2. The 2px reserved bottom border is transparent in the front half, so the header's OWN bg shows
+//      through it. A fixed content-white over-shoots once the page greys → a bright seam line. Both
+//      the band-bottom burn and the header bg now resolve to ONE `--p`-tracked colour
+//      (`--beam-seam-surface`), so the band bottom, the border strip, and the page all match. ───────
+describe("#96 fix round — no seam line, no scroll jitter (scroll-aware hosts)", () => {
+  let css = "";
+  beforeEach(async () => {
+    const fs = await import("node:fs");
+    const path = await import("node:path");
+    css = fs.readFileSync(path.resolve(process.cwd(), "app/globals.css"), "utf8");
+  });
+
+  it("opts the collapsing-header document scroller out of scroll anchoring", () => {
+    expect(css).toMatch(
+      /html:has\(header\.header-shared\)\s*\{[^}]*overflow-anchor:\s*none/
+    );
+  });
+
+  it("defines one --p-tracked seam colour on .header-shared and paints the header bg with it", () => {
+    const start = css.indexOf("\n.header-shared {");
+    const end = css.indexOf("}", start);
+    const rule = css.slice(start, end);
+    // The seam colour tracks --p (content-white → body grey), and IS the header background.
+    expect(rule).toMatch(/--beam-seam-surface:\s*color-mix\([^;]*var\(--p/);
+    expect(rule).toMatch(/background-color:\s*var\(--beam-seam-surface\)/);
+  });
+
+  it("the band-bottom burn resolves to the SAME seam colour (band bottom = header bg = page)", () => {
+    const start = css.indexOf(".projector-coolfield-burn {");
+    const rule = css.slice(start, css.indexOf("}", start));
+    expect(rule).toMatch(/var\(--beam-seam-surface/);
+  });
+
+  it("the scroll-aware headers carry no fixed content-white bg utility (the rule owns the bg)", () => {
+    const { container: topic } = renderTopicHeader();
+    const { container: page } = render(<SiteHeader host="page" auth={<HeaderAuth />} />);
+    for (const c of [topic, page]) {
+      const header = c.querySelector("header.header-shared")!;
+      expect(header.className).not.toMatch(/bg-\[var\(--color-content-white\)\]/);
+    }
+  });
+});
+
 // ── AC6 — optional search slot: absent on Home, present upper-left on Topic. ──────────────────
 describe("AC6 — search slot absent on Home, present on Topic", () => {
   it("Home: the header renders NO search combobox (the landing hero owns search)", async () => {

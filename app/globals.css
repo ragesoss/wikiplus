@@ -38,6 +38,18 @@ body {
     Roboto, Helvetica, Arial, sans-serif;
 }
 
+/* Scroll-aware headers (Topic + content pages, host="topic"/"page") collapse their sticky band
+   height as `p` tracks scrollY (#96). That continuously changes the header's IN-FLOW height, which
+   reflows the page beneath it — and the browser's scroll anchoring then nudges scrollY to keep the
+   reflowed content visually stable, which re-drives the collapse: a feedback loop that lands scrollY
+   short of the real offset and makes the whole page jitter ~1px back and forth at unstable points.
+   Opt the document scroller out of scroll anchoring on exactly those pages, so scrollY is the sole,
+   stable input to the transition. Home (a non-collapsing `div` header, not `header.header-shared`)
+   keeps anchoring. */
+html:has(header.header-shared) {
+  overflow-anchor: none;
+}
+
 /* Plus-side display type (Source Sans Pro per the spec; system fallbacks). */
 .plus-disp,
 .bignum {
@@ -186,33 +198,44 @@ body {
    `p` (opacity 0 → 1, easeInQuad gated to the back half, #96 §3.3) rather than toggling: the 2px
    ink rule is always present but transparent until the back half of the gesture, arriving at full
    strength as the slim bar lands (defect #3). Driving border-color's alpha via --border-opacity (a
-   0..1 scalar) keeps the rule's 2px box reserved at every `p` with no layout shift. */
+   0..1 scalar) keeps the rule's 2px box reserved at every `p` with no layout shift.
+
+   --beam-seam-surface is the page-surface colour at the band-bottom seam: content-white at
+   scroll-top, drifting toward body grey as `p` grows (the page greys under the lamp as the seam
+   sinks into the `.topic-illum` / `.beam-page-illum` falloff — #96). EVERYTHING that meets the page
+   at that seam resolves to it, so there is no bright line where the band ends:
+     • the band-bottom burn (`.projector-coolfield-burn`) burns the cool field to it;
+     • the header's OWN background is it — the header bg shows through the reserved 2px bottom border
+       while that border is transparent (the front half), so the 2px strip must be the page colour,
+       not a fixed content-white that over-shoots once the page greys (the residual seam line).
+   At p = 0 it is pure content-white, so the seamless scroll-top state is unchanged; in the back half
+   the opaque ink border covers the strip, so the bg colour there no longer matters. */
 .header-shared {
+  --beam-seam-surface: color-mix(
+    in srgb,
+    var(--color-content-white),
+    var(--color-body-grey) calc(var(--p, 0) * 50%)
+  );
+  background-color: var(--beam-seam-surface);
   border-bottom: 2px solid rgb(44 44 44 / var(--border-opacity, 0));
 }
 
 /* #96 fix round — kill the header/page temperature hairline at the band bottom. The Topic header
-   band is the cool fluorescent field (`#fafbfe`); the page beneath the seam is the `.topic-illum`
-   falloff. The cool field BURNS to the page surface over its last few px so the full-width band
-   bottom matches the page it meets with zero step — across the front half of the transition, where
-   the 2px ink border (which would otherwise mask the seam) is still at opacity 0.
-
-   The page surface at the seam is NOT a fixed colour: as `p` rises the seam sits DEEPER into the
-   illum falloff (the page drifts content-white → body-grey under the sticky lamp). Geometrically the
-   illum offset at the seam = bandHeight(p) + scrollY − restHeight = (104−48p) + 104p − 104 = 56p px,
-   so the page reads `#ffffff` at scroll-top and greys as `p` grows. The burn target therefore TRACKS
-   `--p`: pure content-white at p=0 (the seamless scroll-top state) drifting toward `--color-body-grey`
-   as the page greys — `calc(var(--p) * 50%)` matches the page-at-seam to within ~1 level across the
-   unmasked front half (p ≤ 0.5; the back half is covered by the ink border fading in). A FIXED
-   `#ffffff` over-shoots once the page greys, leaving the burn strip as the global-brightest pixel — a
-   faint bright hairline. It stays a continuous gradient anchored to the live `--topic-burn-y` bottom
-   (`to top`, px stops), so it adds no second hard edge — the single-edge seam invariant (§4.2) holds.
-   The bulk of the field above the burn stays the flat cool `#fafbfe`; Home keeps the flat cool fill. */
+   band is the cool fluorescent field (`#fafbfe`); the page beneath the seam is the `.topic-illum` /
+   `.beam-page-illum` falloff. The cool field BURNS to the page surface (`--beam-seam-surface`, the
+   `--p`-tracked seam colour defined on `.header-shared`) over its last few px, so the full-width band
+   bottom matches the page it meets with zero step across the front half of the transition — where the
+   2px ink border (which would otherwise mask the seam) is still at opacity 0. Tracking `--p` (rather
+   than a fixed `#ffffff`) is what keeps it matched once the page greys under the lamp; see the
+   `--beam-seam-surface` note on `.header-shared`. It stays a continuous gradient anchored to the live
+   `--topic-burn-y` bottom (`to top`, px stops), so it adds no second hard edge — the single-edge seam
+   invariant (§4.2) holds. The bulk of the field above the burn stays the flat cool `#fafbfe`; Home
+   keeps the flat cool fill. */
 .projector-coolfield-burn {
   background-color: var(--color-header-field);
   background-image: linear-gradient(
     to top,
-    color-mix(in srgb, var(--color-content-white), var(--color-body-grey) calc(var(--p, 0) * 50%)) 0,
+    var(--beam-seam-surface, var(--color-content-white)) 0,
     var(--color-header-field) 3px
   );
 }

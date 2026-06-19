@@ -223,11 +223,12 @@ function PageSiteHeader({ auth }: { auth: ReactNode }) {
     <>
       <header
         ref={headerRef}
-        // bg content-white (NOT the cool field): the visible cool band is painted by the
-        // projector's own coolfield span, so the header element's bg only shows through the
-        // reserved 2px bottom border (transparent in the front half) — white there matches the
-        // page top, no `#fafbfe` hairline at the band bottom (the same rule as the Topic host).
-        className="header-shared header-page sticky top-0 z-40 bg-[var(--color-content-white)]"
+        // Background is `--beam-seam-surface` (owned by `.header-shared`): the visible cool band is
+        // painted by the projector's own coolfield span, so the header element's bg only shows
+        // through the reserved 2px bottom border (transparent in the front half) — and that strip
+        // must match the PAGE at the seam (the `--p`-tracked seam colour), not a fixed content-white
+        // that over-shoots once the page greys. No bg utility here — `.header-shared` owns it.
+        className="header-shared header-page sticky top-0 z-40"
         style={INITIAL_HEADER_VARS}
       >
         <div
@@ -407,11 +408,12 @@ function TopicSiteHeader({
   return (
     <header
       ref={headerRef}
-      // bg is content-white (NOT the cool field): the visible cool fluorescent band is painted by
-      // the projector's own coolfield span, so the header element's background only ever shows
-      // through the reserved 2px bottom border (transparent in the front half). White there means
-      // that border strip matches the white page top — no `#fafbfe` hairline at the header bottom.
-      className="header-shared sticky top-0 z-40 bg-[var(--color-content-white)]"
+      // Background is `--beam-seam-surface` (owned by `.header-shared`): the visible cool fluorescent
+      // band is painted by the projector's own coolfield span, so the header element's background
+      // only ever shows through the reserved 2px bottom border (transparent in the front half). That
+      // strip must match the PAGE at the seam (the `--p`-tracked seam colour), not a fixed
+      // content-white that over-shoots once the page greys — no hairline at the header bottom.
+      className="header-shared sticky top-0 z-40"
       // Initial CSS-var values so SSR/first paint is the full Tier-A state (p = 0) before the
       // scroll handler runs; the mount evaluate() immediately corrects a deep-linked position (§5).
       style={
