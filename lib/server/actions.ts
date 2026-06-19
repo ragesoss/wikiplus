@@ -63,6 +63,14 @@ function store(): DrizzleDataStore {
 /** Max length for free-text fields (`context_note`, `caption`). A sane cap, not a UX limit. */
 const MAX_TEXT = 5000;
 
+/**
+ * Max length for short modifier / slug / label fields (`stance_modifier`, `accuracy_modifier`,
+ * `section_slug`, `section_label`). The UX enforces ≤24 chars; 512 is a belt-and-suspenders
+ * server guard — generous enough to never false-positive on valid input, tight enough to
+ * prevent absurd blob storage.
+ */
+const MAX_MODIFIER = 512;
+
 const STANCES = new Set<string>(STANCE_ORDER);
 const ACCURACY = new Set<string>(ACCURACY_ORDER);
 // The closed `Platform` enum (lib/data/types.ts). `parseVideoUrl` only ever yields these.
@@ -75,12 +83,27 @@ function capText(value: string, field: string): string {
   return value;
 }
 
+function capModifier(value: string, field: string): string {
+  if (value.length > MAX_MODIFIER) {
+    throw new Error(`${field} exceeds the ${MAX_MODIFIER}-character limit.`);
+  }
+  return value;
+}
+
 /** Closed-set + length-cap guard for an incoming clip add (the public `addClip` boundary). */
 function validateClipInput(
   input: Omit<Clip, "id" | "createdAt">
 ): Omit<Clip, "id" | "createdAt"> {
   capText(input.contextNote ?? "", "contextNote");
   capText(input.caption ?? "", "caption");
+  if (input.stanceModifier !== undefined)
+    capModifier(input.stanceModifier, "stanceModifier");
+  if (input.accuracyModifier !== undefined)
+    capModifier(input.accuracyModifier, "accuracyModifier");
+  if (input.sectionSlug !== undefined)
+    capModifier(input.sectionSlug, "sectionSlug");
+  if (input.sectionLabel !== undefined)
+    capModifier(input.sectionLabel, "sectionLabel");
   if (!STANCES.has(input.stance)) {
     throw new Error(`Unknown stance: ${input.stance}`);
   }
@@ -234,7 +257,8 @@ function pickEditable(patch: ClipEditPatch): ClipEditPatch {
     }
     out.stance = patch.stance;
   }
-  if (patch.stanceModifier !== undefined) out.stanceModifier = patch.stanceModifier;
+  if (patch.stanceModifier !== undefined)
+    out.stanceModifier = capModifier(patch.stanceModifier, "stanceModifier");
   if (patch.accuracyFlag !== undefined) {
     if (!ACCURACY.has(patch.accuracyFlag)) {
       throw new Error(`Unknown accuracy flag: ${patch.accuracyFlag}`);
@@ -242,11 +266,13 @@ function pickEditable(patch: ClipEditPatch): ClipEditPatch {
     out.accuracyFlag = patch.accuracyFlag;
   }
   if (patch.accuracyModifier !== undefined) {
-    out.accuracyModifier = patch.accuracyModifier;
+    out.accuracyModifier = capModifier(patch.accuracyModifier, "accuracyModifier");
   }
   if (patch.general !== undefined) out.general = patch.general;
-  if (patch.sectionSlug !== undefined) out.sectionSlug = patch.sectionSlug;
-  if (patch.sectionLabel !== undefined) out.sectionLabel = patch.sectionLabel;
+  if (patch.sectionSlug !== undefined)
+    out.sectionSlug = capModifier(patch.sectionSlug, "sectionSlug");
+  if (patch.sectionLabel !== undefined)
+    out.sectionLabel = capModifier(patch.sectionLabel, "sectionLabel");
   return out;
 }
 
