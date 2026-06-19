@@ -43,6 +43,14 @@ export type TopicSearchVariant = "home" | "topic-inline" | "topic-disclosure";
 interface TopicSearchProps {
   /** Host treatment (design §Placement). Default "home" (the must-ship full-width floor). */
   variant?: TopicSearchVariant;
+  /**
+   * External "prefill + focus" signal (issue #19, article-not-found §7). When `nonce`
+   * changes, the field is seeded with `value` (caret at the end so a typo is one edit
+   * away), the disclosure (`< md`) is opened, and focus moves into the input. The reader
+   * then edits + submits through the normal flow — no new navigation logic here. The
+   * nonce (not the value) is the trigger so re-seeding the SAME text still re-focuses.
+   */
+  prefill?: { value: string; nonce: number };
 }
 
 // Magnifier glyph (decorative; the control always also carries an accessible name).
@@ -70,7 +78,7 @@ function MagnifierIcon({ className }: { className?: string }) {
   );
 }
 
-export function TopicSearch({ variant = "home" }: TopicSearchProps) {
+export function TopicSearch({ variant = "home", prefill }: TopicSearchProps) {
   const router = useRouter();
 
   // Stable, instance-unique ids so two TopicSearch instances (home + topic) never
@@ -279,6 +287,31 @@ export function TopicSearch({ variant = "home" }: TopicSearchProps) {
       requestAnimationFrame(() => inputRef.current?.focus());
     }
   }, [isDisclosure, expanded]);
+
+  // External prefill + focus (issue #19, article-not-found §7). Seed the field with the
+  // attempted title, open the disclosure (`< md`), and focus the input with the caret at
+  // the end. Keyed off the `nonce` so the same prefill text can re-trigger a focus; a
+  // null prefill (every other consumer) is a no-op.
+  const prefillNonce = prefill?.nonce;
+  useEffect(() => {
+    if (prefillNonce === undefined) return;
+    setValue(prefill?.value ?? "");
+    if (isDisclosure) setExpanded(true);
+    requestAnimationFrame(() => {
+      const input = inputRef.current;
+      if (!input) return;
+      input.focus();
+      const end = input.value.length;
+      try {
+        input.setSelectionRange(end, end);
+      } catch {
+        /* setSelectionRange is unsupported on some input types in some engines — ignore */
+      }
+    });
+    // Trigger ONLY on a nonce change (not on every render / value edit). `prefill.value`
+    // is read at trigger time; including it would re-seed on an unrelated parent re-render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prefillNonce, isDisclosure]);
 
   const activeDescendant =
     listOpen && hasOptions && activeIndex >= 0 ? optionId(activeIndex) : undefined;

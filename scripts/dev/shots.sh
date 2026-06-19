@@ -9,14 +9,16 @@
 #
 # The matrix (per surface): logged-out + logged-in × desktop / tablet / mobile; for Topic also the
 # scroll-top (Tier A, full beam) and slim-sticky (scrolled, beam faded) states + the mobile search
-# icon-reveal. Home (landing) and Topic are the two surfaces; subset with --home / --topic.
+# icon-reveal. Home (landing), Topic, and the article-not-found state are the surfaces; subset with
+# --home / --topic / --notfound.
 #
 # Usage:
-#   scripts/dev/shots.sh [--all|--home|--topic] [--out DIR] [--commit [SLUG]] [--pr N]
+#   scripts/dev/shots.sh [--all|--home|--topic|--notfound] [--out DIR] [--commit [SLUG]] [--pr N]
 # Options:
-#   --all            both surfaces (default)
+#   --all            all surfaces (default)
 #   --home           only the home/landing shots
 #   --topic          only the Topic-page shots
+#   --notfound       only the article-not-found shots (nonexistent Wikipedia title)
 #   --out DIR        output dir (default: screenshots/standard — gitignored)
 #   --commit [SLUG]  write to docs/design/<SLUG>-screenshots/ instead (the opt-in PERMANENT record,
 #                    for design-system / identity work) and `git add` them. SLUG defaults to the
@@ -36,12 +38,13 @@ while [ $# -gt 0 ]; do
     --all)   scope="all"; shift ;;
     --home)  scope="home"; shift ;;
     --topic) scope="topic"; shift ;;
+    --notfound) scope="notfound"; shift ;;
     --out)   out="$2"; shift 2 ;;
     --commit) commit=1
               if [ $# -ge 2 ] && [[ "$2" != --* ]]; then slug="$2"; shift; fi
               shift ;;
     --pr)    pr="$2"; shift 2 ;;
-    -h|--help) sed -n '2,33p' "$0"; exit 0 ;;
+    -h|--help) sed -n '2,31p' "$0"; exit 0 ;;
     *) echo "shots: unknown option '$1' (see --help)" >&2; exit 2 ;;
   esac
 done
@@ -54,17 +57,18 @@ if [ "$commit" = 1 ]; then
 fi
 [ -n "$out" ] || out="screenshots/standard"
 
-# Map scope → Playwright grep over the @home / @topic tags in the spec titles.
+# Map scope → Playwright grep over the @home / @topic / @notfound tags in the spec titles.
 grep_arg=()
 case "$scope" in
-  home)  grep_arg=(--grep "@home") ;;
-  topic) grep_arg=(--grep "@topic") ;;
-  all)   grep_arg=() ;;
+  home)     grep_arg=(--grep "@home") ;;
+  topic)    grep_arg=(--grep "@topic") ;;
+  notfound) grep_arg=(--grep "@notfound") ;;
+  all)      grep_arg=() ;;
 esac
 
 echo "shots: rendering '$scope' → $out (this builds + serves the app; ~1–2 min)…"
 mkdir -p "$out"
-rm -f "$out"/home-*.png "$out"/topic-*.png 2>/dev/null || true
+rm -f "$out"/home-*.png "$out"/topic-*.png "$out"/notfound-*.png 2>/dev/null || true
 SHOTS=1 SHOTS_OUT="$out" npx playwright test e2e/screenshots.spec.ts "${grep_arg[@]}"
 rc=$?
 if [ "$rc" != 0 ]; then echo "shots: capture run failed (rc=$rc)" >&2; exit "$rc"; fi
@@ -127,6 +131,12 @@ body="$(mktemp)"
     img topic-mobile-tierA-logged-in   "Mobile — logged in"
     img topic-mobile-slim-logged-in    "Mobile — slim sticky (scrolled)"
     img topic-mobile-search-revealed   "Mobile — search revealed"
+  fi
+  if ls "$out"/notfound-*.png >/dev/null 2>&1; then
+    echo "### Article not found (nonexistent Wikipedia title)"; echo
+    img notfound-desktop-logged-out "Desktop — logged out (header search is the recovery path)"
+    img notfound-desktop-logged-in  "Desktop — logged in"
+    img notfound-mobile-logged-out  "Mobile — logged out"
   fi
 } > "$body"
 gh pr comment "$pr" --body-file "$body"
