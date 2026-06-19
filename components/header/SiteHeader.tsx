@@ -31,17 +31,20 @@ import {
 import { TopicSearch } from "@/components/search/TopicSearch";
 
 // ── Topic Tier-A geometry (#72 design §3.4). Shorter than the landing hero (sticky chrome, not a
-// hero): the beam flares over a 116px band with the wordmark row at cyMid=40. The rest are the
+// hero): the beam flares over a 104px band with the wordmark row at cyMid=28. The rest are the
 // token defaults (do NOT mutate the landing --projector-* defaults — AC12). ────────────────────
-export const TOPIC_BURN_Y = 116; // band height / burn boundary (#72 §3.4 — vs landing 130)
-export const TOPIC_CY_MID = 40; // wordmark row centre (#72 §3.4 — vs landing 44)
+export const TOPIC_BURN_Y = 104; // band height / burn boundary — cone length burnY − cyMid = 76 (vs landing 130)
+// Wordmark row centre = the chrome-row / slim-bar centre (SLIM_BAR_HEIGHT/2 = 28), so the lit lockup
+// aligns with the search + auth cards (which sit centred in the 56px chrome row) and the 56px-tall
+// flat lockup fills the slim bar exactly.
+export const TOPIC_CY_MID = 28;
 // The slim sticky bar height (#72 §4.2). Also the `HEAD` scroll-sync constant in TopicView (§8).
 export const SLIM_BAR_HEIGHT = 56;
-// Scroll thresholds + hysteresis (#72 §4.3): collapse when scrollY > burnY (116), restore when
-// scrollY < burnY − 40 (76). Between 76 and 116 the state is sticky (keeps its last value) so it
+// Scroll thresholds + hysteresis (#72 §4.3): collapse when scrollY > burnY (104), restore when
+// scrollY < burnY − 40 (64). Between 64 and 104 the state is sticky (keeps its last value) so it
 // never flickers on a pixel boundary (AC11).
-const COLLAPSE_AT = TOPIC_BURN_Y; // 116
-const RESTORE_AT = TOPIC_BURN_Y - 40; // 76
+const COLLAPSE_AT = TOPIC_BURN_Y; // 104
+const RESTORE_AT = TOPIC_BURN_Y - 40; // 64
 // `lg` (the Topic grid's side-by-side ↔ stacked breakpoint; #72 decision (a)). Seam-on-divider
 // applies ONLY at ≥ lg, where a real divider exists (§3 / AC2 / AC10).
 const LG_BREAKPOINT = 1024;
@@ -137,7 +140,7 @@ function HomeSiteHeader({ auth }: { auth: ReactNode }) {
 //     there is no remount/jump.
 //   • At scroll-top an absolutely-positioned Tier-A PROJECTOR OVERLAY (the lit aperture + the
 //     descending beam, seam on the divider) fades IN over the flat chrome; when scrolled it fades
-//     OUT (opacity → 0) and the band collapses 116 → 56 (height transition), revealing the flat
+//     OUT (opacity → 0) and the band collapses 104 → 56 (height transition), revealing the flat
 //     chrome bar beneath. Both lockups share the same left origin so there is no horizontal jump.
 //     The overlay is pointer-events:none + aria-hidden — the flat wordmark link beneath carries the
 //     "wiki+" home affordance; the overlay is pure decoration that the persistent chrome owns the
@@ -252,7 +255,7 @@ function TopicSiteHeader({
       className="header-shared sticky top-0 z-40 bg-[var(--color-header-field)]"
       data-collapsed={collapsed ? "" : undefined}
     >
-      {/* ── The band. Its HEIGHT is what collapses (116 → 56) on scroll (AC4): a height transition,
+      {/* ── The band. Its HEIGHT is what collapses (104 → 56) on scroll (AC4): a height transition,
           gated on reduced motion (AC5) via the .header-shared CSS. The chrome controls (search,
           title cue, auth) live in the top SLIM_BAR_HEIGHT row so they are reachable in BOTH states.
           The WORDMARK (lit beam + flat slim lockup + the squeeze glyph) is owned by the single

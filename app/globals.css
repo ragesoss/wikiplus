@@ -119,7 +119,7 @@ body {
    transition (docs/design/shared-header.md §4 + §0a). ONE header, two compositions cross-faded by
    a SINGLE HeaderProjector instance (DEFECT-B fix) so both states share one lockup origin:
    • Tier A (scroll-top): the lit aperture + full beam (.projector-beamfade / .projector-litlockup),
-     seam on the divider; the band is TOPIC_BURN_Y (116px) tall; the flat slim lockup is opacity-0.
+     seam on the divider; the band is TOPIC_BURN_Y (104px) tall; the flat slim lockup is opacity-0.
    • Slim (scrolled, [data-collapsed]): the lit layers fade opacity → 0, the band collapses to 56px,
      and the flat Tier-C lockup (.projector-flatlockup — the interactive home link) fades IN at the
      SAME origin (no horizontal jump, no double wordmark).

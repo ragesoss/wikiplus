@@ -54,7 +54,7 @@ import {
 
 // HEAD = the sticky header's steady-state occupied height, used by the scroll-sync math to compute
 // section scroll targets. The shared header's slim sticky bar is 56px (#72 design §2/§8 — the
-// SLIM_BAR_HEIGHT); the Tier-A extra height (116px) only exists at scroll-top, before any sync
+// SLIM_BAR_HEIGHT); the Tier-A extra height (104px) only exists at scroll-top, before any sync
 // runs, so the slim height is the correct steady-state offset (#72 DQ-3 — no article jump).
 const HEAD = 56;
 const READ = 120;

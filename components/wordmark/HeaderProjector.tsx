@@ -528,7 +528,8 @@ export function HeaderProjector({
   void seamRatio; // API-shape only (AC10) — no dynamic re-seam; documented, unused.
 
   // Wordmark row center from the header top (design §4.2). Landing default 44 (with burnY 130);
-  // the Topic host passes 40 (with burnY 116) for a shorter sticky chrome band (§3.4). The cone
+  // the Topic host passes 28 (with burnY 104) for a shorter sticky chrome band whose wordmark row
+  // aligns with the 56px chrome-row centre (§3.4). The cone
   // length is burnY − cyMid; nothing else about the beam changes.
   const cyMid = geometry?.cyMid ?? 44;
 

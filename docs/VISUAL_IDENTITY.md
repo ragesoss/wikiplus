@@ -606,13 +606,17 @@ stands unchanged. **What is new is strictly the header treatment** — and with 
    two separate per-column labels; and (b) confirm with Dev **how the lockup's internal seam maps to
    the real column layout/breakpoints** — i.e. at which width the columns stop sitting side-by-side and
    the seam-alignment requirement (§6.0) hands off to the self-contained-split fallback (§6.3, §10.2 #6).
-3. **Scope of adoption — RESOLVED: BOTH pages, one shared header.** The `HeaderProjector`
-   lockup is the header for **both** the home page (a free-standing Tier-A hero) **and** the
-   Topic page (the shared "Daylight Projector" header). One component, two host configs — there is
-   no separate Topic-page header implementation. Tier appearance by scroll state on Topic: **Tier A**
-   (lit aperture + full beam) at scroll-top, collapsing to **Tier C** (flat lockup, beam faded) when
-   scrolled (see §10.2 #6 + the scroll-transition decision below). On home, Tier A at every width (no
-   scroll collapse). See `docs/specs/shared-header.md` + `docs/design/shared-header.md`.
+3. **Scope of adoption — RESOLVED: the projector is the app's UNIVERSAL header.** The
+   `HeaderProjector` lockup (via the `SiteHeader` host wrapper) is the **one** header for the whole
+   app — not just home + Topic. **Every view gets it:** any new page/view, and any existing view
+   redesigned, that does not yet use the projector header **should adopt `SiteHeader`** rather than
+   introduce a bespoke header. New surfaces pick the matching host config (or add one in the same
+   wrapper) — never fork the mark. Today's two host configs: the home page (a free-standing Tier-A
+   hero, Tier A at every width, no scroll collapse) and the Topic page (the scroll-aware shared
+   "Daylight Projector" header — **Tier A** lit aperture + full beam at scroll-top, collapsing to a
+   flat **Tier C** slim bar when scrolled; see §10.2 #6 + the scroll-transition decision below). One
+   component, host configs per surface — there is no separate per-page header implementation. See
+   `docs/specs/shared-header.md` + `docs/design/shared-header.md`.
 
 ### 10.2 Open design questions (resolve with Product/Dev)
 
@@ -627,12 +631,14 @@ stands unchanged. **What is new is strictly the header treatment** — and with 
    between the `1fr` article column and the `360px` rail — driven onto the lockup via the
    `projectionX`/`seamRatio` hook off the **measured** column geometry (a mount/resize probe, never a
    per-scroll measure). The mockup's strip-canvas numbers are mapped to the real Topic band as
-   `burnY=116`, `cyMid=40` (a shorter sticky chrome band than the landing hero's `burnY=130`). Below
+   `burnY=104`, `cyMid=28` — a shorter sticky chrome band than the landing hero's `burnY=130`, with
+   the wordmark row centred on the `56px` chrome-row centre (`SLIM_BAR_HEIGHT/2`) so the lit lockup
+   aligns with the search + auth cards and the flat lockup fills the slim bar exactly. Below
    `lg` the columns stack, there is no divider, and the lockup carries its `wiki | +plus` split
    **within itself** (§6.3) — no seam-alignment is applied. **Scroll transition:** on
    the Topic page the header is **Tier A** (lit aperture + full beam, seam on the divider) at
    scroll-top and collapses to a **flat Tier C** slim sticky bar (`56px`, beam opacity → 0, band
-   height `116 → 56`) once `scrollY > 116` (restore `< 76`, a 40px hysteresis); the transition is
+   height `104 → 56`) once `scrollY > 104` (restore `< 64`, a 40px hysteresis); the transition is
    `~180ms` and **gated on `prefers-reduced-motion`** (reduced motion → end-states, no tween).
    **Tier B is not used** here (it remains defined for future shorter-header contexts). See
    `docs/design/shared-header.md` §3–§4.

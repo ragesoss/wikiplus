@@ -180,7 +180,7 @@ describe("AC3 — wordmark is a home link with accessible name 'wiki+' on both h
   });
 });
 
-// ── AC4 — scroll-aware transition. At scrollY≈0 the band is Tier-A height (116) with the beam
+// ── AC4 — scroll-aware transition. At scrollY≈0 the band is Tier-A height (104) with the beam
 // present (opacity not faded); after scrolling past the threshold the band collapses to 56 and the
 // header is marked [data-collapsed] (the CSS fades the beam opacity→0 — §4.3). ─────────────────
 describe("AC4 — scroll-aware: Tier A at top → slim sticky (beam faded, band collapsed) scrolled", () => {
@@ -199,20 +199,20 @@ describe("AC4 — scroll-aware: Tier A at top → slim sticky (beam faded, band 
     const { container } = renderTopicHeader();
     const header = container.querySelector("header.header-shared")!;
     const band = container.querySelector(".header-band") as HTMLElement;
-    // Scroll past burnY (116) → collapse.
+    // Scroll past burnY (104) → collapse.
     window.scrollY = 200;
     fireEvent.scroll(window);
     await vi.waitFor(() => expect(header.hasAttribute("data-collapsed")).toBe(true));
     expect(band.style.height).toBe(`${SLIM_BAR_HEIGHT}px`);
   });
 
-  it("scrolling back to the top restores Tier A (hysteresis: restore < 76)", async () => {
+  it("scrolling back to the top restores Tier A (hysteresis: restore < 64)", async () => {
     const { container } = renderTopicHeader();
     const header = container.querySelector("header.header-shared")!;
     window.scrollY = 200;
     fireEvent.scroll(window);
     await vi.waitFor(() => expect(header.hasAttribute("data-collapsed")).toBe(true));
-    // In the hysteresis band (76–116) it KEEPS its state (stays collapsed).
+    // In the hysteresis band (64–104) it KEEPS its state (stays collapsed).
     window.scrollY = 100;
     fireEvent.scroll(window);
     await vi.waitFor(() => expect(header.hasAttribute("data-collapsed")).toBe(true));

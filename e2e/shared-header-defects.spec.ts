@@ -109,7 +109,7 @@ test.describe("#72 DEFECT-A — narrow-width search is visible + hittable (Tier 
       await expect(trigger).toBeVisible();
 
       // ── Slim (scrolled past the collapse threshold) ──────────────────────────────────────────
-      // Scroll well past burnY (116); poll for the collapse (the rAF-gated handler flips on the
+      // Scroll well past burnY (104); poll for the collapse (the rAF-gated handler flips on the
       // scroll event). Retry the scroll if the first didn't take (timing on the slowest widths).
       await expect(async () => {
         await page.evaluate(() => window.scrollTo(0, 700));

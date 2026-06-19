@@ -86,6 +86,10 @@ behind Cloudflare, Auth.js OAuth (Wikimedia for the MVP).
   `sprout #2A8270`, `action #1F6F95`, `ink #2C2C2C`; **gold `#E5AB28` is an accent / tertiary
   color** — used sparingly (e.g. the header wordmark), never indigo's equal and never a functional
   signal color. The Wiki article side keeps a faithful Wikipedia look.
+- **The projector header is universal** — the `HeaderProjector` mark via the `SiteHeader` host
+  wrapper is the app's one header. Every view gets it: any new view, or any old view being
+  redesigned, that doesn't yet use the projector header should adopt `SiteHeader` (matching or new
+  host config) rather than fork the mark or build a bespoke header (see `VISUAL_IDENTITY.md` §10.1).
 - **Accessibility is baseline** — AA contrast, focus states, keyboard support, text-labeled
   signals (never color alone).
 
