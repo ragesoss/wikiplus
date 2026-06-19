@@ -1,0 +1,34 @@
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="wiki+">
+  <title>wiki+</title>
+  <defs>
+    <!-- The lit aperture: a warm-white core that warms to gold only at the rim (2 stops,
+         no radial banding) — the simplified "white-hot aperture" of the projector lamp. -->
+    <radialGradient id="core" cx="50%" cy="46%" r="62%">
+      <stop offset="62%" stop-color="#FFFFFF"/>
+      <stop offset="100%" stop-color="#FFECB2"/>
+    </radialGradient>
+    <!-- The 12-point "+" aperture, centered in the square (header CUT_CX off-center → centered here). -->
+    <clipPath id="plus">
+      <path d="M11 6 L21 6 L21 11 L26 11 L26 21 L21 21 L21 26 L11 26 L11 21 L6 21 L6 11 L11 11 Z"/>
+    </clipPath>
+  </defs>
+
+  <!-- Warm-white/gold core fills the whole tile; the indigo block (next) knocks the "+" out of
+       itself, so the core shows ONLY through the "+" cut. -->
+  <rect x="0" y="0" width="32" height="32" fill="url(#core)"/>
+
+  <!-- Indigo zine block with the "+" cut as an even-odd KNOCKOUT (outer rect + inner "+" path,
+       fill-rule evenodd) — a true aperture, not a drawn glyph. -->
+  <path fill-rule="evenodd" fill="#676EB4"
+        d="M0 0 H32 V32 H0 Z M11 6 L21 6 L21 11 L26 11 L26 21 L21 21 L21 26 L11 26 L11 21 L6 21 L6 11 L11 11 Z"/>
+
+  <!-- Gold rim on the cut edge (#EECE87) — the single signal-carrying edge of the header lamp,
+       clipped to the "+" interior so it reads as gold at the rim clipping to white inward. -->
+  <path d="M11 6 L21 6 L21 11 L26 11 L26 21 L21 21 L21 26 L11 26 L11 21 L6 21 L6 11 L11 11 Z"
+        fill="none" stroke="#EECE87" stroke-width="2" stroke-linejoin="round"
+        clip-path="url(#plus)"/>
+
+  <!-- 2px ink border (#2C2C2C), matching the .plus-card / GlyphTile. Drawn last so the tile edge
+       stays crisp at 16px. -->
+  <rect x="1" y="1" width="30" height="30" fill="none" stroke="#2C2C2C" stroke-width="2"/>
+</svg>

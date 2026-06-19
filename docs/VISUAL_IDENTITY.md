@@ -419,7 +419,7 @@ source/curation-layer story. The projector beam, the bleed, the rim, and the "pe
 | **A — Full projector** | Wide header, `≥ lg` (desktop), columns side-by-side, header tall enough for the beam to flare into the content | The complete §5 treatment: lockup + aperture + beam to content boundary + gold border off-page + bleed + "pedia" ghost. **Internal seam aligned to the wiki/plus column divider per §6.0** — the mark labels both columns by position. |
 | **B — Lockup + aperture, no beam** | Narrower / shorter headers (`md`) where there isn't enough vertical room below the lockup for the beam to read as "becoming the content" | The `wiki \| +plus` lockup with the lit aperture (white-hot core + gold rim + tight bleed), but **the descending beam is dropped** (it has nowhere to flare). The aperture still says "projector lamp"; we just don't draw the projection. |
 | **C — Flat lockup** | Tight mobile top bars / compact `TopicHeader` (`< md`), or wherever the lit aperture can't render cleanly | The plain `wiki \| +plus` lockup: serif "Wiki" + a flat indigo "+" block (a drawn "+" glyph is acceptable here, since there's no lamp to look into). No beam, no glow, no "pedia." |
-| **D — Glyph / icon mark** | Favicon, app icon, very small UI, monochrome contexts | A **single indigo "+" zine tile** (the block alone, with its border) as the app glyph — the most-compressed expression of the Indigo Press identity. **Open question (§10):** whether the icon should be the bare "+" tile or carry a hint of the white-hot aperture. |
+| **D — Glyph / icon mark** | Favicon, app icon, very small UI, monochrome contexts | A **single indigo "+" zine tile** (the block alone, with its border) as the app glyph — the most-compressed expression of the Indigo Press identity. The **favicon / app-icon** carries a **hint of the white-hot aperture**: the "+" is a warm-white knockout with a thin gold rim on the cut edge (a lit lamp at icon scale), not a flat white "+", and not the full lamp (glow + bleed + radial core) which muddies at 16px. See `docs/design/favicon.md`; assets `app/icon.svg` (scalable favicon), `app/apple-icon.png` (180×180 apple-touch), `app/favicon.ico` (legacy 16/32/48). In very small / monochrome UI the bare flat tile remains the fallback. |
 
 ### 6.3 Specific small-size guidance
 
@@ -620,8 +620,13 @@ stands unchanged. **What is new is strictly the header treatment** — and with 
 
 ### 10.2 Open design questions (resolve with Product/Dev)
 
-4. **Favicon / app-icon mark (Tier D).** Bare indigo "+" tile, or a "+" tile with a hint of the
-   white-hot aperture? (Must read at `16px`.) *(Still open — no favicon mark is wired yet.)*
+4. **Favicon / app-icon mark (Tier D) — RESOLVED.** The mark is the indigo "+" tile carrying a
+   **hint of the white-hot aperture** (warm-white "+" knockout + thin gold rim), centered in the
+   square and legible at `16px`. Assets delivered: `app/icon.svg` (scalable favicon),
+   `app/apple-icon.png` (180×180 apple-touch), and `app/favicon.ico` (legacy 16/32/48), all wired via
+   the App Router metadata-file convention (which prefixes the emitted icon `<link href>` with
+   `basePath` automatically). Geometry mapping, the 16px legibility decisions, and the wiring details
+   are in `docs/design/favicon.md`.
 5. **Dark mode (§6.4).** Confirm "no dark-mode projector; flat lockup only" for now, and whether a
    true dark inversion is a future task. *(Still open — the current behavior is the `forced-colors`
    → flat-lockup fallback; no dark inversion.)*
