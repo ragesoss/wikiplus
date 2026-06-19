@@ -380,6 +380,25 @@ it doesn't resurface. This keeps the DB proportional to real curation, not to ev
 The **YouTube Data API search quota is expensive**, so cache candidate sets with a TTL and refresh
 lazily (alongside `article_index`) — Redis is a natural home for these cached sets.
 
+**Video → article suggestion is the INVERSE of this pipeline — reuse, don't reinvent (decision; #15,
+implementation deferred).** A future video-centric on-ramp (a curator pastes a high-quality video and
+wiki+ suggests which Wikipedia article(s) it belongs to — designed in
+[`docs/design/landing-page-v2-video-entry.md`](design/landing-page-v2-video-entry.md)) is the **inverse
+direction** of the candidate pipeline above: today, given a topic's title + section keywords we rank
+*videos*; the v2 matcher, given **one video's metadata** (title/description/tags), ranks candidate
+**Wikipedia articles**. The *scoring substrate is the same* — only the direction flips (the video is the
+query, articles are the results). The decision recorded now: v2 **reuses `lib/candidates/`** rather than
+introducing a parallel matcher — specifically (a) the **`tokenize()`** helper as-is (it is
+direction-agnostic and its stopword list is already tuned for video text); (b) the **distinct-keyword
+overlap scoring + deterministic tie-break** heuristic in `matching.ts`, *generalized* to "score a query
+token-set against a candidate token-set" rather than forked; (c) the **`matchReason` copy discipline**
+(name a keyword, never assert quality) with new article-side strings; and (d) the **pluggable-source
+shape** (`CandidateSource`/`RawCandidate` in `types.ts`) mirrored as a new `ArticleCandidateSource` plus
+the pipeline's **cache-with-TTL / no-key / silent-degrade posture**. *Not* reused: the YouTube source
+(`youtube.ts`) and the section-placement logic (`placeCandidates()`), both specific to the topic→candidate
+direction. **Implementation is deferred to a future issue;** only the architecture direction + the reuse
+boundary are committed here (see the v2 design spec §5 for the full REUSE/NEW table).
+
 **YouTube Data API key.** Search uses a **public-data API key** — not OAuth and not a service account
 (the YouTube Data API doesn't support service-account auth; OAuth is only for a *user's* private data,
 which we never touch). The key is **API-restricted to YouTube Data API v3**. *Where it lives* is the real
