@@ -343,6 +343,70 @@ describe("AC9 — a MATERIAL note-text edit re-stamps the CC BY-SA agreement", (
   });
 });
 
+describe("H-1 — over-length modifier/slug/label fields are rejected before any DB write", () => {
+  const OVER = "x".repeat(513); // 513 chars > MAX_MODIFIER (512)
+
+  it("rejects an over-length stanceModifier on updateClipAction and writes nothing", async () => {
+    const id = await seedOwnedClip();
+    const before = (await h.db.select().from(clip).where(eq(clip.id, Number(id))))[0];
+    await expect(
+      updateClipAction(id, { stanceModifier: OVER }, false)
+    ).rejects.toThrow(/stanceModifier exceeds/);
+    const after = (await h.db.select().from(clip).where(eq(clip.id, Number(id))))[0];
+    expect(after.stanceModifier).toBe(before.stanceModifier); // unchanged
+  });
+
+  it("rejects an over-length accuracyModifier on updateClipAction and writes nothing", async () => {
+    const id = await seedOwnedClip();
+    const before = (await h.db.select().from(clip).where(eq(clip.id, Number(id))))[0];
+    await expect(
+      updateClipAction(id, { accuracyModifier: OVER }, false)
+    ).rejects.toThrow(/accuracyModifier exceeds/);
+    const after = (await h.db.select().from(clip).where(eq(clip.id, Number(id))))[0];
+    expect(after.accuracyModifier).toBe(before.accuracyModifier);
+  });
+
+  it("rejects an over-length sectionSlug on updateClipAction and writes nothing", async () => {
+    const id = await seedOwnedClip();
+    const before = (await h.db.select().from(clip).where(eq(clip.id, Number(id))))[0];
+    await expect(
+      updateClipAction(id, { sectionSlug: OVER }, false)
+    ).rejects.toThrow(/sectionSlug exceeds/);
+    const after = (await h.db.select().from(clip).where(eq(clip.id, Number(id))))[0];
+    expect(after.sectionSlug).toBe(before.sectionSlug);
+  });
+
+  it("rejects an over-length sectionLabel on updateClipAction and writes nothing", async () => {
+    const id = await seedOwnedClip();
+    const before = (await h.db.select().from(clip).where(eq(clip.id, Number(id))))[0];
+    await expect(
+      updateClipAction(id, { sectionLabel: OVER }, false)
+    ).rejects.toThrow(/sectionLabel exceeds/);
+    const after = (await h.db.select().from(clip).where(eq(clip.id, Number(id))))[0];
+    expect(after.sectionLabel).toBe(before.sectionLabel);
+  });
+
+  it("rejects an over-length stanceModifier on addClipAction and writes no clip row", async () => {
+    await signInAs("Owner", "sub-owner");
+    await upsertTopicAction({ qid: "Q11982", title: "Photosynthesis" });
+    const before = await h.db.select().from(clip);
+    await expect(
+      addClipAction({ ...baseClip(), stanceModifier: OVER }, true)
+    ).rejects.toThrow(/stanceModifier exceeds/);
+    expect(await h.db.select().from(clip)).toHaveLength(before.length);
+  });
+
+  it("rejects an over-length sectionSlug on addClipAction and writes no clip row", async () => {
+    await signInAs("Owner", "sub-owner");
+    await upsertTopicAction({ qid: "Q11982", title: "Photosynthesis" });
+    const before = await h.db.select().from(clip);
+    await expect(
+      addClipAction({ ...baseClip(), sectionSlug: OVER }, true)
+    ).rejects.toThrow(/sectionSlug exceeds/);
+    expect(await h.db.select().from(clip)).toHaveLength(before.length);
+  });
+});
+
 describe("AC10 — a chip/section-only or whitespace-only edit does NOT re-stamp the agreement", () => {
   it("a stance/accuracy/section-only edit leaves noteLicense + noteLicenseAgreedAt untouched", async () => {
     const id = await seedOwnedClip();
