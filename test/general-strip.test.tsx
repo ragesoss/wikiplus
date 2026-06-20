@@ -90,12 +90,15 @@ describe("GeneralStrip — fully-curated (AC3/AC8)", () => {
 });
 
 describe("GeneralStrip — empty / Suggested (AC1, AC16, AC18)", () => {
+  // `signedIn` so the on-tile Curate CTA renders for the CTA-label assertion below; the
+  // logged-out watch-only gating is its own describe block (#71).
   function setup(onAdd = vi.fn()) {
     render(
       <GeneralStrip
         topicTitle="Cellular respiration"
         generalClips={[]}
         generalCandidates={[cand]}
+        signedIn
         onPlay={vi.fn()}
         onPromote={vi.fn()}
         onDismiss={vi.fn()}
@@ -382,5 +385,56 @@ describe("GeneralStrip — zero-results face (design §5.2 / AC2 zero case)", ()
     // #14 AC6: the band does not show a candidate count, even at zero.
     expect(screen.queryByText(/\d+\s+candidates?/)).toBeNull();
     expect(screen.getByRole("link", { name: /Search YouTube/ })).toBeInTheDocument();
+  });
+});
+
+describe("GeneralStrip — logged-out tile gating (#71 §4/§5, AC1/AC2/AC3/AC8)", () => {
+  // A curated general clip carrying an upvote count, to exercise the read-only-count surface.
+  const curatedWithVotes: Clip = { ...clip, upvotes: 12 };
+
+  function renderStrip(signedIn: boolean, clips: Clip[], cands: Candidate[]) {
+    return render(
+      <GeneralStrip
+        topicTitle="Cellular respiration"
+        generalClips={clips}
+        generalCandidates={cands}
+        signedIn={signedIn}
+        votedClip={() => false}
+        onUpvote={vi.fn()}
+        onPlay={vi.fn()}
+        onPromote={vi.fn()}
+        onDismiss={vi.fn()}
+        onAdd={vi.fn()}
+      />
+    );
+  }
+
+  it("logged out: a candidate tile renders NO Curate / Not-relevant button (AC3)", () => {
+    renderStrip(false, [], [cand]);
+    expect(screen.queryByRole("button", { name: /Curate this clip/ })).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: /Dismiss as not relevant/ })
+    ).toBeNull();
+    // The match reason + caption (weighing signals) still render.
+    expect(screen.getByText(/Top result/)).toBeInTheDocument();
+  });
+
+  it("logged out: a curated tile renders the read-only count, NO upvote button (AC1/AC2)", () => {
+    renderStrip(false, [curatedWithVotes], []);
+    // Read-only static figure, not a control.
+    expect(screen.getByText("12 upvotes")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /upvote/i })
+    ).toBeNull();
+  });
+
+  it("signed in: the curated tile renders the upvote TOGGLE and candidate the Curate CTA (AC8)", () => {
+    renderStrip(true, [curatedWithVotes], [cand]);
+    expect(
+      screen.getByRole("button", { name: /Upvote this clip/ })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Curate this clip/ })
+    ).toBeInTheDocument();
   });
 });

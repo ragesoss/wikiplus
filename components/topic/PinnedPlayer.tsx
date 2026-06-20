@@ -35,11 +35,24 @@ export function PinnedPlayer({
   clip,
   onClose,
   prefersReduced = false,
+  signedIn = false,
+  onCurate,
 }: {
   clip: PinnedClip;
   onClose: () => void;
   /** Reuse TopicView's existing reduced-motion signal — gates the dock-in (AC12). */
   prefersReduced?: boolean;
+  /**
+   * #71 §6: is the viewer signed in. The logged-out "Curate this video" CTA renders only when
+   * `!signedIn && onCurate` — signed in the dock stays the unchanged metadata-only dock (AC7).
+   */
+  signedIn?: boolean;
+  /**
+   * #71 §6.5: routes the logged-out "Curate this video" CTA into the curate flow for the
+   * candidate that is playing — TopicView binds it to `promote(candidate)`, which gates first
+   * (logged out → the existing `curate` login gate; no new gate kind). Absent → no CTA.
+   */
+  onCurate?: () => void;
 }) {
   // iframe src/attrs reused VERBATIM from PlayerModal (AC1/AC5; design §9 C).
   const src =
@@ -119,6 +132,32 @@ export function PinnedPlayer({
           ✕ Close
         </button>
       </div>
+
+      {/* #71 §6: the logged-out "Curate this video" CTA — a new row BELOW the title bar and ABOVE
+          the frame (metadata→action→video order, so the action sits with the metadata it acts on
+          and never overlays the video). Renders ONLY logged out with a bound `onCurate`; signed in
+          the dock is the unchanged metadata-only dock (AC7). This is the intentional, LOGGED-OUT-
+          ONLY reversal of the dock's "no Promote/Dismiss inside the dock" rule (§6.5) — for
+          signed-in users Promote / Not relevant still live on the card. The CTA is a real, tabbable
+          `<button>` in this NON-MODAL `<section>`; it is present but NOT focused (no autofocus / no
+          focus-steal — §6.4); the global `:focus-visible` ring applies, and the WORD "Curate"
+          carries the meaning (never color-alone). Activating it gates first (login → curate flow
+          for this candidate). Primary action on dark: solid `brand` fill, white bold text, 2px ink
+          border (white-on-#676EB4 clears AA at bold), the border carrying the boundary on the ink
+          bar (§6.3). No gold. */}
+      {!signedIn && onCurate && (
+        <div className="px-3 pb-2">
+          <button
+            type="button"
+            onClick={onCurate}
+            aria-haspopup="dialog"
+            aria-label="Curate this video — log in to write a context note and vouch for it"
+            className="inline-flex min-h-[44px] w-full items-center justify-center border-2 border-ink bg-brand px-3 py-1 text-[13px] font-bold text-white hover:shadow-[2px_2px_0_#2C2C2C]"
+          >
+            <span aria-hidden>✦</span>&nbsp;Curate this video
+          </button>
+        </div>
+      )}
 
       {/* Video frame: black backing; iframe attrs reused verbatim from PlayerModal. */}
       <div className={frameClass}>

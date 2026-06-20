@@ -3,11 +3,12 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { UpvoteControl } from "@/components/topic/UpvoteControl";
 
-// ── D4 (issue #55) — the upvote control's a11y + state contract (design §3/§6/§9). ──────────
+// ── D4 (issue #55) / #71 — the upvote control's a11y + state contract (design §3/§6/§9; #71 §4). ──
 // QA verifies the server-side gate + the DB invariant at the action (test/upvotes.test.ts); these
-// pin the UI contract that the voted-state is carried by MORE THAN COLOR (the "Voted" word +
-// `aria-pressed` + a filled-vs-outline glyph), the count is always visible, the logged-out form is
-// an ENABLED gate-trigger button WITHOUT `aria-pressed`, and the verbatim §6.1 accessible names.
+// pin the UI contract that the signed-in voted-state is carried by MORE THAN COLOR (the "Voted"
+// word + `aria-pressed` + a filled-vs-outline glyph), the count is always visible, and (#71) the
+// LOGGED-OUT form is a STATIC READ-ONLY count figure — NOT a control, no button, not focusable,
+// count 0 → nothing — plus the verbatim §6.1 accessible names.
 
 describe("UpvoteControl — signed-in toggle states (3a/3b)", () => {
   it("not voted (3a): outline glyph, count, aria-pressed=false, 'Upvote this clip' name, NO 'Voted' word", () => {
@@ -81,8 +82,8 @@ describe("UpvoteControl — signed-in toggle states (3a/3b)", () => {
   });
 });
 
-describe("UpvoteControl — logged-out gate trigger (3d/3g)", () => {
-  it("shows the count + 'Log in to upvote', is an ENABLED button with NO aria-pressed (a gate trigger, not a toggle)", () => {
+describe("UpvoteControl — logged-out read-only count (#71 §4, AC1/AC2/AC9)", () => {
+  it("renders the count as a static figure, NOT a button (no control, no gate trigger)", () => {
     render(
       <UpvoteControl
         count={9}
@@ -92,12 +93,70 @@ describe("UpvoteControl — logged-out gate trigger (3d/3g)", () => {
         onActivate={() => {}}
       />
     );
-    const btn = screen.getByRole("button");
-    expect(btn).toBeEnabled(); // never `disabled` (a disabled button reads as inert — §3 note)
-    expect(btn).not.toHaveAttribute("aria-pressed"); // a gate trigger, not a toggle
-    expect(btn).toHaveTextContent("9"); // the count is still visible (reading is anonymous)
-    expect(btn).toHaveTextContent("Log in to upvote");
-    expect(btn).toHaveAccessibleName("Log in to upvote this clip — 9 upvotes");
+    // AC1/AC2: no focusable action element — the count is text, not a control.
+    expect(screen.queryByRole("button")).toBeNull();
+    // It must not be the old "Log in to upvote" gate trigger.
+    expect(screen.queryByText(/log in to upvote/i)).toBeNull();
+  });
+
+  it("shows the honest 'N upvotes' noun (count > 0), pluralized, with no button chrome", () => {
+    const { container } = render(
+      <UpvoteControl
+        count={9}
+        voted={false}
+        signedIn={false}
+        surface="light"
+        onActivate={() => {}}
+      />
+    );
+    // The visible word makes the figure self-describing (text-labeled, never color-alone).
+    expect(screen.getByText("9 upvotes")).toBeInTheDocument();
+    const label = container.querySelector("span");
+    // AC9: static text, not a named/disabled widget — no role/tabindex/aria-pressed.
+    expect(label).not.toHaveAttribute("role");
+    expect(label).not.toHaveAttribute("tabindex");
+    expect(label).not.toHaveAttribute("aria-pressed");
+  });
+
+  it("pluralizes honestly: '1 upvote' at a count of 1", () => {
+    render(
+      <UpvoteControl
+        count={1}
+        voted={false}
+        signedIn={false}
+        surface="light"
+        onActivate={() => {}}
+      />
+    );
+    expect(screen.getByText("1 upvote")).toBeInTheDocument();
+  });
+
+  it("count 0 logged out renders NOTHING (no '0 upvotes', no glyph — §4.1)", () => {
+    const { container } = render(
+      <UpvoteControl
+        count={0}
+        voted={false}
+        signedIn={false}
+        surface="light"
+        onActivate={() => {}}
+      />
+    );
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it("on the indigo band the figure is white and carries NO actionable underline", () => {
+    const { container } = render(
+      <UpvoteControl
+        count={4}
+        voted={false}
+        signedIn={false}
+        surface="indigo"
+        onActivate={() => {}}
+      />
+    );
+    const label = container.querySelector("span");
+    expect(label?.className).toContain("text-white");
+    expect(label?.className).not.toContain("underline");
   });
 });
 
