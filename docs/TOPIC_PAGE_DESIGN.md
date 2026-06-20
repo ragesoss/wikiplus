@@ -168,6 +168,25 @@ frame's own states (autoplay-on-open iframe, the "can't be embedded" fallback) a
 curation block renders below it either way. (This is distinct from the candidate **pinned** player
 in §"The pinned candidate player" — candidates have no note/chips, so that player gains nothing.)
 
+**Logged-out reader model (issue #71).** The Topic view distinguishes a **logged-out reader** from a
+**signed-in curator** along one axis (`signedIn`). Browsing reads as reading: a logged-out reader's
+tiles carry the trust signals that help weigh a clip but **no per-tile action control**, and the
+invitation to participate relocates into the player, where it lands after the reader has watched.
+
+- **Curated tiles (rail + General strip):** no upvote control. The upvote **count** stays as
+  read-only social proof — a static, non-interactive, unfocusable label (e.g. "12 upvotes", the noun
+  honestly pluralized); a clip with **count 0 shows no figure**. Muted-ink on the light rail card,
+  white on the indigo band (no underline — that is the control's actionable cue).
+- **Candidate tiles (rail + General strip):** watch-only — thumbnail (opens the pinned player /
+  link-out per the embed split), match reason, source pill, caption, and creator credit; **no Curate
+  / Not relevant buttons**. The dashed/unvetted visual language is unchanged.
+- **The two player CTAs** (logged-out only): the candidate **`PinnedPlayer`** gains a **"Curate this
+  video"** button routing into the curate flow for that candidate; the curated **`PlayerModal`**
+  gains a softer topic-level **"Log in to curate videos for this topic"** join nudge inside its
+  curation block. Both route through the existing `curate` login gate.
+- **Signed in:** every surface is unchanged — the upvote toggle, candidate Curate / Not relevant, and
+  owner/moderator rows stay exactly where they are, and the players gain no CTA.
+
 ## Clip placement: General vs. section-anchored
 
 Curated videos divide into two buckets:
@@ -297,10 +316,12 @@ iteration, kept for history).
     redesign.
   - *The General band states the kind of content once and **defers the volume count** — no "N
     candidates" label; the topic-wide count lives once, in the wiki+ panel.*
-- **Curation entry points.** Every candidate carries **Curate** (opens "Curate this clip" — write
-  the context note, set stance + accuracy, confirm the section; publishing turns it into a vetted
-  curated clip) and **Not relevant** (rules it out). Browsing is anonymous; **curating or adding a
-  video requires login**.
+- **Curation entry points.** For a **signed-in** curator every candidate carries **Curate** (opens
+  "Curate this clip" — write the context note, set stance + accuracy, confirm the section; publishing
+  turns it into a vetted curated clip) and **Not relevant** (rules it out). Browsing is anonymous;
+  **curating or adding a video requires login**. A **logged-out** reader sees watch-only candidate
+  tiles (no Curate / Not relevant) and meets the curate invitation in the player instead — see
+  §"Curated player anatomy" → *Logged-out reader model*.
 
 ## The pinned candidate player (in-app preview)
 
@@ -331,7 +352,10 @@ second click swap what's playing. (Full spec: `docs/design/pinned-player.md`; is
   title bar; activating it removes the dock and its iframe from the DOM (playback stops).
 - **Metadata alongside.** Minimal — the **caption** plus **creator credit** (`handle · platformLabel`,
   the CC BY-SA attribution), reusing the strip/card footer pattern. No match reason, no Promote/Dismiss
-  inside the dock (those stay on the candidate card).
+  inside the dock (those stay on the candidate card). The **one exception** is the logged-out
+  **"Curate this video"** CTA (issue #71): a logged-out reader has no Promote/Not-relevant on the
+  card, so the dock carries that single curate invitation between the title bar and the frame —
+  signed-in, the dock stays metadata-only.
 - **Accessibility model (non-modal).** The dock is a **labeled landmark** (`<section
   aria-label="Video preview">`), **not** a dialog: no `aria-modal`, **no focus trap**, no backdrop. It
   **does not steal focus on open** (no autofocus) and does not block the page. Dismiss is keyboard

@@ -94,7 +94,9 @@ A single dock containing, top to bottom:
 
 1. **A title bar** (the dock chrome): a left **"＋plus" eyebrow + caption** (the metadata, §7) and a
    right **Dismiss** control (§6). Solid `ink` (`#2C2C2C`) bar so white text/glyph clears AA.
-2. **The video frame**: the YouTube `<iframe>` (autoplay), or the **no-embed message** (§9, state F),
+2. **The logged-out "Curate this video" CTA** (§7.1) — a full-width brand-fill button row, present
+   **only for a logged-out viewer**, between the title bar and the frame. Absent when signed in.
+3. **The video frame**: the YouTube `<iframe>` (autoplay), or the **no-embed message** (§9, state F),
    on a black backing. Aspect handled per orientation (§6 sizing).
 
 Visual language = Indigo Press hardbox: **2px `ink` border**, a **solid offset shadow**
@@ -172,6 +174,20 @@ full candidate card (no match reason, no Promote/Dismiss inside the dock; those 
 
 No avatar, no follower count, no link-out inside the dock (the card already links the creator). Keep
 the chrome small so the video dominates.
+
+### 7.1 Logged-out curate CTA — the one action inside the dock (issue #71)
+
+For a **logged-out** viewer only, the dock carries a single action: a full-width **"Curate this
+video"** button between the title bar and the frame (metadata→action→video reading order). It routes
+through the existing `curate` login gate into the curate flow for the candidate that is playing.
+This is the **intentional, logged-out-only reversal** of the "no Promote/Dismiss inside the dock"
+rule above: a logged-out reader has no Promote/Not-relevant controls on the candidate card (those
+are signed-in only), so the post-watch invitation to curate lands here, at the strongest "ready to
+curate" moment. For a **signed-in** viewer the dock is unchanged (metadata-only) and Promote /
+Not-relevant stay on the card. Visual: solid `brand` (`#676EB4`) fill, white bold text, 2px `ink`
+border, 44px target, decorative `✦`, no gold. It is a real tabbable `<button>` that honors the
+non-modal / no-autofocus / no-focus-steal contract (§8) — present and reachable by Tab, never
+focused on dock open, never trapped.
 
 ---
 
