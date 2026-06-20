@@ -601,10 +601,9 @@ figure.wikifig .credit {
   margin-bottom: 0;
 }
 /* "Scroll table →" hint — TEXT, shown ONLY when the table overflows its wrapper
-   (design §4.2). Overflow can't be detected in CSS, so a client effect
-   (useTableOverflow, wired in TopicView) sets `data-overflow` on the wrapper after
-   layout; the hint renders solely off that flag. Text-labeled, never color/glyph
-   alone (A7/B2). */
+   (design §4.2). Overflow can't be detected in CSS, so a client effect in TopicView
+   sets `data-overflow` on the wrapper after layout; the hint renders solely off that
+   flag. Text-labeled, never color/glyph alone (A7/B2). */
 .wiki-tablewrap[data-overflow]::after {
   content: "Scroll table →";
   display: block;
