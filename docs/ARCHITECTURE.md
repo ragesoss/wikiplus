@@ -372,7 +372,9 @@ behavior in [`TOPIC_PAGE_DESIGN.md`](TOPIC_PAGE_DESIGN.md) §"Three states".)
   pipeline **platform-agnostic** (a pluggable source interface) so additional platforms slot in.
   At launch, seed the General bar from the **YouTube Data API search** for the topic; for inline
   section candidates, match candidate metadata (title/description/tags) against article section
-  titles/keywords and surface the best single match per section.
+  titles/keywords and surface the best available match per section (the best still-unused candidate,
+  so a section whose top pick is claimed by an earlier section falls through to its runner-up; one
+  home per video).
 - **TikTok auto-suggestion is deferred — pragmatic, not a design boundary.** There is no easy
   official TikTok search API today, so we don't auto-pull TikTok *yet*; the pipeline and frontend
   already accommodate TikTok candidates, and the source is enabled when a practical search path
@@ -1237,7 +1239,7 @@ a host is provisioned (issue A.2).
   the seam is now a **live, cached YouTube Data API search**, not only seeded mock data. A pluggable
   source registry (`lib/candidates/index.ts`, YouTube the only registered source — TikTok/Vimeo slot in
   additively) feeds a deterministic pipeline (`pipeline.ts`): one `search.list` call per topic →
-  case-insensitive keyword-overlap **section matching** (`matching.ts`, best single match per section,
+  case-insensitive keyword-overlap **section matching** (`matching.ts`, best available match per section,
   non-topic-generic threshold, fixed tie-break order) → **placement** (one home per video, section beats
   General, General capped at 5) → dedup against curated clips + sticky dismissals + within-set. The seam
   gains **`suggestCandidates({topicQid, topicTitle, sections, curatedVideoKeys})`** (returns the computed
