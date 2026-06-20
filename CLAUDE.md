@@ -72,6 +72,26 @@ the rule above still holds whenever the loop isn't used. Work is queued as **Git
 = one build-loop run, and a session auto-picks up only an issue signed off as `type: build` +
 `status: ready` (see *Issue pipeline* in `docs/AGENT_OPERATING_MODEL.md`).
 
+## UI screenshot gallery
+
+A committed **baseline gallery** of the app's UI lives at `docs/design/ui-screenshots/` (open
+`index.html` — grouped + filterable). It is generated from the **scene catalog**
+`e2e/screenshots/catalog.ts` (the single source of truth) by `scripts/dev/shots.sh`, which drives
+the real app across every surface/state × mobile/tablet/desktop × logged-out/logged-in. Logged-in
+shots are guarded: a capture fails unless the session truly resolved a contributor (never a silent
+logged-out "logged-in" shot).
+
+**Keep the baseline current with the UI** — whenever a change alters how a surface looks, refresh it
+in the same PR so it never drifts:
+- A few surfaces → **partial refresh**: `scripts/dev/shots.sh --group "<group>" --commit ui` or
+  `--scene <id>,<id> --commit ui` (re-renders only those, preserves the rest).
+- A broad/shared change (the header, the palette, a shared component) or a **new** surface/state →
+  **full refresh**: `scripts/dev/shots.sh --all --commit ui`. Add a new surface/state by adding one
+  `Scene` to the catalog — it is then captured and indexed automatically (no edits to the spec/script).
+- For a PR, attach a focused subset as a comment gallery with `--scene … --pr <N>`.
+
+Commit the regenerated PNGs + `index.html` alongside the UI change.
+
 ## Planned stack (see ARCHITECTURE)
 
 Next.js (App Router) + TypeScript, Tailwind, Postgres + Drizzle, Redis, Docker Compose + Caddy

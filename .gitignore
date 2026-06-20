@@ -42,5 +42,6 @@ coverage/
 test-results/
 playwright-report/
 
-# scripts/dev/shoot.sh default output dir (design-review screenshots)
-screenshots/
+# scripts/dev/shoot.sh + shots.sh default output dirs (gitignored captures). Anchored to the repo
+# root so it never swallows the committed e2e/screenshots/ catalog or a docs/design/ gallery.
+/screenshots/
