@@ -703,16 +703,19 @@ export function TopicView() {
     }
   }, [railItems, activeSlug]);
 
-  // ── Wide-table / cladogram overflow flag (design §4.2 / wiki-style-reuse §4–§5). ──
+  // ── Wide-region overflow flag (design §4.2 / templatestyles-reuse §4–§5). ──
   // After the article renders, mark each contained scroll region (`.wiki-tablewrap`
-  // wide data tables AND `.wiki-clade` cladogram trees) whose content is wider than the
-  // region with `data-overflow` so the CSS "Scroll table →" hint appears ONLY when
-  // scrolling is actually needed. Re-measures on resize. Inert when no tables/clades.
+  // wide data tables, `.wiki-clade` cladogram trees, AND `.tmulti` multi-image montages)
+  // whose content is wider than the region with `data-overflow` so the CSS
+  // "Scroll table →" hint appears ONLY when scrolling is actually needed. Re-measures on
+  // resize. Inert when no tables/clades/montages.
   useEffect(() => {
     if (fetchState !== "ready") return;
     const measure = () => {
       for (const wrap of Array.from(
-        document.querySelectorAll<HTMLElement>(".wiki-tablewrap, .wiki-clade")
+        document.querySelectorAll<HTMLElement>(
+          ".wiki-tablewrap, .wiki-clade, .tmulti"
+        )
       )) {
         const overflowing = wrap.scrollWidth > wrap.clientWidth + 1;
         if (overflowing) wrap.setAttribute("data-overflow", "");
@@ -1389,6 +1392,7 @@ export function TopicView() {
                   url={article.url}
                   qid={qid}
                   lead={article.lead}
+                  styleCss={article.styleCss}
                 />
               )}
             </div>

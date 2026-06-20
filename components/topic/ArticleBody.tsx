@@ -2,6 +2,7 @@
 
 import { Fragment } from "react";
 import type { ArticleSectionBody, ArticleLead } from "@/lib/wiki/article";
+import { ArticleStyles } from "./ArticleStyles";
 
 // The faithful Wikipedia article column (design §5.2/§5.6, AC2/AC3), split to match
 // the page regions (design §3): the title + attribution + lead live in the MASTHEAD;
@@ -13,12 +14,21 @@ export function ArticleLeadBlock({
   url,
   qid,
   lead,
+  styleCss,
 }: {
   title: string;
   url: string;
   /** Wikidata QID (under-the-hood key). Omitted only for an article with no Wikidata item. */
   qid?: string | null;
   lead: ArticleLead;
+  /**
+   * The article's reused, scoped TemplateStyles (`FullArticle.styleCss`). Mounted once
+   * via `ArticleStyles` inside this lead's `.wiki-body` subtree so faithful clade/
+   * `.tmulti`/long-tail-table layout renders across all sections (every reused rule is
+   * `.wiki-body`-scoped, so one shared `<style>` styles the whole split article). Empty
+   * string → nothing mounts.
+   */
+  styleCss?: string;
 }) {
   return (
     <header className="min-w-0">
@@ -43,10 +53,13 @@ export function ArticleLeadBlock({
         </a>{" "}
         · CC BY-SA 4.0{qid ? ` · Wikidata ${qid}` : ""}
       </p>
-      <div
-        className="wiki-body mt-4"
-        dangerouslySetInnerHTML={{ __html: lead.leadHtml }}
-      />
+      {/* Reused, scoped TemplateStyles mount — inside `.wiki-body` so the `.wiki-body `
+          scope prefix on every reused rule resolves. Applied via `textContent`
+          (ArticleStyles), never innerHTML. A no-op when `styleCss` is empty. */}
+      <div className="wiki-body mt-4">
+        <ArticleStyles styleCss={styleCss ?? ""} />
+        <div dangerouslySetInnerHTML={{ __html: lead.leadHtml }} />
+      </div>
     </header>
   );
 }

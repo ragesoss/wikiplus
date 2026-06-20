@@ -112,6 +112,7 @@ const article: FullArticle = {
   title: "Cellular respiration",
   displayTitle: "Cellular respiration",
   url: "https://en.wikipedia.org/wiki/Cellular_respiration",
+  styleCss: "",
   lead: {
     title: "Cellular respiration",
     url: "https://en.wikipedia.org/wiki/Cellular_respiration",

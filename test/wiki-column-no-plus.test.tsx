@@ -18,6 +18,7 @@ const cellularRespiration: FullArticle = {
   title: "Cellular respiration",
   displayTitle: "Cellular respiration",
   url: "https://en.wikipedia.org/wiki/Cellular_respiration",
+  styleCss: "",
   lead: {
     title: "Cellular respiration",
     url: "https://en.wikipedia.org/wiki/Cellular_respiration",
@@ -35,6 +36,7 @@ const photosynthesis: FullArticle = {
   title: "Photosynthesis",
   displayTitle: "Photosynthesis",
   url: "https://en.wikipedia.org/wiki/Photosynthesis",
+  styleCss: "",
   lead: {
     title: "Photosynthesis",
     url: "https://en.wikipedia.org/wiki/Photosynthesis",

@@ -8,6 +8,7 @@
 
 import type { ArticleSection } from "@/lib/data/types";
 import { slugToTitle, topicHref } from "./topicRoute";
+import { scopeArticleCss } from "./cssScope";
 
 const REST = "https://en.wikipedia.org/api/rest_v1";
 // Wikimedia etiquette: a descriptive Api-User-Agent identifying wiki+ + a contact
@@ -50,6 +51,16 @@ export interface FullArticle {
   lead: ArticleLead;
   sections: ArticleSectionBody[];
   url: string;
+  /**
+   * The page's own in-body `<style>`/TemplateStyles CSS, sanitized + scoped under
+   * `.wiki-body` (`scopeArticleCss`), so faithful TemplateStyles layout — cladograms,
+   * `.tmulti` montages, the long tail of styled tables — renders with no per-template CSS
+   * authored by wiki+. Empty string when the article ships no styled content. Applied
+   * ONLY via a `<style>` element's `textContent` inside the article subtree (the
+   * `<style>` *elements* are still removed from the rendered DOM); never
+   * `dangerouslySetInnerHTML`. See docs/ARCHITECTURE.md "TemplateStyles reuse mechanism".
+   */
+  styleCss: string;
 }
 
 /**
@@ -202,6 +213,19 @@ export async function fetchFullArticle(
   );
   if (!res.ok) throw new Error(`Wikipedia article error ${res.status}`);
   const rawHtml = await res.text();
+
+  // --- TemplateStyles reuse (ARCHITECTURE "TemplateStyles reuse mechanism"; #105) -----
+  // The page's own in-body `<style>`/TemplateStyles blocks supply the article column's
+  // faithful layout. Read their CSS *text* from a throwaway parse of the RAW HTML BEFORE
+  // the DOMPurify pass — `DOMParser` does not execute styles/scripts in a detached
+  // document, and we only read `textContent`, so this is the raw CSS source string and
+  // touches nothing in the sanitize path. The `<style>` *elements* are still excluded
+  // from the DOMPurify allowlist and removed by `stripChrome` (X4 unchanged); only their
+  // text is reused. `scopeArticleCss` sanitizes + scopes it under `.wiki-body`; the
+  // result is applied later via a `<style>` element's `textContent` (NEVER innerHTML).
+  // Empty for an article with no styled content (the apply component then mounts nothing).
+  const styleSrc = collectStyleCss(rawHtml);
+  const styleCss = await scopeArticleCss(styleSrc);
 
   const DOMPurify = (await import("dompurify")).default;
 
@@ -368,7 +392,27 @@ export async function fetchFullArticle(
     url: articleUrl,
     lead: { title, leadHtml: leadParts.join("\n"), url: articleUrl, description },
     sections: dedupeSlugs(sections),
+    styleCss,
   };
+}
+
+/**
+ * Collect the CSS *text* of the page's in-body `<style>`/TemplateStyles blocks from the
+ * raw Parsoid HTML (TemplateStyles modules arrive as `<style data-mw-deduplicate=…
+ * typeof="mw:Extension/templatestyles">` inside `mw-empty-elt` spans, plus any other
+ * in-body `<style>`). Parsed in a detached `DOMParser` document — no styles/scripts
+ * execute and only `textContent` is read, so this returns the raw CSS source untouched
+ * by sanitize. Concatenated newest-last; `scopeArticleCss` sanitizes + scopes the result.
+ * Returns `""` when the page ships no `<style>` blocks (the reuse path is then a no-op).
+ */
+function collectStyleCss(rawHtml: string): string {
+  const doc = new DOMParser().parseFromString(rawHtml, "text/html");
+  const parts: string[] = [];
+  for (const styleEl of Array.from(doc.querySelectorAll("style"))) {
+    const css = styleEl.textContent;
+    if (css && css.trim()) parts.push(css);
+  }
+  return parts.join("\n");
 }
 
 function finishSection(
@@ -665,11 +709,12 @@ function cleanMath(root: HTMLElement) {
  * the table overflows. The infobox is tagged for its float frame + its images get
  * the figure treatment (B5).
  *
- * Cladograms (`table.clade`) are NOT generic data tables: they are drawn by the
- * ported `Template:Clade/styles.css` (the `.clade` Style Reuse path — see
- * {@link prepClades} + ARCHITECTURE "Article rendering / style reuse") and live in
- * their own `div.clade` horizontal-scroll region. They are skipped here so the
- * generic cell-border/header-shading grid never paints over the tree.
+ * Cladograms (`table.clade`) are NOT generic data tables: they are drawn by the page's
+ * own `Template:Clade/styles.css`, reused — sanitized + scoped under `.wiki-body`
+ * (`scopeArticleCss`; ARCHITECTURE "TemplateStyles reuse mechanism") — and live in
+ * their own `div.clade` horizontal-scroll region. They are skipped here so the wiki+
+ * thin override (which gives any wide data table a cell-border/header-shading grid)
+ * never paints over the tree.
  */
 function wrapTables(root: HTMLElement) {
   // Wikipedia infobox → float-right frame (kept; NOT wrapped/scrolled). §4.3.
@@ -712,23 +757,25 @@ function wrapTables(root: HTMLElement) {
 }
 
 /**
- * Cladograms (wiki-style-reuse spec AC3, design §3.3). Phylogenetic trees are drawn
+ * Cladograms (templatestyles-reuse spec AC1, design §3.1). Phylogenetic trees are drawn
  * ENTIRELY by `Template:Clade/styles.css` — per-cell `border-left`/`border-bottom`
  * on `td.clade-label`/`td.clade-slabel`/`td.clade-bar` that join into the right-angled
- * bracket tree. That TemplateStyles block arrives INSIDE the article body and is
- * stripped at sanitize (X4 — page-embedded `<style>` is never trusted). The styling
- * is reused the SAFE way instead: Wikipedia's own clade stylesheet is ported into our
- * bundle (`app/globals.css` "clade style reuse"), re-scoped from `.mw-parser-output
- * table.clade` to `.wiki-body table.clade`. It loads no remote CSS and re-permits no
- * page-body CSS, so X4 is untouched; the clade `class` names (`clade`, `clade-label`,
- * `clade-leaf`, `clade-slabel`, `clade-bar`, and the `first`/`last`/`reverse`
- * modifiers) survive sanitize, so the ported rules land on the surviving DOM and the
- * branch lines render.
+ * bracket tree. That TemplateStyles block arrives INSIDE the article body; its `<style>`
+ * *element* is stripped at sanitize (X4 — page-embedded `<style>` is never trusted as
+ * markup), but its CSS *text* is reused the SAFE way: read before sanitize, sanitized +
+ * scoped from `.mw-parser-output table.clade` to `.wiki-body table.clade` by
+ * `scopeArticleCss`, and applied via a `<style>` element's `textContent`
+ * (ARCHITECTURE "TemplateStyles reuse mechanism"). It loads no remote CSS and re-permits
+ * no page-body tag/inline-style/hook, so X4 is untouched; the clade `class` names
+ * (`clade`, `clade-label`, `clade-leaf`, `clade-slabel`, `clade-bar`, and the
+ * `first`/`last`/`reverse` modifiers) survive sanitize, so the reused rules land on the
+ * surviving DOM and the branch lines render — with no per-template clade CSS authored by
+ * wiki+.
  *
  * Here we make each tree's outer `div.clade` a contained, keyboard-scrollable region
  * (a deep/wide tree scrolls horizontally inside it rather than widening the two-column
  * shell — design §4) with the same "Scroll table →" overflow-hint affordance as wide
- * data tables. The empty `mw-empty-elt` spans that wrapped the stripped TemplateStyles
+ * data tables. The empty `mw-empty-elt` spans that wrapped the TemplateStyles
  * `<style>`/`<link>` dedup references are removed so they leave no stray inline gap.
  */
 function prepClades(root: HTMLElement) {

@@ -45,6 +45,7 @@ function article(canonical: string): FullArticle {
     title: canonical,
     displayTitle: canonical,
     url: `https://en.wikipedia.org/wiki/${encodeURIComponent(canonical)}`,
+    styleCss: "",
     lead: {
       title: canonical,
       url: `https://en.wikipedia.org/wiki/${encodeURIComponent(canonical)}`,

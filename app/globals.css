@@ -553,11 +553,14 @@ figure.wikifig .credit {
   cursor: pointer;
 }
 
-/* Group B — data tables (design §4.1): faithful Wikipedia, NOT Indigo Press. The
-   `:not(.clade):not(.wiki-clade-carrier)` guard keeps the generic data-table grid
-   (cell borders, header shading) off the cladogram tree tables and the carrier table
-   that merely hosts a tree — those are drawn by the ported clade stylesheet below, not
-   by the data-table rules (wiki-style-reuse AC3/AC4). */
+/* Wiki+ thin override — a faithful-grey fallback grid for an UNSTYLED data table (one
+   whose own TemplateStyles carry no borders/shading) so a bare `<table>` still reads as a
+   Wikipedia data table rather than borderless rows. Faithful Wikipedia, NOT Indigo Press.
+   The `:not(.clade):not(.wiki-clade-carrier)` guard keeps this fallback grid off the
+   cladogram tree tables and the carrier table that merely hosts a tree — those are drawn
+   by the page's own reused, scoped clade CSS (ARCHITECTURE "TemplateStyles reuse
+   mechanism"), and a reused table that ships its own borders simply overrides this
+   fallback. */
 .wiki-body table:not(.clade):not(.wiki-clade-carrier) {
   border-collapse: collapse;
   font-size: 0.85rem;
@@ -575,8 +578,9 @@ figure.wikifig .credit {
   background: #eaecf0; /* Wikipedia table-header grey — NOT indigo. */
   font-weight: 700;
 }
-/* A cladogram tree nested inside a non-clade carrier cell still draws via the clade
-   stylesheet, never the data-table grid — override any inherited cell border/shading. */
+/* Guard the fallback grid off cladogram cells: a clade `td`/`th` is a DESCENDANT of any
+   non-clade table ancestor, so without this reset the fallback grid above would paint
+   borders onto the tree. The reused, scoped clade CSS draws the actual branch lines. */
 .wiki-body table.clade th,
 .wiki-body table.clade td {
   border: 0;
@@ -613,118 +617,13 @@ figure.wikifig .credit {
   padding: 2px 0 0;
 }
 
-/* ── Clade style reuse (wiki-style-reuse spec §4 / AC3, design §3.3). ──
-   The cladogram trees are drawn ENTIRELY by Wikipedia's own `Template:Clade/styles.css`
-   (per-cell borders that join into the right-angled bracket tree). That TemplateStyles
-   block ships INSIDE the article body and is stripped at sanitize (X4 — page-embedded
-   `<style>` is never trusted). The styling is reused the SAFE way: Wikipedia's own clade
-   stylesheet is ported here verbatim in intent, re-scoped from `.mw-parser-output
-   table.clade` → `.wiki-body table.clade`. No remote CSS is loaded and no page-body CSS
-   is re-permitted, so the X4 anti-XSS guarantee is untouched (it is the runtime fetch /
-   inline-style trust that X4 forbids — neither is used here). The clade `class` names
-   survive sanitize, so these rules land on the surviving DOM and the branch lines render.
-
-   Branch lines use `border: …px solid` with NO color → they inherit `currentColor`
-   (the article ink `#2c2c2c`), which clears AA ≥ 3:1 for a meaningful boundary on the
-   white column (design §6). This is faithful-Wikipedia only — no Indigo Press (AC6). */
-.wiki-body table.clade {
-  border-spacing: 0;
-  border-collapse: separate;
-  margin: 0;
-  font-size: 100%;
-  line-height: 100%;
-  width: auto;
-  display: table;
-  background: none;
-}
-.wiki-body table.clade table.clade {
-  width: 100%;
-  line-height: inherit;
-}
-.wiki-body table.clade td.clade-label {
-  min-width: 0.7em;
-  width: 0.7em;
-  padding: 0.1em 0.25em;
-  vertical-align: bottom;
-  text-align: center;
-  border-left: 1px solid;
-  border-bottom: 1px solid;
-  white-space: nowrap;
-}
-.wiki-body table.clade td.clade-label::before,
-.wiki-body table.clade td.clade-slabel::before {
-  content: "\2060 ";
-}
-.wiki-body table.clade td.clade-fixed-width {
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.wiki-body table.clade td.clade-fixed-width:hover {
-  overflow: visible;
-}
-.wiki-body table.clade td.clade-label.first {
-  border-left: none;
-  border-right: none;
-}
-.wiki-body table.clade td.clade-label.reverse {
-  border-left: none;
-  border-right: 1px solid;
-}
-.wiki-body table.clade td.clade-slabel {
-  padding: 0.1em 0.25em;
-  vertical-align: top;
-  text-align: center;
-  border-left: 1px solid;
-  white-space: nowrap;
-}
-.wiki-body table.clade td.clade-slabel:hover {
-  overflow: visible;
-}
-.wiki-body table.clade td.clade-slabel.last {
-  border-left: none;
-  border-right: none;
-}
-.wiki-body table.clade td.clade-slabel.reverse {
-  border-left: none;
-  border-right: 1px solid;
-}
-.wiki-body table.clade td.clade-bar {
-  vertical-align: middle;
-  text-align: left;
-  padding: 0 0.5em;
-  position: relative;
-}
-.wiki-body table.clade td.clade-bar.reverse {
-  text-align: right;
-  position: relative;
-}
-.wiki-body table.clade td.clade-leaf {
-  border: 0;
-  padding: 0;
-  text-align: left;
-}
-.wiki-body table.clade td.clade-leaf p {
-  padding-right: 5px;
-  padding-left: 2px;
-  margin: 0;
-}
-.wiki-body table.clade td.clade-leafR {
-  border: 0;
-  padding: 0;
-  text-align: right;
-}
-.wiki-body table.clade td.clade-leafR p {
-  padding-left: 5px;
-  padding-right: 2px;
-  margin: 0;
-}
-.wiki-body table.clade td.clade-leaf.reverse {
-  text-align: right;
-}
-.wiki-body table.clade td.clade-leaf.reverse p {
-  padding-left: 5px;
-  padding-right: 2px;
-}
+/* ── Cladogram styling comes from the page's OWN reused, scoped `Template:Clade/styles.css`
+   (sanitized + scoped under `.wiki-body` by `scopeArticleCss`, applied via a `<style>`
+   element's `textContent` — ARCHITECTURE "TemplateStyles reuse mechanism"; #105). The
+   per-cell `border-left`/`border-bottom` segments that join into the right-angled bracket
+   tree, the `first`/`last`/`reverse` modifiers, and the `position:relative` bar are drawn
+   by those reused rules — wiki+ authors NO per-template clade CSS. What remains below is the
+   thin wiki+ override: the contained keyboard-scroll region and the carrier reset. ── */
 
 /* The outer tree container: a contained, keyboard-scrollable region so a deep/wide
    tree scrolls horizontally inside it and never widens the two-column shell (design
@@ -761,20 +660,47 @@ figure.wikifig .credit {
   padding: 2px 0 0;
 }
 
-/* Group B — Wikipedia infobox + taxobox (design §4.3; #74 contract Part 2). Faithful
-   Wikipedia, float-right in the article column like a wikifig. Distinct from the
-   right-rail WIKI+ PANEL (indigo hardbox) by language alone — and structurally in a
-   different grid column (B4). NO Indigo Press bleed: grey frame, never the hardbox.
+/* Wiki+ thin override — `.tmulti` multi-image montage containment (design §3.2/§4). The
+   montage's intended grid/row layout (flex rows, captions, image widths) comes from the
+   page's OWN reused, scoped `Template:Multiple image` TemplateStyles (ARCHITECTURE
+   "TemplateStyles reuse mechanism"; #105) — wiki+ authors NO per-template `.tmulti` CSS.
+   This override only CONTAINS the block to the column: it caps width and makes it a
+   contained, keyboard-scrollable region so an oversized montage scrolls within itself
+   rather than widening the two-column shell, with the same text-labeled "Scroll table →"
+   overflow hint as wide tables/trees (shown only on real overflow via `data-overflow`). */
+.wiki-body .tmulti {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  max-width: 100%;
+}
+.wiki-body .tmulti[data-overflow]::after {
+  content: "Scroll table →";
+  display: block;
+  font-size: 0.7rem;
+  color: var(--color-muted);
+  padding: 2px 0 0;
+}
 
-   The internal layout is STRUCTURE-KEYED, not one generic approximation. Wikipedia
-   ships each box's real layout in inline `style`/TemplateStyles that the sanitizer
-   strips (the X4 anti-XSS guarantee). We reach faithful layout off the Parsoid classes
-   + element structure that survive sanitize (#74 mechanism: option a — no allowlist
-   change). The two box shapes share the same primitives:
+/* Wiki+ thin override — Wikipedia infobox + taxobox internal layout (design §4.3).
+   Faithful Wikipedia, float-right in the article column like a wikifig. Distinct from the
+   right-rail WIKI+ PANEL (indigo hardbox) by language alone — and structurally in a
+   different grid column. NO Indigo Press bleed: grey frame, never the hardbox.
+
+   This stays a wiki+ override — it is NOT covered by the TemplateStyles reuse path. The
+   modern infobox layout (`infobox-above`/`infobox-label`/`infobox-header`/`infobox-image`)
+   and the taxobox banner/key-value/box-frame treatment live in MediaWiki's own SITE CSS
+   (Codex/`infobox` core), which wiki+ never fetches — NOT in the page-embedded
+   `<style>`/TemplateStyles blocks the reuse path reads (those carry only skin/dark-mode
+   overrides for `.infobox.biota`). So faithful infobox/taxobox layout is reached here off
+   the Parsoid classes + element structure that survive sanitize. The two box shapes share
+   the same primitives:
      - MODERN box (vcard/settlement/bio): semantic `infobox-*` classes on every cell.
      - TAXOBOX (`infobox biota`): classless raw `<th colspan="2">` banners + `<td>`
        data cells; its inline styling (centered banners, the taxon-colored band, the
-       ~200px width) is gone with sanitize, so we re-key off the structure. */
+       ~200px width) is stripped at sanitize, so we re-key off the structure.
+   Taxon-band color stays neutral grey: it arrives as an inline `style` (the inline-`style`
+   path, kept stripped), so structural fidelity — centered/bold/hairline banners — is the
+   bar, AA-safe via position/weight/hairline rather than color (design §1 delta 1). */
 .wiki-body table.wiki-infobox,
 .wiki-body table.infobox {
   float: right;
