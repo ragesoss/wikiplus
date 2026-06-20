@@ -1054,6 +1054,37 @@ figure.wikifig .credit {
   animation: wikiplus-fade-in 0.18s ease-out;
 }
 
+/* ── The expanded mobile-search reveal (topic-mobile-search §5.1). ──
+   On open the magnifier disappears, the field grows in FROM THE LEFT, the wordmark swaps to the
+   "+" glyph, and the login swaps to the "W". To read as one deliberate reveal (not three pops),
+   the open disclosure row animates a ~150ms ease-out grow (a left-anchored scaleX + opacity), and
+   the forced glyph / icon-only login cross-fade in over the same window. This is gated behind
+   `prefers-reduced-motion: no-preference` — under reduced motion the end-states apply instantly
+   (no width/opacity tween), the field is immediately usable, and focus still moves in (AC15). The
+   functional result is identical; only the animation is suppressed. */
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes wikiplus-search-grow {
+    from {
+      opacity: 0;
+      transform: scaleX(0.82);
+    }
+    to {
+      opacity: 1;
+      transform: scaleX(1);
+    }
+  }
+  .topic-disclosure-open {
+    transform-origin: left center;
+    animation: wikiplus-search-grow 0.15s ease-out;
+  }
+  /* The chrome-row middle "+" wordmark glyph (the `GlyphTile` home link hosted between the field and
+     the login while the field is open) fades in over the same ~150ms so the swap reads as one
+     coordinated settle, not three independent pops. The icon-only login cross-fades likewise. */
+  .header-shared .header-search-glyph {
+    animation: wikiplus-fade-in 0.15s ease-out;
+  }
+}
+
 /* ── Reduced motion (design §10.4, binding). ── */
 @media (prefers-reduced-motion: reduce) {
   .sec.active > :is(h2, h3, h4) {

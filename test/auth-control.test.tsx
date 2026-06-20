@@ -67,6 +67,18 @@ describe("AuthControl — signed-out (AC1 / §5 microcopy)", () => {
       screen.getByRole("button", { name: "Log in with Wikipedia" })
     ).toBeInTheDocument();
   });
+
+  // topic-mobile-search §3.3 / AC6 — while the narrow search disclosure is open the login collapses
+  // to icon-only ("W"), but the accessible name must NOT degrade.
+  it("the icon-only (forceIconOnly) compact login keeps the full 'Log in with Wikipedia' name and hides the visible word", () => {
+    render(<AuthControl variant="topic-compact" forceIconOnly />);
+    const btn = screen.getByRole("button", { name: "Log in with Wikipedia" });
+    expect(btn).toBeInTheDocument();
+    // The visible "Log in" word is hidden (a span with the `hidden` utility), not removed — the
+    // SSR/hydration markup is identical, only the visibility differs.
+    const word = btn.querySelector("span.hidden");
+    expect(word?.textContent).toBe("Log in");
+  });
 });
 
 describe("AuthControl — signed-in (AC2 / AC5)", () => {
@@ -84,6 +96,19 @@ describe("AuthControl — signed-in (AC2 / AC5)", () => {
     expect(screen.queryByText("@prototype")).toBeNull();
     // No "Log in" button while signed in.
     expect(screen.queryByRole("button", { name: /log in/i })).toBeNull();
+  });
+
+  // topic-mobile-search §3.3 / AC7 — icon-only account (narrow search open): the avatar + ▾ stay,
+  // the username text is hidden UNCONDITIONALLY (not `sm:inline`), the accessible name is preserved.
+  it("the icon-only (forceIconOnly) compact account keeps 'Account: {username}' and hides the username word up to < md", () => {
+    render(<AuthControl variant="topic-compact" forceIconOnly />);
+    const trigger = screen.getByRole("button", { name: "Account: Ragesoss" });
+    expect(trigger).toBeInTheDocument();
+    // The username span is hidden outright (no `sm:inline`), so it never re-appears in the
+    // 640–767px band where the disclosure can still be open.
+    const nameSpan = screen.getByText("Ragesoss");
+    expect(nameSpan).toHaveClass("hidden");
+    expect(nameSpan.className).not.toContain("sm:inline");
   });
 
   it("the account control is a labeled disclosure following the menu-button ARIA pattern", () => {

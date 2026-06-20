@@ -94,6 +94,15 @@ export interface HeaderProjectorProps {
    * flat lockup is the interactive home link (the lit layer is decorative). Undefined (the landing
    * page) ⇒ no slim layer, beam always shown — the landing header is unchanged (AC12). */
   continuous?: boolean;
+  /** Suppress the projector wordmark layer ENTIRELY (docs/design/topic-mobile-search.md §3.2). The
+   * Topic host sets this while the narrow (< md) search disclosure is OPEN: the projector renders
+   * NOTHING — no lit lockup, no beam, and no projector-layer glyph — so neither a gold beam nor a
+   * stray mark ever sits BEHIND the open field (AC4). The "+" wordmark for that state is instead
+   * hosted as a chrome-row flex child in the MIDDLE (between the field and the login), the existing
+   * `GlyphTile` mark inside a `<a href="/">` home link (no fork — AC1). On close this clears and the
+   * normal `p`-driven lockup/beam returns. Only meaningful on the scroll-aware host. Undefined
+   * elsewhere. */
+  suppressWordmark?: boolean;
   className?: string;
 }
 
@@ -512,6 +521,7 @@ export function HeaderProjector({
   href,
   geometry,
   continuous,
+  suppressWordmark,
   className = "",
 }: HeaderProjectorProps) {
   // Stable id for SVG defs (avoids collisions if two instances ever render). Derived from the
@@ -626,8 +636,26 @@ export function HeaderProjector({
   // #72 DEFECT-A — the squeeze (scroll-aware host only): below SQUEEZE_BREAKPOINT the full lockup
   // would crowd the upper-left search, so collapse the wordmark to the Tier-D glyph tile (design
   // §5.5/§5.6). `cw > 0` guards against the SSR/jsdom zero-width false-positive (keep the full
-  // lockup until a real width is measured). Only the scroll-aware Topic host squeezes.
+  // lockup until a real width is measured). Only the scroll-aware Topic host squeezes. This is the
+  // COLLAPSED-search projector-layer squeeze (unchanged); while the narrow search is OPEN the whole
+  // projector is suppressed instead (see `suppressWordmark` below).
   const squeeze = scrollAware && cw > 0 && cw < SQUEEZE_BREAKPOINT;
+
+  // topic-mobile-search §3.2 — while the narrow (< md) search disclosure is OPEN the Topic host sets
+  // `suppressWordmark`: the projector layer renders NOTHING (no lit lockup, no beam, no glyph), so no
+  // gold cone and no stray mark ever sits behind the open field (AC4). The "+" wordmark for that
+  // state is hosted by the host as a chrome-row flex child in the middle (the same `GlyphTile` mark,
+  // exported below — no fork, AC1). Only meaningful on the scroll-aware host; on close this clears and
+  // the normal `p`-driven lockup/beam returns. The wrapper keeps the band's pointer-events-none /
+  // forced-colors-flat shape so layout/clicks are unchanged — it is simply an empty projector layer.
+  if (scrollAware && suppressWordmark) {
+    return (
+      <div
+        aria-hidden="true"
+        className={`header-projector forced-colors-flat pointer-events-none ${className}`}
+      />
+    );
+  }
 
   // ── Tier D — the glyph tile alone (favicon/app-icon scale). Defined-but-minimal. ──
   if (variant === "glyph") {
@@ -865,8 +893,10 @@ export function HeaderProjector({
   );
 }
 
-// ── Tier D glyph tile: the indigo "+" block alone. ──
-function GlyphTile() {
+// ── Tier D glyph tile: the indigo "+" block alone. Exported so the Topic host can reuse the SAME
+// mark as a chrome-row flex child while the narrow search is open (topic-mobile-search §3.2 — no
+// fork, AC1). Decorative SVG (aria-hidden); the accessible name lives on the wrapping link. ──
+export function GlyphTile() {
   const s = 28;
   const plus = plusPath(s / 2, s / 2, 4, 9);
   return (

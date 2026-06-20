@@ -23,11 +23,25 @@ import { WikiGlyph } from "./WikiGlyph";
 
 type Variant = "home" | "topic-plus" | "topic-compact";
 
-export function AuthControl({ variant }: { variant: Variant }) {
+export function AuthControl({
+  variant,
+  forceIconOnly = false,
+}: {
+  variant: Variant;
+  /** topic-mobile-search §3.3: while the narrow (< md) search disclosure is OPEN, collapse the
+   *  login to ICON-ONLY — hide the visible "Log in" word (logged-out) / username (logged-in),
+   *  keep the WikiGlyph "W" / avatar + ▾ and the FULL aria-label (the meaning is always in the
+   *  accessible tree — AC6/AC7). A CSS/visibility swap so SSR/hydration markup is identical (no
+   *  flash). Only set on the topic-compact skin (< md); inert on the other skins / states. */
+  forceIconOnly?: boolean;
+}) {
   const { data: session, status } = useSession();
   const [connecting, setConnecting] = useState(false);
 
   const compact = variant === "topic-compact";
+  // Icon-only collapse applies only to the compact skin (the < md Topic chrome), and only while the
+  // narrow search disclosure is open. On the other skins it is inert.
+  const iconOnly = compact && forceIconOnly;
   // The login button reads against its surface: white-on-indigo inside the ＋plus block,
   // indigo-on-light elsewhere (design §8; AA verified in the design spec §7).
   const onIndigo = variant === "topic-plus";
@@ -46,7 +60,12 @@ export function AuthControl({ variant }: { variant: Variant }) {
 
   if (status === "authenticated" && session?.user?.username) {
     return (
-      <SignedIn username={session.user.username} onIndigo={onIndigo} compact={compact} />
+      <SignedIn
+        username={session.user.username}
+        onIndigo={onIndigo}
+        compact={compact}
+        iconOnly={iconOnly}
+      />
     );
   }
 
@@ -60,8 +79,12 @@ export function AuthControl({ variant }: { variant: Variant }) {
   // hidden, never the meaning). The topic-compact variant keeps its always-short "Log in".
   const responsiveLabel = variant === "home" && !compact;
   const label = compact ? "Log in" : "Log in with Wikipedia";
-  const base =
-    "inline-flex min-h-[44px] items-center gap-1.5 border-2 border-ink px-3 py-1.5 text-sm font-bold transition hover:shadow-[2px_2px_0_#2C2C2C] disabled:cursor-progress disabled:opacity-80";
+  // Icon-only (§3.3): centre the "W" in a square ≥ 44×44 target (the px-3 padding would otherwise
+  // make it a wide pill with no word). min-w-[44px] + justify-center guarantees the touch target
+  // (AC14) while the glyph stays centred.
+  const base = iconOnly
+    ? "inline-flex min-h-[44px] min-w-[44px] items-center justify-center border-2 border-ink px-2 py-1.5 text-sm font-bold transition hover:shadow-[2px_2px_0_#2C2C2C] disabled:cursor-progress disabled:opacity-80"
+    : "inline-flex min-h-[44px] items-center gap-1.5 border-2 border-ink px-3 py-1.5 text-sm font-bold transition hover:shadow-[2px_2px_0_#2C2C2C] disabled:cursor-progress disabled:opacity-80";
   const skin = onIndigo
     ? "bg-white text-action" // white fill on the indigo block (AA-safe; never indigo-on-indigo)
     : "bg-brand text-white"; // canonical plus login button on light surfaces (AA 4.70)
@@ -69,9 +92,11 @@ export function AuthControl({ variant }: { variant: Variant }) {
   return (
     <button
       type="button"
-      // The accessible name is always the full phrase. compact + responsiveLabel both hide part of
-      // the visible word but never the meaning, so both carry the full aria-label.
-      aria-label={compact || responsiveLabel ? "Log in with Wikipedia" : undefined}
+      // The accessible name is always the full phrase. compact, responsiveLabel, and iconOnly all
+      // hide part/all of the visible word but never the meaning, so each carries the full aria-label.
+      aria-label={
+        compact || responsiveLabel || iconOnly ? "Log in with Wikipedia" : undefined
+      }
       aria-busy={connecting}
       disabled={connecting}
       onClick={() => {
@@ -85,13 +110,17 @@ export function AuthControl({ variant }: { variant: Variant }) {
     >
       <WikiGlyph className="h-4 w-4 shrink-0" />
       {connecting ? (
+        // While connecting, the word is informative — show it even in the icon-only state.
         "Connecting…"
       ) : responsiveLabel ? (
         <span className="whitespace-nowrap">
           Log in<span className="hidden min-[480px]:inline"> with Wikipedia</span>
         </span>
       ) : (
-        label
+        // §3.3: hide the visible "Log in" word while icon-only — a CSS/visibility swap (the word
+        // is always in the DOM, hidden via `hidden`), so SSR/hydration markup is identical (no
+        // flash) and the accessible name (the aria-label) is untouched.
+        <span className={iconOnly ? "hidden" : undefined}>{label}</span>
       )}
     </button>
   );
@@ -104,10 +133,12 @@ function SignedIn({
   username,
   onIndigo,
   compact,
+  iconOnly,
 }: {
   username: string;
   onIndigo: boolean;
   compact: boolean;
+  iconOnly: boolean;
 }) {
   const router = useRouter();
   const initial = username.slice(0, 1).toUpperCase();
@@ -120,7 +151,9 @@ function SignedIn({
         <button
           type="button"
           aria-label={`Account: ${username}`}
-          className={`auth-account-trigger inline-flex min-h-[44px] items-center gap-1.5 px-1.5 py-1 text-sm font-bold ${textColor}`}
+          className={`auth-account-trigger inline-flex min-h-[44px] items-center gap-1.5 px-1.5 py-1 text-sm font-bold ${textColor} ${
+            iconOnly ? "min-w-[44px] justify-center" : ""
+          }`}
         >
           <span
             aria-hidden
@@ -128,9 +161,18 @@ function SignedIn({
           >
             {initial}
           </span>
-          {/* The username may hide behind the avatar on the very narrowest compact bar; the
-              menu and aria-label still carry it (design §6). */}
-          <span className={compact ? "hidden sm:inline" : "inline"}>{username}</span>
+          {/* The username hides behind the avatar on the narrowest compact bar (`< sm`); and while
+              the narrow search disclosure is open it hides UNCONDITIONALLY up to `< md` (`iconOnly`,
+              §3.3) so it never re-appears in the 640–767px band and crowds the open field — the
+              avatar + ▾ + the aria-label still carry the account identity (AC7). The word is always
+              in the DOM, hidden via `hidden`, so the SSR/hydration markup is unchanged (no flash). */}
+          <span
+            className={
+              iconOnly ? "hidden" : compact ? "hidden sm:inline" : "inline"
+            }
+          >
+            {username}
+          </span>
           <span aria-hidden className="text-[10px]">
             ▾
           </span>
