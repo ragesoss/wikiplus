@@ -21,13 +21,23 @@
 // CSS parsing is inert text, never markup. That application contract is what makes the
 // tolerant parse (empty-string-on-throw) safe; do not pair it with an innerHTML apply.
 //
+// A conformant browser DECODES CSS escape sequences during tokenization, so the strip must
+// compare against the DECODED token — never the raw literal css-tree leaves on `node.name`/
+// `node.property`/the generated value. Otherwise `@imp\ort`, `po\73 ition:f\69xed`, and
+// `\75 rl(` read as benign literals to the strip while the browser sees the live banned
+// token. (jsdom does not decode these like a real browser, which is why a raw-literal scan
+// looks safe under test but is wide open in production; there is no CSP backstop.) Every
+// strip comparison below runs on the decoded form via `css-tree/utils`' `ident.decode`
+// (the CSS Syntax tokenizer's identifier decoder) and a token-level scan of the value.
+//
 // css-tree is lazy-loaded (`await import`) like dompurify in `fetchFullArticle`, so it
 // stays off the initial bundle and out of the no-article paths. Only `parse`/`walk`/
-// `generate` are used, imported from css-tree's lexer-free SUBPATH entries
-// (`css-tree/parser`, `css-tree/generator`, `css-tree/walker`) — NOT the `css-tree` main
+// `generate`, plus the lexer-free `tokenize`/`ident.decode`, are used — imported from
+// css-tree's lexer-free SUBPATH entries (`css-tree/parser`, `css-tree/generator`,
+// `css-tree/walker`, `css-tree/tokenizer`, `css-tree/utils`) — NOT the `css-tree` main
 // entry, which builds its default syntax WITH the lexer config at module init and so pulls
-// ~0.8 MB of `mdn-data` into the bundle. The subpaths ship only the parser/generator/
-// walker; the lexer/validation API and its `mdn-data` table are never reached.
+// ~0.8 MB of `mdn-data` into the bundle. The subpaths ship only the parser/generator/walker
+// /tokenizer/utils; the lexer/validation API and its `mdn-data` table are never reached.
 
 // At-rules that fetch the network or re-target outside the article column are dropped
 // wholesale. @media/@supports/@keyframes are KEPT (their inner rules are scoped by the
@@ -50,13 +60,28 @@ const DROP_PROPERTIES = new Set(["behavior", "-moz-binding", "binding"]);
 // `relative`/`static` are kept (clade `td.clade-bar` uses `position: relative`).
 const DROP_POSITION_VALUES = new Set(["fixed", "absolute", "sticky"]);
 
-// A declaration whose value contains any of these function tokens is dropped. The scan
-// is TEXTUAL on the comment-stripped, whitespace-collapsed value — NOT an AST `Url`-node
-// check — because the browser tokenizer strips comments before recognizing function
-// tokens, so `u/**/rl(…)` is a real `url()` to the browser that css-tree does not emit a
-// `Url` node for. The textual scan closes that gap (spike §4.3).
+// A declaration whose value carries any of these fetch/script function tokens is dropped.
+// Two complementary scans run against the value, EITHER firing the drop:
+//   1. a TEXTUAL scan on the comment-stripped, whitespace-collapsed value — NOT an AST
+//      `Url`-node check — because the browser tokenizer strips comments before recognizing
+//      function tokens, so `u/**/rl(…)` is a real `url()` the browser honors but css-tree
+//      emits no `Url` node for. The textual scan closes that gap (spike §4.3).
+//   2. a TOKEN-level scan (`valueHasBadFnToken`) that tokenizes the value and decodes each
+//      function-name token before comparing — so an escaped function name (`\75 rl(`,
+//      `ur\6c(`, `\000075rl(`) is caught even though its raw literal is not `url(`. The
+//      token scan reads only function/url TOKENS, never string contents, so a harmless
+//      `content:"\75rl("` string literal is not mistaken for a real `url(`.
 const BAD_VALUE_FN = /(?:url|image-set|-webkit-image-set|expression|-moz-element)\s*\(/i;
 const BAD_VALUE_BEHAVIOR = /behaviou?r\s*:/i;
+// Decoded function names that fetch the network or run script. `url` also covers the
+// `<url-token>` grammar form (`url(unquoted)`), handled separately as a token type.
+const BAD_FN_NAMES = new Set([
+  "url",
+  "image-set",
+  "-webkit-image-set",
+  "expression",
+  "-moz-element",
+]);
 
 /**
  * Sanitize + scope a stylesheet so every rule is confined under `.wiki-body` and every
@@ -68,11 +93,46 @@ const BAD_VALUE_BEHAVIOR = /behaviou?r\s*:/i;
  */
 export async function scopeArticleCss(css: string): Promise<string> {
   if (!css || !css.trim()) return "";
-  const [parse, generate, walk] = await Promise.all([
+  const [parse, generate, walk, tokenizer, decodeIdent] = await Promise.all([
     import("css-tree/parser").then((m) => m.default),
     import("css-tree/generator").then((m) => m.default),
     import("css-tree/walker").then((m) => m.default),
+    import("css-tree/tokenizer"),
+    import("css-tree/utils").then((m) => m.ident.decode),
   ]);
+  const { tokenize, tokenTypes } = tokenizer;
+
+  // Decode CSS escape sequences in an identifier, then lowercase — the form a browser
+  // compares against. `@imp\ort` → `import`, `po\73 ition` → `position`, `f\69xed` → `fixed`.
+  const normIdent = (s: string | undefined | null) =>
+    decodeIdent(s || "").toLowerCase();
+
+  // Token-level scan: tokenize the value and decode each function-name token before
+  // comparing to the banned set, so an ESCAPED function name (`\75 rl(`, `ur\6c(`,
+  // `\000075rl(`) is caught. A bare `<url-token>` (`url(unquoted)`) is always a fetch.
+  // Reads only function/url TOKENS — never string-token contents — so a benign
+  // `content:"\75rl("` string literal is not mistaken for a real `url(`.
+  const valueHasBadFnToken = (value: string): boolean => {
+    let hit = false;
+    try {
+      tokenize(value, (type, start, end) => {
+        if (hit) return;
+        if (type === tokenTypes.Url) {
+          hit = true; // `<url-token>`: url( unquoted ) — always a network fetch
+          return;
+        }
+        if (type === tokenTypes.Function) {
+          // function-token raw is `name(`; drop the trailing `(`, then decode the name.
+          const raw = value.slice(start, end).replace(/\($/, "");
+          if (BAD_FN_NAMES.has(normIdent(raw))) hit = true;
+        }
+      });
+    } catch {
+      return true; // un-tokenizable value is not safe — fail closed
+    }
+    return hit;
+  };
+
   try {
     // Tolerant parse: a malformed fragment becomes an inert `Raw` node rather than
     // throwing. Acceptable ONLY because application is via `textContent` (a `Raw` fragment
@@ -90,7 +150,8 @@ export async function scopeArticleCss(css: string): Promise<string> {
     walk(ast, {
       visit: "Atrule",
       enter(node, item, list) {
-        const name = (node.name || "").toLowerCase();
+        // Decode escapes before comparing: `@imp\ort`/`@\69mport` → `import` is dropped.
+        const name = normIdent(node.name);
         if (DROP_AT_RULES.has(name)) {
           if (list) list.remove(item);
           return;
@@ -113,21 +174,35 @@ export async function scopeArticleCss(css: string): Promise<string> {
     walk(ast, {
       visit: "Declaration",
       enter(node, item, list) {
-        const prop = (node.property || "").toLowerCase();
+        // Decode escapes before comparing: `po\73 ition` → `position`, `\62 ehavior` →
+        // `behavior` is dropped.
+        const prop = normIdent(node.property);
         if (DROP_PROPERTIES.has(prop)) {
           if (list) list.remove(item);
           return;
         }
-        // Serialize the value, then strip CSS comments and collapse whitespace before the
+        // Serialize the value once, then strip CSS comments and collapse whitespace for the
         // textual scan (defeats `u/**/rl(` / `exp ression(` style obfuscation).
-        const value = generate(node.value)
+        const rawValue = generate(node.value);
+        const value = rawValue
           .replace(/\/\*[\s\S]*?\*\//g, "")
           .replace(/\s+/g, "");
-        if (prop === "position" && DROP_POSITION_VALUES.has(value.toLowerCase())) {
+        // Decode the whole value for the keyword check (position values are keywords, never
+        // strings, so a whole-value decode cannot mis-read a string literal): `f\69xed`
+        // and `\66ixed` both decode to `fixed`.
+        if (prop === "position" && DROP_POSITION_VALUES.has(decodeIdent(value).toLowerCase())) {
           if (list) list.remove(item);
           return;
         }
-        if (BAD_VALUE_FN.test(value) || BAD_VALUE_BEHAVIOR.test(value)) {
+        // Two scans, either fires the drop: the textual scan on the comment-stripped value
+        // (catches `u/**/rl(`), and the token-level decoded scan (catches escaped function
+        // names like `\75 rl(` / `ur\6c(` / `\000075rl(`). Run the token scan on the raw
+        // serialized value so its tokenizer sees comments/whitespace as the browser does.
+        if (
+          BAD_VALUE_FN.test(value) ||
+          BAD_VALUE_BEHAVIOR.test(value) ||
+          valueHasBadFnToken(rawValue)
+        ) {
           if (list) list.remove(item);
         }
       },
