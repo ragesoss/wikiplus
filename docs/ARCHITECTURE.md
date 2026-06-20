@@ -79,6 +79,24 @@ GitHub-hosted runner and pushes it to **GHCR** (`ghcr.io/ragesoss/wikiplus`, tag
 OOM) — it only pulls + runs. This is the deploy leg of the cloud, mobile-drivable
 prompt → staging loop.
 
+**PR gate — catch `.dockerignore` breaks before merge.** A separate
+[`.github/workflows/pr-ci.yml`](../.github/workflows/pr-ci.yml) job runs on `pull_request`
+(targeting `main`) and builds the Dockerfile **`build` stage** (`yarn build` + `yarn
+build:migrate`) against the **same trimmed context** (`Dockerfile` + `.dockerignore`) the
+deploy uses — `target: build`, `push: false`, no GHCR, no deploy secrets. It exists because
+the host QA gate (`yarn build`/`tsc`) typechecks the **full** working tree and never respects
+`.dockerignore`, so a file the trimmed context drops (anything under `e2e/` or `scripts/dev/`,
+or a root file importing from them) can pass on the host yet break `next build` inside the
+image. Building the real `build` stage surfaces that break on the PR. It reuses the deploy
+build's GitHub Actions layer cache (`cache-from: type=gha`), so a normal PR runs in roughly the
+deploy build's time (~1–2 min). **Why the trimmed-context Docker build, not a cheaper
+host check:** the considered alternative — replicate the `.dockerignore` exclusions on the
+host and run `tsc --noEmit` over the remainder — would drift from the real deploy context (a
+second, hand-maintained copy of the exclusion list that silently rots), whereas building the
+actual `build` stage with the actual `Dockerfile` + `.dockerignore` can never drift from what
+the deploy does. Recommended as a required status check on `main` (a repo branch-protection
+setting).
+
 ### Self-hosted Next.js gotcha to design around (decide now, not later)
 
 Next.js ISR's default cache is **per-instance, on local disk**. The moment you run more

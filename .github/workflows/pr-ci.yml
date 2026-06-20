@@ -1,0 +1,54 @@
+name: PR CI — Docker build gate
+
+# Guards the deploy build path on the PR, before merge. The production image is built
+# ONLY by deploy.yml on push to `main`; the QA gate's `yarn build`/`tsc` run on the host
+# against the FULL working tree and never respect `.dockerignore`. So a file that the
+# trimmed Docker context drops (e.g. anything under e2e/ or scripts/dev/, or a root file
+# importing from them) can typecheck clean on the host yet break `next build` inside the
+# image — a failure class that has taken the live deploy down (un-ignored files reaching
+# the build stage). This job builds the Dockerfile `build` stage against the same trimmed
+# context (`Dockerfile` + `.dockerignore`) the deploy uses, so that break surfaces on the
+# PR instead of after merge.
+#
+# It builds only the `build` target (= `yarn build` + `yarn build:migrate`) — no runtime
+# export, no push. It reuses the deploy build's GitHub Actions layer cache (cache-from
+# type=gha), so a normal PR runs in roughly the existing build time. It pushes nothing and
+# needs no deploy secrets, so it is safe to mark a required status check on `main`.
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# Read-only: nothing is pushed (no GHCR, so no `packages: write`).
+permissions:
+  contents: read
+
+# A new push to a PR cancels the in-flight build for that PR.
+concurrency:
+  group: pr-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  docker-build:
+    name: Docker build stage (trimmed context)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Build the Docker `build` stage against the trimmed context
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: ./Dockerfile
+          # Build the `build` stage only — exactly where `.dockerignore` breaks surface
+          # (yarn build + yarn build:migrate). No runtime image, no push.
+          target: build
+          push: false
+          # Reuse the deploy build's layer cache so a normal PR is ~1–2 min, and feed
+          # this PR's layers back so subsequent runs (and the deploy) reuse them too.
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
