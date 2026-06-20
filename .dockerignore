@@ -36,6 +36,13 @@ e2e
 # type-check from choking on the now-unresolvable ./e2e/db-server import (issue #47 fix).
 playwright.config.ts
 
+# Dev-only tooling (the screenshot harness, the QA gate, test-db helpers) — never part of the
+# production image. Same reasoning as playwright.config.ts above: scripts/dev/shots-index.ts
+# imports from the ./e2e catalog (stripped above), so leaving it in the context breaks
+# `next build`'s project-wide type-check. The build-time scripts (build-migrate.mjs, migrate.ts,
+# seed.ts, ops/) live at scripts/ root and stay in the context.
+scripts/dev
+
 # docs, mockups, agent config — not part of the app build
 docs
 mockups
