@@ -81,11 +81,12 @@ export interface Scene {
 
 // ── Fixture article bodies ──────────────────────────────────────────────────────────────────────
 
-/** A long article so a Topic page scrolls well past the header-collapse threshold (slim captures). */
+/** An article long enough to scroll well past the header-collapse threshold (slim captures), but
+ *  no longer — extra filler sections only bloat the committed `topic-body` full-page shots. */
 function longArticleHtml(lead: string): string {
   return `<!DOCTYPE html><html><body>
     <section><p>${lead}</p></section>
-    ${Array.from({ length: 40 })
+    ${Array.from({ length: 14 })
       .map(
         (_, i) =>
           `<section data-mw-section-id="${i + 1}"><h2 id="s${i}">Section ${i + 1}</h2><p>Body text for section ${i + 1}, repeated to give the article real scroll height.</p></section>`
@@ -110,7 +111,8 @@ const SUGGESTION_ARTICLE_HTML = `<!DOCTYPE html><html><body>
 /** A placeholder embed page so an opened player frame shows a solid panel, not a blocked iframe. */
 async function stubEmbeds(page: Page): Promise<void> {
   const body =
-    "<!DOCTYPE html><html><body style='margin:0;background:#2C2C2C;color:#fff;font-family:sans-serif'>" +
+    "<!DOCTYPE html><html><head><meta charset='utf-8'></head>" +
+    "<body style='margin:0;background:#2C2C2C;color:#fff;font-family:sans-serif'>" +
     "<div style='display:flex;height:100vh;align-items:center;justify-content:center'>▶ video</div>" +
     "</body></html>";
   await page.route(/youtube-nocookie\.com\/embed\//, (route) =>
@@ -433,7 +435,7 @@ export const SCENES: Scene[] = [
     stub: "curated",
     ready: topicReady,
     prepare: openPlayerModal,
-    clip: "fullPage",
+    clip: SEL_PLAYER_MODAL,
   },
   {
     id: "pinned-player",

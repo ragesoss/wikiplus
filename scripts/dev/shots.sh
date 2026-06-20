@@ -13,8 +13,12 @@
 # logged-out "logged-in" shot — #109).
 #
 # WORKFLOW. By default the FULL set lands in a gitignored working dir with an `index.html`. For a PR,
-# pick the relevant scenes (--scene / --group / --focus) and attach just those (--pr). Periodically,
-# refresh the committed canonical gallery with --commit (the whole set, on demand).
+# pick the relevant scenes (--scene / --group / --focus) and attach just those (--pr). The committed
+# canonical baseline lives at docs/design/ui-screenshots/ — refresh it on demand with --commit:
+#   • a UI change touching a few surfaces → PARTIAL refresh, e.g.
+#       scripts/dev/shots.sh --group "Topic · header" --commit ui   (re-renders just those, keeps the rest)
+#   • a broad/shared change (header, palette, a shared component) or a new scene → FULL refresh:
+#       scripts/dev/shots.sh --all --commit ui
 #
 # Usage:
 #   scripts/dev/shots.sh [SELECTION] [--out DIR] [--commit [SLUG]] [--pr N]
@@ -26,9 +30,10 @@
 #   --home/--topic/--notfound   back-compat aliases (home / all topic surfaces / the not-found scene)
 # Output:
 #   --out DIR             output dir (default: screenshots/standard — gitignored)
-#   --commit [SLUG]       write the set + index to docs/design/<SLUG>-screenshots/ and `git add` it —
-#                         the on-demand refresh of the PERMANENT committed gallery. SLUG defaults to
-#                         the current branch name.
+#   --commit [SLUG]       write to docs/design/<SLUG>-screenshots/ and `git add` it — the on-demand
+#                         refresh of the PERMANENT committed gallery (the baseline is SLUG=ui). With
+#                         --all it re-renders everything; with a subset it PARTIALLY refreshes (only
+#                         the selected scenes, preserving the rest). SLUG defaults to the branch name.
 #   --pr N                attach the rendered set to PR #N as a comment gallery. PNGs are pushed to a
 #                         dedicated `screenshots` branch (never merged → main stays lean) and
 #                         referenced by SHA-pinned raw URLs (survive the PR branch being deleted).
@@ -77,8 +82,15 @@ grep_arg=()
 
 echo "shots: rendering '$scope' → $out (this builds + serves the app; ~1–2 min)…"
 mkdir -p "$out"
-# Clean the output dir so it reflects EXACTLY this run (the index + PR gallery read what's present).
-rm -f "$out"/*.png "$out"/index.html "$out"/manifest.json 2>/dev/null || true
+# Clean the output dir so it reflects EXACTLY this run — EXCEPT a partial refresh of the committed
+# baseline (--commit + a subset), where the un-selected shots must SURVIVE so only the changed
+# scenes are re-rendered over them. (A full --all run always re-renders everything; a non-commit
+# run is the throwaway working dir.) The index is rebuilt from whatever PNGs remain either way.
+if [ "$commit" = 1 ] && [ "$scope" != all ]; then
+  rm -f "$out"/index.html "$out"/manifest.json 2>/dev/null || true
+else
+  rm -f "$out"/*.png "$out"/index.html "$out"/manifest.json 2>/dev/null || true
+fi
 SHOTS=1 SHOTS_OUT="$out" npx playwright test e2e/screenshots.spec.ts "${grep_arg[@]}"
 rc=$?
 if [ "$rc" != 0 ]; then echo "shots: capture run failed (rc=$rc)" >&2; exit "$rc"; fi
