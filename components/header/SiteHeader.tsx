@@ -140,9 +140,11 @@ function HomeSiteHeader({ auth }: { auth: ReactNode }) {
       {/* The single AuthControl, right-anchored on the SAME row as the lockup at every width. The
           slot sits in the cool fluorescent band above the burn boundary, vertically centred on the
           wordmark row (cyMid=28 → height 56 = cyMid·2). Absolutely positioned so it never pushes the
-          lockup off its anchor and never folds to a second row (§4.5 / #61 §7.5). */}
+          lockup off its anchor and never folds to a second row (§4.5 / #61 §7.5). Below 480px the
+          button itself shrinks to the compact "Log in" label (AuthControl), keeping it clear of the
+          left-anchored wordmark — so the slot needs no width clamp. */}
       <div
-        className="auth-slot absolute right-0 top-0 z-10 flex items-center justify-end px-3 sm:px-4 max-[479px]:max-w-[46%] max-[359px]:max-w-[120px]"
+        className="auth-slot absolute right-0 top-0 z-10 flex items-center justify-end px-3 sm:px-4"
         style={{ height: 56 }}
       >
         {auth}

@@ -51,6 +51,14 @@ export function AuthControl({ variant }: { variant: Variant }) {
   }
 
   // Signed-out: the single "Log in with Wikipedia" action (§1a).
+  // On the HOME header the lockup is left-anchored on the same 56px row as this right-anchored
+  // button; on the narrowest phones the full label is too wide and would collide with the wordmark
+  // (§4.5 — the auth must stay one row, right-anchored, and must not push the lockup off its anchor).
+  // So the home button drops " with Wikipedia" below 480px (the width where the lockup also scales
+  // down) and shows just "Log in" — a CSS-only swap so SSR/hydration markup is identical at every
+  // width. The full phrase always remains the accessible name (the visible "Wikipedia" word is
+  // hidden, never the meaning). The topic-compact variant keeps its always-short "Log in".
+  const responsiveLabel = variant === "home" && !compact;
   const label = compact ? "Log in" : "Log in with Wikipedia";
   const base =
     "inline-flex min-h-[44px] items-center gap-1.5 border-2 border-ink px-3 py-1.5 text-sm font-bold transition hover:shadow-[2px_2px_0_#2C2C2C] disabled:cursor-progress disabled:opacity-80";
@@ -61,7 +69,9 @@ export function AuthControl({ variant }: { variant: Variant }) {
   return (
     <button
       type="button"
-      aria-label={compact ? "Log in with Wikipedia" : undefined}
+      // The accessible name is always the full phrase. compact + responsiveLabel both hide part of
+      // the visible word but never the meaning, so both carry the full aria-label.
+      aria-label={compact || responsiveLabel ? "Log in with Wikipedia" : undefined}
       aria-busy={connecting}
       disabled={connecting}
       onClick={() => {
@@ -74,7 +84,15 @@ export function AuthControl({ variant }: { variant: Variant }) {
       className={`${base} ${skin}`}
     >
       <WikiGlyph className="h-4 w-4 shrink-0" />
-      {connecting ? "Connecting…" : label}
+      {connecting ? (
+        "Connecting…"
+      ) : responsiveLabel ? (
+        <span className="whitespace-nowrap">
+          Log in<span className="hidden min-[480px]:inline"> with Wikipedia</span>
+        </span>
+      ) : (
+        label
+      )}
     </button>
   );
 }
