@@ -225,6 +225,15 @@
     "focus": false
   },
   {
+    "id": "topic-search",
+    "group": "Topic · header",
+    "label": "Topic header — mobile search revealed",
+    "viewport": "mobile",
+    "auth": "in",
+    "file": "topic-search-mobile-logged-in.png",
+    "focus": false
+  },
+  {
     "id": "topic-body",
     "group": "Topic · body",
     "label": "Topic — full two-world layout",
