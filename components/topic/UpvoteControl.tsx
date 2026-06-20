@@ -1,25 +1,28 @@
 "use client";
 
 import {
-  LOGIN_TO_UPVOTE_LABEL,
   VOTED_LABEL,
+  readonlyUpvoteCount,
   upvoteAccessibleName,
 } from "@/lib/curation/upvote-copy";
 
-// ── The upvote control (issue #55 / D4, design §3–§5/§9). ────────────────────────────────────
-// One interactive, text-labeled, one-per-user TOGGLE that lives on two surfaces — the `ClipCard`
-// footer (light, §4) and the curated `GeneralStrip` tile (indigo band, §5). The same behavior
-// drives both; only tone/size differ (`surface`). It is a presentational control: the host
-// (TopicView) owns the optimistic-with-rollback toggle + the logged-out gate route (it passes the
-// already-reconciled `count`/`voted` and an `onActivate`). It is NEVER the security control — the
-// server-side `requireContributor()` gate inside `toggleUpvoteAction` is (AC4/AC5).
+// ── The upvote control (issue #55 / D4, design §3–§5/§9; #71 design §4). ─────────────────────
+// On both surfaces — the `ClipCard` footer (light, §4) and the curated `GeneralStrip` tile (indigo
+// band, §5) — this renders one of two faces decided by `signedIn`:
 //
-// State carried by MORE THAN COLOR (CURATION §4 / §9, the load-bearing a11y rule):
-//   (1) a visible "Voted" WORD when voted; (2) `aria-pressed` (true voted / false not — a real
-//   toggle button); (3) a filled-vs-outline GLYPH SHAPE (▲ filled / △ outline). Color only
-//   reinforces (indigo on light / white+underline on indigo). The logged-out form is the SAME
-//   button WITHOUT `aria-pressed` (a gate trigger, not a toggle) and is NEVER `disabled` (a
-//   disabled button is not focusable + reads as inert — §3 note). The count is ALWAYS visible.
+//   SIGNED IN → an interactive, text-labeled, one-per-user TOGGLE. State is carried by MORE THAN
+//     COLOR (CURATION §4 / §9): (1) a visible "Voted" WORD when voted; (2) `aria-pressed`
+//     (true voted / false not — a real toggle button); (3) a filled-vs-outline GLYPH SHAPE
+//     (▲ filled / △ outline). Color only reinforces. It is presentational: the host (TopicView)
+//     owns the optimistic-with-rollback toggle; it is NEVER the security control — the server-side
+//     `requireContributor()` gate inside `toggleUpvoteAction` is (AC4/AC5).
+//
+//   LOGGED OUT (#71 §4) → a STATIC READ-ONLY count label, NOT a control. The displayed count is
+//     derived from distinct real identities (upvotes.md) and reading it is anonymous, so it stays
+//     as social proof; only the "Log in to upvote" call-to-action is removed. It is a plain
+//     `<span>` (no `role`, no `tabindex`, no `aria-pressed`, no button chrome — never announced as
+//     a disabled control, §4.2/§9), text-labeled with the honest "N upvotes" noun. A count of 0
+//     renders NOTHING (no "0 upvotes" — §4.1); `voted`/`onActivate` are unused logged out.
 
 export function UpvoteControl({
   count,
@@ -39,11 +42,32 @@ export function UpvoteControl({
   /** Activate handler — the host's optimistic toggle (signed in) or gate route (logged out). */
   onActivate: () => void;
 }) {
-  const state: "not-voted" | "voted" | "logged-out" = !signedIn
-    ? "logged-out"
-    : voted
-      ? "voted"
-      : "not-voted";
+  // ── Logged-out branch (#71 §4): a STATIC READ-ONLY count label, NOT a control. ──
+  // A clip with no upvotes shows nothing (no "0 upvotes" — §4.1); otherwise a plain `<span>`
+  // carrying the honest "N upvotes" noun. No `role`/`tabindex`/`aria-pressed`/`onClick`/button
+  // chrome — it must read as a figure and never be announced as a (disabled) control (§4.2/§9).
+  // `voted`/`onActivate` are unused here.
+  if (!signedIn) {
+    if (count <= 0) return null;
+    // The decorative filled `▲` is a typographic bullet matching the upvote family — NOT the
+    // outline `△` (the control's "not-voted" shape, which would imply an actionable toggle, §4.2).
+    // Tone: muted ink on the light card, white on the indigo band — quiet figure, never the
+    // deep-violet the *control* uses and never the band's persistent underline (§4.2).
+    const figureTone =
+      surface === "indigo"
+        ? "text-white"
+        : "text-muted";
+    return (
+      <span
+        className={`inline-flex items-center gap-1 text-[11px] font-bold ${figureTone}`}
+      >
+        <span aria-hidden>▲</span>
+        {readonlyUpvoteCount(count)}
+      </span>
+    );
+  }
+
+  const state: "not-voted" | "voted" = voted ? "voted" : "not-voted";
   const accessibleName = upvoteAccessibleName(state, count);
   // Filled (▲) when voted, outline (△) otherwise — a SHAPE difference, not only color (§4.2/§9).
   const glyph = state === "voted" ? "▲" : "△";
@@ -52,21 +76,18 @@ export function UpvoteControl({
   // the design's AA-safe deep indigo) clears WCAG AA (≈5.9:1 on white) at 10–11px (§4.4 / §9.3) —
   // NOT the lighter brand `#676EB4` (≈4.0:1, below AA for normal text). On indigo: white, bold;
   // the voted state adds a persistent UNDERLINE (the underline, not a color shift, carries the
-  // toggled/actionable cue on the band, AA-safe — §5.2/§5.4). The logged-out form on indigo is
-  // also underlined (it is actionable). A comfortable tap target on both (≥24px — §11).
+  // toggled/actionable cue on the band, AA-safe — §5.2/§5.4). A comfortable tap target (≥24px — §11).
   const base =
     "inline-flex items-center gap-1 font-bold text-[11px] py-1 -my-1 focus-visible:outline-none";
   const tone =
     surface === "indigo"
-      ? `text-white ${state !== "not-voted" ? "underline" : "hover:underline"}`
+      ? `text-white ${state === "voted" ? "underline" : "hover:underline"}`
       : `text-violet ${state === "voted" ? "" : "hover:underline"}`;
 
   return (
     <button
       type="button"
-      // `aria-pressed` ONLY for the signed-in toggle (3a/3b). The logged-out form omits it — it is
-      // a gate trigger, not a toggle (§3 / §9). Setting it would mis-announce "not pressed".
-      aria-pressed={signedIn ? voted : undefined}
+      aria-pressed={voted}
       aria-label={accessibleName}
       onClick={onActivate}
       className={`${base} ${tone}`}
@@ -75,9 +96,6 @@ export function UpvoteControl({
       <span aria-hidden>{count}</span>
       {/* The visible state WORD (text-carried signal, never color-alone — §9). */}
       {state === "voted" && <span aria-hidden>· {VOTED_LABEL}</span>}
-      {state === "logged-out" && (
-        <span aria-hidden>· {LOGIN_TO_UPVOTE_LABEL}</span>
-      )}
     </button>
   );
 }
