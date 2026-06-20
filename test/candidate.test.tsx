@@ -31,12 +31,15 @@ const cand: Candidate = {
 };
 
 describe("CandidateCard — decluttered unvetted treatment (#14; CURATION §6)", () => {
+  // These cases exercise the SIGNED-IN card (the on-tile actions render); the logged-out
+  // watch-only gating is covered in its own describe block below (#71).
   function setup(candidate: Candidate = cand) {
     const onPromote = vi.fn();
     const onDismiss = vi.fn();
     const utils = render(
       <CandidateCard
         candidate={candidate}
+        signedIn
         onPromote={onPromote}
         onDismiss={onDismiss}
       />
@@ -137,6 +140,51 @@ describe("CandidateCard — decluttered unvetted treatment (#14; CURATION §6)",
       screen.getByRole("button", { name: /Dismiss as not relevant/ })
     );
     expect(onDismiss).toHaveBeenCalledWith(cand);
+  });
+});
+
+describe("CandidateCard — logged-out watch-only (#71 §5, AC3/AC4)", () => {
+  function renderCard(signedIn: boolean) {
+    return render(
+      <CandidateCard
+        candidate={cand}
+        signedIn={signedIn}
+        onPlay={vi.fn()}
+        onPromote={vi.fn()}
+        onDismiss={vi.fn()}
+      />
+    );
+  }
+
+  it("logged out: renders NO Curate and NO Not-relevant button (AC3)", () => {
+    renderCard(false);
+    expect(screen.queryByRole("button", { name: /Curate this clip/ })).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: /Dismiss as not relevant/ })
+    ).toBeNull();
+  });
+
+  it("logged out: keeps the weighing signals — match reason + source pill + caption + credit (AC4)", () => {
+    renderCard(false);
+    expect(screen.getByText(/Mentions/)).toBeInTheDocument(); // match reason
+    expect(screen.getByTitle("Auto-suggested from YouTube")).toBeInTheDocument(); // source pill
+    expect(screen.getByText(cand.caption)).toBeInTheDocument(); // caption
+    expect(screen.getByText(/2minuteclassroom/)).toBeInTheDocument(); // creator credit
+  });
+
+  it("logged out: retains the dashed/unvetted candcard treatment (AC4 — distinction kept)", () => {
+    const { container } = renderCard(false);
+    expect(container.querySelector(".candcard")).not.toBeNull();
+  });
+
+  it("signed in: the Curate / Not-relevant buttons DO render (AC8 regression guard)", () => {
+    renderCard(true);
+    expect(
+      screen.getByRole("button", { name: /Curate this clip/ })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Dismiss as not relevant/ })
+    ).toBeInTheDocument();
   });
 });
 

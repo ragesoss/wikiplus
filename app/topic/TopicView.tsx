@@ -1606,6 +1606,7 @@ export function TopicView() {
                 key={c.id}
                 candidate={c}
                 active={activeSlug === c.sectionSlug}
+                signedIn={signedIn}
                 onPlay={playCandidate}
                 onPromote={promote}
                 onDismiss={dismiss}

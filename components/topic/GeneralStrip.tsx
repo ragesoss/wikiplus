@@ -407,11 +407,14 @@ export function GeneralStrip({
                       {c.creator.handle} · {c.platformLabel}
                     </p>
                     <MatchReason candidate={c} />
-                    <CandidateActions
-                      candidate={c}
-                      onPromote={onPromote}
-                      onDismiss={onDismiss}
-                    />
+                    {/* #71 §5: on-tile actions only when signed in; logged out → watch-only. */}
+                    {signedIn && (
+                      <CandidateActions
+                        candidate={c}
+                        onPromote={onPromote}
+                        onDismiss={onDismiss}
+                      />
+                    )}
                   </div>
                 ))}
               </li>

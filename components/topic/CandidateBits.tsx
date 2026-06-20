@@ -195,6 +195,7 @@ export function SeeMoreButton({
 export function CandidateCard({
   candidate,
   active = false,
+  signedIn = false,
   onPlay,
   onPromote,
   onDismiss,
@@ -203,6 +204,14 @@ export function CandidateCard({
   candidate: Candidate;
   /** Scroll-sync highlight — mirrors ClipCard's active pairing (design §6.5, D2). */
   active?: boolean;
+  /**
+   * #71 §5: gates the on-tile Curate / Not-relevant actions. Signed in → `CandidateActions`
+   * renders as today; logged out → the tile is watch-only (no action buttons; the invitation to
+   * curate moves into the `PinnedPlayer` — §6). Everything else (thumb, match reason, source pill,
+   * caption, credit, dashed/unvetted treatment) is unchanged either way. Default `false` so an
+   * anonymous read is watch-only without a host change.
+   */
+  signedIn?: boolean;
   /** YouTube-candidate play → non-modal PinnedPlayer (issue #10, AC1). Optional:
       without it (or for a non-embeddable clip) the thumb keeps its link-out. */
   onPlay?: (c: Candidate) => void;
@@ -254,11 +263,14 @@ export function CandidateCard({
         </span>
       </a>
       <MatchReason candidate={candidate} />
-      <CandidateActions
-        candidate={candidate}
-        onPromote={onPromote}
-        onDismiss={onDismiss}
-      />
+      {/* #71 §5: on-tile actions only when signed in; logged out the tile is watch-only. */}
+      {signedIn && (
+        <CandidateActions
+          candidate={candidate}
+          onPromote={onPromote}
+          onDismiss={onDismiss}
+        />
+      )}
     </article>
   );
 }
