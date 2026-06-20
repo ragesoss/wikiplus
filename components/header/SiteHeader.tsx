@@ -26,6 +26,7 @@ import {
 } from "react";
 import {
   APERTURE_SEAM_OFFSET,
+  GlyphTile,
   HeaderProjector,
   type ProjectorGeometry,
 } from "@/components/wordmark/HeaderProjector";
@@ -352,11 +353,14 @@ function TopicSiteHeader({
   // `narrowSearchExpanded` = (viewport < md) AND (the topic-disclosure search field is open). The
   // disclosure reports its open state up via the context's `setSearchFieldOpen` (the lift); the
   // header ANDs that with a < md media check (the same MD_BREAKPOINT pattern HeaderAuth uses). When
-  // true it (i) forces the wordmark to the Tier-D "+" glyph (HeaderProjector `forceGlyph`, §3.2) and
+  // true it (i) SUPPRESSES the projector wordmark layer entirely (HeaderProjector `suppressWordmark`,
+  // §3.2 — no lockup, no beam, no projector-layer glyph) and instead renders the existing `GlyphTile`
+  // "+" home link as a chrome-row flex child in the MIDDLE (between the field and the login), and
   // (ii) collapses the login to icon-only (HeaderAuth reads `narrowSearchExpanded` from the context,
-  // §3.3) — so both neighbours collapse, and the field flexes between them, as ONE coordinated
-  // change. It is structurally false ≥ md (the media check) and false while collapsed (the field
-  // reports closed) — the magnifier-only and ≥ md states are untouched (AC3/AC11).
+  // §3.3) — so both neighbours collapse, and the field (leftmost) flexes rightward toward the middle
+  // glyph, in a fixed left→right order field · "+" · login, as ONE coordinated change. It is
+  // structurally false ≥ md (the media check) and false while collapsed (the field reports closed) —
+  // the magnifier-only and ≥ md states are untouched (AC3/AC11).
   const [searchFieldOpen, setSearchFieldOpen] = useState(false);
   const [isNarrow, setIsNarrow] = useState(false);
   useEffect(() => {
@@ -523,10 +527,11 @@ function TopicSiteHeader({
             geometry={tierAGeometry}
             continuous
             href="/"
-            // §3.2 — force the Tier-D "+" glyph (and suppress the lit beam) while the narrow search
-            // disclosure is open. ORs into the existing < 380px squeeze (a superset); restores the
-            // normal `p`-driven lockup/beam on close.
-            forceGlyph={narrowSearchExpanded}
+            // §3.2 — suppress the WHOLE projector layer (no lockup, no beam, no projector-layer
+            // glyph) while the narrow search disclosure is open, so nothing sits behind the open
+            // field (AC4). The "+" wordmark for that state is the chrome-row middle GlyphTile link
+            // below. On close this clears and the normal `p`-driven lockup/beam returns.
+            suppressWordmark={narrowSearchExpanded}
           />
         </div>
 
@@ -534,8 +539,12 @@ function TopicSiteHeader({
             the top SLIM_BAR_HEIGHT. z-10 → above the projector band. It reserves the upper-left
             search box (so the lockup never overlaps it — DEFECT-A) and right-anchors the single
             auth. The title cue (slim only) flexes in the middle, truncating first under pressure.
-            The wordmark is NOT in this row — it is the projector layer above, positioned at the
-            seam / left-inset — so search + auth own their own boxes and can never be overlapped. ── */}
+            Normally the wordmark is NOT in this row — it is the projector layer above, positioned at
+            the seam / left-inset — so search + auth own their own boxes and can never be overlapped.
+            EXCEPTION (topic-mobile-search §3.2/§3.4): while the narrow search is open the projector
+            layer is suppressed and the "+" wordmark is hosted HERE as a `shrink-0` chrome-row child
+            placed between the search slot and the auth slot — the MIDDLE of the fixed left→right
+            order field · "+" · login. ── */}
         <div
           className="header-chrome pointer-events-none absolute inset-x-0 top-0 z-10 mx-auto flex max-w-[1200px] items-center gap-3 px-5"
           style={{ height: SLIM_BAR_HEIGHT }}
@@ -557,6 +566,30 @@ function TopicSiteHeader({
             >
               {search}
             </div>
+          ) : null}
+
+          {/* The "+" wordmark, hosted in the chrome-row MIDDLE while the narrow search is open
+              (topic-mobile-search §3.2/§3.4). The SAME `GlyphTile` "+" mark the < 380px projector
+              squeeze renders (no fork — AC1), wrapped in the `<a href="/" aria-label="wiki+">` home
+              link (AC8), as a `shrink-0` flex child placed AFTER the search slot and BEFORE the auth
+              slot. The field (leftmost, growing) flexes rightward UP TO this glyph; the login is to
+              its right (ml-auto). A ≥ 44×44 tap box (28px graphic centred in an h-11 w-11 box —
+              AC14), keyboard-focusable with a visible focus ring (AC: §6). It renders ONLY while
+              expanded — the projector layer owns the wordmark in every other state (collapsed and
+              ≥ md unchanged — AC3/AC11). pointer-events-auto restores interactivity over the
+              pointer-events-none row; `header-search-glyph` fades it in over the ~150ms reveal
+              (globals.css, reduced-motion-gated — §5.1). */}
+          {search && narrowSearchExpanded ? (
+            <a
+              href="/"
+              aria-label="wiki+"
+              data-testid="narrow-search-wordmark"
+              className="header-search-glyph pointer-events-auto flex h-11 w-11 shrink-0 items-center justify-center rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+            >
+              <span aria-hidden="true" className="inline-flex">
+                <GlyphTile />
+              </span>
+            </a>
           ) : null}
 
           {/* A4 — the muted article-title cue, slim state ONLY (§4.4). One muted serif line,

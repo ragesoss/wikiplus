@@ -1078,9 +1078,10 @@ figure.wikifig .credit {
     transform-origin: left center;
     animation: wikiplus-search-grow 0.15s ease-out;
   }
-  /* The forced "+" glyph (the squeeze link the projector renders while the field is open) and the
-     icon-only login fade in over the same ~150ms so the swap reads as one coordinated settle. */
-  .header-shared [data-projector-squeeze] {
+  /* The chrome-row middle "+" wordmark glyph (the `GlyphTile` home link hosted between the field and
+     the login while the field is open) fades in over the same ~150ms so the swap reads as one
+     coordinated settle, not three independent pops. The icon-only login cross-fades likewise. */
+  .header-shared .header-search-glyph {
     animation: wikiplus-fade-in 0.15s ease-out;
   }
 }

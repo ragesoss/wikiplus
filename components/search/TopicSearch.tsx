@@ -520,16 +520,16 @@ export function TopicSearch({ variant = "home", prefill }: TopicSearchProps) {
           <MagnifierIcon />
         </button>
       ) : (
-        // §3.4 — the open disclosure row. It starts to the RIGHT of the wordmark "+" glyph (DQ-1
-        // sanctioned resolution): the glyph sits in the projector layer behind the chrome at
-        // `leftInset` (SEARCH_RESERVE = 64px) and is 28px wide, so its right edge is ~92px from the
-        // band left; the chrome row's px-5 (20px) already offsets the search slot, so a 72px left
-        // margin starts the field exactly at the glyph's right edge, and the field's own border +
-        // pl-3 add the clearing gap. The container is `flex w-full min-w-0`; the field is `flex-1
-        // min-w-0` and the ✕ is `shrink-0`, so the field absorbs all slack and never overlaps a
-        // neighbour from ~320px up to < md (AC2). The grow is animated in globals.css (gated behind
+        // §3.4 — the open disclosure row. The field is the LEFTMOST element, anchored at the chrome
+        // row's left edge (the px-5 inset, exactly where the collapsed magnifier sits): nothing sits
+        // to its left anymore (the "+" wordmark glyph is now a chrome-row child in the MIDDLE, after
+        // the field, and the projector layer is suppressed — §3.2). So the former `pl-[72px]` glyph-
+        // clearance is REMOVED (AC9) and the field's text starts at its own pl-3. The container is
+        // `flex w-full min-w-0`; the field is `flex-1 min-w-0` and the ✕ is `shrink-0`, so the field
+        // absorbs all slack and flexes RIGHTWARD toward the "+" glyph, never overlapping a neighbour
+        // from ~320px up to < md (AC2). The grow is animated in globals.css (gated behind
         // prefers-reduced-motion: no-preference — §5.1).
-        <div className="flex w-full min-w-0 items-center gap-1 pl-[72px]">
+        <div className="flex w-full min-w-0 items-center gap-1">
           {field}
           <button
             type="button"
