@@ -9,10 +9,11 @@ every-state matrix §5, a11y §7) and [`docs/design/navbar-topic-search.md`](nav
 **Inherits, does not re-specify:** the `TopicSearch` keyboard/listbox model, the `AuthControl` skins,
 the `HeaderProjector` tier/squeeze mechanics — this spec composes those existing parts; it adds no
 new component, no new variant, no new copy.
-**Components in scope:** `components/header/SiteHeader.tsx` (`TopicSiteHeader` chrome row),
-`components/search/TopicSearch.tsx` (`topic-disclosure` variant), `components/wordmark/HeaderProjector.tsx`
-(the `glyph`/`squeeze` path), `components/auth/HeaderAuth.tsx` + `components/auth/AuthControl.tsx`
-(`topic-compact` skin).
+**Components in scope:** `components/header/SiteHeader.tsx` (`TopicSiteHeader` chrome row — hosts the
+chrome-row "+" `GlyphTile` home link while expanded), `components/search/TopicSearch.tsx`
+(`topic-disclosure` variant), `components/wordmark/HeaderProjector.tsx` (suppressed while expanded) +
+the existing `GlyphTile` mark it reuses, `components/auth/HeaderAuth.tsx` +
+`components/auth/AuthControl.tsx` (`topic-compact` skin).
 **Hands off to:** Development (build) → QA & Review verifies the AC + UX evaluates the built header.
 
 > **What this spec is.** The buildable contract for ONE narrow-header state — the search disclosure
@@ -30,10 +31,10 @@ The calls Dev builds to. Each is justified in the section cited.
 | Decision | Call | Where |
 |---|---|---|
 | **When the collapse applies** | A single derived condition `narrowSearchExpanded` = (`< md`) **AND** (the `topic-disclosure` field is expanded). Drives BOTH neighbour collapses. The collapsed magnifier state is untouched; `≥ md` is untouched. | §3.1 |
-| **Wordmark while expanded** | Force the existing Tier-D **`glyph` "+"** tile (the same node the `< 380px` squeeze already renders), regardless of width, for the whole duration the field is open. The lit beam never renders behind the open field. | §3.2 |
+| **Wordmark while expanded** | Show the existing **`GlyphTile` "+"** tile (the same indigo "+" mark the `< 380px` squeeze renders), hosted as a **chrome-row flex child in the MIDDLE** (between the search field and the login) for the whole duration the field is open; the **projector-layer wordmark — lockup, beam, AND glyph — is suppressed** while expanded so it never sits behind the open field. Reuses the existing mark (no fork), stays the `<a href="/">` "wiki+" home link. | §3.2 |
 | **Login while expanded** | Force the **icon-only "W"** form of the `topic-compact` login: hide the visible "Log in" / username text, keep the `WikiGlyph` "W" (logged-out) or the avatar initial (logged-in) + `▾`. Accessible name stays the full phrase. | §3.3 |
-| **Row order** | Fixed left→right: **search field · wordmark "+" glyph · login "W"**. The field flexes to fill the gap between the two glyphs. No overlap from ~320px up to `< 768px`. | §3.4 |
-| **The close affordance** | Keep the existing ✕ button, restyled to a proper **44×44** target, placed at the **right end of the field** (still inside the search slot, left of the "+" glyph). | §3.5 |
+| **Row order** | Fixed left→right: **search field (LEFT) · wordmark "+" glyph (MIDDLE) · login "W" (RIGHT)** — the same order as the collapsed header (magnifier → wordmark → login). The field is the **leftmost** element, anchored at the chrome row's left edge, and flexes rightward toward the glyph. No overlap from ~320px up to `< 768px`. | §3.4 |
+| **The close affordance** | Keep the existing ✕ button, restyled to a proper **44×44** target, placed at the **right end of the field** (still inside the search slot, to the **left of** the "+" glyph). | §3.5 |
 | **Transition** | Field width grows / glyphs settle in **~150ms `ease-out`**, gated behind `prefers-reduced-motion: no-preference` (reduced motion = end-states, no tween). Focus management is the existing #12 behaviour, preserved. | §5 |
 
 ---
@@ -101,12 +102,13 @@ The **wordmark is NOT in this row** — it is the `HeaderProjector` layer *behin
 (`z-0`, `pointer-events-none`), positioned by the live apex. So the row already owns search + auth as
 their own boxes; the fix coordinates three things that today act independently:
 
-1. the chrome row's `gap`/`flex` so the open field can flex into freed space;
-2. the `HeaderProjector` squeeze condition (so the wordmark behind the field is the "+" glyph, not
-   the beam);
-3. the `AuthControl topic-compact` skin (so the login collapses to its glyph).
+1. the chrome row's `gap`/`flex` so the open field (leftmost) can flex rightward into freed space;
+2. the `HeaderProjector` layer (suppressed while expanded — no lockup, no beam, no projector-layer
+   glyph behind the field) **plus** the same `GlyphTile` "+" mark rendered as a **chrome-row flex
+   child in the middle**, between the field and the auth slot;
+3. the `AuthControl topic-compact` skin (so the login collapses to its glyph, right-anchored).
 
-All three already have the pieces needed — the glyph tile, the compact skin, the disclosure
+All three already have the pieces needed — the `GlyphTile` mark, the compact skin, the disclosure
 expand/collapse + focus return. This spec is the **coordination contract** between them, driven by
 one shared "the narrow search is open" signal.
 
@@ -135,63 +137,77 @@ preference:
   `TopicSearch` report its expanded state up (an `onExpandedChange` callback the header already
   passes alongside `prefill`), and the header sets `narrowSearchExpanded` from that **AND** a
   `< md` media-query check (the same `MD_BREAKPOINT = 768` pattern `HeaderAuth` already uses). The
-  header then (i) passes a `forceGlyph` (or equivalent) prop to its `HeaderProjector` and (ii)
-  passes a `forceIconOnly` (or equivalent) prop to its `AuthControl`/`HeaderAuth`. This keeps the
-  composition logic in the header, which already coordinates these slots.
+  header then (i) passes a `suppressWordmark` (or equivalent) prop to its `HeaderProjector` so the
+  projector layer renders nothing while expanded, (ii) renders the existing `GlyphTile` "+" home
+  link as a chrome-row flex child between the search slot and the auth slot, and (iii) passes a
+  `forceIconOnly` (or equivalent) prop to its `AuthControl`/`HeaderAuth`. This keeps the composition
+  logic in the header, which already coordinates these slots.
 - **(b)** A CSS-only coordination if Dev can express "narrow + open" as a class on the chrome row
   (e.g. the disclosure sets a `data-search-expanded` attribute on a header ancestor at `< md`), with
-  the wordmark-glyph and auth-icon states gated by that attribute + a `max-width: 767px` media query.
-  Acceptable if it produces the identical end-states; the React-prop path (a) is cleaner given the
-  glyph/skin choices live in component logic, not pure CSS.
+  the projector-suppression, the chrome-row glyph, and the auth-icon states gated by that attribute +
+  a `max-width: 767px` media query. Acceptable if it produces the identical end-states; the
+  React-prop path (a) is cleaner given the glyph/skin choices live in component logic, not pure CSS.
 
 Either way the **end-states in §3.2–§3.5 are the contract**; the plumbing is Dev's call.
 
-**Interaction with the existing 380px `SQUEEZE_BREAKPOINT`.** The wordmark already collapses to the
-glyph below 380px *regardless* of search state (the DEFECT-A squeeze, `HeaderProjector.tsx`). This
-fix makes the glyph appear **whenever `narrowSearchExpanded` is true**, i.e. up to 767px — a strict
-**superset** of the existing 380px rule. Concretely: the squeeze condition becomes
-`scrollAware && cw > 0 && (cw < SQUEEZE_BREAKPOINT || forceGlyph)`. Below 380px the wordmark is the
-glyph in both the collapsed and expanded search states (already true today, unchanged); from
-380–767px it is the glyph **only while the field is open**, returning to the full lit lockup the
-instant the field closes. There is no conflict — the two reasons to show the glyph simply OR
-together.
+**Interaction with the existing 380px `SQUEEZE_BREAKPOINT`.** The projector wordmark already
+collapses to the glyph below 380px *regardless* of search state (the DEFECT-A squeeze,
+`HeaderProjector.tsx`). That projector-layer squeeze is unchanged for the collapsed search state.
+While `narrowSearchExpanded` is true, the **whole projector layer is suppressed** (no lockup, no
+beam, no projector-layer glyph) and the same `GlyphTile` "+" mark is instead hosted in the chrome
+row's middle (§3.2, §3.4). So at every narrow width, opening the field hides the projector wordmark
+and shows the chrome-row "+" between field and login; closing it restores the normal `p`-driven
+projector wordmark (full lockup/beam ≥ 380px, the projector squeeze glyph < 380px).
 
 **Interaction with the #96 scroll-collapse (Tier-A → slim beam).** The expanded search lives in the
-persistent 56px chrome row, which is present at every scroll progress `p`. Forcing the glyph
-(`forceGlyph`) is **orthogonal to `p`**: it swaps which wordmark layer renders (glyph vs. the
-lit-lockup+beam pair), while `p` continues to drive the band height and beam opacity. When the field
-is open the lit-lockup+beam layers are replaced by the glyph for the whole open duration, so the
-beam-fade tween simply has nothing to fade — there is no double-render and no fighting between the
-two mechanisms. On close, the normal `p`-driven lockup/beam returns at whatever scroll position the
-reader is at (full beam if at top, faded if scrolled). The glyph link sits vertically centred on the
-wordmark row (`cyMid`, `top: cyMid; translateY(-50%)`), so it is correctly placed in both the tall
-Tier-A band and the slim 56px bar.
+persistent 56px chrome row, which is present at every scroll progress `p`. Suppressing the projector
+wordmark while expanded is **orthogonal to `p`**: `p` continues to drive the band height, but the
+lit-lockup+beam layers simply do not render for the open duration, so the beam-fade tween has nothing
+to fade — there is no double-render and no fighting between the two mechanisms. The chrome-row "+"
+glyph lives in the 56px chrome row (`flex items-center`), so it is correctly vertically centred in
+both the tall Tier-A band and the slim 56px bar without any `p`-dependent positioning. On close, the
+normal `p`-driven projector lockup/beam returns at whatever scroll position the reader is at (full
+beam if at top, faded if scrolled).
 
-### 3.2 Wordmark behaviour while expanded → the "+" glyph
+### 3.2 Wordmark behaviour while expanded → the "+" glyph, hosted in the chrome-row middle
 
-While `narrowSearchExpanded` is true, the `HeaderProjector` renders its **Tier-D `glyph` tile** — the
-existing `data-projector-squeeze` `<a>` containing `GlyphTile` (the indigo "+" zine tile, 28×28, 2px
-ink border, drawn white "+"). This is the SAME node the `< 380px` squeeze already produces — **do not
-build a new glyph** (AC1 / VISUAL_IDENTITY §10.1 no-fork).
+While `narrowSearchExpanded` is true the wordmark shrinks to the **`GlyphTile` "+"** mark (the indigo
+"+" zine tile, 28×28, 2px ink border, drawn white "+") — the SAME mark the `< 380px` projector squeeze
+renders — but it is **hosted in the chrome row's MIDDLE**, between the search field (its left) and the
+login (its right). **Do not build a new glyph** (AC1 / VISUAL_IDENTITY §10.1 no-fork): reuse the
+existing `GlyphTile` component.
 
-- It is **left-anchored at `leftInset`** (the reserved search inset), vertically centred on the
-  wordmark row — exactly as the squeeze path positions it today. Because the search field flexes from
-  the chrome row's left and the glyph sits behind the chrome's left region, the field and the glyph
-  must NOT collide: see §3.4 for how the field's left start clears the glyph.
-- The **lit lockup + beam + cool flare do not render** while the field is open (that is the whole
-  point — no gold beam under the field, problem #2 fixed). The squeeze path already returns *only* the
-  glyph link and no beam.
-- It **remains the home link** — `<a href="/" aria-label="wiki+">` (AC8). The glyph is the same
-  accessible "wiki+" → `/` link as the full lockup; only the visual shrinks.
-- On close, the wordmark returns to its normal `p`-driven lit lockup / beam (or the flat slim lockup
-  if scrolled), with the standard ~180ms beam transition — no special handling.
+- **The projector layer is suppressed.** While the field is open the `HeaderProjector` renders
+  **nothing** — no lit lockup, no beam, no cool flare, and no projector-layer squeeze glyph. This is
+  what guarantees no gold beam and no stray mark sits *behind* the open field (problem #2 fixed).
+- **The "+" mark is a chrome-row flex child in the middle.** The header renders the `GlyphTile` "+"
+  inside a home-link anchor (`<a href="/" aria-label="wiki+">`) as a `shrink-0` flex child placed
+  **after the search slot and before the auth slot** in the 56px chrome row. It is vertically centred
+  by the row's `flex items-center` (no `p`-dependent positioning needed). The field (leftmost) flexes
+  rightward up to this glyph; the login is to the glyph's right — see §3.4.
+- It **is the home link** — `<a href="/" aria-label="wiki+">` (AC8), the same accessible
+  "wiki+" → `/` link as the full lockup; only the host node and the visual shrink.
+- **Node-identity note (focus).** In the collapsed state the "wiki+" home link is the projector-layer
+  node; in the expanded state it is this chrome-row anchor. The home-link *node changes* across the
+  open/close swap. This is acceptable: focus is never *on* the wordmark at the moment of the swap
+  (open is triggered from the magnifier and lands in the field; close is triggered from the ✕ or
+  Escape and returns to the magnifier trigger — §5.2), so no focused element is destroyed by the swap.
+  The accessible name ("wiki+") and the target (`/`) are identical in both nodes, so the home link is
+  continuously present and keyboard-reachable in each state. Dev should confirm no transient
+  double-rendering of two "wiki+" links during the cross-fade (only one is in the DOM per state).
+- On close, the projector wordmark returns to its normal `p`-driven lit lockup / beam (or the flat
+  slim lockup if scrolled, or the projector squeeze glyph < 380px), with the standard beam transition;
+  the chrome-row "+" home link is removed in the same frame.
 
-> **Why the glyph, not a shrunk lockup.** The full lockup ("Wiki" + the "+plus" block) is ~150px+
-> wide and its lit beam is full-bleed; there is no room for it beside an open 200px+ field and the
-> login glyph on a 360px row, and the beam is precisely the thing colliding with the field. The
-> Tier-D glyph is the sanctioned minimal mark for exactly this "no room" case (it already exists for
-> the 380px squeeze), so reusing it keeps the identity intact (still the indigo "+" tile, still the
-> home link) while freeing the row.
+> **Why the glyph in the middle, not a shrunk lockup or a moved field.** The owner's instruction is
+> that the order must not change from the collapsed header: search, then wordmark, then login. The
+> full lockup ("Wiki" + the "+plus" block) is ~150px+ wide with a full-bleed beam — there is no room
+> for it beside an open field and the login on a 360px row. The `GlyphTile` "+" is the sanctioned
+> minimal mark for exactly this "no room" case, so reusing it keeps the identity intact (still the
+> indigo "+" tile, still the "wiki+" home link) while freeing the row. Hosting it as a chrome-row
+> child (rather than leaving it in the projector layer at `leftInset`) is what lets it sit *between*
+> the field and the login — the projector layer can only anchor the mark at the left, which would put
+> the wordmark before the search and violate the required order.
 
 ### 3.3 Login behaviour while expanded → icon-only "W" / avatar
 
@@ -229,60 +245,69 @@ curations", "About your data", "Sign out") are unaffected; only the trigger's vi
 
 ### 3.4 Layout of the expanded row — provably no overlap
 
-The three boxes, left→right, in the 56px chrome row (`flex items-center`):
+The boxes, left→right, in the 56px chrome row (`flex items-center`):
 
 ```
 ┌─ header-chrome (px-5 inset, 56px tall) ───────────────────────────────────────────────┐
-│  ┌──[+]──┐  ┌──────────── search field (flex-1) ──────────────┐ ┌─[✕]─┐   ┌──[W]──┐    │
-│  │ glyph │  │ Search any Wikipedia topic…           [🔍]      │ │ 44  │   │ login │    │
-│  └───────┘  └──────────────────────────────────────────────────┘ └─────┘   └───────┘    │
-│   wordmark   ← the open disclosure (field + submit + close) flexes here →    auth (icon)│
+│  ┌────────────── search field (flex-1) ──────────────┐ ┌─[✕]─┐  ┌──[+]──┐  ┌──[W]──┐   │
+│  │ Search any Wikipedia topic…            [🔍]        │ │ 44  │  │ glyph │  │ login │   │
+│  └─────────────────────────────────────────────────────┘ └─────┘  └───────┘  └───────┘   │
+│  ← the open disclosure (field + submit + close) flexes →   wordmark   auth (icon)       │
+│    field anchored at left edge                                                          │
 └─────────────────────────────────────────────────────────────────────────────────────────┘
    left                                                                            right
 ```
 
-**Order MUST remain: search (left) → wordmark "+" glyph (middle) → login "W" (right).** Note the
-wordmark glyph sits in the projector layer *behind* the chrome at `leftInset`; the search field
-visually begins to its right. To the reader the left-to-right reading is `[+] field [✕]  [W]`.
+**Order MUST remain: search field (LEFT) → wordmark "+" glyph (MIDDLE) → login "W" (RIGHT)** — the
+same left→right order as the collapsed header (magnifier → wordmark → login). The reader's
+left-to-right reading is `[Search…  🔍] [✕]  [+]  [W]`. The search field is the **leftmost** element,
+anchored at the chrome row's left edge (the `px-5` inset, where the collapsed magnifier sits today);
+the `GlyphTile` "+" home link is a chrome-row flex child in the middle; the login is right-anchored.
 
 The contract, expressed as constraints Dev satisfies with the existing tokens:
 
-1. **The wordmark "+" glyph occupies the reserved upper-left.** It is positioned at `leftInset`
-   (≈ `SEARCH_RESERVE` = 64px, the existing reserved-search inset), the chrome row's left padding is
-   `px-5` (20px). The **search field's interactive box must start to the RIGHT of the glyph** so they
-   never overlap. Because the glyph is the wordmark home link and the field is the search, two
-   left-anchored boxes in the same horizontal region must be ordered: the simplest robust layout is
-   to let the **disclosure's expanded container be the first flex child** of the chrome row and give
-   the wordmark glyph a left position/inset that sits *inside* the search slot's left padding such
-   that the field's `pl-3` text start clears it. **If Dev finds the glyph (at `leftInset` ≈ 64px) and
-   the field's left edge cannot both sit cleanly, the sanctioned resolution is to make the open
-   disclosure container start at the glyph's right edge** (i.e. the field's left margin ≥ glyph width
-   + a 8–12px gap), so the field flexes in the space *after* the glyph. Either way: **no overlap, the
-   glyph fully visible, the field fully visible.**
+1. **The search field is the LEFTMOST element, anchored at the chrome row's left edge.** The open
+   disclosure container is the **first flex child** of the chrome row, starting at the `px-5` (20px)
+   left inset — exactly where the collapsed magnifier sits today. Because nothing sits to the field's
+   left anymore, the field's old `pl-[72px]` glyph-clearance is **removed** (it cleared a wordmark
+   glyph that no longer sits to the field's left): the placeholder/typed text starts at the normal
+   `pl-3` inside the field box. The field then flexes **rightward** toward the wordmark "+" glyph.
 
-2. **The field flexes to fill the freed space.** The expanded disclosure container is
-   `flex w-full min-w-0 items-center`; the `field` form's `max-w-[280px]` clamp is **removed** for the
-   `topic-disclosure` expanded state (it was the cause of the field wanting a fixed 280px that ran
-   under "Log in"). Instead the field is `flex-1 min-w-0` so it grows to exactly the space between the
-   glyph (left) and the login glyph (right), minus the gaps. On a 320px viewport this yields a field
-   of roughly: `320 − 20 (px-5 left) − 28 (glyph) − 10 (gap) − 44 (close ✕) − 12 (gap) − 44 (login W)
-   − 20 (px-5 right)` ≈ **142px** of typeable field — narrow but usable, and crucially **not
-   overlapping** anything. On 390px it is ≈ 212px; on 767px it is the full remaining width.
+2. **The wordmark "+" glyph sits in the MIDDLE as a `shrink-0` chrome-row child**, after the field and
+   before the login. It is the `GlyphTile` "+" home link (§3.2), a fixed ~28px graphic in a ≥44px tap
+   box (constraint 3). The projector-layer wordmark is suppressed (§3.2), so this is the only "+" on
+   screen — no mark behind the field.
 
-3. **Minimum touch targets (44px).** The wordmark glyph link, the close ✕, and the login glyph button
+3. **Minimum touch targets (44px).** The close ✕, the wordmark glyph link, and the login glyph button
    are each **≥ 44×44** hit targets (the glyph tile is a 28px graphic in a ≥44px tap box; the ✕ is
    restyled to 44×44 per §3.5; the login keeps `min-h-[44px]` and is made ≥44px wide). The field
    input keeps `h-9` visually but its tap target (the search-field box) spans the field height; the
    chrome row is 56px so there is vertical room.
 
-4. **Gaps.** The chrome row's existing `gap-3` (12px) separates the search slot from the auth slot.
-   Inside the open disclosure, a small gap (`gap-1`–`gap-2`, 4–8px) separates the field from the ✕.
-   The wordmark glyph clears the field's left text inset per constraint 1.
+4. **The field flexes to fill the freed space.** The expanded disclosure container is
+   `flex min-w-0 items-center`; the `field` form's `max-w-[280px]` clamp is **removed** for the
+   `topic-disclosure` expanded state (it was the cause of the field wanting a fixed 280px that ran
+   under "Log in"). Instead the field is `flex-1 min-w-0` so it grows to exactly the space between the
+   chrome's left edge and the wordmark "+" glyph, minus the ✕ and the gaps. On a 320px viewport this
+   yields a field of roughly: `320 − 20 (px-5 left) − 44 (close ✕) − 8 (gap) − 44 (glyph box) − 12
+   (gap-3) − 44 (login W) − 20 (px-5 right)` ≈ **128px** of field box; subtracting the field's own
+   `pl-3`/`pr` insets and the inline 🔍 submit (~28px), the **typeable region is ≈ 128px** — wider
+   than the prior layout because the field reclaims the ~72px that was the glyph-clearance inset
+   (roughly +~70px of usable text width vs. the prior layout, which left only ~56–60px typeable at
+   320px). On 390px the field box is ≈ 198px (typeable ≈ 168px); on 600px ≈ 408px; on 767px it is the
+   full remaining width. Narrow but genuinely usable at 320px, and crucially **not overlapping**
+   anything.
 
-5. **No overlap, ~320px → < 768px (AC2).** With the field as `flex-1 min-w-0` (it *shrinks* to fit
-   rather than demanding a fixed width) and the two glyphs as fixed-width `shrink-0` boxes, the flex
-   row is mathematically incapable of overflow: the field absorbs all the slack and never pushes the
-   glyphs apart or under each other. This is the structural guarantee that replaces the broken
+5. **Gaps.** The chrome row's existing `gap-3` (12px) separates the search slot from the wordmark
+   glyph and the wordmark glyph from the auth slot. Inside the open disclosure, a small gap
+   (`gap-1`–`gap-2`, 4–8px) separates the field from the ✕.
+
+6. **No overlap, fixed order, ~320px → < 768px (AC2).** With the field as `flex-1 min-w-0` (it
+   *shrinks* to fit rather than demanding a fixed width) and the wordmark glyph + the login as
+   fixed-width `shrink-0` boxes in that left→right order, the flex row is mathematically incapable of
+   overflow: the field absorbs all the slack and never pushes the glyph or login apart or under each
+   other. Concretely `field.left ≤ glyph.left`, `field.right ≤ glyph.left`, and `glyph.right ≤
+   login.left` at every width. This is the structural guarantee that replaces the broken
    fixed-`280px`-in-`ml-auto`-row layout.
 
 ### 3.5 The close affordance
@@ -290,10 +315,10 @@ The contract, expressed as constraints Dev satisfies with the existing tokens:
 Keep the existing ✕ button (it already exists, has `aria-label="Close search"`, and calls
 `collapse()` which restores focus to the trigger). Restyle for the target size and placement:
 
-- **Placement:** the **right end of the open field**, still **inside the search slot** (left of the
-  wordmark glyph in reading-left terms it is to the *right* of the field; it is the last child of the
-  disclosure container, before the chrome `gap-3` and the auth slot). It dismisses back to the
-  collapsed magnifier.
+- **Placement:** the **right end of the open field**, still **inside the search slot** — it is the
+  last child of the disclosure container, so it sits to the field's right and **to the left of the
+  wordmark "+" glyph** (the field+✕ disclosure is the leftmost flex child; then `gap-3`; then the
+  wordmark glyph; then `gap-3`; then the auth slot). It dismisses back to the collapsed magnifier.
 - **Size:** **44×44** (today it is `h-9 w-9` = 36×36, below the 44px target). Make it
   `flex h-11 w-11 shrink-0 items-center justify-center` (44×44) — matching the magnifier trigger's
   `h-11 w-11`.
@@ -327,20 +352,22 @@ All strings are inherited from `TopicSearch` (#12) and `AuthControl` (issue C). 
 
 ### 5.1 Transition (respect `prefers-reduced-motion`)
 
-The visible change on open is: the magnifier disappears, the field grows in from the left, the
-wordmark swaps lit-lockup → "+" glyph, the login swaps full-label → "W". To read as a deliberate
-reveal (not a pop):
+The visible change on open is: the magnifier disappears, the field grows rightward from the left edge,
+the projector wordmark (lockup/beam) gives way to the chrome-row "+" glyph in the middle, the login
+swaps full-label → "W". To read as a deliberate reveal (not a pop):
 
-- The **search field width** animates from collapsed (44px magnifier box) toward its flexed width
-  over **~150ms `ease-out`** (inside the project's 150–200ms window). The wordmark glyph and the
-  login icon may **fade/cross-fade** (`opacity`, ~150ms) as their full forms collapse, so the change
-  reads as one coordinated settle rather than three independent jumps.
+- The **search field width** animates from collapsed (44px magnifier box) at the left edge, growing
+  **rightward** toward its flexed width over **~150ms `ease-out`** (inside the project's 150–200ms
+  window). The chrome-row "+" glyph and the login icon may **fade/cross-fade** (`opacity`, ~150ms) in
+  as the projector wordmark and the full login label give way, so the change reads as one coordinated
+  settle rather than three independent jumps.
 - **Gate behind `@media (prefers-reduced-motion: no-preference)`** — the project's existing pattern.
   With **reduced motion**, apply the **end-states with no tween**: the field is at its flexed width
-  immediately, the glyph and the "W" appear at once, no width/opacity animation. The functional
+  immediately, the "+" glyph and the "W" appear at once, no width/opacity animation. The functional
   result (the field is usable, focus moves in) is identical; only the animation is suppressed.
 - The wordmark's normal `p`-driven beam transition (#96) is untouched; while the field is open the
-  beam layers are simply not rendered (the glyph is), so there is no competing animation.
+  projector layer is simply not rendered (the chrome-row "+" glyph is), so there is no competing
+  animation.
 
 ### 5.2 Focus management (preserve the existing #12 behaviour — do not regress)
 
@@ -351,10 +378,16 @@ reveal (not a pop):
   **Unchanged.** Because closing also flips `narrowSearchExpanded` to false, the wordmark and login
   restore their full forms in the same frame — the reader lands back on the clean collapsed header
   with focus on the magnifier.
-- The wordmark glyph link and the login control stay **keyboard-reachable in the expanded state**
-  (Tab order: wordmark glyph link → search field/close → login). They are the same DOM nodes as in
-  the collapsed state (the glyph link and the auth control persist; only their visual form changes),
-  so focus is never lost on the open/close swap.
+- The wordmark glyph link and the login control stay **keyboard-reachable in the expanded state**.
+  Because the field is now the leftmost element, the expanded **Tab order follows the DOM left→right**:
+  **search field → submit (🔍) → close (✕) → wordmark "+" glyph link → login control**. (DOM source
+  order matches this visual order, so no `tabindex` reordering is needed.)
+- **Node identity across the swap (§3.2).** The login/auth control is the same DOM node collapsed and
+  expanded (only its visual form changes). The **"wiki+" home link is a *different* node** in the two
+  states — projector-layer when collapsed, chrome-row child when expanded. This does not lose focus:
+  at the instant of open, focus is in the field (not on the wordmark); at the instant of close, focus
+  returns to the magnifier trigger (not the wordmark). So no focused node is destroyed by the swap,
+  and a "wiki+" home link with the same name/target is continuously present in each state.
 
 ---
 
@@ -398,7 +431,7 @@ AA, focus, keyboard, text-labeled signals — re-asserted for this state.
 |---|---|---|---|---|
 | **`≥ md` (≥ 768px)** | `topic-inline` compact field, **always inline, never a disclosure** | full lit lockup / beam (`p`-driven) | full `home` skin ("Log in with Wikipedia" / username) | **UNCHANGED by this work** (AC11). `narrowSearchExpanded` is structurally false here. |
 | **`< md`, search collapsed** | magnifier icon (`h-11 w-11`) | full lit lockup / beam **OR** glyph below 380px (existing squeeze) | `topic-compact` ("Log in" + W / avatar + name) | **UNCHANGED** (AC3). The collapsed state is the FINE state. |
-| **`< md`, search EXPANDED** | the field, `flex-1 min-w-0`, no `max-w-[280px]`, + 44×44 ✕ | **"+" glyph (forced)** — beam not rendered | **icon-only** ("W" / avatar + ▾) | **THE FIX.** §3. |
+| **`< md`, search EXPANDED** | the field (**leftmost**, anchored at the left edge), `flex-1 min-w-0`, no `max-w-[280px]`, no `pl-[72px]`, + 44×44 ✕ at its right end | **"+" glyph in the MIDDLE** (chrome-row child between field and login) — projector layer suppressed (no lockup, no beam) | **icon-only** ("W" / avatar + ▾), right-anchored | **THE FIX.** Order: field · "+" · login. §3. |
 
 - **Web-first, responsive.** Verified visually across ~320, 360, 390, 414, 600, 767px (all the open
   state) and a 768px+ check that the inline field is unchanged.
@@ -412,19 +445,24 @@ AA, focus, keyboard, text-labeled signals — re-asserted for this state.
 
 1. **One shared signal `narrowSearchExpanded`** (§3.1): `< md` AND the `topic-disclosure` field is
    open. Wire it (preferred: the disclosure reports its expanded state up; the header combines it
-   with a `MD_BREAKPOINT` media check and passes `forceGlyph`/`forceIconOnly` down). No new component,
-   no new variant, no fork.
-2. **Wordmark → "+" glyph while expanded** (§3.2): OR a `forceGlyph` flag into the existing
-   `HeaderProjector` squeeze condition (`cw < SQUEEZE_BREAKPOINT || forceGlyph`) so it renders the
-   existing Tier-D glyph link (the same `data-projector-squeeze` node), beam not rendered. Restores on
-   close. Stays the "wiki+" home link.
+   with a `MD_BREAKPOINT` media check and passes `suppressWordmark`/`forceIconOnly` down). No new
+   component, no new variant, no fork.
+2. **Wordmark → "+" glyph in the chrome-row middle while expanded** (§3.2): suppress the
+   `HeaderProjector` layer entirely (no lockup, no beam, no projector-layer glyph) while expanded, and
+   render the existing `GlyphTile` "+" mark inside a `<a href="/" aria-label="wiki+">` home link as a
+   `shrink-0` chrome-row flex child placed **between the search slot and the auth slot**. Reuse the
+   existing `GlyphTile` mark — no fork. Restores the projector wordmark on close. The home-link node
+   differs between collapsed (projector layer) and expanded (chrome row); that is fine for focus
+   (§3.2 / §5.2 node-identity note).
 3. **Login → icon-only while expanded** (§3.3): in `AuthControl topic-compact`, hide the visible "Log
    in" word (logged-out) / username (logged-in) while the flag is set, keep the `WikiGlyph`/avatar +
-   `▾` and the full `aria-label`. CSS/visibility swap (no hydration flash).
-4. **Row layout** (§3.4): in `TopicSearch` `topic-disclosure` expanded, drop the field's
-   `max-w-[280px]`, make the disclosure container `flex w-full min-w-0` and the field `flex-1
-   min-w-0` so it flexes between the glyph and the login glyph; ensure the field clears the wordmark
-   glyph on the left. Structural no-overlap guarantee (the field shrinks; the glyphs are `shrink-0`).
+   `▾` and the full `aria-label`. CSS/visibility swap (no hydration flash). Stays right-anchored.
+4. **Row layout** (§3.4): in `TopicSearch` `topic-disclosure` expanded, make the field the **leftmost**
+   element anchored at the chrome's left edge — drop the field's `max-w-[280px]` clamp AND its
+   `pl-[72px]` glyph-clearance (no glyph sits to its left anymore), make the disclosure container
+   `flex min-w-0` and the field `flex-1 min-w-0` so it flexes **rightward** toward the middle "+"
+   glyph; the login is right-anchored. Structural no-overlap guarantee (the field shrinks; the glyph
+   and login are `shrink-0`, in the order field · "+" · login).
 5. **Close ✕ → 44×44** (§3.5), right end of the field, keep "Close search" + the focus-return
    behaviour.
 6. **Transition** (§5.1): ~150ms `ease-out` field-grow + glyph/icon cross-fade, gated behind
@@ -448,24 +486,28 @@ AA, focus, keyboard, text-labeled signals — re-asserted for this state.
 Concrete enough for QA to write a test per criterion. "Expanded" = the `topic-disclosure` field is
 open; "narrow" = a `< md` viewport (390px is the catalog mobile width; also check 320px and 360px).
 
-- **AC1.** *No fork.* The fix uses the existing `HeaderProjector` `glyph`/squeeze path, the existing
+- **AC1.** *No fork.* The fix reuses the existing `GlyphTile` "+" mark, the existing
   `AuthControl topic-compact` skin, and the existing `TopicSearch topic-disclosure` disclosure — no
   new header component, no new `HeaderProjector`/`AuthControl`/`TopicSearch` variant, no new wordmark
-  mark. (Assert: the wordmark while expanded is the same `data-projector-squeeze` glyph node the
-  `< 380px` squeeze renders.)
+  mark. (Assert: the "+" rendered while expanded is the same `GlyphTile` component the `< 380px`
+  projector squeeze uses — same indigo "+" tile — and the home link's `href="/"` + accessible name
+  "wiki+" match the projector wordmark's.)
 - **AC2.** *No overlap, fixed order, ~320–767px.* At 320px, 360px, 390px, and 600px with the search
-  expanded, the wordmark "+" glyph, the search field (incl. the ✕), and the login control have
-  **non-overlapping bounding boxes**, laid out left→right in the order **glyph (left) · field+close
-  (middle) · login (right)**. (Assert via `getBoundingClientRect`: glyph.right ≤ field.left,
-  field.right ≤ login.left; none overlaps.)
+  expanded, the search field (incl. the ✕), the wordmark "+" glyph, and the login control have
+  **non-overlapping bounding boxes**, laid out left→right in the order **field+close (LEFT) · wordmark
+  "+" glyph (MIDDLE) · login (RIGHT)**. (Assert via `getBoundingClientRect`: `field.left ≤ glyph.left`,
+  `field.right ≤ glyph.left`, and `glyph.right ≤ login.left`; none overlaps. Also assert the field's
+  left edge is at the chrome's left inset, i.e. it is the leftmost interactive box.)
 - **AC3.** *Collapsed state unchanged.* At `< md` with the search **collapsed**, only the magnifier
   shows in the search slot; the wordmark and login render their normal (non-forced) forms for the
   width (full lockup/beam ≥ 380px; full `topic-compact` label/username). The collapsed-state markup is
   byte-for-byte what it is today.
-- **AC4.** *No beam under the open field.* At 390px (and at 400–767px) with the search **expanded**,
-  the lit projector **beam does not render** (no gold cone) behind the field — the wordmark is the
-  "+" glyph. (Assert: no `[data-projector-beam]` / `.projector-beamfade` element is rendered, and the
-  `data-projector-squeeze` glyph IS rendered, while expanded.)
+- **AC4.** *No projector wordmark / beam while expanded.* At 390px (and at 320–767px) with the search
+  **expanded**, the **projector layer renders nothing** behind the chrome — no lit lockup, no gold
+  beam cone, and no projector-layer glyph — and the only "+" on screen is the chrome-row middle glyph.
+  (Assert: no `[data-projector-beam]` / `.projector-beamfade` and no `[data-projector-squeeze]`
+  element is rendered while expanded; exactly one `GlyphTile` "+" home link is present, in the chrome
+  row between the field and the login.)
 - **AC5.** *Login present + icon-only, logged-out.* At `< md` expanded, **logged-out**: the login
   button is present and operable, shows the **"W" glyph**, and its visible "Log in" text is hidden.
 - **AC6.** *Accessible name preserved (both states).* The login button's accessible name is **"Log in
@@ -475,12 +517,15 @@ open; "narrow" = a `< md` viewport (390px is the catalog mobile width; also chec
   shows the **avatar initial + ▾** with the username text hidden; its accessible name stays
   **"Account: {username}"**; the Radix menu still opens with "My curations" / "About your data" /
   "Sign out".
-- **AC8.** *Wordmark stays a home link.* While expanded the "+" glyph is an `<a>` to `/` with
-  accessible name **"wiki+"**, keyboard-focusable and Enter-activatable.
-- **AC9.** *Field usable + flexes, not fixed 280px.* While expanded the field has **no `max-w-[280px]`
-  clamp**; its rendered width grows with the viewport (wider at 600px than at 360px) and it never
-  exceeds the space between the glyph and the login control. (Assert the field's `max-width` is not
-  280px and that field.right ≤ login.left at every tested width.)
+- **AC8.** *Wordmark stays a home link.* While expanded the chrome-row middle "+" glyph is an `<a>` to
+  `/` with accessible name **"wiki+"**, keyboard-focusable and Enter-activatable.
+- **AC9.** *Field leftmost, usable, flexes — not fixed 280px, no `pl-[72px]`.* While expanded the
+  field is the **leftmost** interactive box, anchored at the chrome's left inset, with **no
+  `max-w-[280px]` clamp** and **no `pl-[72px]` glyph-clearance** (text starts at `pl-3`). Its rendered
+  width grows with the viewport (wider at 600px than at 360px, ≈ +~70px more typeable than the prior
+  clearance-inset layout at 320px) and it never crosses into the wordmark glyph. (Assert: the field's
+  `max-width` is not 280px; the input's left padding is not 72px; `field.left` is at the chrome's left
+  inset; and `field.right ≤ glyph.left` at every tested width.)
 - **AC10.** *Close restores the clean header + focus.* Activating the ✕ (or Escape with the listbox
   closed) collapses the disclosure back to the magnifier, restores the wordmark to its full
   lockup/beam (or flat slim lockup if scrolled) and the login to its full label, and moves focus to
@@ -505,12 +550,14 @@ open; "narrow" = a `< md` viewport (390px is the catalog mobile width; also chec
 
 ## 10. Open questions flagged for Dev
 
-- **DQ-1 — the glyph vs. field left edge (§3.4 constraint 1).** The wordmark glyph sits at
-  `leftInset` (≈ 64px) in the projector layer; the search field begins in the chrome row. Confirm the
-  field's left text inset clears the glyph at the narrowest width (320px). If they crowd, the
-  sanctioned resolution is to start the open disclosure container at the glyph's right edge (field
-  left margin ≥ glyph width + 8–12px gap). Flag to UX if the glyph cannot be both fully visible and
-  clear of the field at 320px.
+- **DQ-1 — RESOLVED by the corrected layout (§3.2 / §3.4).** The earlier tightness — a field that had
+  to clear a 64–92px wordmark-glyph inset on its left at 320px — no longer exists: the field is now the
+  **leftmost** element anchored at the chrome's left edge, the projector-layer glyph is suppressed, and
+  the "+" glyph lives in the chrome-row middle (a `shrink-0` box the field flexes *up to*, never
+  *under*). The field reclaims the ~72px of former glyph-clearance, so the `pl-[72px]` is dropped and
+  the typeable region at 320px is materially wider (≈ +~70px). No glyph-vs-field-left-edge crowding
+  remains to resolve. (The only remaining narrowness is the intrinsic 320px budget, handled by the
+  `flex-1 min-w-0` shrink in §3.4 constraint 4 — structurally cannot overflow.)
 - **DQ-2 — signal plumbing (§3.1).** React-prop lift (preferred) vs. a CSS `data-` attribute. Either
   is acceptable if the §3.2–§3.5 end-states match; pick whichever is cleaner given the glyph/skin
   choices live in component logic.
