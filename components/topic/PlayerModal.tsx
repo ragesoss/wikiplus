@@ -23,9 +23,22 @@ export type PlayerClip = Clip;
 export function PlayerModal({
   clip,
   onClose,
+  signedIn = false,
+  onJoin,
 }: {
   clip: PlayerClip;
   onClose: () => void;
+  /**
+   * #71 §7: is the viewer signed in. The logged-out "Log in to curate videos for this topic" join
+   * nudge renders only when `!signedIn && onJoin`; signed in the modal is the unchanged read-only
+   * viewing surface (AC7).
+   */
+  signedIn?: boolean;
+  /**
+   * #71 §7: routes the logged-out join nudge through the existing `curate` login gate (no new gate
+   * kind). TopicView binds it to `requireLogin({ gate: "curate", … })`. Absent → no nudge.
+   */
+  onJoin?: () => void;
 }) {
   const src = clip.embedUrl
     ? clip.embedUrl + (clip.embedUrl.includes("?") ? "&" : "?") + "autoplay=1"
@@ -122,6 +135,26 @@ export function PlayerModal({
         <p className="mt-2 text-[11px]">
           <ContextByLink curatedBy={clip.curatedBy} surface="light" />
         </p>
+
+        {/* #71 §7: the logged-out join nudge — a softer, topic-level invitation placed at the END
+            of the curation block (after the "context by" attribution, the closing element). Renders
+            ONLY logged out with a bound `onJoin`; signed in the modal is the unchanged read-only
+            viewing surface (AC7). It is a real `<button>` in the dialog's DOM, so it joins the
+            existing ModalShell focus trap automatically and sits LAST in tab order — the ✕ close
+            button stays first-focused on open (§7.4). Secondary, text-forward treatment befitting a
+            softer nudge: white fill, 2px ink border, bold ink text (the `.srcbtn` family),
+            ink-on-white ≈ 15:1. The word "Log in" carries the meaning (never color-alone). No gold.
+            Routes through the existing `curate` login gate (no new gate kind). */}
+        {!signedIn && onJoin && (
+          <button
+            type="button"
+            onClick={onJoin}
+            aria-haspopup="dialog"
+            className="mt-3 inline-flex min-h-[44px] w-full items-center justify-center border-2 border-ink bg-white px-3 py-1 text-[13px] font-bold text-ink hover:shadow-[2px_2px_0_#2C2C2C]"
+          >
+            Log in to curate videos for this topic
+          </button>
+        )}
       </div>
       </div>
     </ModalShell>

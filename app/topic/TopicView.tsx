@@ -1703,7 +1703,20 @@ export function TopicView() {
       {fetchState === "ready" && article && <CitationLayer />}
 
       {player && (
-        <PlayerModal clip={player} onClose={() => setPlayer(null)} />
+        <PlayerModal
+          clip={player}
+          onClose={() => setPlayer(null)}
+          signedIn={signedIn}
+          // #71 §7: the logged-out topic-level join nudge routes through the existing `curate`
+          // login gate (no new gate kind, no per-clip action — the reader is viewing a clip
+          // someone already vouched for). Bound only when logged out; the modal renders the nudge
+          // only when `!signedIn && onJoin`, so the signed-in modal is unchanged.
+          onJoin={
+            !signedIn
+              ? () => requireLogin({ gate: "curate", action: () => {} })
+              : undefined
+          }
+        />
       )}
       {curateOpen && (
         <CurateModal
