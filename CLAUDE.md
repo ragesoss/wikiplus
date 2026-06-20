@@ -6,21 +6,24 @@ with a human-written **context note** that separates factual content from the cr
 
 ## Project status
 
-**Prototype phase — client-side, live on GitHub Pages.** What exists today:
+**Prototype phase — a Next.js Node SSR server on shared Postgres, live on a self-hosted VPS.** What exists today:
 - `docs/` — the spec (vision, architecture, topic-page design, agent operating model).
 - `mockups/` — interactive HTML design mockups (open `mockups/inline-index.html`; reference
   Topic page: `mockups/inline-indigo-sync.html` curated, `inline-indigo-empty-v2.html` empty).
 - `.claude/agents/` — the role subagents that build & operate this project (see below).
-- The **Next.js 15 app** (`app/`, `components/`, `lib/`) — a client-side SPA shipped to
-  **GitHub Pages** at <https://ragesoss.github.io/wikiplus/>, with `localStorage` standing in for
-  the server. Push to `main` auto-deploys via `.github/workflows/deploy.yml`.
+- The **Next.js 15 app** (`app/`, `components/`, `lib/`) — a **Node SSR server** (App Router; issue
+  #37) backed by **shared Postgres via Drizzle** (issue #45 — multi-user and durable). It is **live**
+  at <https://wikiplus.wikiedu.org> (a self-hosted Linode VPS, Docker Compose + Caddy). Push to `main`
+  auto-deploys via `.github/workflows/deploy.yml` (CI builds a standalone Docker image → GHCR → the
+  box runs `docker compose pull && up`; the box never builds Next.js).
 - Work is tracked as **GitHub Issues** (<https://github.com/ragesoss/wikiplus/issues>) — one issue =
   one build-loop run; see *Issue pipeline* in `docs/AGENT_OPERATING_MODEL.md`.
 
-The production read-path (ISR/Redis/Server Actions/Postgres) is **not yet built**; all data access
-goes through the `DataStore` seam in `lib/data/` (localStorage now; swap in `lib/data/index.ts`).
-`docs/ARCHITECTURE.md` is the source of truth — see its **Prototype phase** section. **Use `yarn`**
-(matches the committed lockfile and CI).
+The production read-path (ISR/Redis + the Cloudflare edge cache) is **not yet built**; Server Actions
+and the shared DB are. All data access goes through the `DataStore` seam in `lib/data/` (now shared
+Postgres via Drizzle; the implementation is swapped in `lib/data/index.ts`). `docs/ARCHITECTURE.md`
+is the source of truth — see its **Prototype phase** section. **Use `yarn`** (matches the committed
+lockfile and CI).
 
 ## Read first
 
