@@ -19,6 +19,7 @@
 import {
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type ReactNode,
@@ -34,6 +35,7 @@ import {
   deriveHeaderProgress,
   quantizeProgress,
 } from "@/lib/header/progress";
+import { NarrowSearchProvider } from "@/lib/header/narrowSearchContext";
 
 // ── Topic Tier-A geometry. This is the SHARED Tier-A geometry both hosts render (spec Decision 1 /
 // §10.1 no-fork): the beam flares over a 104px band with the wordmark row at cyMid=28 (cone length
@@ -61,6 +63,9 @@ const SLIM_GATE_P = 0.5;
 // `lg` (the Topic grid's side-by-side ↔ stacked breakpoint; #72 decision (a)). Seam-on-divider
 // applies ONLY at ≥ lg, where a real divider exists (§3 / AC2 / AC10).
 const LG_BREAKPOINT = 1024;
+// `md` (Tailwind 768) — the inline ↔ disclosure search handoff (same constant HeaderAuth uses for
+// its skin handoff). The narrow-search collapse (topic-mobile-search §3.1) fires ONLY < md.
+const MD_BREAKPOINT = 768;
 
 // #72 DEFECT-A — the reserved upper-left search box (px). The chrome row reserves this width for
 // the search slot, and the SELF-CONTAINED (< lg) lockup is anchored to START past it (`leftInset`),
@@ -94,8 +99,13 @@ export function TopicHeaderSearch({
       <div className="hidden min-w-0 md:flex">
         <TopicSearch variant="topic-inline" prefill={prefill} />
       </div>
-      {/* Icon-disclosure < md (AC7) — reveals the same field on tap. */}
-      <div className="flex md:hidden">
+      {/* Icon-disclosure < md (AC7) — reveals the same field on tap. `w-full min-w-0` lets the
+          wrapper SHRINK within the chrome search slot and fill it when open, so the disclosure's
+          expanded field can flex (topic-mobile-search §3.4) without the wrapper's min-content
+          overflowing the slot and pushing the field past the login. When collapsed the magnifier
+          button keeps its fixed 44px box at the left — the wrapper spanning the slot is an invisible
+          box, so the collapsed appearance is unchanged (AC3). */}
+      <div className="flex w-full min-w-0 md:hidden">
         <TopicSearch variant="topic-disclosure" prefill={prefill} />
       </div>
     </>
@@ -338,6 +348,37 @@ function TopicSiteHeader({
     setIsSlim((prev) => (slim === prev ? prev : slim))
   );
 
+  // ── The narrow-search collapse signal (topic-mobile-search §3.1, plumbing option (a)). ────────
+  // `narrowSearchExpanded` = (viewport < md) AND (the topic-disclosure search field is open). The
+  // disclosure reports its open state up via the context's `setSearchFieldOpen` (the lift); the
+  // header ANDs that with a < md media check (the same MD_BREAKPOINT pattern HeaderAuth uses). When
+  // true it (i) forces the wordmark to the Tier-D "+" glyph (HeaderProjector `forceGlyph`, §3.2) and
+  // (ii) collapses the login to icon-only (HeaderAuth reads `narrowSearchExpanded` from the context,
+  // §3.3) — so both neighbours collapse, and the field flexes between them, as ONE coordinated
+  // change. It is structurally false ≥ md (the media check) and false while collapsed (the field
+  // reports closed) — the magnifier-only and ≥ md states are untouched (AC3/AC11).
+  const [searchFieldOpen, setSearchFieldOpen] = useState(false);
+  const [isNarrow, setIsNarrow] = useState(false);
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.matchMedia) return;
+    const mql = window.matchMedia(`(max-width: ${MD_BREAKPOINT - 1}px)`);
+    const apply = () => setIsNarrow(mql.matches);
+    apply();
+    if (mql.addEventListener) mql.addEventListener("change", apply);
+    else mql.addListener(apply);
+    return () => {
+      if (mql.removeEventListener) mql.removeEventListener("change", apply);
+      else mql.removeListener(apply);
+    };
+  }, []);
+  const narrowSearchExpanded = isNarrow && searchFieldOpen;
+  // Stable context value so consumers (TopicSearch reporting up, HeaderAuth reading down) don't
+  // re-render on an unrelated header re-render. `setSearchFieldOpen` from useState is already stable.
+  const narrowSearchValue = useMemo(
+    () => ({ narrowSearchExpanded, setSearchFieldOpen }),
+    [narrowSearchExpanded]
+  );
+
   // ── Seam-on-divider geometry (AC2/AC10/AC11), measured at MOUNT + on RESIZE only (never on
   // scroll). The probe (a zero-height div spanning the grid's gutter, rendered in the overlay)
   // gives the real gutter-centre in viewport px; we express it as a fraction of the band width so
@@ -408,6 +449,7 @@ function TopicSiteHeader({
   };
 
   return (
+    <NarrowSearchProvider value={narrowSearchValue}>
     <header
       ref={headerRef}
       // Background is `--beam-seam-surface` (owned by `.header-shared`): the visible cool fluorescent
@@ -481,6 +523,10 @@ function TopicSiteHeader({
             geometry={tierAGeometry}
             continuous
             href="/"
+            // §3.2 — force the Tier-D "+" glyph (and suppress the lit beam) while the narrow search
+            // disclosure is open. ORs into the existing < 380px squeeze (a superset); restores the
+            // normal `p`-driven lockup/beam on close.
+            forceGlyph={narrowSearchExpanded}
           />
         </div>
 
@@ -497,9 +543,18 @@ function TopicSiteHeader({
           {/* Search — upper-left (AC6/AC7). The host passes topic-inline ≥ md / topic-disclosure
               < md. min-w-0 lets the inline field shrink; the disclosure icon is a fixed 44px box.
               pointer-events-auto restores interactivity (the row is pointer-events-none so its empty
-              middle lets clicks fall through to the flat wordmark link behind it — DEFECT-A). */}
+              middle lets clicks fall through to the flat wordmark link behind it — DEFECT-A).
+              topic-mobile-search §3.4: while the narrow search is open the slot also `grow`s so the
+              field FILLS the row's free space between the glyph and the login (instead of `ml-auto`
+              on the auth eating the slack) — the field is wider at wider narrow widths (AC9) and the
+              login stays pinned at the right with no overlap. The `grow` is gated to the open state,
+              so the collapsed magnifier slot is unchanged (AC3) and ≥ md is untouched (AC11). */}
           {search ? (
-            <div className="pointer-events-auto flex min-w-0 shrink items-center">
+            <div
+              className={`pointer-events-auto flex min-w-0 shrink items-center ${
+                narrowSearchExpanded ? "grow" : ""
+              }`}
+            >
               {search}
             </div>
           ) : null}
@@ -528,5 +583,6 @@ function TopicSiteHeader({
         </div>
       </div>
     </header>
+    </NarrowSearchProvider>
   );
 }

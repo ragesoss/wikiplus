@@ -337,11 +337,13 @@ export const SCENES: Scene[] = [
     id: "topic-search",
     group: "Topic · header",
     label: "Topic header — mobile search revealed",
-    note: "The icon-disclosure search expanded on the narrow header.",
+    note: "The icon-disclosure search expanded on the narrow header: the wordmark collapses to the \"+\" glyph and the login to icon-only (\"W\" logged-out / avatar logged-in) so the field flexes between them with no overlap.",
     route: "/topic/Photosynthesis/",
     stub: "curated",
     viewports: ["mobile"],
-    auth: ["out"],
+    // Both auth arms: the logged-out "W" icon-only login AND the logged-in icon-only avatar
+    // expanded state (topic-mobile-search AC7 / DQ-3).
+    auth: ["out", "in"],
     prepare: revealMobileSearch,
     clip: { x: 0, y: 0, width: 390, height: 140 },
   },

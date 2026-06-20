@@ -94,6 +94,13 @@ export interface HeaderProjectorProps {
    * flat lockup is the interactive home link (the lit layer is decorative). Undefined (the landing
    * page) ⇒ no slim layer, beam always shown — the landing header is unchanged (AC12). */
   continuous?: boolean;
+  /** Force the Tier-D "+" glyph regardless of width (docs/design/topic-mobile-search.md §3.2). The
+   * Topic host sets this while the narrow (< md) search disclosure is OPEN, so the wordmark collapses
+   * to the same `data-projector-squeeze` glyph the < 380px squeeze already renders (no new mark — AC1)
+   * and the lit beam does NOT render behind the open field (AC4). It simply ORs into the existing
+   * squeeze condition (a strict superset of the 380px rule), so on close the normal `p`-driven
+   * lockup/beam returns. Only meaningful on the scroll-aware host. Undefined elsewhere. */
+  forceGlyph?: boolean;
   className?: string;
 }
 
@@ -512,6 +519,7 @@ export function HeaderProjector({
   href,
   geometry,
   continuous,
+  forceGlyph,
   className = "",
 }: HeaderProjectorProps) {
   // Stable id for SVG defs (avoids collisions if two instances ever render). Derived from the
@@ -627,7 +635,14 @@ export function HeaderProjector({
   // would crowd the upper-left search, so collapse the wordmark to the Tier-D glyph tile (design
   // §5.5/§5.6). `cw > 0` guards against the SSR/jsdom zero-width false-positive (keep the full
   // lockup until a real width is measured). Only the scroll-aware Topic host squeezes.
-  const squeeze = scrollAware && cw > 0 && cw < SQUEEZE_BREAKPOINT;
+  //
+  // topic-mobile-search §3.2: the wordmark also collapses to the glyph whenever `forceGlyph` is set
+  // (the narrow search disclosure is open, < md). That is a strict SUPERSET of the 380px rule — the
+  // two reasons to show the glyph simply OR together. The `cw > 0` guard still applies so SSR/jsdom
+  // keep the full lockup until a real width is measured (no glyph flash on first paint). On close
+  // `forceGlyph` clears and the normal `p`-driven lockup/beam returns at the current scroll position.
+  const squeeze =
+    scrollAware && cw > 0 && (cw < SQUEEZE_BREAKPOINT || forceGlyph === true);
 
   // ── Tier D — the glyph tile alone (favicon/app-icon scale). Defined-but-minimal. ──
   if (variant === "glyph") {
