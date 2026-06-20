@@ -1,5 +1,6 @@
 import type { ParsedVideo } from "@/lib/embed/facade";
 import type { ResolvedMeta } from "@/lib/embed/oembed";
+import type { Orientation, Platform } from "@/lib/data/types";
 import type { ClipMediaSource } from "./curate-clip";
 
 // Build the add-by-link `ClipMediaSource` from a parsed link + the oEmbed resolve outcome
@@ -28,6 +29,41 @@ export function deriveHandle(authorName: string): string | undefined {
 }
 
 /**
+ * The per-platform orientation used when NO dimension signal is available (issue #100) — the single
+ * source of truth both add-by-link arms share. Encodes the platform's overwhelmingly typical shape:
+ *   - `tiktok` / `instagram` — vertical-first feeds; a clip there is portrait by default.
+ *   - `youtube` — default HORIZONTAL (vertical only on a positive signal), matching the candidate
+ *                 path's rule (lib/candidates/youtube.ts): Shorts are ordinary landscape-defaulting
+ *                 YouTube videos until a dimension says otherwise.
+ *   - `other`  — generic embeds skew landscape; default HORIZONTAL.
+ * Defined for every `Platform` so the map is exhaustive (a new platform forces a deliberate choice).
+ */
+export function defaultOrientation(platform: Platform): Orientation {
+  const DEFAULTS: Record<Platform, Orientation> = {
+    youtube: "horizontal",
+    tiktok: "vertical",
+    instagram: "vertical",
+    other: "horizontal",
+  };
+  return DEFAULTS[platform];
+}
+
+/**
+ * Derive a resolved clip's `orientation` (issue #100). When the oEmbed player dims are present, the
+ * aspect decides — `height > width ⇒ vertical`, else horizontal — the SAME rule the candidate path
+ * applies to thumbnail dims (lib/candidates/youtube.ts). This is platform-agnostic: a resolved TikTok
+ * reports portrait dims ⇒ vertical, a landscape YouTube video ⇒ horizontal, a Short ⇒ vertical. With
+ * no dimension signal (provider omitted them) it falls back to the platform default — never forces a
+ * single orientation, so a landscape video added by link is no longer mislaid out as vertical.
+ */
+function resolveOrientation(meta: ResolvedMeta, platform: Platform): Orientation {
+  if (meta.width && meta.height) {
+    return meta.height > meta.width ? "vertical" : "horizontal";
+  }
+  return defaultOrientation(platform);
+}
+
+/**
  * RESOLVED media source (design state C, AC1/AC2). Maps the oEmbed metadata into the existing
  * `ClipMediaSource` shape: `title → caption`, `author_name → creator.name`,
  * `author_url → creator.url`, and `thumbnail_url → thumbnailUrl` (a referenced URL, never hosted —
@@ -46,7 +82,9 @@ export function resolvedMediaSource(
     topicQid,
     platform: parsed.platform,
     platformLabel,
-    orientation: "vertical",
+    // Auto-derived from the oEmbed player dims (issue #100); falls back to the platform default when
+    // the provider omits them. No manual override this build.
+    orientation: resolveOrientation(meta, parsed.platform),
     watchUrl,
     embedUrl: parsed.embedUrl,
     // Prefer the oEmbed thumbnail; fall back to the parser's derived thumb (D-YouTube).
@@ -81,7 +119,9 @@ export function placeholderMediaSource(
     topicQid,
     platform: parsed.platform,
     platformLabel,
-    orientation: "vertical",
+    // No dimension signal exists on the placeholder arm (resolution failed / unsupported), so the
+    // platform default decides (issue #100): tiktok/instagram ⇒ vertical, youtube/other ⇒ horizontal.
+    orientation: defaultOrientation(parsed.platform),
     watchUrl,
     embedUrl: parsed.embedUrl,
     thumbnailUrl: parsed.thumbnailUrl,

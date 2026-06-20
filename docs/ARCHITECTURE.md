@@ -119,7 +119,8 @@ Keyed on stable identifiers, normalized, minimal.
   - `id`
   - `topic_id` → topic
   - `video_url`, `provider` (tiktok/instagram/youtube/vimeo/…), `provider_video_id`
-  - `orientation` (`vertical` | `horizontal`) — drives the embed aspect ratio (9:16 vs 16:9)
+  - `orientation` (`vertical` | `horizontal`) — drives the embed aspect ratio (9:16 vs 16:9);
+    **auto-derived, never hand-set** (see *Orientation derivation* under *Embed, never host video*)
   - `embed_meta` — cached oEmbed result (title, thumbnail, author, duration, embed HTML/params)
   - **creator fields** — `creator_handle`, `creator_name`, `creator_platform`, `creator_url`,
     `creator_followers` (cached at curation time; the personality behind the clip)
@@ -338,6 +339,23 @@ correctly). Provider notes that affect integration:
 
 Because some embeds inject third-party scripts, render them lazily / behind a click-to-load
 facade where possible — this protects the read path's speed and the page's privacy posture.
+
+**Orientation derivation.** A clip's `orientation` is **auto-derived from the platform signal, never
+hand-set and with no manual override** — the curator never picks an aspect ratio. Both producers of
+an orientation apply one rule:
+
+- **Dimension signal present** — when a source carries the clip's frame dimensions, the aspect
+  decides: **`height > width ⇒ vertical`, else horizontal**. This is platform-agnostic. The
+  add-by-link resolved arm reads the oEmbed player `width`/`height` (so a resolved TikTok's portrait
+  dims ⇒ vertical, a landscape YouTube video ⇒ horizontal, a Short ⇒ vertical); the candidate
+  pipeline reads the search-result thumbnail aspect.
+- **No dimension signal** — fall back to a **per-platform default**: `tiktok`/`instagram` ⇒
+  **vertical** (vertical-first feeds); `youtube`/`other` ⇒ **horizontal** (default landscape,
+  vertical only on a positive signal). This covers the add-by-link placeholder arm (resolution
+  failed or the platform is unsupported, so no dims exist) and any resolve whose provider omits the
+  player dims.
+
+The default map and the resolved-arm derivation are shared so there is one source of truth.
 
 ## Candidate suggestion & the empty state
 
