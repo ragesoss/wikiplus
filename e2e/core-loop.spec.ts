@@ -188,16 +188,16 @@ test.describe("Uncurated topic — empty state & contribute (AC14–AC19)", () =
     await stubWikipedia(page);
   });
 
-  test("AC14/AC16 — '0 videos curated' CTA + Suggested band with unvetted candidates", async ({
+  test("AC14/AC16 — uncurated CTA + Suggested band with unvetted candidates", async ({
     page,
   }) => {
     await page.goto("/topic/Cellular_respiration/");
-    await expect(page.getByText("videos curated")).toBeVisible();
+    await expect(page.getByText("uncurated videos")).toBeVisible();
     await expect(
-      page.getByRole("button", { name: "Be the first to curate this topic" })
+      page.getByRole("button", { name: "Browse suggested videos" })
     ).toBeVisible();
     await expect(page.getByText("＋ Suggested videos")).toBeVisible();
-    await expect(page.getByText("uncurated")).toBeVisible();
+    await expect(page.getByText("uncurated").first()).toBeVisible();
     await expect(page.getByText("Suggested").first()).toBeVisible();
     // AC15 — no chips on candidates
     await expect(page.getByText("Curator note")).toHaveCount(0);
@@ -260,12 +260,14 @@ test.describe("Uncurated topic — empty state & contribute (AC14–AC19)", () =
     // into a parallel test's count. (#47)
     await signIn(page, baseURL);
     await page.goto("/topic/Osmosis/");
-    await expect(page.getByText(/5 auto-suggestions/)).toBeVisible();
+    // The live suggestion count surfaces in the TOC General entry ("~N suggested, unvetted");
+    // dismissing a candidate decrements it optimistically.
+    await expect(page.getByRole("link", { name: /5 suggested, unvetted/ })).toBeVisible();
     await page
       .getByRole("button", { name: /Dismiss as not relevant/ })
       .first()
       .click();
-    await expect(page.getByText(/4 auto-suggestions/)).toBeVisible();
+    await expect(page.getByRole("link", { name: /4 suggested, unvetted/ })).toBeVisible();
   });
 });
 
