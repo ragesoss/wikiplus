@@ -1,0 +1,766 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>wiki+ screenshots</title>
+<style>
+  :root { --brand:#676EB4; --ink:#2C2C2C; --gold:#E5AB28; --line:#e3e3ea; }
+  * { box-sizing: border-box; }
+  body { margin:0; font:15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif; color:var(--ink); background:#fafafb; }
+  header.top { position:sticky; top:0; z-index:5; background:#fff; border-bottom:2px solid var(--ink); padding:14px 20px; }
+  header.top h1 { margin:0 0 2px; font-size:20px; }
+  header.top h1 .plus { background:var(--brand); color:#fff; padding:0 6px; border-radius:3px; }
+  .meta { color:#666; font-size:13px; margin-bottom:10px; }
+  .controls { display:flex; flex-wrap:wrap; gap:14px; align-items:center; }
+  .controls input[type=search] { padding:6px 10px; border:2px solid var(--ink); border-radius:4px; min-width:200px; font:inherit; }
+  .controls fieldset { border:1px solid var(--line); border-radius:6px; padding:4px 10px; margin:0; display:flex; gap:10px; flex-wrap:wrap; }
+  .controls legend { font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:#888; padding:0 4px; }
+  .controls label { font-size:13px; display:inline-flex; gap:4px; align-items:center; cursor:pointer; }
+  main { padding:20px; max-width:1400px; margin:0 auto; }
+  section.group { margin:0 0 28px; }
+  section.group > h2 { font-size:16px; border-bottom:2px solid var(--brand); padding-bottom:4px; }
+  article.scene { margin:0 0 22px; }
+  article.scene h3 { font-size:14px; margin:0 0 2px; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  article.scene h3 .id { font:12px/1 ui-monospace,monospace; color:#999; }
+  .note { margin:0 0 8px; color:#666; font-size:13px; }
+  .badge { font-size:10px; text-transform:uppercase; letter-spacing:.05em; padding:1px 6px; border-radius:10px; }
+  .badge.focus { background:var(--gold); color:var(--ink); font-weight:700; }
+  .shots { display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:12px; }
+  figure.shot { margin:0; border:1px solid var(--line); border-radius:6px; overflow:hidden; background:#fff; }
+  figure.shot img { display:block; width:100%; height:auto; background:#f0f0f3; }
+  figure.shot figcaption { font-size:12px; padding:5px 8px; color:#555; border-top:1px solid var(--line); }
+  figure.shot .vp { font-weight:700; color:var(--brand); }
+  .empty { color:#999; padding:40px; text-align:center; }
+</style>
+</head>
+<body>
+<header class="top">
+  <h1>wiki+ <span class="plus">screenshots</span></h1>
+  <div class="meta">92 shots · 18 scenes · generated from <code>e2e/screenshots/catalog.ts</code></div>
+  <div class="controls">
+    <input type="search" id="search" placeholder="Filter scenes…" aria-label="Filter scenes">
+    <fieldset><legend>Viewport</legend>
+      <label><input type="checkbox" class="f-vp" value="mobile" checked> mobile</label>
+      <label><input type="checkbox" class="f-vp" value="tablet" checked> tablet</label>
+      <label><input type="checkbox" class="f-vp" value="desktop" checked> desktop</label>
+    </fieldset>
+    <fieldset><legend>Auth</legend>
+      <label><input type="checkbox" class="f-auth" value="out" checked> logged-out</label>
+      <label><input type="checkbox" class="f-auth" value="in" checked> logged-in</label>
+    </fieldset>
+    <fieldset><legend>Group</legend><label><input type="checkbox" class="f-group" value="Home" checked> Home</label><label><input type="checkbox" class="f-group" value="Topic · header" checked> Topic · header</label><label><input type="checkbox" class="f-group" value="Topic · body" checked> Topic · body</label><label><input type="checkbox" class="f-group" value="Topic · overview &amp; TOC" checked> Topic · overview &amp; TOC</label><label><input type="checkbox" class="f-group" value="General Strip" checked> General Strip</label><label><input type="checkbox" class="f-group" value="Players" checked> Players</label><label><input type="checkbox" class="f-group" value="Topic · not found" checked> Topic · not found</label><label><input type="checkbox" class="f-group" value="Other pages" checked> Other pages</label></fieldset>
+  </div>
+</header>
+<main id="gallery">
+  
+    <section class="group" data-group="Home">
+      <h2>Home</h2>
+      
+      <article class="scene" data-group="Home" data-search="home — landing page daylight projector header + find-a-topic search + example topics. home home">
+        <h3>Home — landing page <span class="id">home</span></h3>
+        <p class="note">Daylight Projector header + Find-a-topic search + example topics.</p>
+        <div class="shots">
+        <figure class="shot" data-viewport="mobile" data-auth="out">
+          <a href="home-mobile-logged-out.png" target="_blank" rel="noopener">
+            <img loading="lazy" src="home-mobile-logged-out.png" alt="Home — landing page — mobile logged-out">
+          </a>
+          <figcaption><span class="vp">mobile</span> · logged-out</figcaption>
+        </figure>
+        <figure class="shot" data-viewport="mobile" data-auth="in">
+          <a href="home-mobile-logged-in.png" target="_blank" rel="noopener">
+            <img loading="lazy" src="home-mobile-logged-in.png" alt="Home — landing page — mobile logged-in">
+          </a>
+          <figcaption><span class="vp">mobile</span> · logged-in</figcaption>
+        </figure>
+        <figure class="shot" data-viewport="tablet" data-auth="out">
+          <a href="home-tablet-logged-out.png" target="_blank" rel="noopener">
+            <img loading="lazy" src="home-tablet-logged-out.png" alt="Home — landing page — tablet logged-out">
+          </a>
+          <figcaption><span class="vp">tablet</span> · logged-out</figcaption>
+        </figure>
+        <figure class="shot" data-viewport="tablet" data-auth="in">
+          <a href="home-tablet-logged-in.png" target="_blank" rel="noopener">
+            <img loading="lazy" src="home-tablet-logged-in.png" alt="Home — landing page — tablet logged-in">
+          </a>
+          <figcaption><span class="vp">tablet</span> · logged-in</figcaption>
+        </figure>
+        <figure class="shot" data-viewport="desktop" data-auth="out">
+          <a href="home-desktop-logged-out.png" target="_blank" rel="noopener">
+            <img loading="lazy" src="home-desktop-logged-out.png" alt="Home — landing page — desktop logged-out">
+          </a>
+          <figcaption><span class="vp">desktop</span> · logged-out</figcaption>
+        </figure>
+        <figure class="shot" data-viewport="desktop" data-auth="in">
+          <a href="home-desktop-logged-in.png" target="_blank" rel="noopener">
+            <img loading="lazy" src="home-desktop-logged-in.png" alt="Home — landing page — desktop logged-in">
+          </a>
+          <figcaption><span class="vp">desktop</span> · logged-in</figcaption>
+        </figure></div>
+      </article>
+      <article class="scene" data-group="Home" data-search="home — header (tier a beam) the projector beam + lockup + auth control, scroll-top. home home-header">
+        <h3>Home — header (Tier A beam) <span class="id">home-header</span></h3>
+        <p class="note">The projector beam + lockup + auth control, scroll-top.</p>
+        <div class="shots">
+        <figure class="shot" data-viewport="mobile" data-auth="out">
+          <a href="home-header-mobile-logged-out.png" target="_blank" rel="noopener">
+            <img loading="lazy" src="home-header-mobile-logged-out.png" alt="Home — header (Tier A beam) — mobile logged-out">
+          </a>
+          <figcaption><span class="vp">mobile</span> · logged-out</figcaption>
+        </figure>
+        <figure class="shot" data-viewport="mobile" data-auth="in">
+          <a href="home-header-mobile-logged-in.png" target="_blank" rel="noopener">
+            <img loading="lazy" src="home-header-mobile-logged-in.png" alt="Home — header (Tier A beam) — mobile logged-in">
+          </a>
+          <figcaption><span class="vp">mobile</span> · logged-in</figcaption>
+        </figure>
+        <figure class="shot" data-viewport="tablet" data-auth="out">
+          <a href="home-header-tablet-logged-out.png" target="_blank" rel="noopener">
+            <img loading="lazy" src="home-header-tablet-logged-out.png" alt="Home — header (Tier A beam) — tablet logged-out">
+          </a>
+          <figcaption><span class="vp">tablet</span> · logged-out</figcaption>
+        </figure>
+        <figure class="shot" data-viewport="tablet" data-auth="in">
+          <a href="home-header-tablet-logged-in.png" target="_blank" rel="noopener">
+            <img loading="lazy" src="home-header-tablet-logged-in.png" alt="Home — header (Tier A beam) — tablet logged-in">
+          </a>
+          <figcaption><span class="vp">tablet</span> · logged-in</figcaption>
+        </figure>
+        <figure class="shot" data-viewport="desktop" data-auth="out">
+          <a href="home-header-desktop-logged-out.png" target="_blank" rel="noopener">
+            <img loading="lazy" src="home-header-desktop-logged-out.png" alt="Home — header (Tier A beam) — desktop logged-out">
+          </a>
+          <figcaption><span class="vp">desktop</span> · logged-out</figcaption>
+        </figure>
+        <figure class="shot" data-viewport="desktop" data-auth="in">
+          <a href="home-header-desktop-logged-in.png" target="_blank" rel="noopener">
+            <img loading="lazy" src="home-header-desktop-logged-in.png" alt="Home — header (Tier A beam) — desktop logged-in">
+          </a>
+          <figcaption><span class="vp">desktop</span> · logged-in</figcaption>
+        </figure></div>
+      </article>
+    </section>
+    <section class="group" data-group="Topic · header">
+      <h2>Topic · header</h2>
+      
+      <article class="scene" data-group="Topic · header" data-search="topic header — tier a (scroll-top, full beam) the full projector beam over the article↔plus seam. topic · header topic-header-tiera">
+        <h3>Topic header — Tier A (scroll-top, full beam) <span class="id">topic-header-tierA</span></h3>
+        <p class="note">The full projector beam over the article↔plus seam.</p>
+        <div class="shots">
+        <figure class="shot" data-viewport="mobile" data-auth="out">
+          <a href="topic-header-tierA-mobile-logged-out.png" target="_blank" rel="noopener">
+            <img loading="lazy" src="topic-header-tierA-mobile-logged-out.png" alt="Topic header — Tier A (scroll-top, full beam) — mobile logged-out">
+          </a>
+          <figcaption><span class="vp">mobile</span> · logged-out</figcaption>
+        </figure>
+        <figure class="shot" data-viewport="mobile" data-auth="in">
+          <a href="topic-header-tierA-mobile-logged-in.png" target="_blank" rel="noopener">
+            <img loading="lazy" src="topic-header-tierA-mobile-logged-in.png" alt="Topic header — Tier A (scroll-top, full beam) — mobile logged-in">
+          </a>
+          <figcaption><span class="vp">mobile</span> · logged-in</figcaption>
+        </figure>
+        <figure class="shot" data-viewport="tablet" data-auth="out">
+          <a href="topic-header-tierA-tablet-logged-out.png" target="_blank" rel="noopener">
+            <img loading="lazy" src="topic-header-tierA-tablet-logged-out.png" alt="Topic header — Tier A (scroll-top, full beam) — tablet logged-out">
+          </a>
+          <figcaption><span class="vp">tablet</span> · logged-out</figcaption>
+        </figure>
+        <figure class="shot" data-viewport="tablet" data-auth="in">
+          <a href="topic-header-tierA-tablet-logged-in.png" target="_blank" rel="noopener">
+            <img loading="lazy" src="topic-header-tierA-tablet-logged-in.png" alt="Topic header — Tier A (scroll-top, full beam) — tablet logged-in">
+          </a>
+          <figcaption><span class="vp">tablet</span> · logged-in</figcaption>
+        </figure>
+        <figure class="shot" data-viewport="desktop" data-auth="out">
+          <a href="topic-header-tierA-desktop-logged-out.png" target="_blank" rel="noopener">
+            <img loading="lazy" src="topic-header-tierA-desktop-logged-out.png" alt="Topic header — Tier A (scroll-top, full beam) — desktop logged-out">
+          </a>
+          <figcaption><span class="vp">desktop</span> · logged-out</figcaption>
+        </figure>
+        <figure class="shot" data-viewport="desktop" data-auth="in">
+          <a href="topic-header-tierA-desktop-logged-in.png" target="_blank" rel="noopener">
+            <img loading="lazy" src="topic-header-tierA-desktop-logged-in.png" alt="Topic header — Tier A (scroll-top, full beam) — desktop logged-in">
+          </a>
+          <figcaption><span class="vp">desktop</span> · logged-in</figcaption>
+        </figure></div>
+      </article>
+      <article class="scene" data-group="Topic · header" data-search="topic header — slim sticky (scrolled, beam faded) the collapsed tier-c card after scrolling past the burn threshold. topic · header topic-header-slim">
+        <h3>Topic header — slim sticky (scrolled, beam faded) <span class="id">topic-header-slim</span></h3>
+        <p class="note">The collapsed Tier-C card after scrolling past the burn threshold.</p>
+        <div class="shots">
+        <figure class="shot" data-viewport="mobile" data-auth="out">
+          <a href="topic-header-slim-mobile-logged-out.png" target="_blank" rel="noopener">
+            <img loading="lazy" src="topic-header-slim-mobile-logged-out.png" alt="Topic header — slim sticky (scrolled, beam faded) — mobile logged-out">
+          </a>
+          <figcaption><span class="vp">mobile</span> · logged-out</figcaption>
+        </figure>
+        <figure class="shot" data-viewport="mobile" data-auth="in">
+          <a href="topic-header-slim-mobile-logged-in.png" target="_blank" rel="noopener">
+            <img loading="lazy" src="topic-header-slim-mobile-logged-in.png" alt="Topic header — slim sticky (scrolled, beam faded) — mobile logged-in">
+          </a>
+          <figcaption><span class="vp">mobile</span> · logged-in</figcaption>
+        </figure>
+        <figure class="shot" data-viewport="tablet" data-auth="out">
+          <a href="topic-header-slim-tablet-logged-out.png" target="_blank" rel="noopener">
+            <img loading="lazy" src="topic-header-slim-tablet-logged-out.png" alt="Topic header — slim sticky (scrolled, beam faded) — tablet logged-out">
+          </a>
+          <figcaption><span class="vp">tablet</span> · logged-out</figcaption>
+        </figure>
+        <figure class="shot" data-viewport="tablet" data-auth="in">
+          <a href="topic-header-slim-tablet-logged-in.png" target="_blank" rel="noopener">
+            <img loading="lazy" src="topic-header-slim-tablet-logged-in.png" alt="Topic header — slim sticky (scrolled, beam faded) — tablet logged-in">
+          </a>
+          <figcaption><span class="vp">tablet</span> · logged-in</figcaption>
+        </figure>
+        <figure class="shot" data-viewport="desktop" data-auth="out">
+          <a href="topic-header-slim-desktop-logged-out.png" target="_blank" rel="noopener">
+            <img loading="lazy" src="topic-header-slim-desktop-logged-out.png" alt="Topic header — slim sticky (scrolled, beam faded) — desktop logged-out">
+          </a>
+          <figcaption><span class="vp">desktop</span> · logged-out</figcaption>
+        </figure>
+        <figure class="shot" data-viewport="desktop" data-auth="in">
+          <a href="topic-header-slim-desktop-logged-in.png" target="_blank" rel="noopener">
+            <img loading="lazy" src="topic-header-slim-desktop-logged-in.png" alt="Topic header — slim sticky (scrolled, beam faded) — desktop logged-in">
+          </a>
+          <figcaption><span class="vp">desktop</span> · logged-in</figcaption>
+        </figure></div>
+      </article>
+      <article class="scene" data-group="Topic · header" data-search="topic header — mobile search revealed the icon-disclosure search expanded on the narrow header. topic · header topic-search">
+        <h3>Topic header — mobile search revealed <span class="id">topic-search</span></h3>
+        <p class="note">The icon-disclosure search expanded on the narrow header.</p>
+        <div class="shots">
+        <figure class="shot" data-viewport="mobile" data-auth="out">
+          <a href="topic-search-mobile-logged-out.png" target="_blank" rel="noopener">
+            <img loading="lazy" src="topic-search-mobile-logged-out.png" alt="Topic header — mobile search revealed — mobile logged-out">
+          </a>
+          <figcaption><span class="vp">mobile</span> · logged-out</figcaption>
+        </figure></div>
+      </article>
+    </section>
+    <section class="group" data-group="Topic · body">
+      <h2>Topic · body</h2>
+      
+      <article class="scene" data-group="Topic · body" data-search="topic — full two-world layout article ↔ plus columns, top to bottom. topic · body topic-body">
+        <h3>Topic — full two-world layout <span class="id">topic-body</span></h3>
+        <p class="note">Article ↔ plus columns, top to bottom.</p>
+        <div class="shots">
+        <figure class="shot" data-viewport="mobile" data-auth="out">
+          <a href="topic-body-mobile-logged-out.png" target="_blank" rel="noopener">
+            <img loading="lazy" src="topic-body-mobile-logged-out.png" alt="Topic — full two-world layout — mobile logged-out">
+          </a>
+          <figcaption><span class="vp">mobile</span> · logged-out</figcaption>
+        </figure>
+        <figure class="shot" data-viewport="mobile" data-auth="in">
+          <a href="topic-body-mobile-logged-in.png" target="_blank" rel="noopener">
+            <img loading="lazy" src="topic-body-mobile-logged-in.png" alt="Topic — full two-world layout — mobile logged-in">
+          </a>
+          <figcaption><span class="vp">mobile</span> · logged-in</figcaption>
+        </figure>
+        <figure class="shot" data-viewport="tablet" data-auth="out">
+          <a href="topic-body-tablet-logged-out.png" target="_blank" rel="noopener">
+            <img loading="lazy" src="topic-body-tablet-logged-out.png" alt="Topic — full two-world layout — tablet logged-out">
+          </a>
+          <figcaption><span class="vp">tablet</span> · logged-out</figcaption>
+        </figure>
+        <figure class="shot" data-viewport="tablet" data-auth="in">
+          <a href="topic-body-tablet-logged-in.png" target="_blank" rel="noopener">
+            <img loading="lazy" src="topic-body-tablet-logged-in.png" alt="Topic — full two-world layout — tablet logged-in">
+          </a>
+          <figcaption><span class="vp">tablet</span> · logged-in</figcaption>
+        </figure>
+        <figure class="shot" data-viewport="desktop" data-auth="out">
+          <a href="topic-body-desktop-logged-out.png" target="_blank" rel="noopener">
+            <img loading="lazy" src="topic-body-desktop-logged-out.png" alt="Topic — full two-world layout — desktop logged-out">
+          </a>
+          <figcaption><span class="vp">desktop</span> · logged-out</figcaption>
+        </figure>
+        <figure class="shot" data-viewport="desktop" data-auth="in">
+          <a href="topic-body-desktop-logged-in.png" target="_blank" rel="noopener">
+            <img loading="lazy" src="topic-body-desktop-logged-in.png" alt="Topic — full two-world layout — desktop logged-in">
+          </a>
+          <figcaption><span class="vp">desktop</span> · logged-in</figcaption>
+        </figure></div>
+      </article>
+      <article class="scene" data-group="Topic · body" data-search="topic — body under the slim sticky header the viewport after scrolling: slim header over the article body. topic · body topic-body-sticky">
+        <h3>Topic — body under the slim sticky header <span class="id">topic-body-sticky</span></h3>
+        <p class="note">The viewport after scrolling: slim header over the article body.</p>
+        <div class="shots">
+        <figure class="shot" data-viewport="mobile" data-auth="out">
+          <a href="topic-body-sticky-mobile-logged-out.png" target="_blank" rel="noopener">
+            <img loading="lazy" src="topic-body-sticky-mobile-logged-out.png" alt="Topic — body under the slim sticky header — mobile logged-out">
+          </a>
+          <figcaption><span class="vp">mobile</span> · logged-out</figcaption>
+        </figure>
+        <figure class="shot" data-viewport="mobile" data-auth="in">
+          <a href="topic-body-sticky-mobile-logged-in.png" target="_blank" rel="noopener">
+            <img loading="lazy" src="topic-body-sticky-mobile-logged-in.png" alt="Topic — body under the slim sticky header — mobile logged-in">
+          </a>
+          <figcaption><span class="vp">mobile</span> · logged-in</figcaption>
+        </figure>
+        <figure class="shot" data-viewport="tablet" data-auth="out">
+          <a href="topic-body-sticky-tablet-logged-out.png" target="_blank" rel="noopener">
+            <img loading="lazy" src="topic-body-sticky-tablet-logged-out.png" alt="Topic — body under the slim sticky header — tablet logged-out">
+          </a>
+          <figcaption><span class="vp">tablet</span> · logged-out</figcaption>
+        </figure>
+        <figure class="shot" data-viewport="tablet" data-auth="in">
+          <a href="topic-body-sticky-tablet-logged-in.png" target="_blank" rel="noopener">
+            <img loading="lazy" src="topic-body-sticky-tablet-logged-in.png" alt="Topic — body under the slim sticky header — tablet logged-in">
+          </a>
+          <figcaption><span class="vp">tablet</span> · logged-in</figcaption>
+        </figure>
+        <figure class="shot" data-viewport="desktop" data-auth="out">
+          <a href="topic-body-sticky-desktop-logged-out.png" target="_blank" rel="noopener">
+            <img loading="lazy" src="topic-body-sticky-desktop-logged-out.png" alt="Topic — body under the slim sticky header — desktop logged-out">
+          </a>
+          <figcaption><span class="vp">desktop</span> · logged-out</figcaption>
+        </figure>
+        <figure class="shot" data-viewport="desktop" data-auth="in">
+          <a href="topic-body-sticky-desktop-logged-in.png" target="_blank" rel="noopener">
+            <img loading="lazy" src="topic-body-sticky-desktop-logged-in.png" alt="Topic — body under the slim sticky header — desktop logged-in">
+          </a>
+          <figcaption><span class="vp">desktop</span> · logged-in</figcaption>
+        </figure></div>
+      </article>
+    </section>
+    <section class="group" data-group="Topic · overview &amp; TOC">
+      <h2>Topic · overview &amp; TOC</h2>
+      
+      <article class="scene" data-group="Topic · overview &amp; TOC" data-search="overview card (＋plus infobox) the video-stats / curation-state card. topic · overview &amp; toc topic-overview">
+        <h3>Overview card (＋plus Infobox) <span class="id">topic-overview</span></h3>
+        <p class="note">The video-stats / curation-state card.</p>
+        <div class="shots">
+        <figure class="shot" data-viewport="desktop" data-auth="out">
+          <a href="topic-overview-desktop-logged-out.png" target="_blank" rel="noopener">
+            <img loading="lazy" src="topic-overview-desktop-logged-out.png" alt="Overview card (＋plus Infobox) — desktop logged-out">
+          </a>
+          <figcaption><span class="vp">desktop</span> · logged-out</figcaption>
+        </figure>
+        <figure class="shot" data-viewport="desktop" data-auth="in">
+          <a href="topic-overview-desktop-logged-in.png" target="_blank" rel="noopener">
+            <img loading="lazy" src="topic-overview-desktop-logged-in.png" alt="Overview card (＋plus Infobox) — desktop logged-in">
+          </a>
+          <figcaption><span class="vp">desktop</span> · logged-in</figcaption>
+        </figure>
+        <figure class="shot" data-viewport="tablet" data-auth="out">
+          <a href="topic-overview-tablet-logged-out.png" target="_blank" rel="noopener">
+            <img loading="lazy" src="topic-overview-tablet-logged-out.png" alt="Overview card (＋plus Infobox) — tablet logged-out">
+          </a>
+          <figcaption><span class="vp">tablet</span> · logged-out</figcaption>
+        </figure>
+        <figure class="shot" data-viewport="tablet" data-auth="in">
+          <a href="topic-overview-tablet-logged-in.png" target="_blank" rel="noopener">
+            <img loading="lazy" src="topic-overview-tablet-logged-in.png" alt="Overview card (＋plus Infobox) — tablet logged-in">
+          </a>
+          <figcaption><span class="vp">tablet</span> · logged-in</figcaption>
+        </figure></div>
+      </article>
+      <article class="scene" data-group="Topic · overview &amp; TOC" data-search="table of contents (plus card) section list with curated/suggested badges. topic · overview &amp; toc topic-toc">
+        <h3>Table of contents (plus card) <span class="id">topic-toc</span></h3>
+        <p class="note">Section list with curated/suggested badges.</p>
+        <div class="shots">
+        <figure class="shot" data-viewport="desktop" data-auth="out">
+          <a href="topic-toc-desktop-logged-out.png" target="_blank" rel="noopener">
+            <img loading="lazy" src="topic-toc-desktop-logged-out.png" alt="Table of contents (plus card) — desktop logged-out">
+          </a>
+          <figcaption><span class="vp">desktop</span> · logged-out</figcaption>
+        </figure>
+        <figure class="shot" data-viewport="tablet" data-auth="out">
+          <a href="topic-toc-tablet-logged-out.png" target="_blank" rel="noopener">
+            <img loading="lazy" src="topic-toc-tablet-logged-out.png" alt="Table of contents (plus card) — tablet logged-out">
+          </a>
+          <figcaption><span class="vp">tablet</span> · logged-out</figcaption>
+        </figure></div>
+      </article>
+    </section>
+    <section class="group" data-group="General Strip">
+      <h2>General Strip</h2>
+      
+      <article class="scene" data-group="General Strip" data-search="general strip — curated human-curated clips (photosynthesis). general strip general-curated">
+        <h3>General Strip — curated <span class="id">general-curated</span></h3>
+        <p class="note">Human-curated clips (Photosynthesis).</p>
+        <div class="shots">
+        <figure class="shot" data-viewport="mobile" data-auth="out">
+          <a href="general-curated-mobile-logged-out.png" target="_blank" rel="noopener">
+            <img loading="lazy" src="general-curated-mobile-logged-out.png" alt="General Strip — curated — mobile logged-out">
+          </a>
+          <figcaption><span class="vp">mobile</span> · logged-out</figcaption>
+        </figure>
+        <figure class="shot" data-viewport="mobile" data-auth="in">
+          <a href="general-curated-mobile-logged-in.png" target="_blank" rel="noopener">
+            <img loading="lazy" src="general-curated-mobile-logged-in.png" alt="General Strip — curated — mobile logged-in">
+          </a>
+          <figcaption><span class="vp">mobile</span> · logged-in</figcaption>
+        </figure>
+        <figure class="shot" data-viewport="tablet" data-auth="out">
+          <a href="general-curated-tablet-logged-out.png" target="_blank" rel="noopener">
+            <img loading="lazy" src="general-curated-tablet-logged-out.png" alt="General Strip — curated — tablet logged-out">
+          </a>
+          <figcaption><span class="vp">tablet</span> · logged-out</figcaption>
+        </figure>
+        <figure class="shot" data-viewport="tablet" data-auth="in">
+          <a href="general-curated-tablet-logged-in.png" target="_blank" rel="noopener">
+            <img loading="lazy" src="general-curated-tablet-logged-in.png" alt="General Strip — curated — tablet logged-in">
+          </a>
+          <figcaption><span class="vp">tablet</span> · logged-in</figcaption>
+        </figure>
+        <figure class="shot" data-viewport="desktop" data-auth="out">
+          <a href="general-curated-desktop-logged-out.png" target="_blank" rel="noopener">
+            <img loading="lazy" src="general-curated-desktop-logged-out.png" alt="General Strip — curated — desktop logged-out">
+          </a>
+          <figcaption><span class="vp">desktop</span> · logged-out</figcaption>
+        </figure>
+        <figure class="shot" data-viewport="desktop" data-auth="in">
+          <a href="general-curated-desktop-logged-in.png" target="_blank" rel="noopener">
+            <img loading="lazy" src="general-curated-desktop-logged-in.png" alt="General Strip — curated — desktop logged-in">
+          </a>
+          <figcaption><span class="vp">desktop</span> · logged-in</figcaption>
+        </figure></div>
+      </article>
+      <article class="scene" data-group="General Strip" data-search="general strip — suggestions (unvetted) auto-found candidates on an uncurated topic. general strip general-suggestions">
+        <h3>General Strip — suggestions (unvetted) <span class="id">general-suggestions</span></h3>
+        <p class="note">Auto-found candidates on an uncurated topic.</p>
+        <div class="shots">
+        <figure class="shot" data-viewport="mobile" data-auth="out">
+          <a href="general-suggestions-mobile-logged-out.png" target="_blank" rel="noopener">
+            <img loading="lazy" src="general-suggestions-mobile-logged-out.png" alt="General Strip — suggestions (unvetted) — mobile logged-out">
+          </a>
+          <figcaption><span class="vp">mobile</span> · logged-out</figcaption>
+        </figure>
+        <figure class="shot" data-viewport="mobile" data-auth="in">
+          <a href="general-suggestions-mobile-logged-in.png" target="_blank" rel="noopener">
+            <img loading="lazy" src="general-suggestions-mobile-logged-in.png" alt="General Strip — suggestions (unvetted) — mobile logged-in">
+          </a>
+          <figcaption><span class="vp">mobile</span> · logged-in</figcaption>
+        </figure>
+        <figure class="shot" data-viewport="tablet" data-auth="out">
+          <a href="general-suggestions-tablet-logged-out.png" target="_blank" rel="noopener">
+            <img loading="lazy" src="general-suggestions-tablet-logged-out.png" alt="General Strip — suggestions (unvetted) — tablet logged-out">
+          </a>
+          <figcaption><span class="vp">tablet</span> · logged-out</figcaption>
+        </figure>
+        <figure class="shot" data-viewport="tablet" data-auth="in">
+          <a href="general-suggestions-tablet-logged-in.png" target="_blank" rel="noopener">
+            <img loading="lazy" src="general-suggestions-tablet-logged-in.png" alt="General Strip — suggestions (unvetted) — tablet logged-in">
+          </a>
+          <figcaption><span class="vp">tablet</span> · logged-in</figcaption>
+        </figure>
+        <figure class="shot" data-viewport="desktop" data-auth="out">
+          <a href="general-suggestions-desktop-logged-out.png" target="_blank" rel="noopener">
+            <img loading="lazy" src="general-suggestions-desktop-logged-out.png" alt="General Strip — suggestions (unvetted) — desktop logged-out">
+          </a>
+          <figcaption><span class="vp">desktop</span> · logged-out</figcaption>
+        </figure>
+        <figure class="shot" data-viewport="desktop" data-auth="in">
+          <a href="general-suggestions-desktop-logged-in.png" target="_blank" rel="noopener">
+            <img loading="lazy" src="general-suggestions-desktop-logged-in.png" alt="General Strip — suggestions (unvetted) — desktop logged-in">
+          </a>
+          <figcaption><span class="vp">desktop</span> · logged-in</figcaption>
+        </figure></div>
+      </article>
+      <article class="scene" data-group="General Strip" data-search="general strip — empty uncurated topic with no candidates yet. general strip general-empty">
+        <h3>General Strip — empty <span class="id">general-empty</span></h3>
+        <p class="note">Uncurated topic with no candidates yet.</p>
+        <div class="shots">
+        <figure class="shot" data-viewport="mobile" data-auth="out">
+          <a href="general-empty-mobile-logged-out.png" target="_blank" rel="noopener">
+            <img loading="lazy" src="general-empty-mobile-logged-out.png" alt="General Strip — empty — mobile logged-out">
+          </a>
+          <figcaption><span class="vp">mobile</span> · logged-out</figcaption>
+        </figure>
+        <figure class="shot" data-viewport="mobile" data-auth="in">
+          <a href="general-empty-mobile-logged-in.png" target="_blank" rel="noopener">
+            <img loading="lazy" src="general-empty-mobile-logged-in.png" alt="General Strip — empty — mobile logged-in">
+          </a>
+          <figcaption><span class="vp">mobile</span> · logged-in</figcaption>
+        </figure>
+        <figure class="shot" data-viewport="tablet" data-auth="out">
+          <a href="general-empty-tablet-logged-out.png" target="_blank" rel="noopener">
+            <img loading="lazy" src="general-empty-tablet-logged-out.png" alt="General Strip — empty — tablet logged-out">
+          </a>
+          <figcaption><span class="vp">tablet</span> · logged-out</figcaption>
+        </figure>
+        <figure class="shot" data-viewport="tablet" data-auth="in">
+          <a href="general-empty-tablet-logged-in.png" target="_blank" rel="noopener">
+            <img loading="lazy" src="general-empty-tablet-logged-in.png" alt="General Strip — empty — tablet logged-in">
+          </a>
+          <figcaption><span class="vp">tablet</span> · logged-in</figcaption>
+        </figure>
+        <figure class="shot" data-viewport="desktop" data-auth="out">
+          <a href="general-empty-desktop-logged-out.png" target="_blank" rel="noopener">
+            <img loading="lazy" src="general-empty-desktop-logged-out.png" alt="General Strip — empty — desktop logged-out">
+          </a>
+          <figcaption><span class="vp">desktop</span> · logged-out</figcaption>
+        </figure>
+        <figure class="shot" data-viewport="desktop" data-auth="in">
+          <a href="general-empty-desktop-logged-in.png" target="_blank" rel="noopener">
+            <img loading="lazy" src="general-empty-desktop-logged-in.png" alt="General Strip — empty — desktop logged-in">
+          </a>
+          <figcaption><span class="vp">desktop</span> · logged-in</figcaption>
+        </figure></div>
+      </article>
+    </section>
+    <section class="group" data-group="Players">
+      <h2>Players</h2>
+      
+      <article class="scene" data-group="Players" data-search="playermodal — curated clip (blocking) the dialog player + curation note, opened from a curated tile. players player-modal">
+        <h3>PlayerModal — curated clip (blocking) <span class="id">player-modal</span></h3>
+        <p class="note">The dialog player + curation note, opened from a curated tile.</p>
+        <div class="shots">
+        <figure class="shot" data-viewport="mobile" data-auth="out">
+          <a href="player-modal-mobile-logged-out.png" target="_blank" rel="noopener">
+            <img loading="lazy" src="player-modal-mobile-logged-out.png" alt="PlayerModal — curated clip (blocking) — mobile logged-out">
+          </a>
+          <figcaption><span class="vp">mobile</span> · logged-out</figcaption>
+        </figure>
+        <figure class="shot" data-viewport="mobile" data-auth="in">
+          <a href="player-modal-mobile-logged-in.png" target="_blank" rel="noopener">
+            <img loading="lazy" src="player-modal-mobile-logged-in.png" alt="PlayerModal — curated clip (blocking) — mobile logged-in">
+          </a>
+          <figcaption><span class="vp">mobile</span> · logged-in</figcaption>
+        </figure>
+        <figure class="shot" data-viewport="tablet" data-auth="out">
+          <a href="player-modal-tablet-logged-out.png" target="_blank" rel="noopener">
+            <img loading="lazy" src="player-modal-tablet-logged-out.png" alt="PlayerModal — curated clip (blocking) — tablet logged-out">
+          </a>
+          <figcaption><span class="vp">tablet</span> · logged-out</figcaption>
+        </figure>
+        <figure class="shot" data-viewport="tablet" data-auth="in">
+          <a href="player-modal-tablet-logged-in.png" target="_blank" rel="noopener">
+            <img loading="lazy" src="player-modal-tablet-logged-in.png" alt="PlayerModal — curated clip (blocking) — tablet logged-in">
+          </a>
+          <figcaption><span class="vp">tablet</span> · logged-in</figcaption>
+        </figure>
+        <figure class="shot" data-viewport="desktop" data-auth="out">
+          <a href="player-modal-desktop-logged-out.png" target="_blank" rel="noopener">
+            <img loading="lazy" src="player-modal-desktop-logged-out.png" alt="PlayerModal — curated clip (blocking) — desktop logged-out">
+          </a>
+          <figcaption><span class="vp">desktop</span> · logged-out</figcaption>
+        </figure>
+        <figure class="shot" data-viewport="desktop" data-auth="in">
+          <a href="player-modal-desktop-logged-in.png" target="_blank" rel="noopener">
+            <img loading="lazy" src="player-modal-desktop-logged-in.png" alt="PlayerModal — curated clip (blocking) — desktop logged-in">
+          </a>
+          <figcaption><span class="vp">desktop</span> · logged-in</figcaption>
+        </figure></div>
+      </article>
+      <article class="scene" data-group="Players" data-search="pinnedplayer — candidate dock (non-modal) the corner dock, opened from a suggested candidate. players pinned-player">
+        <h3>PinnedPlayer — candidate dock (non-modal) <span class="id">pinned-player</span></h3>
+        <p class="note">The corner dock, opened from a suggested candidate.</p>
+        <div class="shots">
+        <figure class="shot" data-viewport="mobile" data-auth="out">
+          <a href="pinned-player-mobile-logged-out.png" target="_blank" rel="noopener">
+            <img loading="lazy" src="pinned-player-mobile-logged-out.png" alt="PinnedPlayer — candidate dock (non-modal) — mobile logged-out">
+          </a>
+          <figcaption><span class="vp">mobile</span> · logged-out</figcaption>
+        </figure>
+        <figure class="shot" data-viewport="mobile" data-auth="in">
+          <a href="pinned-player-mobile-logged-in.png" target="_blank" rel="noopener">
+            <img loading="lazy" src="pinned-player-mobile-logged-in.png" alt="PinnedPlayer — candidate dock (non-modal) — mobile logged-in">
+          </a>
+          <figcaption><span class="vp">mobile</span> · logged-in</figcaption>
+        </figure>
+        <figure class="shot" data-viewport="tablet" data-auth="out">
+          <a href="pinned-player-tablet-logged-out.png" target="_blank" rel="noopener">
+            <img loading="lazy" src="pinned-player-tablet-logged-out.png" alt="PinnedPlayer — candidate dock (non-modal) — tablet logged-out">
+          </a>
+          <figcaption><span class="vp">tablet</span> · logged-out</figcaption>
+        </figure>
+        <figure class="shot" data-viewport="tablet" data-auth="in">
+          <a href="pinned-player-tablet-logged-in.png" target="_blank" rel="noopener">
+            <img loading="lazy" src="pinned-player-tablet-logged-in.png" alt="PinnedPlayer — candidate dock (non-modal) — tablet logged-in">
+          </a>
+          <figcaption><span class="vp">tablet</span> · logged-in</figcaption>
+        </figure>
+        <figure class="shot" data-viewport="desktop" data-auth="out">
+          <a href="pinned-player-desktop-logged-out.png" target="_blank" rel="noopener">
+            <img loading="lazy" src="pinned-player-desktop-logged-out.png" alt="PinnedPlayer — candidate dock (non-modal) — desktop logged-out">
+          </a>
+          <figcaption><span class="vp">desktop</span> · logged-out</figcaption>
+        </figure>
+        <figure class="shot" data-viewport="desktop" data-auth="in">
+          <a href="pinned-player-desktop-logged-in.png" target="_blank" rel="noopener">
+            <img loading="lazy" src="pinned-player-desktop-logged-in.png" alt="PinnedPlayer — candidate dock (non-modal) — desktop logged-in">
+          </a>
+          <figcaption><span class="vp">desktop</span> · logged-in</figcaption>
+        </figure></div>
+      </article>
+    </section>
+    <section class="group" data-group="Topic · not found">
+      <h2>Topic · not found</h2>
+      
+      <article class="scene" data-group="Topic · not found" data-search="article not found (nonexistent title) the honest #19 missing-article recovery state. topic · not found topic-notfound">
+        <h3>Article not found (nonexistent title) <span class="id">topic-notfound</span></h3>
+        <p class="note">The honest #19 missing-article recovery state.</p>
+        <div class="shots">
+        <figure class="shot" data-viewport="desktop" data-auth="out">
+          <a href="topic-notfound-desktop-logged-out.png" target="_blank" rel="noopener">
+            <img loading="lazy" src="topic-notfound-desktop-logged-out.png" alt="Article not found (nonexistent title) — desktop logged-out">
+          </a>
+          <figcaption><span class="vp">desktop</span> · logged-out</figcaption>
+        </figure>
+        <figure class="shot" data-viewport="desktop" data-auth="in">
+          <a href="topic-notfound-desktop-logged-in.png" target="_blank" rel="noopener">
+            <img loading="lazy" src="topic-notfound-desktop-logged-in.png" alt="Article not found (nonexistent title) — desktop logged-in">
+          </a>
+          <figcaption><span class="vp">desktop</span> · logged-in</figcaption>
+        </figure>
+        <figure class="shot" data-viewport="mobile" data-auth="out">
+          <a href="topic-notfound-mobile-logged-out.png" target="_blank" rel="noopener">
+            <img loading="lazy" src="topic-notfound-mobile-logged-out.png" alt="Article not found (nonexistent title) — mobile logged-out">
+          </a>
+          <figcaption><span class="vp">mobile</span> · logged-out</figcaption>
+        </figure>
+        <figure class="shot" data-viewport="mobile" data-auth="in">
+          <a href="topic-notfound-mobile-logged-in.png" target="_blank" rel="noopener">
+            <img loading="lazy" src="topic-notfound-mobile-logged-in.png" alt="Article not found (nonexistent title) — mobile logged-in">
+          </a>
+          <figcaption><span class="vp">mobile</span> · logged-in</figcaption>
+        </figure></div>
+      </article>
+    </section>
+    <section class="group" data-group="Other pages">
+      <h2>Other pages</h2>
+      
+      <article class="scene" data-group="Other pages" data-search="about your data the persistent data-handling notice. other pages about-data">
+        <h3>About your data <span class="id">about-data</span></h3>
+        <p class="note">The persistent data-handling notice.</p>
+        <div class="shots">
+        <figure class="shot" data-viewport="mobile" data-auth="out">
+          <a href="about-data-mobile-logged-out.png" target="_blank" rel="noopener">
+            <img loading="lazy" src="about-data-mobile-logged-out.png" alt="About your data — mobile logged-out">
+          </a>
+          <figcaption><span class="vp">mobile</span> · logged-out</figcaption>
+        </figure>
+        <figure class="shot" data-viewport="tablet" data-auth="out">
+          <a href="about-data-tablet-logged-out.png" target="_blank" rel="noopener">
+            <img loading="lazy" src="about-data-tablet-logged-out.png" alt="About your data — tablet logged-out">
+          </a>
+          <figcaption><span class="vp">tablet</span> · logged-out</figcaption>
+        </figure>
+        <figure class="shot" data-viewport="desktop" data-auth="out">
+          <a href="about-data-desktop-logged-out.png" target="_blank" rel="noopener">
+            <img loading="lazy" src="about-data-desktop-logged-out.png" alt="About your data — desktop logged-out">
+          </a>
+          <figcaption><span class="vp">desktop</span> · logged-out</figcaption>
+        </figure></div>
+      </article>
+      <article class="scene" data-group="Other pages" data-search="contribute (add a clip) logged-out gate vs the real add form. other pages contribute">
+        <h3>Contribute (Add a clip) <span class="id">contribute</span></h3>
+        <p class="note">Logged-out gate vs the real add form.</p>
+        <div class="shots">
+        <figure class="shot" data-viewport="mobile" data-auth="out">
+          <a href="contribute-mobile-logged-out.png" target="_blank" rel="noopener">
+            <img loading="lazy" src="contribute-mobile-logged-out.png" alt="Contribute (Add a clip) — mobile logged-out">
+          </a>
+          <figcaption><span class="vp">mobile</span> · logged-out</figcaption>
+        </figure>
+        <figure class="shot" data-viewport="mobile" data-auth="in">
+          <a href="contribute-mobile-logged-in.png" target="_blank" rel="noopener">
+            <img loading="lazy" src="contribute-mobile-logged-in.png" alt="Contribute (Add a clip) — mobile logged-in">
+          </a>
+          <figcaption><span class="vp">mobile</span> · logged-in</figcaption>
+        </figure>
+        <figure class="shot" data-viewport="tablet" data-auth="out">
+          <a href="contribute-tablet-logged-out.png" target="_blank" rel="noopener">
+            <img loading="lazy" src="contribute-tablet-logged-out.png" alt="Contribute (Add a clip) — tablet logged-out">
+          </a>
+          <figcaption><span class="vp">tablet</span> · logged-out</figcaption>
+        </figure>
+        <figure class="shot" data-viewport="tablet" data-auth="in">
+          <a href="contribute-tablet-logged-in.png" target="_blank" rel="noopener">
+            <img loading="lazy" src="contribute-tablet-logged-in.png" alt="Contribute (Add a clip) — tablet logged-in">
+          </a>
+          <figcaption><span class="vp">tablet</span> · logged-in</figcaption>
+        </figure>
+        <figure class="shot" data-viewport="desktop" data-auth="out">
+          <a href="contribute-desktop-logged-out.png" target="_blank" rel="noopener">
+            <img loading="lazy" src="contribute-desktop-logged-out.png" alt="Contribute (Add a clip) — desktop logged-out">
+          </a>
+          <figcaption><span class="vp">desktop</span> · logged-out</figcaption>
+        </figure>
+        <figure class="shot" data-viewport="desktop" data-auth="in">
+          <a href="contribute-desktop-logged-in.png" target="_blank" rel="noopener">
+            <img loading="lazy" src="contribute-desktop-logged-in.png" alt="Contribute (Add a clip) — desktop logged-in">
+          </a>
+          <figcaption><span class="vp">desktop</span> · logged-in</figcaption>
+        </figure></div>
+      </article>
+      <article class="scene" data-group="Other pages" data-search="contributor profile public profile (viewer arm) / own profile (my curations). other pages contributor-profile">
+        <h3>Contributor profile <span class="id">contributor-profile</span></h3>
+        <p class="note">Public profile (viewer arm) / own profile (My curations).</p>
+        <div class="shots">
+        <figure class="shot" data-viewport="mobile" data-auth="out">
+          <a href="contributor-profile-mobile-logged-out.png" target="_blank" rel="noopener">
+            <img loading="lazy" src="contributor-profile-mobile-logged-out.png" alt="Contributor profile — mobile logged-out">
+          </a>
+          <figcaption><span class="vp">mobile</span> · logged-out</figcaption>
+        </figure>
+        <figure class="shot" data-viewport="mobile" data-auth="in">
+          <a href="contributor-profile-mobile-logged-in.png" target="_blank" rel="noopener">
+            <img loading="lazy" src="contributor-profile-mobile-logged-in.png" alt="Contributor profile — mobile logged-in">
+          </a>
+          <figcaption><span class="vp">mobile</span> · logged-in</figcaption>
+        </figure>
+        <figure class="shot" data-viewport="tablet" data-auth="out">
+          <a href="contributor-profile-tablet-logged-out.png" target="_blank" rel="noopener">
+            <img loading="lazy" src="contributor-profile-tablet-logged-out.png" alt="Contributor profile — tablet logged-out">
+          </a>
+          <figcaption><span class="vp">tablet</span> · logged-out</figcaption>
+        </figure>
+        <figure class="shot" data-viewport="tablet" data-auth="in">
+          <a href="contributor-profile-tablet-logged-in.png" target="_blank" rel="noopener">
+            <img loading="lazy" src="contributor-profile-tablet-logged-in.png" alt="Contributor profile — tablet logged-in">
+          </a>
+          <figcaption><span class="vp">tablet</span> · logged-in</figcaption>
+        </figure>
+        <figure class="shot" data-viewport="desktop" data-auth="out">
+          <a href="contributor-profile-desktop-logged-out.png" target="_blank" rel="noopener">
+            <img loading="lazy" src="contributor-profile-desktop-logged-out.png" alt="Contributor profile — desktop logged-out">
+          </a>
+          <figcaption><span class="vp">desktop</span> · logged-out</figcaption>
+        </figure>
+        <figure class="shot" data-viewport="desktop" data-auth="in">
+          <a href="contributor-profile-desktop-logged-in.png" target="_blank" rel="noopener">
+            <img loading="lazy" src="contributor-profile-desktop-logged-in.png" alt="Contributor profile — desktop logged-in">
+          </a>
+          <figcaption><span class="vp">desktop</span> · logged-in</figcaption>
+        </figure></div>
+      </article>
+    </section>
+  <p class="empty" id="empty" hidden>No scenes match the current filters.</p>
+</main>
+<script>
+  const $ = (s, r=document) => [...r.querySelectorAll(s)];
+  const search = document.getElementById('search');
+  const vps = () => new Set($('.f-vp:checked').map(c => c.value));
+  const auths = () => new Set($('.f-auth:checked').map(c => c.value));
+  const grps = () => new Set($('.f-group:checked').map(c => c.value));
+  function apply() {
+    const q = search.value.trim().toLowerCase();
+    const vp = vps(), au = auths(), gr = grps();
+    let anyVisible = false;
+    $('.scene').forEach(scene => {
+      const inGroup = gr.has(scene.dataset.group);
+      const matches = !q || scene.dataset.search.includes(q);
+      let shotVisible = false;
+      $('.shot', scene).forEach(fig => {
+        const show = vp.has(fig.dataset.viewport) && au.has(fig.dataset.auth);
+        fig.hidden = !show;
+        if (show) shotVisible = true;
+      });
+      const visible = inGroup && matches && shotVisible;
+      scene.hidden = !visible;
+      if (visible) anyVisible = true;
+    });
+    $('.group').forEach(sec => {
+      sec.hidden = !$('.scene', sec).some(s => !s.hidden);
+    });
+    document.getElementById('empty').hidden = anyVisible;
+  }
+  [search, ...$('.f-vp'), ...$('.f-auth'), ...$('.f-group')].forEach(el =>
+    el.addEventListener('input', apply));
+  apply();
+</script>
+</body>
+</html>
