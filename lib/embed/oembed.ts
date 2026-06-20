@@ -53,6 +53,16 @@ export interface ResolvedMeta {
   authorUrl?: string;
   /** oEmbed `thumbnail_url` → `thumbnailUrl` (a REFERENCE, never hosted — AC7). May be absent. */
   thumbnailUrl?: string;
+  /**
+   * oEmbed player `width`/`height` (the platform-agnostic orientation signal — issue #100). When
+   * both are present, `add-media` derives `orientation` from their aspect (`height > width ⇒
+   * vertical`), mirroring the candidate path (lib/candidates/youtube.ts). May be absent (a provider
+   * that omits them, or a non-`video`/`rich` type) — the resolved arm then falls back to the
+   * per-platform default. We read the player dims rather than `thumbnail_width/height` because the
+   * player box is the clip's true frame; the thumbnail can be letterboxed.
+   */
+  width?: number;
+  height?: number;
 }
 
 /**
@@ -110,6 +120,8 @@ export async function resolveOEmbedAction(
       author_name: string;
       author_url: string;
       thumbnail_url: string;
+      width: number;
+      height: number;
     }>;
     const title = typeof data.title === "string" ? data.title.trim() : "";
     const authorName =
@@ -125,10 +137,26 @@ export async function resolveOEmbedAction(
       typeof data.thumbnail_url === "string" && data.thumbnail_url.trim()
         ? data.thumbnail_url.trim()
         : undefined;
-    return { ok: true, meta: { title, authorName, authorUrl, thumbnailUrl } };
+    // The orientation signal (issue #100): keep the player dims only when BOTH are positive finite
+    // numbers, so a partial/garbage dim can't masquerade as a signal — a missing/invalid pair leaves
+    // both undefined and the resolved arm falls back to the per-platform default. Not load-bearing
+    // for a resolve (a dimensionless resolve is still `ok: true`).
+    const width = positiveDimension(data.width);
+    const height = positiveDimension(data.height);
+    return {
+      ok: true,
+      meta: { title, authorName, authorUrl, thumbnailUrl, width, height },
+    };
   } catch {
     // Network error / offline / JSON parse failure / timeout → state D (failure), never a silent
     // mock (D2 / C10).
     return { ok: false, reason: "failed" };
   }
+}
+
+/** A usable oEmbed dimension: a positive, finite number; otherwise undefined (no orientation signal). */
+function positiveDimension(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isFinite(value) && value > 0
+    ? value
+    : undefined;
 }
