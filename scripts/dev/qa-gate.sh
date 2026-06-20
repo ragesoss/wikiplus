@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Pre-commit / pre-PR verification gate for wiki+.
-#   (no args)       typecheck + unit tests + server build   (the full pre-PR gate)
+#   (no args)       typecheck + unit tests + server build   (the full pre-PR gate; the
+#                   build stage wipes .next first so a stale manifest can't false-FAIL it)
 #   --no-build      typecheck + tests only                  (faster inner-loop check)
 #   --no-test       typecheck + build only
 #   --no-typecheck  skip the typecheck stage
@@ -24,7 +25,7 @@ for arg in "$@"; do
     --no-test)      run_test=0 ;;
     --no-typecheck) run_typecheck=0 ;;
     --docker)       run_docker=1 ;;
-    -h|--help)      sed -n '2,16p' "$0"; exit 0 ;;
+    -h|--help)      sed -n '2,17p' "$0"; exit 0 ;;
     *) echo "qa-gate: unknown arg '$arg' (see --help)" >&2; exit 2 ;;
   esac
 done
@@ -55,7 +56,11 @@ gate() {
 
 [ "$run_typecheck" = 1 ] && gate typecheck yarn typecheck
 [ "$run_test" = 1 ]      && gate test      yarn test
-[ "$run_build" = 1 ]     && gate build     yarn build
+# Wipe .next first so a stale prerender manifest can't false-FAIL the build (issue #95):
+# `next build` prints "Compiled successfully" then dies on a half-stale manifest during
+# route prerendering. The gate runs a full build, so the clean-start cost is acceptable here;
+# bare `yarn build` is left incremental for the inner loop.
+[ "$run_build" = 1 ]     && { rm -rf .next; gate build yarn build; }
 # Opt-in: build the deploy `build` stage against the trimmed context (.dockerignore-aware).
 [ "$run_docker" = 1 ]    && gate docker    docker build --target build .
 
