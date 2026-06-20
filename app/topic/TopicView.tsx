@@ -191,6 +191,11 @@ export function TopicView() {
   // single-instance PinnedPlayer driven by its own single state value (§3, AC4).
   const [player, setPlayer] = useState<Clip | null>(null);
   const [pinned, setPinned] = useState<PinnedClip | null>(null);
+  // #71 §6.5: the Candidate currently playing in the pinned dock. `PinnedClip` is display-only
+  // (it copies display fields), so the dock can't re-run `promote` from it; we hold the candidate
+  // here so the logged-out "Curate this video" CTA can route into the curate flow for THIS
+  // candidate. Set alongside `pinned`, cleared with it.
+  const [pinnedCandidate, setPinnedCandidate] = useState<Candidate | null>(null);
   const [curateFor, setCurateFor] = useState<Candidate | null>(null);
   const [curateOpen, setCurateOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
@@ -829,6 +834,9 @@ export function TopicView() {
       creator: { handle: c.creator.handle },
       platformLabel: c.platformLabel,
     });
+    // Keep the originating candidate so the logged-out "Curate this video" CTA can re-run
+    // `promote` for THIS candidate (#71 §6.5).
+    setPinnedCandidate(c);
   }, []);
 
   // Dismiss the PinnedPlayer (AC6): drop the state so the dock + iframe unmount
@@ -838,6 +846,9 @@ export function TopicView() {
   // still anchor focus there — harmless and keeps behavior uniform.
   const dismissPinned = useCallback(() => {
     setPinned(null);
+    // Drop the originating candidate alongside `pinned` so a stale candidate can't
+    // leak the logged-out "Curate this video" CTA into a later clip (#71 §6.5).
+    setPinnedCandidate(null);
     focusBandHeading();
   }, [focusBandHeading]);
   // Curate (candidate Promote) — gated (design §2b). Signed in → open the real CurateModal
@@ -1672,6 +1683,16 @@ export function TopicView() {
           clip={pinned}
           onClose={dismissPinned}
           prefersReduced={prefersReduced.current}
+          signedIn={signedIn}
+          // #71 §6.5: the logged-out "Curate this video" CTA routes into the curate flow for the
+          // currently-pinned candidate via the existing `promote` → `requireLogin({gate:"curate"})`
+          // path (no new gate kind). Bound only when a candidate is pinned; `PinnedPlayer` renders
+          // the CTA only when `!signedIn && onCurate`, so signed in the dock stays metadata-only.
+          onCurate={
+            !signedIn && pinnedCandidate
+              ? () => promote(pinnedCandidate)
+              : undefined
+          }
         />
       )}
 
