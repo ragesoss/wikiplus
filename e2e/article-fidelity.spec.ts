@@ -135,16 +135,15 @@ test.describe("Article fidelity (#24–#27) — browser-only criteria", () => {
     await page.goto("/topic/Photosynthesis/");
     const wrap = page.locator(".wiki-tablewrap").first();
     await expect(wrap).toBeAttached();
-    // NOTE: the "Scroll table →" HINT (the `data-overflow` flag on the wrapper) is NOT asserted
-    // here — it is blocked by a genuine app bug, split out as #68 per #47's test-debt-vs-app-bug
-    // boundary rule (NOT masked): `useTableOverflow` (TopicView) measures on a single post-ready
-    // rAF that races the dangerouslySetInnerHTML article paint, so under load the flag is reliably
-    // never set even though the table overflows (verified: scrollWidth 1193 > clientWidth 772, flag
-    // null in 5/5 parallel runs). When #68 lands (robust measurement), restore:
-    //   await expect.poll(() => wrap.getAttribute("data-overflow")).not.toBeNull();
-    //
+    // The wrapper carries `data-overflow` because the table genuinely overflows it — that
+    // flag is what gates the CSS "Scroll table →" hint. The TopicView effect measures once
+    // the injected wrappers are in the DOM and re-measures via a ResizeObserver, so the flag
+    // reliably reflects real overflow.
+    await expect
+      .poll(() => wrap.getAttribute("data-overflow"), { timeout: 10_000 })
+      .not.toBeNull();
     // The LOAD-BEARING B2 contract — a wide table does NOT widen the two-column shell, and scrolls
-    // within its own wrapper — is independent of that flag and IS deterministic, so it stays:
+    // within its own wrapper:
     // The article column did not widen past the viewport (no horizontal page scroll). `expect.poll`
     // re-evaluates rather than capturing a (re-renderable) handle once.
     await expect
