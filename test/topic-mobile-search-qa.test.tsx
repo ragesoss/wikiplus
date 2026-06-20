@@ -11,11 +11,20 @@ import {
 // QA supplement (topic-mobile-search) — independent, non-author acceptance-criterion tests written
 // by the qa-reviewer role for the contract in docs/design/topic-mobile-search.md §9 (AC1–AC15).
 // These verify the WHOLE integrated header — SiteHeader host="topic" wiring the shared
-// `narrowSearchExpanded` signal through to HeaderProjector (forceGlyph) and HeaderAuth/AuthControl
-// (forceIconOnly) and the TopicSearch disclosure layout — not just the AuthControl in isolation
-// (which is all test/auth-control.test.tsx covers). jsdom returns zero layout rects, so the
-// pure-geometry ACs (AC2 / AC9 / AC14 / AC12) are verified by the companion Playwright spec
-// e2e/topic-mobile-search.spec.ts; here we verify the DOM/a11y/state ACs that do not need layout.
+// `narrowSearchExpanded` signal through to HeaderProjector (suppressWordmark — the projector renders
+// NOTHING while expanded) and HeaderAuth/AuthControl (forceIconOnly) and the TopicSearch disclosure
+// layout — not just the AuthControl in isolation (which is all test/auth-control.test.tsx covers).
+// jsdom returns zero layout rects, so the pure-geometry ACs (AC2 / AC9 / AC14 / AC12) are verified by
+// the companion Playwright spec e2e/topic-mobile-search.spec.ts; here we verify the DOM/a11y/state ACs
+// that do not need layout.
+//
+// The expanded-state wordmark is the chrome-row middle "+" glyph: the SAME `GlyphTile` mark the
+// < 380px projector squeeze uses, hosted by SiteHeader as a flex child between the search field and
+// the login, inside `<a href="/" aria-label="wiki+">` with data-testid="narrow-search-wordmark" /
+// class `header-search-glyph`. While expanded the projector layer renders NOTHING (no
+// [data-projector-beam], no [data-projector-squeeze]) — those selectors are the COLLAPSED-state
+// projector layers, asserted ABSENT while expanded and PRESENT (the full lockup's beam) while
+// collapsed ≥ 380px. The chrome-row glyph below is queried via `narrowSearchGlyph()`.
 //
 // matchMedia control: the narrow-search collapse is gated on a `< md` (max-width: 767px) media
 // query in BOTH TopicSiteHeader (isNarrow) and HeaderAuth (compact). We install a query-aware
@@ -152,23 +161,48 @@ async function openDisclosure() {
   await disclosure().findByRole("button", { name: /close search/i });
 }
 
-// ── AC1 — NO FORK. The expanded-state wordmark is the SAME data-projector-squeeze glyph node the
-// < 380px squeeze renders (not a new mark / variant). ─────────────────────────────────────────────
-describe("AC1 — no fork: the expanded wordmark is the existing squeeze glyph node", () => {
-  it("renders the data-projector-squeeze glyph link while the narrow search is open", async () => {
+/** The chrome-row middle "+" wordmark glyph hosted by SiteHeader while the narrow search is OPEN
+ *  (the amended layout: field · "+" · login). It is `<a href="/" aria-label="wiki+">` carrying both
+ *  `data-testid="narrow-search-wordmark"` and the `header-search-glyph` class; it embeds the SAME
+ *  `GlyphTile` mark the < 380px projector squeeze renders (no fork — AC1). Returns null when not
+ *  rendered (collapsed / ≥ md). This REPLACES the prior approach's `[data-projector-squeeze]` query
+ *  for the expanded state — while expanded the projector layer renders nothing (see §3.2 / AC4). */
+function narrowSearchGlyph(): HTMLElement | null {
+  return document.querySelector<HTMLElement>('[data-testid="narrow-search-wordmark"]');
+}
+
+// ── AC1 — NO FORK. While expanded the wordmark is the chrome-row middle "+" glyph, which embeds the
+// SAME `GlyphTile` mark the < 380px projector squeeze renders (not a new mark / variant), as the
+// "wiki+" → "/" home link. The projector layer is suppressed (no [data-projector-*] node) while
+// expanded — the only "+" on screen is this one chrome-row glyph. ──────────────────────────────────
+describe("AC1 — no fork: the expanded wordmark reuses the existing GlyphTile mark in the chrome row", () => {
+  it("renders ONE chrome-row '+' home link (the reused GlyphTile) while open; no projector glyph", async () => {
     setNarrow(true);
     renderTopicHeader();
-    // Collapsed: no forced glyph from the open state.
-    expect(document.querySelector("[data-projector-squeeze]")).toBeNull();
+    // Collapsed: the expanded chrome-row glyph is not present.
+    expect(narrowSearchGlyph()).toBeNull();
     await openDisclosure();
-    // Open: the wordmark collapses to the existing squeeze glyph node (forceGlyph ORs into squeeze).
-    await waitFor(() =>
-      expect(document.querySelector("[data-projector-squeeze]")).not.toBeNull()
-    );
-    // It is the same accessible "wiki+" home link (no new mark) — see AC8.
-    const glyph = document.querySelector("[data-projector-squeeze]") as HTMLElement;
+    // Open: the chrome-row "+" wordmark glyph is present — the home link with both markers.
+    const glyph = await waitFor(() => {
+      const el = narrowSearchGlyph();
+      expect(el).not.toBeNull();
+      return el!;
+    });
     expect(glyph.tagName).toBe("A");
     expect(glyph.getAttribute("aria-label")).toBe("wiki+");
+    expect(glyph.classList.contains("header-search-glyph")).toBe(true);
+    // No fork: it embeds the SAME `GlyphTile` graphic the < 380px squeeze uses — a 28×28 indigo "+"
+    // tile (an inline <svg width=28 height=28>). Assert the reused mark is present inside the link.
+    const svg = glyph.querySelector("svg");
+    expect(svg).not.toBeNull();
+    expect(svg!.getAttribute("width")).toBe("28");
+    expect(svg!.getAttribute("height")).toBe("28");
+    // Exactly ONE "wiki+" home link in the DOM while expanded (no double wordmark — the projector
+    // layer is suppressed; this chrome-row glyph is the only one).
+    expect(screen.getAllByRole("link", { name: "wiki+" })).toHaveLength(1);
+    // The projector layer renders NOTHING while expanded — neither the squeeze glyph node nor a beam.
+    expect(document.querySelector("[data-projector-squeeze]")).toBeNull();
+    expect(document.querySelector("[data-projector-beam]")).toBeNull();
   });
 });
 
@@ -180,7 +214,10 @@ describe("AC3 — collapsed (< md) state is unchanged (no forced glyph, no icon-
     // The magnifier disclosure trigger is present; the close ✕ is not (collapsed).
     expect(screen.getByRole("button", { name: /search topics/i })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /close search/i })).toBeNull();
-    // Wordmark is NOT forced to the glyph while collapsed (forceGlyph false).
+    // The expanded chrome-row "+" glyph is NOT rendered while collapsed (it renders only when open);
+    // the projector layer owns the wordmark in the collapsed state (full lockup ≥ 380px in jsdom, so
+    // no projector squeeze glyph either at the measured width).
+    expect(narrowSearchGlyph()).toBeNull();
     expect(document.querySelector("[data-projector-squeeze]")).toBeNull();
     // Login keeps its visible word (compact "Log in"), i.e. not the icon-only `hidden` span.
     const login = screen.getByRole("button", { name: "Log in with Wikipedia" });
@@ -192,10 +229,11 @@ describe("AC3 — collapsed (< md) state is unchanged (no forced glyph, no icon-
   });
 });
 
-// ── AC4 — NO BEAM under the open field: while expanded the lit beam is not rendered and the glyph
-// is. (jsdom: the squeeze branch returns ONLY the glyph link — no [data-projector-beam].) ─────────
-describe("AC4 — no lit beam behind the open field (the squeeze branch renders only the glyph)", () => {
-  it("removes [data-projector-beam] and renders the glyph while expanded; restores beam on close", async () => {
+// ── AC4 — the projector layer renders NOTHING behind the open field: while expanded there is NO
+// [data-projector-beam] AND NO [data-projector-squeeze] node (the projector is suppressed), and the
+// only "+" on screen is the chrome-row middle glyph. On close the projector + its beam restore. ────
+describe("AC4 — the projector renders nothing behind the open field (no beam, no projector glyph)", () => {
+  it("suppresses the projector (no beam, no squeeze glyph) while open; the only '+' is the chrome-row glyph; restores on close", async () => {
     setNarrow(true);
     renderTopicHeader();
     // Collapsed at a narrow-but-≥-380 width: the beam layer exists (full lockup; cw guard means the
@@ -203,14 +241,17 @@ describe("AC4 — no lit beam behind the open field (the squeeze branch renders 
     expect(document.querySelector("[data-projector-beam]")).not.toBeNull();
     await openDisclosure();
     await waitFor(() => {
-      // Open: the wordmark is the glyph; the lit beam SVG is gone.
-      expect(document.querySelector("[data-projector-squeeze]")).not.toBeNull();
+      // Open: the projector layer renders NOTHING — no lit beam AND no projector-layer squeeze glyph.
       expect(document.querySelector("[data-projector-beam]")).toBeNull();
+      expect(document.querySelector("[data-projector-squeeze]")).toBeNull();
+      // The only "+" on screen is the chrome-row middle glyph (exactly one "wiki+" home link).
+      expect(narrowSearchGlyph()).not.toBeNull();
     });
-    // Close restores the beam (forceGlyph clears).
+    expect(screen.getAllByRole("link", { name: "wiki+" })).toHaveLength(1);
+    // Close restores the projector layer (the beam returns; the chrome-row glyph is removed).
     fireEvent.click(screen.getByRole("button", { name: /close search/i }));
     await waitFor(() => {
-      expect(document.querySelector("[data-projector-squeeze]")).toBeNull();
+      expect(narrowSearchGlyph()).toBeNull();
       expect(document.querySelector("[data-projector-beam]")).not.toBeNull();
     });
   });
@@ -292,14 +333,15 @@ describe("AC7 — logged-in account collapses to icon-only while the narrow sear
   });
 });
 
-// ── AC8 — wordmark stays a home link while expanded: <a href="/"> name "wiki+", focusable. ────────
+// ── AC8 — wordmark stays a home link while expanded: the chrome-row middle "+" glyph is an
+// <a href="/"> with accessible name "wiki+", keyboard-focusable. ───────────────────────────────────
 describe("AC8 — the expanded '+' glyph is still the 'wiki+' home link", () => {
-  it("the squeeze glyph is an <a href> to / with accessible name 'wiki+' and is focusable", async () => {
+  it("the chrome-row glyph is an <a href> to / with accessible name 'wiki+' and is focusable", async () => {
     setNarrow(true);
     renderTopicHeader();
     await openDisclosure();
     const glyph = await waitFor(() => {
-      const el = document.querySelector("[data-projector-squeeze]") as HTMLElement | null;
+      const el = narrowSearchGlyph();
       expect(el).not.toBeNull();
       return el!;
     });
@@ -337,16 +379,17 @@ describe("AC10 — closing restores the collapsed header, the full wordmark/logi
     setNarrow(true);
     renderTopicHeader();
     await openDisclosure();
-    // Open invariants present.
-    await waitFor(() =>
-      expect(document.querySelector("[data-projector-squeeze]")).not.toBeNull()
-    );
+    // Open invariants present: the chrome-row "+" glyph shows; the projector is suppressed.
+    await waitFor(() => expect(narrowSearchGlyph()).not.toBeNull());
+    expect(document.querySelector("[data-projector-beam]")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: /close search/i }));
-    // Back to the magnifier, the glyph gone, the login word restored.
+    // Back to the magnifier, the chrome-row glyph gone, the projector (full lockup/beam) restored,
+    // the login word restored.
     const trigger = await screen.findByRole("button", { name: /search topics/i });
-    await waitFor(() =>
-      expect(document.querySelector("[data-projector-squeeze]")).toBeNull()
-    );
+    await waitFor(() => {
+      expect(narrowSearchGlyph()).toBeNull();
+      expect(document.querySelector("[data-projector-beam]")).not.toBeNull();
+    });
     const login = screen.getByRole("button", { name: "Log in with Wikipedia" });
     const wordSpan = Array.from(login.querySelectorAll("span")).find(
       (s) => s.textContent === "Log in"
@@ -377,9 +420,9 @@ describe("AC11 — ≥ md renders the inline field + full login; the collapse ma
   // that jsdom cannot see (both variants are in the DOM here), so the "no disclosure trigger
   // visible ≥ md" assertion lives in the e2e spec. What IS jsdom-meaningful — and the real
   // correctness risk — is that the collapse MACHINERY is structurally gated off ≥ md: even if the
-  // (CSS-hidden) disclosure is driven open, narrowSearchExpanded stays false, so the wordmark is
-  // NOT forced to the glyph and the login does NOT go icon-only.
-  it("at ≥ md the inline field + full login render and no glyph/icon-only collapse exists", () => {
+  // (CSS-hidden) disclosure is driven open, narrowSearchExpanded stays false, so the chrome-row "+"
+  // glyph is NOT rendered (the projector keeps the wordmark) and the login does NOT go icon-only.
+  it("at ≥ md the inline field + full login render and no chrome-row glyph / icon-only collapse exists", () => {
     world.narrow = false; // ≥ md
     renderTopicHeader();
     // The inline combobox is present (it is the ≥ md interactive variant in the hidden md:flex slot).
@@ -390,44 +433,41 @@ describe("AC11 — ≥ md renders the inline field + full login; the collapse ma
     // Full login label — the `home` skin (≥ md) renders the full visible phrase, not compact "Log in".
     const login = screen.getByRole("button", { name: "Log in with Wikipedia" });
     expect(login.textContent).toContain("Log in with Wikipedia");
-    // No forced glyph (narrowSearchExpanded is structurally false ≥ md).
-    expect(document.querySelector("[data-projector-squeeze]")).toBeNull();
+    // No chrome-row glyph (narrowSearchExpanded is structurally false ≥ md, so it never renders).
+    expect(narrowSearchGlyph()).toBeNull();
   });
 
-  it("at ≥ md, driving the disclosure open does NOT force the glyph (the < md AND-gate holds)", async () => {
+  it("at ≥ md, driving the disclosure open does NOT render the chrome-row glyph (the < md AND-gate holds)", async () => {
     world.narrow = false; // ≥ md
     renderTopicHeader();
     // The disclosure's magnifier is in the DOM (CSS-hidden ≥ md, but present under jsdom). Click it
     // open: the field reports `expanded`, but the host's `< md` media check keeps narrowSearchExpanded
-    // FALSE, so the wordmark must NOT collapse to the glyph and the login must NOT go icon-only.
+    // FALSE, so the chrome-row "+" glyph must NOT render and the login must NOT go icon-only.
     fireEvent.click(disclosure().getByRole("button", { name: /search topics/i }));
     await disclosure().findByRole("button", { name: /close search/i });
-    expect(document.querySelector("[data-projector-squeeze]")).toBeNull();
+    expect(narrowSearchGlyph()).toBeNull();
     // The login (the home skin ≥ md) still shows its full visible label, never icon-only.
     const login = screen.getByRole("button", { name: "Log in with Wikipedia" });
     expect(login.textContent).toContain("Log in with Wikipedia");
   });
 
-  it("a mid-session resize to ≥ md while the disclosure WAS reporting open does not force the glyph", async () => {
-    // Start narrow, open the disclosure (the field reports open) — the glyph is forced.
+  it("a mid-session resize to ≥ md while the disclosure WAS reporting open drops the chrome-row glyph", async () => {
+    // Start narrow, open the disclosure (the field reports open) — the chrome-row glyph renders.
     setNarrow(true);
     renderTopicHeader();
     await openDisclosure();
-    await waitFor(() =>
-      expect(document.querySelector("[data-projector-squeeze]")).not.toBeNull()
-    );
-    // Resize to ≥ md: the AND with the < md media check must drop the force even though the
-    // disclosure's internal `expanded` may still be true (it is now display:none, not interactive).
+    await waitFor(() => expect(narrowSearchGlyph()).not.toBeNull());
+    // Resize to ≥ md: the AND with the < md media check must drop narrowSearchExpanded even though the
+    // disclosure's internal `expanded` may still be true (it is now display:none, not interactive),
+    // so the chrome-row glyph is removed and the projector wordmark takes over again.
     setNarrow(false);
-    await waitFor(() =>
-      expect(document.querySelector("[data-projector-squeeze]")).toBeNull()
-    );
+    await waitFor(() => expect(narrowSearchGlyph()).toBeNull());
   });
 });
 
 // ── AC13 — the #19 prefill auto-open lands in the expanded state with focus in the field. ─────────
 describe("AC13 — the #19 prefill auto-opens the disclosure into the expanded state (focus in field)", () => {
-  it("a prefill nonce opens the disclosure, forces the glyph, and focuses the seeded field", async () => {
+  it("a prefill nonce opens the disclosure, renders the chrome-row glyph, and focuses the seeded field", async () => {
     setNarrow(true);
     const { rerender } = render(
       <SiteHeader
@@ -454,10 +494,10 @@ describe("AC13 — the #19 prefill auto-opens the disclosure into the expanded s
     }) as HTMLInputElement;
     expect(input.value).toBe("Phytosphere");
     await waitFor(() => expect(document.activeElement).toBe(input));
-    // The coordinated collapse fired with the auto-open (same no-overlap layout — glyph forced).
-    await waitFor(() =>
-      expect(document.querySelector("[data-projector-squeeze]")).not.toBeNull()
-    );
+    // The coordinated collapse fired with the auto-open (same no-overlap layout — the chrome-row "+"
+    // glyph renders and the projector layer is suppressed).
+    await waitFor(() => expect(narrowSearchGlyph()).not.toBeNull());
+    expect(document.querySelector("[data-projector-beam]")).toBeNull();
   });
 });
 
@@ -489,11 +529,11 @@ describe("AC15 — reduced motion: the open end-state is functional (field usabl
       name: /search wikipedia topics/i,
     }) as HTMLInputElement;
     await waitFor(() => expect(document.activeElement).toBe(input));
-    // The end-state is the SAME as no-preference: glyph forced, login icon-only — only the tween
-    // (a CSS animation) is suppressed, which the stylesheet gates; the functional result is equal.
-    await waitFor(() =>
-      expect(document.querySelector("[data-projector-squeeze]")).not.toBeNull()
-    );
+    // The end-state is the SAME as no-preference: the chrome-row "+" glyph renders, the projector is
+    // suppressed, the login is icon-only — only the tween (a CSS animation) is suppressed, which the
+    // stylesheet gates; the functional result is equal.
+    await waitFor(() => expect(narrowSearchGlyph()).not.toBeNull());
+    expect(document.querySelector("[data-projector-beam]")).toBeNull();
     // The field is immediately typeable.
     fireEvent.change(input, { target: { value: "Cytosol" } });
     expect(input.value).toBe("Cytosol");

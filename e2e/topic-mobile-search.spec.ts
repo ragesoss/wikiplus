@@ -7,10 +7,11 @@ import { signIn } from "./auth";
 // — which are fundamentally about boxes not overlapping and the field flexing — must run in a real
 // browser. Companion to the jsdom DOM/a11y coverage in test/topic-mobile-search-qa.test.tsx.
 //
-//   • AC2  — at 320/360/390/600px, expanded: the wordmark "+" glyph, the field (+ ✕), and the login
-//            have non-overlapping boxes laid out left→right (glyph < field < login).
-//   • AC9  — the field FLEXES (wider at 600 than at 360), has no max-w-[280px] clamp, and its right
-//            edge never crosses the login's left edge.
+//   • AC2  — at 320/360/390/600px, expanded: the field (+ ✕), the wordmark "+" glyph, and the login
+//            have non-overlapping boxes laid out left→right in the AMENDED order field (LEFT) ·
+//            "+" glyph (MIDDLE) · login (RIGHT) — the field is leftmost at the chrome's left inset.
+//   • AC9  — the field is LEFTMOST (at the px-5 inset), FLEXES (wider at 600 than at 360), has no
+//            max-w-[280px] clamp, and its right edge never crosses the wordmark glyph's left edge.
 //   • AC12 — the suggestions listbox anchors to the (now narrower) field's own box and stays within
 //            the 320px viewport, above the page content (z-50).
 //   • AC14 — the magnifier, the ✕, the login (logged-out), the account trigger (logged-in), and the
@@ -82,7 +83,10 @@ async function readExpandedBoxes(page: Page) {
       .filter((x) => x.b.width > 0 && x.b.height > 0)
       .map((x) => x.f)[0] ?? null;
     return {
-      glyph: rect(document.querySelector("[data-projector-squeeze]")),
+      // The expanded wordmark is the chrome-row MIDDLE "+" glyph (the amended layout): the
+      // `<a data-testid="narrow-search-wordmark">` home link, NOT the projector-layer squeeze node
+      // (the projector renders nothing while expanded — §3.2 / AC4).
+      glyph: rect(document.querySelector('[data-testid="narrow-search-wordmark"]')),
       field: rect(field),
       close: rect(document.querySelector('button[aria-label="Close search"]')),
       login: rect(document.querySelector('header.header-shared button[aria-label="Log in with Wikipedia"]')),
@@ -105,7 +109,7 @@ async function settleAnimations(page: Page) {
     () =>
       new Promise<void>((resolve) => {
         const els = Array.from(
-          document.querySelectorAll(".topic-disclosure-open, [data-projector-squeeze]")
+          document.querySelectorAll(".topic-disclosure-open, .header-search-glyph")
         );
         const anims = els.flatMap((e) =>
           (e as Element & { getAnimations?: () => Animation[] }).getAnimations
@@ -148,23 +152,30 @@ test.describe("topic-mobile-search — expanded narrow header (real layout)", ()
       expect(boxes.close, "close ✕ present").not.toBeNull();
       expect(boxes.login, "login present").not.toBeNull();
 
-      // AC2 — fixed left→right order: glyph (left) · field+close (middle) · login (right). Use the
-      // close ✕ as the field-group's right edge (it sits at the field's right end, inside the slot).
-      expect(boxes.glyph!.right, "glyph.right ≤ field.left").toBeLessThanOrEqual(boxes.field!.left + 1);
-      expect(boxes.close!.left, "✕ is right of the field start").toBeGreaterThanOrEqual(boxes.field!.left - 1);
-      expect(boxes.close!.right, "✕.right ≤ login.left (field group left of login)").toBeLessThanOrEqual(
+      // AC2/AC9 — the AMENDED fixed left→right order: field+close (LEFT) · "+" glyph (MIDDLE) ·
+      // login (RIGHT). The field is the LEFTMOST interactive box, anchored at the chrome's px-5
+      // (20px) left inset. The ✕ sits at the field's right end (still inside the search slot, LEFT of
+      // the glyph). Then the wordmark "+" glyph, then the login.
+      //   field.left ≈ 20 (the px-5 inset)  ≤  field.right ≤ glyph.left  ≤  glyph.right ≤ login.left
+      expect(boxes.field!.left, "field is leftmost — at the chrome's px-5 (20px) left inset").toBeLessThanOrEqual(21);
+      expect(boxes.field!.left, "field starts at the left inset (not negative / not far right)").toBeGreaterThanOrEqual(15);
+      expect(boxes.field!.right, "field.right ≤ glyph.left (field is left of the wordmark glyph)").toBeLessThanOrEqual(
+        boxes.glyph!.left + 1
+      );
+      expect(boxes.close!.right, "✕.right ≤ glyph.left (the close sits left of the glyph)").toBeLessThanOrEqual(
+        boxes.glyph!.left + 1
+      );
+      expect(boxes.close!.left, "✕ is at/after the field's left start").toBeGreaterThanOrEqual(boxes.field!.left - 1);
+      expect(boxes.glyph!.right, "glyph.right ≤ login.left (the glyph is left of the login)").toBeLessThanOrEqual(
         boxes.login!.left + 1
       );
 
-      // AC2 — no pairwise overlap among glyph / field / ✕ / login.
-      expect(overlaps(boxes.glyph, boxes.field), "glyph vs field").toBe(false);
+      // AC2 — no pairwise overlap among field / ✕ / glyph / login.
+      expect(overlaps(boxes.field, boxes.glyph), "field vs glyph").toBe(false);
       expect(overlaps(boxes.glyph, boxes.login), "glyph vs login").toBe(false);
       expect(overlaps(boxes.field, boxes.login), "field vs login").toBe(false);
       expect(overlaps(boxes.close, boxes.login), "✕ vs login").toBe(false);
-      expect(overlaps(boxes.glyph, boxes.close), "glyph vs ✕").toBe(false);
-
-      // AC9 — the field's right edge never crosses the login's left edge (structural no-overlap).
-      expect(boxes.field!.right, "field.right ≤ login.left").toBeLessThanOrEqual(boxes.login!.left + 1);
+      expect(overlaps(boxes.close, boxes.glyph), "✕ vs glyph").toBe(false);
 
       // AC9 — the field carries no max-w-[280px] clamp (computed max-width is none / not 280px).
       const fieldMaxWidth = await page.evaluate(() => {
@@ -174,17 +185,15 @@ test.describe("topic-mobile-search — expanded narrow header (real layout)", ()
       });
       expect(fieldMaxWidth === "none" || fieldMaxWidth === "" || fieldMaxWidth === null).toBe(true);
 
-      // AC14 — ≥ 44×44 hit targets for the ✕ and the login button (the glyph link target box is the
-      // squeeze <a>; assert it too). The 1px tolerance covers sub-pixel layout.
+      // AC14 — ≥ 44×44 hit targets for the ✕, the login button, AND the wordmark glyph link. The
+      // chrome-row glyph is a 28px GlyphTile graphic centred in an h-11 w-11 (44×44) <a> tap box, so
+      // its OWN bounding box is the ≥44 target now (not just "present"). 1px tolerance for sub-pixel.
       expect(boxes.close!.width).toBeGreaterThanOrEqual(43.5);
       expect(boxes.close!.height).toBeGreaterThanOrEqual(43.5);
       expect(boxes.login!.width).toBeGreaterThanOrEqual(43.5);
       expect(boxes.login!.height).toBeGreaterThanOrEqual(43.5);
-      // The wordmark glyph link — the GlyphTile is 28px, but the <a> hit box must be tappable; the
-      // chrome row is 56px tall, so assert at least the glyph graphic is present and the link box has
-      // a real height. (The glyph is in the projector layer; its tappable box is the <a>.)
-      expect(boxes.glyph!.width).toBeGreaterThan(0);
-      expect(boxes.glyph!.height).toBeGreaterThan(0);
+      expect(boxes.glyph!.width, "wordmark glyph link ≥ 44 wide").toBeGreaterThanOrEqual(43.5);
+      expect(boxes.glyph!.height, "wordmark glyph link ≥ 44 tall").toBeGreaterThanOrEqual(43.5);
     });
   }
 
