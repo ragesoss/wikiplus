@@ -560,43 +560,7 @@
   {
     "id": "player-modal",
     "group": "Players",
-    "label": "PlayerModal — curated clip (blocking)",
-    "viewport": "mobile",
-    "auth": "out",
-    "file": "player-modal-mobile-logged-out.png",
-    "focus": false
-  },
-  {
-    "id": "player-modal",
-    "group": "Players",
-    "label": "PlayerModal — curated clip (blocking)",
-    "viewport": "mobile",
-    "auth": "in",
-    "file": "player-modal-mobile-logged-in.png",
-    "focus": false
-  },
-  {
-    "id": "player-modal",
-    "group": "Players",
-    "label": "PlayerModal — curated clip (blocking)",
-    "viewport": "tablet",
-    "auth": "out",
-    "file": "player-modal-tablet-logged-out.png",
-    "focus": false
-  },
-  {
-    "id": "player-modal",
-    "group": "Players",
-    "label": "PlayerModal — curated clip (blocking)",
-    "viewport": "tablet",
-    "auth": "in",
-    "file": "player-modal-tablet-logged-in.png",
-    "focus": false
-  },
-  {
-    "id": "player-modal",
-    "group": "Players",
-    "label": "PlayerModal — curated clip (blocking)",
+    "label": "PlayerModal — curated clip (blocking, desktop)",
     "viewport": "desktop",
     "auth": "out",
     "file": "player-modal-desktop-logged-out.png",
@@ -605,7 +569,7 @@
   {
     "id": "player-modal",
     "group": "Players",
-    "label": "PlayerModal — curated clip (blocking)",
+    "label": "PlayerModal — curated clip (blocking, desktop)",
     "viewport": "desktop",
     "auth": "in",
     "file": "player-modal-desktop-logged-in.png",
@@ -614,43 +578,7 @@
   {
     "id": "pinned-player",
     "group": "Players",
-    "label": "PinnedPlayer — candidate dock (non-modal)",
-    "viewport": "mobile",
-    "auth": "out",
-    "file": "pinned-player-mobile-logged-out.png",
-    "focus": false
-  },
-  {
-    "id": "pinned-player",
-    "group": "Players",
-    "label": "PinnedPlayer — candidate dock (non-modal)",
-    "viewport": "mobile",
-    "auth": "in",
-    "file": "pinned-player-mobile-logged-in.png",
-    "focus": false
-  },
-  {
-    "id": "pinned-player",
-    "group": "Players",
-    "label": "PinnedPlayer — candidate dock (non-modal)",
-    "viewport": "tablet",
-    "auth": "out",
-    "file": "pinned-player-tablet-logged-out.png",
-    "focus": false
-  },
-  {
-    "id": "pinned-player",
-    "group": "Players",
-    "label": "PinnedPlayer — candidate dock (non-modal)",
-    "viewport": "tablet",
-    "auth": "in",
-    "file": "pinned-player-tablet-logged-in.png",
-    "focus": false
-  },
-  {
-    "id": "pinned-player",
-    "group": "Players",
-    "label": "PinnedPlayer — candidate dock (non-modal)",
+    "label": "PinnedPlayer — candidate dock (non-modal, desktop)",
     "viewport": "desktop",
     "auth": "out",
     "file": "pinned-player-desktop-logged-out.png",
@@ -659,10 +587,100 @@
   {
     "id": "pinned-player",
     "group": "Players",
-    "label": "PinnedPlayer — candidate dock (non-modal)",
+    "label": "PinnedPlayer — candidate dock (non-modal, desktop)",
     "viewport": "desktop",
     "auth": "in",
     "file": "pinned-player-desktop-logged-in.png",
+    "focus": false
+  },
+  {
+    "id": "mobile-player-curated",
+    "group": "Players · mobile unified",
+    "label": "Mobile dock — curated, collapsed curation",
+    "viewport": "mobile",
+    "auth": "out",
+    "file": "mobile-player-curated-mobile-logged-out.png",
+    "focus": false
+  },
+  {
+    "id": "mobile-player-curated",
+    "group": "Players · mobile unified",
+    "label": "Mobile dock — curated, collapsed curation",
+    "viewport": "mobile",
+    "auth": "in",
+    "file": "mobile-player-curated-mobile-logged-in.png",
+    "focus": false
+  },
+  {
+    "id": "mobile-player-curated-expanded",
+    "group": "Players · mobile unified",
+    "label": "Mobile dock — curated, expanded note",
+    "viewport": "mobile",
+    "auth": "out",
+    "file": "mobile-player-curated-expanded-mobile-logged-out.png",
+    "focus": false
+  },
+  {
+    "id": "mobile-player-curated-expanded",
+    "group": "Players · mobile unified",
+    "label": "Mobile dock — curated, expanded note",
+    "viewport": "mobile",
+    "auth": "in",
+    "file": "mobile-player-curated-expanded-mobile-logged-in.png",
+    "focus": false
+  },
+  {
+    "id": "mobile-player-candidate",
+    "group": "Players · mobile unified",
+    "label": "Mobile dock — candidate, match reason",
+    "viewport": "mobile",
+    "auth": "out",
+    "file": "mobile-player-candidate-mobile-logged-out.png",
+    "focus": false
+  },
+  {
+    "id": "mobile-player-candidate",
+    "group": "Players · mobile unified",
+    "label": "Mobile dock — candidate, match reason",
+    "viewport": "mobile",
+    "auth": "in",
+    "file": "mobile-player-candidate-mobile-logged-in.png",
+    "focus": false
+  },
+  {
+    "id": "mobile-player-vertical",
+    "group": "Players · mobile unified",
+    "label": "Mobile dock — vertical 9:16 clip",
+    "viewport": "mobile",
+    "auth": "out",
+    "file": "mobile-player-vertical-mobile-logged-out.png",
+    "focus": false
+  },
+  {
+    "id": "mobile-player-top-parked",
+    "group": "Players · mobile unified",
+    "label": "Mobile dock — parked at the top edge",
+    "viewport": "mobile",
+    "auth": "out",
+    "file": "mobile-player-top-parked-mobile-logged-out.png",
+    "focus": false
+  },
+  {
+    "id": "mobile-player-maximized-horizontal",
+    "group": "Players · mobile unified",
+    "label": "Mobile dock — maximized 16:9 (landscape)",
+    "viewport": "mobile",
+    "auth": "out",
+    "file": "mobile-player-maximized-horizontal-mobile-logged-out.png",
+    "focus": false
+  },
+  {
+    "id": "mobile-player-maximized-vertical",
+    "group": "Players · mobile unified",
+    "label": "Mobile dock — maximized 9:16 (full height upright)",
+    "viewport": "mobile",
+    "auth": "out",
+    "file": "mobile-player-maximized-vertical-mobile-logged-out.png",
     "focus": false
   },
   {

@@ -79,6 +79,21 @@ beforeEach(async () => {
   routerPush.mockReset();
   qid = "Q189603";
   await seedIfEmpty();
+  // Issue #120: this test pins the DESKTOP PinnedPlayer's logged-out "Curate this video" CTA
+  // wiring (the mobile MobilePlayerDock CTA wiring is covered in mobile-player-dock-wiring.test.tsx
+  // / mobile-player-dock.test.tsx). Report a desktop viewport so the candidate play routes into the
+  // bottom-left PinnedPlayer ("Video preview"). The shared setup's matchMedia returns matches:false
+  // for every query; here `(min-width: 1024px)` must MATCH.
+  window.matchMedia = ((query: string) => ({
+    matches: /min-width:\s*1024px/.test(query),
+    media: query,
+    onchange: null,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  })) as unknown as typeof window.matchMedia;
 });
 afterEach(() => {
   vi.clearAllMocks();

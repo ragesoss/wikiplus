@@ -271,6 +271,62 @@ async function openPinnedPlayer(page: Page): Promise<void> {
   await page.waitForTimeout(200);
 }
 
+// ── Unified mobile dock (issue #120) ──
+// On a mobile viewport (< lg) BOTH curated and candidate playback route into the one
+// `MobilePlayerDock`, a `<section aria-label="Video player">` (distinct from the desktop
+// PinnedPlayer's "Video preview"). These helpers drive its captured states. The mobile scenes
+// run only at the `mobile` viewport, so the play click always lands on the mobile dock.
+
+/** Open the unified mobile dock by playing the first video in the General band. */
+async function openMobileDock(page: Page): Promise<void> {
+  await page.locator("#general-band").waitFor();
+  await page.getByRole("button", { name: /^Play:/ }).first().click();
+  await page.locator(SEL_MOBILE_DOCK).waitFor();
+  await page.waitForTimeout(200);
+}
+
+/** Open the mobile dock, then expand the curated "Context ▸" note panel. */
+async function openMobileDockExpanded(page: Page): Promise<void> {
+  await openMobileDock(page);
+  await page.getByRole("button", { name: /^Context/ }).click();
+  await page.waitForTimeout(150);
+}
+
+/** Open the mobile dock, then park it at the TOP edge (the toggle's other state). */
+async function openMobileDockTopParked(page: Page): Promise<void> {
+  await openMobileDock(page);
+  await page.getByRole("button", { name: /Move player to top of screen/ }).click();
+  await page.waitForTimeout(150);
+}
+
+/** Rotate to a landscape mobile window, THEN open the dock so it mounts maximized (CSS
+ *  fill-the-viewport, not native fullscreen — design §6.5). A 16:9 clip fills the width. */
+async function openMobileDockMaximizedHorizontal(page: Page): Promise<void> {
+  await page.setViewportSize({ width: 740, height: 390 });
+  await page.waitForTimeout(150);
+  await openMobileDock(page);
+}
+
+// A specific 9:16 vertical curated Short on the Photosynthesis topic (lib/data/seed.ts) — used to
+// evidence the height-capped, letterboxed vertical fit and the upright maximized vertical view.
+const VERTICAL_CLIP_CAPTION = "Photosynthesis Explained in under 1min! 🌱🔆";
+
+/** Play a vertical (9:16) curated Short → the dock docks height-capped + centered/letterboxed. */
+async function openMobileDockVertical(page: Page): Promise<void> {
+  await page.locator("#general-band").waitFor();
+  await page.getByRole("button", { name: `Play: ${VERTICAL_CLIP_CAPTION}` }).first().click();
+  await page.locator(SEL_MOBILE_DOCK).waitFor();
+  await page.waitForTimeout(200);
+}
+
+/** Open a vertical Short docked, then maximize it (explicit ⤢ button — a Short's best frame is
+ *  portrait-tall, so its maximize is reachable without a rotation gesture). Fills full height. */
+async function openMobileDockMaximizedVertical(page: Page): Promise<void> {
+  await openMobileDockVertical(page);
+  await page.getByRole("button", { name: /Maximize video to fill the screen/ }).click();
+  await page.waitForTimeout(150);
+}
+
 /** Reveal the mobile header search (icon → expanded field). */
 async function revealMobileSearch(page: Page): Promise<void> {
   await page.locator("header.header-shared").waitFor();
@@ -286,6 +342,8 @@ const SEL_TOC = 'nav[aria-label="Table of contents"]';
 const SEL_OVERVIEW = '.plus-card:has-text("on this topic")'; // the ＋plus Infobox header is unique
 const SEL_PLAYER_MODAL = '[role="dialog"][aria-label="Video player"]';
 const SEL_PINNED = 'section[aria-label="Video preview"]';
+// The unified mobile dock (issue #120) — distinct from the desktop PinnedPlayer's "Video preview".
+const SEL_MOBILE_DOCK = 'section[aria-label="Video player"]';
 
 // ── The catalog ─────────────────────────────────────────────────────────────────────────────────
 
@@ -431,10 +489,11 @@ export const SCENES: Scene[] = [
   {
     id: "player-modal",
     group: "Players",
-    label: "PlayerModal — curated clip (blocking)",
-    note: "The dialog player + curation note, opened from a curated tile.",
+    label: "PlayerModal — curated clip (blocking, desktop)",
+    note: "The dialog player + curation note, opened from a curated tile. Desktop-only: on mobile/tablet (< lg) curated playback uses the unified mobile dock (issue #120).",
     route: "/topic/Photosynthesis/",
     stub: "curated",
+    viewports: ["desktop"],
     ready: topicReady,
     prepare: openPlayerModal,
     clip: SEL_PLAYER_MODAL,
@@ -442,13 +501,104 @@ export const SCENES: Scene[] = [
   {
     id: "pinned-player",
     group: "Players",
-    label: "PinnedPlayer — candidate dock (non-modal)",
-    note: "The corner dock, opened from a suggested candidate.",
+    label: "PinnedPlayer — candidate dock (non-modal, desktop)",
+    note: "The corner dock, opened from a suggested candidate. Desktop-only: on mobile/tablet (< lg) candidate playback uses the unified mobile dock (issue #120).",
     route: "/topic/Cellular_respiration/",
     stub: "suggestions",
+    viewports: ["desktop"],
     ready: topicReady,
     prepare: openPinnedPlayer,
     clip: "fullPage",
+  },
+
+  // ── Unified mobile player (issue #120) — all mobile-only states ──
+  {
+    id: "mobile-player-curated",
+    group: "Players · mobile unified",
+    label: "Mobile dock — curated, collapsed curation",
+    note: "Curated clip docked at the bottom: title-bar credit + chips + 'Context ▸'. Logged-out adds the join nudge.",
+    route: "/topic/Photosynthesis/",
+    stub: "curated",
+    viewports: ["mobile"],
+    ready: topicReady,
+    prepare: openMobileDock,
+    clip: "viewport",
+  },
+  {
+    id: "mobile-player-curated-expanded",
+    group: "Players · mobile unified",
+    label: "Mobile dock — curated, expanded note",
+    note: "The 'Context ▸' expander opened: full note + 'context by' on a light surface, scrolling inside the bounded region. Logged-out arm shows the join nudge after the note.",
+    route: "/topic/Photosynthesis/",
+    stub: "curated",
+    viewports: ["mobile"],
+    ready: topicReady,
+    prepare: openMobileDockExpanded,
+    clip: "viewport",
+  },
+  {
+    id: "mobile-player-candidate",
+    group: "Players · mobile unified",
+    label: "Mobile dock — candidate, match reason",
+    note: "Candidate docked: one-line match reason in place of the note. Logged-out shows '✦ Curate this video'; signed-in is metadata-only.",
+    route: "/topic/Cellular_respiration/",
+    stub: "suggestions",
+    viewports: ["mobile"],
+    ready: topicReady,
+    prepare: openMobileDock,
+    clip: "viewport",
+  },
+  {
+    id: "mobile-player-vertical",
+    group: "Players · mobile unified",
+    label: "Mobile dock — vertical 9:16 clip",
+    note: "A 9:16 Short docked: height-capped at min(55vh,420px), centered + letterboxed on black — the vertical fit at 390px.",
+    route: "/topic/Photosynthesis/",
+    stub: "curated",
+    viewports: ["mobile"],
+    auth: ["out"],
+    ready: topicReady,
+    prepare: openMobileDockVertical,
+    clip: "viewport",
+  },
+  {
+    id: "mobile-player-top-parked",
+    group: "Players · mobile unified",
+    label: "Mobile dock — parked at the top edge",
+    note: "The park toggle's other state: the dock pinned to the top, the article reflowed below it (the toggle now reads 'Move to bottom').",
+    route: "/topic/Photosynthesis/",
+    stub: "curated",
+    viewports: ["mobile"],
+    auth: ["out"],
+    ready: topicReady,
+    prepare: openMobileDockTopParked,
+    clip: "viewport",
+  },
+  {
+    id: "mobile-player-maximized-horizontal",
+    group: "Players · mobile unified",
+    label: "Mobile dock — maximized 16:9 (landscape)",
+    note: "Rotated to a landscape window (740×390), a 16:9 clip maximizes to fill the viewport via CSS (not native fullscreen — §6.5); chrome condenses to a thin Close bar.",
+    route: "/topic/Photosynthesis/",
+    stub: "curated",
+    viewports: ["mobile"],
+    auth: ["out"],
+    ready: topicReady,
+    prepare: openMobileDockMaximizedHorizontal,
+    clip: "viewport",
+  },
+  {
+    id: "mobile-player-maximized-vertical",
+    group: "Players · mobile unified",
+    label: "Mobile dock — maximized 9:16 (full height upright)",
+    note: "A 9:16 Short maximized via the explicit ⤢ button: fills the full portrait height upright, centered + letterboxed (a Short's best frame regardless of device orientation).",
+    route: "/topic/Photosynthesis/",
+    stub: "curated",
+    viewports: ["mobile"],
+    auth: ["out"],
+    ready: topicReady,
+    prepare: openMobileDockMaximizedVertical,
+    clip: "viewport",
   },
 
   // ── Article not found (#19) ──
