@@ -146,8 +146,8 @@ export const GENERAL_CANDIDATE_COUNT = 5;
  * for each section, in article order, claim its best match that hasn't already been
  * claimed by an earlier section; if the best video is taken, fall through to the
  * next-best still-unused candidate that clears the threshold (rather than the section
- * getting nothing). This preserves "best single match per section" — each section still
- * gets its best *available* match, one home per video — while improving section-match
+ * getting nothing). This is "best available match per section" — each section gets its
+ * best *available* match, one home per video — which improves section-match
  * yield (AC5 / success metric). The remaining results, in relevance order, fill the
  * General band up to GENERAL_CANDIDATE_COUNT. Inputs are already deduped (within-set +
  * against curated + dismissed) by the caller; this only does placement + matchReason +

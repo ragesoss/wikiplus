@@ -19,12 +19,14 @@
 import {
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type ReactNode,
 } from "react";
 import {
   APERTURE_SEAM_OFFSET,
+  GlyphTile,
   HeaderProjector,
   type ProjectorGeometry,
 } from "@/components/wordmark/HeaderProjector";
@@ -34,6 +36,7 @@ import {
   deriveHeaderProgress,
   quantizeProgress,
 } from "@/lib/header/progress";
+import { NarrowSearchProvider } from "@/lib/header/narrowSearchContext";
 
 // ── Topic Tier-A geometry. This is the SHARED Tier-A geometry both hosts render (spec Decision 1 /
 // §10.1 no-fork): the beam flares over a 104px band with the wordmark row at cyMid=28 (cone length
@@ -61,6 +64,9 @@ const SLIM_GATE_P = 0.5;
 // `lg` (the Topic grid's side-by-side ↔ stacked breakpoint; #72 decision (a)). Seam-on-divider
 // applies ONLY at ≥ lg, where a real divider exists (§3 / AC2 / AC10).
 const LG_BREAKPOINT = 1024;
+// `md` (Tailwind 768) — the inline ↔ disclosure search handoff (same constant HeaderAuth uses for
+// its skin handoff). The narrow-search collapse (topic-mobile-search §3.1) fires ONLY < md.
+const MD_BREAKPOINT = 768;
 
 // #72 DEFECT-A — the reserved upper-left search box (px). The chrome row reserves this width for
 // the search slot, and the SELF-CONTAINED (< lg) lockup is anchored to START past it (`leftInset`),
@@ -94,8 +100,13 @@ export function TopicHeaderSearch({
       <div className="hidden min-w-0 md:flex">
         <TopicSearch variant="topic-inline" prefill={prefill} />
       </div>
-      {/* Icon-disclosure < md (AC7) — reveals the same field on tap. */}
-      <div className="flex md:hidden">
+      {/* Icon-disclosure < md (AC7) — reveals the same field on tap. `w-full min-w-0` lets the
+          wrapper SHRINK within the chrome search slot and fill it when open, so the disclosure's
+          expanded field can flex (topic-mobile-search §3.4) without the wrapper's min-content
+          overflowing the slot and pushing the field past the login. When collapsed the magnifier
+          button keeps its fixed 44px box at the left — the wrapper spanning the slot is an invisible
+          box, so the collapsed appearance is unchanged (AC3). */}
+      <div className="flex w-full min-w-0 md:hidden">
         <TopicSearch variant="topic-disclosure" prefill={prefill} />
       </div>
     </>
@@ -338,6 +349,40 @@ function TopicSiteHeader({
     setIsSlim((prev) => (slim === prev ? prev : slim))
   );
 
+  // ── The narrow-search collapse signal (topic-mobile-search §3.1, plumbing option (a)). ────────
+  // `narrowSearchExpanded` = (viewport < md) AND (the topic-disclosure search field is open). The
+  // disclosure reports its open state up via the context's `setSearchFieldOpen` (the lift); the
+  // header ANDs that with a < md media check (the same MD_BREAKPOINT pattern HeaderAuth uses). When
+  // true it (i) SUPPRESSES the projector wordmark layer entirely (HeaderProjector `suppressWordmark`,
+  // §3.2 — no lockup, no beam, no projector-layer glyph) and instead renders the existing `GlyphTile`
+  // "+" home link as a chrome-row flex child in the MIDDLE (between the field and the login), and
+  // (ii) collapses the login to icon-only (HeaderAuth reads `narrowSearchExpanded` from the context,
+  // §3.3) — so both neighbours collapse, and the field (leftmost) flexes rightward toward the middle
+  // glyph, in a fixed left→right order field · "+" · login, as ONE coordinated change. It is
+  // structurally false ≥ md (the media check) and false while collapsed (the field reports closed) —
+  // the magnifier-only and ≥ md states are untouched (AC3/AC11).
+  const [searchFieldOpen, setSearchFieldOpen] = useState(false);
+  const [isNarrow, setIsNarrow] = useState(false);
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.matchMedia) return;
+    const mql = window.matchMedia(`(max-width: ${MD_BREAKPOINT - 1}px)`);
+    const apply = () => setIsNarrow(mql.matches);
+    apply();
+    if (mql.addEventListener) mql.addEventListener("change", apply);
+    else mql.addListener(apply);
+    return () => {
+      if (mql.removeEventListener) mql.removeEventListener("change", apply);
+      else mql.removeListener(apply);
+    };
+  }, []);
+  const narrowSearchExpanded = isNarrow && searchFieldOpen;
+  // Stable context value so consumers (TopicSearch reporting up, HeaderAuth reading down) don't
+  // re-render on an unrelated header re-render. `setSearchFieldOpen` from useState is already stable.
+  const narrowSearchValue = useMemo(
+    () => ({ narrowSearchExpanded, setSearchFieldOpen }),
+    [narrowSearchExpanded]
+  );
+
   // ── Seam-on-divider geometry (AC2/AC10/AC11), measured at MOUNT + on RESIZE only (never on
   // scroll). The probe (a zero-height div spanning the grid's gutter, rendered in the overlay)
   // gives the real gutter-centre in viewport px; we express it as a fraction of the band width so
@@ -408,6 +453,7 @@ function TopicSiteHeader({
   };
 
   return (
+    <NarrowSearchProvider value={narrowSearchValue}>
     <header
       ref={headerRef}
       // Background is `--beam-seam-surface` (owned by `.header-shared`): the visible cool fluorescent
@@ -481,6 +527,11 @@ function TopicSiteHeader({
             geometry={tierAGeometry}
             continuous
             href="/"
+            // §3.2 — suppress the WHOLE projector layer (no lockup, no beam, no projector-layer
+            // glyph) while the narrow search disclosure is open, so nothing sits behind the open
+            // field (AC4). The "+" wordmark for that state is the chrome-row middle GlyphTile link
+            // below. On close this clears and the normal `p`-driven lockup/beam returns.
+            suppressWordmark={narrowSearchExpanded}
           />
         </div>
 
@@ -488,8 +539,12 @@ function TopicSiteHeader({
             the top SLIM_BAR_HEIGHT. z-10 → above the projector band. It reserves the upper-left
             search box (so the lockup never overlaps it — DEFECT-A) and right-anchors the single
             auth. The title cue (slim only) flexes in the middle, truncating first under pressure.
-            The wordmark is NOT in this row — it is the projector layer above, positioned at the
-            seam / left-inset — so search + auth own their own boxes and can never be overlapped. ── */}
+            Normally the wordmark is NOT in this row — it is the projector layer above, positioned at
+            the seam / left-inset — so search + auth own their own boxes and can never be overlapped.
+            EXCEPTION (topic-mobile-search §3.2/§3.4): while the narrow search is open the projector
+            layer is suppressed and the "+" wordmark is hosted HERE as a `shrink-0` chrome-row child
+            placed between the search slot and the auth slot — the MIDDLE of the fixed left→right
+            order field · "+" · login. ── */}
         <div
           className="header-chrome pointer-events-none absolute inset-x-0 top-0 z-10 mx-auto flex max-w-[1200px] items-center gap-3 px-5"
           style={{ height: SLIM_BAR_HEIGHT }}
@@ -497,11 +552,44 @@ function TopicSiteHeader({
           {/* Search — upper-left (AC6/AC7). The host passes topic-inline ≥ md / topic-disclosure
               < md. min-w-0 lets the inline field shrink; the disclosure icon is a fixed 44px box.
               pointer-events-auto restores interactivity (the row is pointer-events-none so its empty
-              middle lets clicks fall through to the flat wordmark link behind it — DEFECT-A). */}
+              middle lets clicks fall through to the flat wordmark link behind it — DEFECT-A).
+              topic-mobile-search §3.4: while the narrow search is open the slot also `grow`s so the
+              field FILLS the row's free space between the glyph and the login (instead of `ml-auto`
+              on the auth eating the slack) — the field is wider at wider narrow widths (AC9) and the
+              login stays pinned at the right with no overlap. The `grow` is gated to the open state,
+              so the collapsed magnifier slot is unchanged (AC3) and ≥ md is untouched (AC11). */}
           {search ? (
-            <div className="pointer-events-auto flex min-w-0 shrink items-center">
+            <div
+              className={`pointer-events-auto flex min-w-0 shrink items-center ${
+                narrowSearchExpanded ? "grow" : ""
+              }`}
+            >
               {search}
             </div>
+          ) : null}
+
+          {/* The "+" wordmark, hosted in the chrome-row MIDDLE while the narrow search is open
+              (topic-mobile-search §3.2/§3.4). The SAME `GlyphTile` "+" mark the < 380px projector
+              squeeze renders (no fork — AC1), wrapped in the `<a href="/" aria-label="wiki+">` home
+              link (AC8), as a `shrink-0` flex child placed AFTER the search slot and BEFORE the auth
+              slot. The field (leftmost, growing) flexes rightward UP TO this glyph; the login is to
+              its right (ml-auto). A ≥ 44×44 tap box (28px graphic centred in an h-11 w-11 box —
+              AC14), keyboard-focusable with a visible focus ring (AC: §6). It renders ONLY while
+              expanded — the projector layer owns the wordmark in every other state (collapsed and
+              ≥ md unchanged — AC3/AC11). pointer-events-auto restores interactivity over the
+              pointer-events-none row; `header-search-glyph` fades it in over the ~150ms reveal
+              (globals.css, reduced-motion-gated — §5.1). */}
+          {search && narrowSearchExpanded ? (
+            <a
+              href="/"
+              aria-label="wiki+"
+              data-testid="narrow-search-wordmark"
+              className="header-search-glyph pointer-events-auto flex h-11 w-11 shrink-0 items-center justify-center rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+            >
+              <span aria-hidden="true" className="inline-flex">
+                <GlyphTile />
+              </span>
+            </a>
           ) : null}
 
           {/* A4 — the muted article-title cue, slim state ONLY (§4.4). One muted serif line,
@@ -528,5 +616,6 @@ function TopicSiteHeader({
         </div>
       </div>
     </header>
+    </NarrowSearchProvider>
   );
 }

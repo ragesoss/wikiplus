@@ -79,6 +79,24 @@ GitHub-hosted runner and pushes it to **GHCR** (`ghcr.io/ragesoss/wikiplus`, tag
 OOM) — it only pulls + runs. This is the deploy leg of the cloud, mobile-drivable
 prompt → staging loop.
 
+**PR gate — catch `.dockerignore` breaks before merge.** A separate
+[`.github/workflows/pr-ci.yml`](../.github/workflows/pr-ci.yml) job runs on `pull_request`
+(targeting `main`) and builds the Dockerfile **`build` stage** (`yarn build` + `yarn
+build:migrate`) against the **same trimmed context** (`Dockerfile` + `.dockerignore`) the
+deploy uses — `target: build`, `push: false`, no GHCR, no deploy secrets. It exists because
+the host QA gate (`yarn build`/`tsc`) typechecks the **full** working tree and never respects
+`.dockerignore`, so a file the trimmed context drops (anything under `e2e/` or `scripts/dev/`,
+or a root file importing from them) can pass on the host yet break `next build` inside the
+image. Building the real `build` stage surfaces that break on the PR. It reuses the deploy
+build's GitHub Actions layer cache (`cache-from: type=gha`), so a normal PR runs in roughly the
+deploy build's time (~1–2 min). **Why the trimmed-context Docker build, not a cheaper
+host check:** the considered alternative — replicate the `.dockerignore` exclusions on the
+host and run `tsc --noEmit` over the remainder — would drift from the real deploy context (a
+second, hand-maintained copy of the exclusion list that silently rots), whereas building the
+actual `build` stage with the actual `Dockerfile` + `.dockerignore` can never drift from what
+the deploy does. Recommended as a required status check on `main` (a repo branch-protection
+setting).
+
 ### Self-hosted Next.js gotcha to design around (decide now, not later)
 
 Next.js ISR's default cache is **per-instance, on local disk**. The moment you run more
@@ -119,7 +137,8 @@ Keyed on stable identifiers, normalized, minimal.
   - `id`
   - `topic_id` → topic
   - `video_url`, `provider` (tiktok/instagram/youtube/vimeo/…), `provider_video_id`
-  - `orientation` (`vertical` | `horizontal`) — drives the embed aspect ratio (9:16 vs 16:9)
+  - `orientation` (`vertical` | `horizontal`) — drives the embed aspect ratio (9:16 vs 16:9);
+    **auto-derived, never hand-set** (see *Orientation derivation* under *Embed, never host video*)
   - `embed_meta` — cached oEmbed result (title, thumbnail, author, duration, embed HTML/params)
   - **creator fields** — `creator_handle`, `creator_name`, `creator_platform`, `creator_url`,
     `creator_followers` (cached at curation time; the personality behind the clip)
@@ -339,6 +358,23 @@ correctly). Provider notes that affect integration:
 Because some embeds inject third-party scripts, render them lazily / behind a click-to-load
 facade where possible — this protects the read path's speed and the page's privacy posture.
 
+**Orientation derivation.** A clip's `orientation` is **auto-derived from the platform signal, never
+hand-set and with no manual override** — the curator never picks an aspect ratio. Both producers of
+an orientation apply one rule:
+
+- **Dimension signal present** — when a source carries the clip's frame dimensions, the aspect
+  decides: **`height > width ⇒ vertical`, else horizontal**. This is platform-agnostic. The
+  add-by-link resolved arm reads the oEmbed player `width`/`height` (so a resolved TikTok's portrait
+  dims ⇒ vertical, a landscape YouTube video ⇒ horizontal, a Short ⇒ vertical); the candidate
+  pipeline reads the search-result thumbnail aspect.
+- **No dimension signal** — fall back to a **per-platform default**: `tiktok`/`instagram` ⇒
+  **vertical** (vertical-first feeds); `youtube`/`other` ⇒ **horizontal** (default landscape,
+  vertical only on a positive signal). This covers the add-by-link placeholder arm (resolution
+  failed or the platform is unsupported, so no dims exist) and any resolve whose provider omits the
+  player dims.
+
+The default map and the resolved-arm derivation are shared so there is one source of truth.
+
 ## Candidate suggestion & the empty state
 
 Every topic begins with zero curations. To stay useful and seed the curation flywheel, the empty
@@ -354,7 +390,9 @@ behavior in [`TOPIC_PAGE_DESIGN.md`](TOPIC_PAGE_DESIGN.md) §"Three states".)
   pipeline **platform-agnostic** (a pluggable source interface) so additional platforms slot in.
   At launch, seed the General bar from the **YouTube Data API search** for the topic; for inline
   section candidates, match candidate metadata (title/description/tags) against article section
-  titles/keywords and surface the best single match per section.
+  titles/keywords and surface the best available match per section (the best still-unused candidate,
+  so a section whose top pick is claimed by an earlier section falls through to its runner-up; one
+  home per video).
 - **TikTok auto-suggestion is deferred — pragmatic, not a design boundary.** There is no easy
   official TikTok search API today, so we don't auto-pull TikTok *yet*; the pipeline and frontend
   already accommodate TikTok candidates, and the source is enabled when a practical search path
@@ -1219,7 +1257,7 @@ a host is provisioned (issue A.2).
   the seam is now a **live, cached YouTube Data API search**, not only seeded mock data. A pluggable
   source registry (`lib/candidates/index.ts`, YouTube the only registered source — TikTok/Vimeo slot in
   additively) feeds a deterministic pipeline (`pipeline.ts`): one `search.list` call per topic →
-  case-insensitive keyword-overlap **section matching** (`matching.ts`, best single match per section,
+  case-insensitive keyword-overlap **section matching** (`matching.ts`, best available match per section,
   non-topic-generic threshold, fixed tie-break order) → **placement** (one home per video, section beats
   General, General capped at 5) → dedup against curated clips + sticky dismissals + within-set. The seam
   gains **`suggestCandidates({topicQid, topicTitle, sections, curatedVideoKeys})`** (returns the computed

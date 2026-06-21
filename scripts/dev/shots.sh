@@ -1,50 +1,70 @@
 #!/usr/bin/env bash
-# Standard PR screenshot matrix for wiki+ — one command to render the app's main UI surfaces across
-# the states reviewers + the owner care about, then (optionally) attach them to a PR.
+# Standard PR screenshot gallery for wiki+ — one command to render the app's UI surfaces across the
+# states reviewers + the owner care about, build a browsable HTML index, and (optionally) attach a
+# chosen subset to a PR or refresh the committed canonical gallery.
 #
-# It drives the committed capture spec `e2e/screenshots.spec.ts` (which self-skips in the normal CI
-# e2e gate unless SHOTS=1) against the real Node SSR server with the in-spec Wikipedia/Wikidata/
+# It drives the catalog-backed capture spec `e2e/screenshots.spec.ts` (which self-skips in the normal
+# CI e2e gate unless SHOTS=1) against the real Node SSR server with the in-spec Wikipedia/Wikidata/
 # YouTube stubs + a seeded ephemeral Postgres (Playwright globalSetup), signing in via the e2e
-# session-cookie helper for the logged-in shots — no real OAuth, no network egress.
+# session-cookie helper for the logged-in shots — no real OAuth, no network egress. Every surface +
+# state is a `Scene` in e2e/screenshots/catalog.ts (the SINGLE source of truth); each scene renders
+# across mobile/tablet/desktop × logged-out/logged-in. The logged-in shots are guarded: a capture
+# whose client session didn't resolve a numeric contributorId FAILS LOUDLY (never a silent
+# logged-out "logged-in" shot — #109).
 #
-# The matrix (per surface): logged-out + logged-in × desktop / tablet / mobile; for Topic also the
-# scroll-top (Tier A, full beam) and slim-sticky (scrolled, beam faded) states + the mobile search
-# icon-reveal. Home (landing), Topic, and the article-not-found state are the surfaces; subset with
-# --home / --topic / --notfound.
+# WORKFLOW. By default the FULL set lands in a gitignored working dir with an `index.html`. For a PR,
+# pick the relevant scenes (--scene / --group / --focus) and attach just those (--pr). The committed
+# canonical baseline lives at docs/design/ui-screenshots/ — refresh it on demand with --commit:
+#   • a UI change touching a few surfaces → PARTIAL refresh, e.g.
+#       scripts/dev/shots.sh --group "Topic · header" --commit ui   (re-renders just those, keeps the rest)
+#   • a broad/shared change (header, palette, a shared component) or a new scene → FULL refresh:
+#       scripts/dev/shots.sh --all --commit ui
 #
 # Usage:
-#   scripts/dev/shots.sh [--all|--home|--topic|--notfound] [--out DIR] [--commit [SLUG]] [--pr N]
-# Options:
-#   --all            all surfaces (default)
-#   --home           only the home/landing shots
-#   --topic          only the Topic-page shots
-#   --notfound       only the article-not-found shots (nonexistent Wikipedia title)
-#   --out DIR        output dir (default: screenshots/standard — gitignored)
-#   --commit [SLUG]  write to docs/design/<SLUG>-screenshots/ instead (the opt-in PERMANENT record,
-#                    for design-system / identity work) and `git add` them. SLUG defaults to the
-#                    current branch name. Mutually informs --out.
-#   --pr N           after rendering, attach the shots to PR #N as a comment gallery. The PNGs are
-#                    pushed to a dedicated `screenshots` branch (never merged → main stays lean) and
-#                    referenced by SHA-pinned raw URLs (survive the PR branch being deleted).
+#   scripts/dev/shots.sh [SELECTION] [--out DIR] [--commit [SLUG]] [--pr N]
+# Selection (default: everything):
+#   --all                 every scene (default)
+#   --group NAME          one index group, e.g. --group "General Strip"  (or a slug: general-strip)
+#   --scene ID[,ID…]      named scenes, e.g. --scene general-suggestions,player-modal
+#   --focus ID[,ID…]      named scenes AND pin+badge them at the top of the index (the PR's focus)
+#   --home/--topic/--notfound   back-compat aliases (home / all topic surfaces / the not-found scene)
+# Output:
+#   --out DIR             output dir (default: screenshots/standard — gitignored)
+#   --commit [SLUG]       write to docs/design/<SLUG>-screenshots/ and `git add` it — the on-demand
+#                         refresh of the PERMANENT committed gallery (the baseline is SLUG=ui). With
+#                         --all it re-renders everything; with a subset it PARTIALLY refreshes (only
+#                         the selected scenes, preserving the rest). SLUG defaults to the branch name.
+#   --pr N                attach the rendered set to PR #N as a comment gallery. PNGs are pushed to a
+#                         dedicated `screenshots` branch (never merged → main stays lean) and
+#                         referenced by SHA-pinned raw URLs (survive the PR branch being deleted).
 #
-# Default output is gitignored (no repo bloat); galleries are hosted on the side branch. Use
-# --commit only when the screenshots are themselves design evidence worth keeping in the tree.
+# The catalog is the source of truth: to add a shot, add a scene there — it is captured AND indexed
+# automatically; no edits to this script or the spec.
 set -uo pipefail
 cd "$(dirname "$0")/../.." || exit 1
 
-scope="all"; out=""; commit=0; slug=""; pr=""
+scope="all"; out=""; commit=0; slug=""; pr=""; grep_pat=""; focus=""
+
+# Normalize a group name to the spec's @group tag slug (lowercase, non-alnum → '-').
+slugify() { printf '%s' "$1" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9' '-' | sed 's/^-//;s/-$//'; }
+# Join a comma list of scene ids into an alternation that matches the `@scene:<id> ` tag exactly.
+scene_grep() { printf '@scene:(%s) ' "$(printf '%s' "$1" | tr ',' '|')"; }
+
 while [ $# -gt 0 ]; do
   case "$1" in
-    --all)   scope="all"; shift ;;
-    --home)  scope="home"; shift ;;
-    --topic) scope="topic"; shift ;;
-    --notfound) scope="notfound"; shift ;;
-    --out)   out="$2"; shift 2 ;;
-    --commit) commit=1
-              if [ $# -ge 2 ] && [[ "$2" != --* ]]; then slug="$2"; shift; fi
-              shift ;;
-    --pr)    pr="$2"; shift 2 ;;
-    -h|--help) sed -n '2,31p' "$0"; exit 0 ;;
+    --all)      scope="all"; shift ;;
+    --group)    scope="group"; grep_pat="@group:$(slugify "$2")"; shift 2 ;;
+    --scene)    scope="scene"; grep_pat="$(scene_grep "$2")"; shift 2 ;;
+    --focus)    scope="focus"; focus="$2"; grep_pat="$(scene_grep "$2")"; shift 2 ;;
+    --home)     scope="home"; grep_pat="@group:home"; shift ;;
+    --topic)    scope="topic"; grep_pat="@group:(topic|general-strip|players)"; shift ;;
+    --notfound) scope="notfound"; grep_pat="@scene:topic-notfound "; shift ;;
+    --out)      out="$2"; shift 2 ;;
+    --commit)   commit=1
+                if [ $# -ge 2 ] && [[ "$2" != --* ]]; then slug="$2"; shift; fi
+                shift ;;
+    --pr)       pr="$2"; shift 2 ;;
+    -h|--help)  sed -n '2,38p' "$0"; exit 0 ;;
     *) echo "shots: unknown option '$1' (see --help)" >&2; exit 2 ;;
   esac
 done
@@ -57,21 +77,26 @@ if [ "$commit" = 1 ]; then
 fi
 [ -n "$out" ] || out="screenshots/standard"
 
-# Map scope → Playwright grep over the @home / @topic / @notfound tags in the spec titles.
 grep_arg=()
-case "$scope" in
-  home)     grep_arg=(--grep "@home") ;;
-  topic)    grep_arg=(--grep "@topic") ;;
-  notfound) grep_arg=(--grep "@notfound") ;;
-  all)      grep_arg=() ;;
-esac
+[ -n "$grep_pat" ] && grep_arg=(--grep "$grep_pat")
 
 echo "shots: rendering '$scope' → $out (this builds + serves the app; ~1–2 min)…"
 mkdir -p "$out"
-rm -f "$out"/home-*.png "$out"/topic-*.png "$out"/notfound-*.png 2>/dev/null || true
+# Clean the output dir so it reflects EXACTLY this run — EXCEPT a partial refresh of the committed
+# baseline (--commit + a subset), where the un-selected shots must SURVIVE so only the changed
+# scenes are re-rendered over them. (A full --all run always re-renders everything; a non-commit
+# run is the throwaway working dir.) The index is rebuilt from whatever PNGs remain either way.
+if [ "$commit" = 1 ] && [ "$scope" != all ]; then
+  rm -f "$out"/index.html "$out"/manifest.json 2>/dev/null || true
+else
+  rm -f "$out"/*.png "$out"/index.html "$out"/manifest.json 2>/dev/null || true
+fi
 SHOTS=1 SHOTS_OUT="$out" npx playwright test e2e/screenshots.spec.ts "${grep_arg[@]}"
 rc=$?
 if [ "$rc" != 0 ]; then echo "shots: capture run failed (rc=$rc)" >&2; exit "$rc"; fi
+
+# Build the browsable HTML index + manifest from the catalog + the PNGs just produced.
+SHOTS_FOCUS="$focus" npx tsx scripts/dev/shots-index.ts "$out"
 count=$(ls "$out"/*.png 2>/dev/null | wc -l | tr -d ' ')
 echo "shots: wrote $count screenshot(s) to $out"
 
@@ -82,7 +107,7 @@ fi
 [ -n "$pr" ] || exit 0
 
 # ── Attach to PR #$pr: push the PNGs to the dedicated `screenshots` side branch (never merged), then
-#    post a gallery comment with SHA-pinned raw URLs. ────────────────────────────────────────────
+#    post a gallery comment with SHA-pinned raw URLs, grouped from the run manifest. ───────────────
 command -v gh >/dev/null || { echo "shots: gh not on PATH — cannot post to PR #$pr" >&2; exit 1; }
 nwo="$(gh repo view --json nameWithOwner -q .nameWithOwner)"
 sbranch="screenshots"
@@ -112,32 +137,25 @@ body="$(mktemp)"
   echo
   echo "_Real-browser captures (Node SSR server, seeded DB; logged-in via the e2e session cookie — no real OAuth). Generated by \`scripts/dev/shots.sh\`._"
   echo
-  # Emit an image line only when the file was actually produced (subset-safe).
-  img() { [ -f "$out/$1.png" ] && { echo "**$2**"; echo; echo "![$2]($base/$1.png)"; echo; }; }
-  if ls "$out"/home-*.png >/dev/null 2>&1; then
-    echo "### Home (landing)"; echo
-    img home-desktop-logged-out "Desktop — logged out"
-    img home-desktop-logged-in  "Desktop — logged in"
-    img home-mobile-logged-out  "Mobile — logged out"
-    img home-mobile-logged-in   "Mobile — logged in"
-  fi
-  if ls "$out"/topic-*.png >/dev/null 2>&1; then
-    echo "### Topic"; echo
-    img topic-desktop-tierA-logged-out "Desktop ≥ lg — logged out (seam on the article↔plus divider)"
-    img topic-desktop-tierA-logged-in  "Desktop ≥ lg — logged in"
-    img topic-desktop-slim-logged-in   "Desktop — slim sticky bar (scrolled, beam faded)"
-    img topic-tablet-tierA-logged-out  "Tablet (md, stacked) — logged out"
-    img topic-mobile-tierA-logged-out  "Mobile (< md, search → icon) — logged out"
-    img topic-mobile-tierA-logged-in   "Mobile — logged in"
-    img topic-mobile-slim-logged-in    "Mobile — slim sticky (scrolled)"
-    img topic-mobile-search-revealed   "Mobile — search revealed"
-  fi
-  if ls "$out"/notfound-*.png >/dev/null 2>&1; then
-    echo "### Article not found (nonexistent Wikipedia title)"; echo
-    img notfound-desktop-logged-out "Desktop — logged out (header search is the recovery path)"
-    img notfound-desktop-logged-in  "Desktop — logged in"
-    img notfound-mobile-logged-out  "Mobile — logged out"
-  fi
+  # Group the gallery straight from the run manifest (catalog labels/groups) — no hand-kept list.
+  node -e '
+    const fs = require("fs");
+    const m = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
+    const base = process.argv[2];
+    const auth = a => (a === "in" ? "logged-in" : "logged-out");
+    const byGroup = {};
+    for (const s of m) (byGroup[s.group] ||= []).push(s);
+    const out = [];
+    for (const g of Object.keys(byGroup)) {
+      out.push("### " + g, "");
+      for (const s of byGroup[g]) {
+        const star = s.focus ? "⭐ " : "";
+        const cap = `${star}${s.label} — ${s.viewport} · ${auth(s.auth)}`;
+        out.push(`**${cap}**`, "", `![${cap}](${base}/${s.file})`, "");
+      }
+    }
+    process.stdout.write(out.join("\n"));
+  ' "$out/manifest.json" "$base"
 } > "$body"
 gh pr comment "$pr" --body-file "$body"
 rm -f "$body"

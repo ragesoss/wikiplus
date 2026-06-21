@@ -58,7 +58,7 @@ In scope:
 
 3. **Section-anchored rail candidates by metadata matching.** Match candidate metadata
    (title / description / tags) against the **article section titles/keywords** (the section list
-   the Topic page already derives — `ArticleSection[]`), and surface the **best single match per
+   the Topic page already derives — `ArticleSection[]`), and surface the **best available match per
    section** as a `general: false` candidate anchored by `sectionSlug`/`sectionLabel`, with a
    populated `matchReason` (ARCHITECTURE §"Candidate suggestion"). The match **anchors the candidate
    to its section in the plus rail** (rendered there by `CandidateCard`) and increments that
@@ -129,8 +129,14 @@ candidate's searchable text:
   title** (so "respiration" matching the "Cellular respiration" topic does not, by itself, qualify
   a section — that's just the topic, not the section). Single-word generic sections (e.g. "History",
   "Overview", "See also") **do not** get a section-anchored rail candidate.
-- **Best single match per section:** for each section, take the highest-scoring candidate; **only
-  one** section-anchored rail candidate per section (ARCHITECTURE: "best single match per section").
+- **Best *available* match per section:** for each section, in article order, take its
+  highest-scoring candidate whose video is not already claimed by an earlier section; if the top
+  pick is taken, fall through to the next-best still-unused candidate that clears the threshold
+  (rather than the section getting nothing). **Only one** section-anchored rail candidate per
+  section, and one home per video — no video appears twice (ARCHITECTURE: "best available match per
+  section"). This is the **best *available* match**, not the strict "best single match": a contested
+  later section keeps its solid runner-up instead of being starved, which raises section-match yield
+  (AC5 / a supporting success metric) without surfacing any video twice.
 - **Tie-breaking** (deterministic, in order): (1) higher title-hit count, (2) higher total score,
   (3) earlier position in the YouTube result order (YouTube's own relevance ranking), (4)
   `videoId` lexical order as a final stable tiebreak.
@@ -227,11 +233,13 @@ mandatory.
    by the live source has `vetted: false`, `source: "YouTube"`, `platform: "youtube"`, a non-empty
    `matchReason`, and **no** `stance`, `accuracyFlag`, or `contextNote` field set. (Enforced by the
    `Candidate` type and asserted in tests.)
-5. **Section matching surfaces the best single match.** For a topic whose article has sections, a
+5. **Section matching surfaces the best available match.** For a topic whose article has sections, a
    section-anchored rail candidate appears **only** for a section that clears the Decision-2
    threshold (≥1 distinct non-topic-generic keyword overlap); **at most one** section-anchored rail
-   candidate per section; the chosen candidate is the highest-scoring per the Decision-2 tie-break
-   order. Weak/generic sections (e.g. "History", "See also") get **no** section-anchored candidate.
+   candidate per section; the chosen candidate is the highest-scoring **still-unused** candidate per
+   the Decision-2 tie-break order (a section whose top pick was claimed by an earlier section falls
+   through to its next-best unused match rather than getting nothing — one home per video).
+   Weak/generic sections (e.g. "History", "See also") get **no** section-anchored candidate.
    The match anchors the candidate to its section in the plus rail and increments the TOC suggestion
    count; it is **not** rendered inline in the article body (issue #21,
    `docs/specs/wiki-column-no-plus.md`).

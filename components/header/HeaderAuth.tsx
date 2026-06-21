@@ -13,12 +13,17 @@
 
 import { useEffect, useState } from "react";
 import { AuthControl } from "@/components/auth/AuthControl";
+import { useNarrowSearch } from "@/lib/header/narrowSearchContext";
 
 const MD_BREAKPOINT = 768; // Tailwind `md` — the topic-compact ↔ home skin handoff (§5.7)
 
 export function HeaderAuth() {
   // Default to the ≥ md `home` skin for SSR/first paint; refine to `topic-compact` < md after mount.
   const [compact, setCompact] = useState(false);
+  // topic-mobile-search §3.3: while the narrow search disclosure is open (< md AND the field is
+  // expanded — the Topic-host-derived signal), collapse this login to icon-only. Inert outside the
+  // Topic host (the default context value is false), so Home/Page headers are unaffected.
+  const { narrowSearchExpanded } = useNarrowSearch();
 
   useEffect(() => {
     if (typeof window === "undefined" || !window.matchMedia) return;
@@ -34,5 +39,10 @@ export function HeaderAuth() {
     };
   }, []);
 
-  return <AuthControl variant={compact ? "topic-compact" : "home"} />;
+  return (
+    <AuthControl
+      variant={compact ? "topic-compact" : "home"}
+      forceIconOnly={narrowSearchExpanded}
+    />
+  );
 }

@@ -704,30 +704,69 @@ export function TopicView() {
   }, [railItems, activeSlug]);
 
   // ── Wide-region overflow flag (design §4.2 / templatestyles-reuse §4–§5). ──
-  // After the article renders, mark each contained scroll region (`.wiki-tablewrap`
-  // wide data tables, `.wiki-clade` cladogram trees, AND `.tmulti` multi-image montages)
-  // whose content is wider than the region with `data-overflow` so the CSS
-  // "Scroll table →" hint appears ONLY when scrolling is actually needed. Re-measures on
-  // resize. Inert when no tables/clades/montages.
+  // Mark each contained scroll region (`.wiki-tablewrap` wide data tables,
+  // `.wiki-clade` cladogram trees, AND `.tmulti` multi-image montages) whose content
+  // is wider than the region with `data-overflow`, so the CSS "Scroll table →" hint
+  // appears ONLY when scrolling is actually needed. Inert when there are no
+  // tables/clades/montages.
+  //
+  // The article body is injected via `dangerouslySetInnerHTML` and paints on a later,
+  // unknowably-delayed commit (longer still under CPU contention), so the wrappers are not
+  // in the DOM when the effect first runs. We therefore:
+  //   (a) watch the document with a MutationObserver and bind any newly-injected wrappers
+  //       as they appear — no fixed frame/time budget that could elapse before the paint;
+  //   (b) bind each wrapper to a ResizeObserver (wrapper + its content) so the flag tracks
+  //       layout and viewport changes without a global resize listener that can fire
+  //       mid-render against a transient size.
+  // A measurement is only trusted when `clientWidth` is non-trivial — a zero/near-zero
+  // width means the node is mid-layout, so we skip it rather than clear; a transient bad
+  // read during a re-render therefore can never clear a correctly-set flag.
   useEffect(() => {
     if (fetchState !== "ready") return;
-    const measure = () => {
-      for (const wrap of Array.from(
-        document.querySelectorAll<HTMLElement>(
-          ".wiki-tablewrap, .wiki-clade, .tmulti"
-        )
-      )) {
-        const overflowing = wrap.scrollWidth > wrap.clientWidth + 1;
-        if (overflowing) wrap.setAttribute("data-overflow", "");
-        else wrap.removeAttribute("data-overflow");
-      }
+    if (
+      typeof window === "undefined" ||
+      typeof ResizeObserver === "undefined" ||
+      typeof MutationObserver === "undefined"
+    )
+      return;
+
+    const SELECTOR = ".wiki-tablewrap, .wiki-clade, .tmulti";
+    let cancelled = false;
+    const resizeObservers = new Map<HTMLElement, ResizeObserver>();
+
+    // A node is only measurable once layout has given it a real width; a zero/near-zero
+    // clientWidth signals it is mid-layout, so we skip it rather than (wrongly) clearing.
+    const measure = (wrap: HTMLElement) => {
+      if (cancelled || wrap.clientWidth < 1) return;
+      if (wrap.scrollWidth > wrap.clientWidth + 1) wrap.setAttribute("data-overflow", "");
+      else wrap.removeAttribute("data-overflow");
     };
-    // Measure after layout settles (next frame), then on resize.
-    const raf = requestAnimationFrame(measure);
-    window.addEventListener("resize", measure, { passive: true });
+
+    // Bind a wrapper exactly once: a ResizeObserver on the wrapper (clientWidth) and its
+    // content (scrollWidth) re-evaluates overflow whenever either side changes.
+    const bind = (wrap: HTMLElement) => {
+      if (resizeObservers.has(wrap)) return;
+      const ro = new ResizeObserver(() => measure(wrap));
+      ro.observe(wrap);
+      if (wrap.firstElementChild) ro.observe(wrap.firstElementChild);
+      resizeObservers.set(wrap, ro);
+      measure(wrap);
+    };
+
+    const bindAll = () => {
+      for (const wrap of Array.from(document.querySelectorAll<HTMLElement>(SELECTOR)))
+        bind(wrap);
+    };
+
+    // Bind whatever is already present, then catch wrappers injected on later commits.
+    bindAll();
+    const mo = new MutationObserver(bindAll);
+    mo.observe(document.body, { childList: true, subtree: true });
+
     return () => {
-      cancelAnimationFrame(raf);
-      window.removeEventListener("resize", measure);
+      cancelled = true;
+      mo.disconnect();
+      for (const ro of resizeObservers.values()) ro.disconnect();
     };
   }, [fetchState, article]);
 

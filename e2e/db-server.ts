@@ -123,9 +123,13 @@ export async function startE2EDatabase(): Promise<void> {
     env: { ...process.env, DATABASE_URL: E2E_DATABASE_URL },
   });
 
-  // Seed the e2e test contributor (idempotent) and record its id for the auth helper. RETURNING
-  // the id means we never assume a serial value. `-tA` → tuples-only, unaligned (bare id).
-  const id = execFileSync(
+  // Seed the e2e test contributor and record its id for the auth helper. RETURNING the id means we
+  // never assume a serial value. `-tA` → tuples-only, unaligned (bare id) — but psql STILL prints
+  // its command-completion tag ("INSERT 0 1") on a SECOND stdout line, so the RETURNING value is
+  // line 1 and the tag is line 2. Parse line 1 only: a naive `.trim()` of the whole output leaves
+  // "2\nINSERT 0 1", whose `Number(...)` is `NaN` → the auth helper would mint a session with a
+  // null `contributorId` and every signed-in capture/test would silently run logged-out (#109).
+  const rawId = execFileSync(
     pg(bin, "psql"),
     [
       "-h",
@@ -142,8 +146,15 @@ export async function startE2EDatabase(): Promise<void> {
        RETURNING id;`,
     ],
     { encoding: "utf8" }
-  ).trim();
-  writeFileSync(E2E_USER_FILE, JSON.stringify({ contributorId: Number(id), handle: E2E_USER_HANDLE }));
+  );
+  const id = Number(rawId.split("\n", 1)[0]?.trim());
+  if (!Number.isInteger(id) || id <= 0) {
+    // Fail loud rather than write a null id that turns every signed-in test logged-out.
+    throw new Error(
+      `e2e: could not parse the seeded contributor id from psql output: ${JSON.stringify(rawId)}`
+    );
+  }
+  writeFileSync(E2E_USER_FILE, JSON.stringify({ contributorId: id, handle: E2E_USER_HANDLE }));
 }
 
 /** Stop the cluster and remove its datadir. Best-effort: never throws out of teardown. */

@@ -605,10 +605,9 @@ figure.wikifig .credit {
   margin-bottom: 0;
 }
 /* "Scroll table →" hint — TEXT, shown ONLY when the table overflows its wrapper
-   (design §4.2). Overflow can't be detected in CSS, so a client effect
-   (useTableOverflow, wired in TopicView) sets `data-overflow` on the wrapper after
-   layout; the hint renders solely off that flag. Text-labeled, never color/glyph
-   alone (A7/B2). */
+   (design §4.2). Overflow can't be detected in CSS, so a client effect in TopicView
+   sets `data-overflow` on the wrapper after layout; the hint renders solely off that
+   flag. Text-labeled, never color/glyph alone (A7/B2). */
 .wiki-tablewrap[data-overflow]::after {
   content: "Scroll table →";
   display: block;
@@ -979,6 +978,37 @@ figure.wikifig .credit {
 }
 .gs-fade-in {
   animation: wikiplus-fade-in 0.18s ease-out;
+}
+
+/* ── The expanded mobile-search reveal (topic-mobile-search §5.1). ──
+   On open the magnifier disappears, the field grows in FROM THE LEFT, the wordmark swaps to the
+   "+" glyph, and the login swaps to the "W". To read as one deliberate reveal (not three pops),
+   the open disclosure row animates a ~150ms ease-out grow (a left-anchored scaleX + opacity), and
+   the forced glyph / icon-only login cross-fade in over the same window. This is gated behind
+   `prefers-reduced-motion: no-preference` — under reduced motion the end-states apply instantly
+   (no width/opacity tween), the field is immediately usable, and focus still moves in (AC15). The
+   functional result is identical; only the animation is suppressed. */
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes wikiplus-search-grow {
+    from {
+      opacity: 0;
+      transform: scaleX(0.82);
+    }
+    to {
+      opacity: 1;
+      transform: scaleX(1);
+    }
+  }
+  .topic-disclosure-open {
+    transform-origin: left center;
+    animation: wikiplus-search-grow 0.15s ease-out;
+  }
+  /* The chrome-row middle "+" wordmark glyph (the `GlyphTile` home link hosted between the field and
+     the login while the field is open) fades in over the same ~150ms so the swap reads as one
+     coordinated settle, not three independent pops. The icon-only login cross-fades likewise. */
+  .header-shared .header-search-glyph {
+    animation: wikiplus-fade-in 0.15s ease-out;
+  }
 }
 
 /* ── Reduced motion (design §10.4, binding). ── */

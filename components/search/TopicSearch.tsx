@@ -21,6 +21,7 @@ import {
   fetchTopicSuggestions,
   type TopicSuggestion,
 } from "@/lib/wiki/suggest";
+import { useNarrowSearch } from "@/lib/header/narrowSearchContext";
 
 // ── Verbatim microcopy (design §Microcopy — use EXACTLY). ─────────────────────
 const PLACEHOLDER = "Search any Wikipedia topic…";
@@ -80,6 +81,11 @@ function MagnifierIcon({ className }: { className?: string }) {
 
 export function TopicSearch({ variant = "home", prefill }: TopicSearchProps) {
   const router = useRouter();
+  // topic-mobile-search §3.1a — report the disclosure open/closed state up to the Topic host so it
+  // can derive `narrowSearchExpanded` (< md AND open) and collapse the neighbours (the wordmark to
+  // the "+" glyph, the login to icon-only). Inert outside the Topic host (the default setter is a
+  // no-op) and inert for the non-disclosure variants (home / topic-inline never expand/collapse).
+  const { setSearchFieldOpen } = useNarrowSearch();
 
   // Stable, instance-unique ids so two TopicSearch instances (home + topic) never
   // collide on listbox / option / label ids (AC13 wiring; multiple-instance safety).
@@ -288,6 +294,16 @@ export function TopicSearch({ variant = "home", prefill }: TopicSearchProps) {
     }
   }, [isDisclosure, expanded]);
 
+  // §3.1a — report the disclosure's open state to the Topic host (the lift). Only the disclosure
+  // variant drives the neighbour collapse; on unmount (or a variant change) report closed so a stale
+  // "open" can never strand the wordmark glyph / icon-only login. The host ANDs this with its < md
+  // media check to derive `narrowSearchExpanded`, so reporting `open` here unconditionally is safe.
+  useEffect(() => {
+    if (!isDisclosure) return;
+    setSearchFieldOpen(expanded);
+    return () => setSearchFieldOpen(false);
+  }, [isDisclosure, expanded, setSearchFieldOpen]);
+
   // External prefill + focus (issue #19, article-not-found §7). Seed the field with the
   // attempted title, open the disclosure (`< md`), and focus the input with the caret at
   // the end. Keyed off the `nonce` so the same prefill text can re-trigger a focus; a
@@ -324,12 +340,23 @@ export function TopicSearch({ variant = "home", prefill }: TopicSearchProps) {
       : "h-9 text-sm"; // topic inline + disclosure compact
 
   // The combobox + listbox markup, shared by every variant.
+  // - home: full-width floor.
+  // - topic-inline (≥ md): the compact inline field, clamped to 280px (UNCHANGED — AC11).
+  // - topic-disclosure (< md, open, §3.4): NO max-width clamp; the field FLEXES into the freed
+  //   space between the wordmark "+" glyph and the login glyph (`flex-1 min-w-0`), so the flex row
+  //   is structurally incapable of overflow (the field shrinks, the glyphs are shrink-0) — AC2/AC9.
+  const fieldWidthClass =
+    variant === "home"
+      ? "w-full"
+      : variant === "topic-disclosure"
+        ? "min-w-0 flex-1"
+        : "w-full max-w-[280px]";
   const field = (
     <form
       role="search"
       aria-label={LABEL_SR}
       onSubmit={onSubmit}
-      className={variant === "home" ? "w-full" : "w-full max-w-[280px]"}
+      className={fieldWidthClass}
     >
       {showVisibleLabel ? (
         <label
@@ -472,7 +499,14 @@ export function TopicSearch({ variant = "home", prefill }: TopicSearchProps) {
   }
 
   return (
-    <div ref={rootRef} className="flex items-center">
+    <div
+      ref={rootRef}
+      // Collapsed: a compact 44px magnifier box. Expanded (§3.4): grow to fill the search slot so
+      // the field can flex between the wordmark glyph and the login glyph (`w-full min-w-0`).
+      className={`flex items-center ${
+        expanded ? "topic-disclosure-open w-full min-w-0" : ""
+      }`}
+    >
       {!expanded ? (
         <button
           ref={triggerRef}
@@ -486,13 +520,23 @@ export function TopicSearch({ variant = "home", prefill }: TopicSearchProps) {
           <MagnifierIcon />
         </button>
       ) : (
-        <div className="flex w-full items-center gap-1">
+        // §3.4 — the open disclosure row. The field is the LEFTMOST element, anchored at the chrome
+        // row's left edge (the px-5 inset, exactly where the collapsed magnifier sits): nothing sits
+        // to its left anymore (the "+" wordmark glyph is now a chrome-row child in the MIDDLE, after
+        // the field, and the projector layer is suppressed — §3.2). So the former `pl-[72px]` glyph-
+        // clearance is REMOVED (AC9) and the field's text starts at its own pl-3. The container is
+        // `flex w-full min-w-0`; the field is `flex-1 min-w-0` and the ✕ is `shrink-0`, so the field
+        // absorbs all slack and flexes RIGHTWARD toward the "+" glyph, never overlapping a neighbour
+        // from ~320px up to < md (AC2). The grow is animated in globals.css (gated behind
+        // prefers-reduced-motion: no-preference — §5.1).
+        <div className="flex w-full min-w-0 items-center gap-1">
           {field}
           <button
             type="button"
             aria-label={DISCLOSURE_CLOSE_NAME}
             onClick={collapse}
-            className="flex h-9 w-9 shrink-0 items-center justify-center text-ink"
+            // §3.5 — a proper 44×44 close target (was 36×36), at the right end of the field.
+            className="flex h-11 w-11 shrink-0 items-center justify-center text-ink"
           >
             <span aria-hidden="true" className="text-lg leading-none">
               ✕
