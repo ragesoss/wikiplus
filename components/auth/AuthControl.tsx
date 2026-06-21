@@ -38,7 +38,7 @@ export function AuthControl({
   const { data: session, status } = useSession();
   const [connecting, setConnecting] = useState(false);
 
-  // The login click does a full-page redirect to meta.wikimedia.org; `connecting` is one-way set
+  // The login click does a full-page redirect to en.wikipedia.org; `connecting` is one-way set
   // true on that click (label → "Connecting…", disabled, aria-busy). If the user then hits browser
   // Back, the page is restored from the bfcache with React state intact, so the button would stay
   // stuck on "Connecting…" and disabled. `pageshow` fires on every show INCLUDING a bfcache restore
@@ -113,7 +113,7 @@ export function AuthControl({
       disabled={connecting}
       onClick={() => {
         setConnecting(true);
-        // Full-page redirect to meta.wikimedia.org, returning to THIS page (§3). The
+        // Full-page redirect to en.wikipedia.org, returning to THIS page (§3). The
         // callbackUrl is read from the live location at click time (no useSearchParams hook,
         // so the statically-prerendered home page needs no Suspense bailout).
         void signIn("wikimedia", { callbackUrl: currentCallbackUrl() });

@@ -3,7 +3,7 @@ import { act, fireEvent, render, screen } from "@testing-library/react";
 
 // Issue #50 — the signed-out "Log in with Wikipedia" button sets a local `connecting`
 // state on click (label → "Connecting…", disabled, aria-busy) then full-page-redirects to
-// meta.wikimedia.org. On browser Back the page restores from the bfcache with React state
+// en.wikipedia.org. On browser Back the page restores from the bfcache with React state
 // intact, leaving the button stuck "Connecting…"/disabled. The fix (commit acce423) resets
 // `connecting` on the `window` `pageshow` event (which fires on bfcache restore).
 //

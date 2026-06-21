@@ -453,7 +453,9 @@ move search **server-side** (key held as a server secret; the expensive quota sh
 Login and user identity rely entirely on **OAuth — no passwords**.
 
 - **MVP: Wikipedia / Wikimedia account only** — via Wikimedia's OAuth 2.0 (the
-  `mediawiki.org` OAuth extension, authorized at `meta.wikimedia.org`). On-brand for a
+  `mediawiki.org` OAuth extension). The user authorizes at `en.wikipedia.org` — a consent
+  screen Wikipedia editors recognize — while the consumer itself is registered at
+  `meta.wikimedia.org` (where `Special:OAuthConsumerRegistration` lives). On-brand for a
   Wikipedia-adjacent product and ties curators to the wider Wikimedia community.
 - **Planned next: Google** (standard OpenID Connect), and potentially other providers.
 
@@ -466,11 +468,16 @@ multi-provider OAuth support, so launching single-provider costs us nothing late
 
 - **Auth.js v5** (`next-auth@5.0.0-beta.31`, App-Router-native: one config exports
   `handlers`/`auth`/`signIn`/`signOut`). Wikimedia is the **built-in `@auth/core` provider**
-  (`next-auth/providers/wikimedia`) — authorize/token/userinfo at `meta.wikimedia.org`,
-  **default identify-only scope** (stable `sub` + `username`; no edit/act-on-behalf grant —
-  Decision D5). The catch-all route handler lives at `app/api/auth/[...nextauth]/route.ts`;
-  the default callback is **`/api/auth/callback/wikimedia`** (the URL Ops registers at
-  meta.wikimedia.org). The config (`lib/auth/config.ts`) sets `trustHost: true` (behind
+  (`next-auth/providers/wikimedia`) with its three endpoints **overridden** so
+  authorize/token/userinfo run at `en.wikipedia.org` — a consent screen Wikipedia editors
+  recognize. CentralAuth/SUL recognizes the same centrally-registered consumer on every
+  Wikimedia wiki, so the global `sub` identity is unchanged and no re-registration is needed.
+  The provider keeps the **default identify-only scope** (stable `sub` + `username`; no
+  edit/act-on-behalf grant — Decision D5). The catch-all route handler lives at
+  `app/api/auth/[...nextauth]/route.ts`; the default callback is
+  **`/api/auth/callback/wikimedia`** — the URL Ops registers with the consumer at
+  meta.wikimedia.org (consumer registration stays at meta; only the user-facing authorize host
+  moves to en.wikipedia.org). The config (`lib/auth/config.ts`) sets `trustHost: true` (behind
   Caddy/Cloudflare) and a descriptive Wikimedia **`User-Agent`** via Auth.js's `customFetch`
   on the identity-endpoint calls (Wikimedia etiquette).
 - **Sessions: stateless JWT** (`session.strategy = "jwt"`, **no database adapter, no
