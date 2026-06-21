@@ -68,7 +68,7 @@ function GateDataNotice() {
       </p>
       <Link
         href="/about/data"
-        className="mt-1 inline-block text-[12px] font-bold text-action hover:underline focus-visible:underline"
+        className="mt-1 inline-block text-[12px] font-bold text-link hover:underline focus-visible:underline"
       >
         {AUTH_COPY.dataNotice.gateLinkLabel}{" "}
         <span aria-hidden>→</span>
@@ -121,7 +121,7 @@ export function LoginPromptPanel({
           {secondaryHref && secondaryLabel && (
             <Link
               href={secondaryHref}
-              className="text-sm font-bold text-action hover:underline"
+              className="text-sm font-bold text-link hover:underline"
             >
               {secondaryLabel}
             </Link>

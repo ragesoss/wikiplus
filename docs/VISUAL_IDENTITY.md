@@ -299,6 +299,26 @@ Read from `buildScene()` at the mockup's canvas size (`cw` ≈ canvas width, hei
 > `tan: 0.6`/`fadeY: 150` but differ in the gold values — and they are **not** the locked mark. Use
 > the §4.2 golds.
 
+### 4.4 Interactive color — three distinct roles, three colors
+
+This wordmark spec is about the header mark; the app's broader **interactive color** rule is recorded
+here so the design source-of-truth holds it in one place. wiki+ keeps three interactive colors, one
+per role, and never collapses them:
+
+- **In-chrome text links** (and link-glyphs like the search magnifier) are **brand green
+  `--color-link` = `teal-dk #1F6757`**, exposed as the `text-link` / `ring-link` utilities. Green is
+  the link affordance for the whole wiki+ chrome — it makes the link read as the brand, not as a
+  generic web blue. **`teal-dk` (not the lighter `sprout #2A8270`) is mandated for AA:** it clears
+  4.5:1 on white *and* on the grey/tinted panels links actually sit on (`bg2 #F0F1F3`, body-grey
+  `#F7F7F7`, the cool header field `#FAFBFE`, the `#EEF0FB` active tint), where `sprout` fails
+  (4.0–4.5:1). See `docs/design/chrome-link-green.md` for the computed table and the file list.
+- **Solid primary CTAs** (`bg-action` + white text — the contribute submit, moderator Approve,
+  not-found primary, the "Log in with Wikipedia" button) remain **`action #1F6F95`** (blue). The
+  action blue is reserved for solid button fills; recoloring CTAs to green is a possible future
+  change, not a current one.
+- **Wikipedia article-content links** stay **`--color-wikilink #3366cc`** — the faithful Wikipedia
+  blue is never overridden (the "faithful Wikipedia look" principle, `CLAUDE.md`).
+
 ---
 
 ## 5. Construction & rendering techniques (buildable)

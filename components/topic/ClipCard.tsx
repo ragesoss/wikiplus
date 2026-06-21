@@ -87,7 +87,7 @@ export function ClipCard({
       <button
         type="button"
         onClick={() => onGoToSection(clip.general ? "__general" : clip.sectionSlug)}
-        className="mb-1.5 block text-[11px] font-bold text-action hover:underline"
+        className="mb-1.5 block text-[11px] font-bold text-link hover:underline"
       >
         ↳ {clip.general ? "General" : clip.sectionLabel ?? "Section"}
       </button>

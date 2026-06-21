@@ -131,7 +131,7 @@ export function PlayerModal({
 
         {/* "context by <curator>" attribution (CURATION §5.4 / Decision C7) — links IN to the
             curator profile; `@prototype` → the non-linked "seed clip · no curator" label (AC5).
-            `surface="light"` (the block is a light panel) → the AA-safe `text-action` link tone. */}
+            `surface="light"` (the block is a light panel) → the AA-safe `text-link` link tone. */}
         <p className="mt-2 text-[11px]">
           <ContextByLink curatedBy={clip.curatedBy} surface="light" />
         </p>

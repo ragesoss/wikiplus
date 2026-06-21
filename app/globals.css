@@ -7,6 +7,9 @@
   --color-sprout: #2a8270; /* teal */
   --color-teal-dk: #1f6757;
   --color-action: #1f6f95;
+  --color-link: var(--color-teal-dk); /* interactive in-chrome text-link / link-glyph affordance.
+     Brand green for AA on every chrome surface (white + grey panels); see docs/design/chrome-link-green.md.
+     NOT the article wikilink (#3366cc) and NOT solid CTA fills (those stay --color-action). */
   --color-accred: #b0353b; /* AA-safe red (design §9.3) */
   --color-ink: #2c2c2c;
   --color-ink2: #595959;

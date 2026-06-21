@@ -166,7 +166,7 @@ export default function ContributePage() {
               the ?qid= path; TopicView resolves QID→title and canonicalizes the URL. */}
           <Link
             href={`/topic/?qid=${encodeURIComponent(savedQid)}`}
-            className="text-action underline"
+            className="text-link underline"
           >
             View the topic →
           </Link>

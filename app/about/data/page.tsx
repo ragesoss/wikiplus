@@ -105,7 +105,7 @@ export default function AboutDataPage() {
         <p className="mt-8">
           <Link
             href="/"
-            className="text-[0.95rem] font-bold text-action hover:underline focus-visible:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-action focus-visible:ring-offset-2"
+            className="text-[0.95rem] font-bold text-link hover:underline focus-visible:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-link focus-visible:ring-offset-2"
           >
             <span aria-hidden>←</span> Back to wiki+
           </Link>

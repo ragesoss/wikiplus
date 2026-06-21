@@ -12,7 +12,7 @@ import { resolve } from "node:path";
 //          (renders signed-out); the account-menu item exists + navigates to /about/data; and the
 //          footer is wired into the home / contribute / contributor-profile routes (source check
 //          for the two heavy routes whose full render is out of scope for a unit test).
-//   - AC11: the page's links use text-action (no gold), decorative arrows are aria-hidden, links
+//   - AC11: the page's links use text-link (no gold), decorative arrows are aria-hidden, links
 //          carry the focus-visible affordance, and the footer is a <footer>/contentinfo landmark.
 //
 // The auth client surface + the router are mocked per-test (the established pattern in
@@ -186,17 +186,17 @@ describe("AC11 — accessibility of the notice surfaces", () => {
     }
   });
 
-  it("the notice CONTENT links (back-link, footer) use text-action + a focus-visible ring", () => {
+  it("the notice CONTENT links (back-link, footer) use text-link + a focus-visible ring", () => {
     render(<AboutDataPage />);
     // The back-link is a content link (distinct from the brand wordmark in the header).
     const back = screen.getByRole("link", { name: /Back to wiki\+/i });
-    expect(back.className).toMatch(/text-action/);
+    expect(back.className).toMatch(/text-link/);
     expect(back.className).toMatch(/focus-visible:/);
     // The footer link too (rendered on the page).
     const footerLink = within(screen.getByRole("contentinfo")).getByRole("link", {
       name: "About your data",
     });
-    expect(footerLink.className).toMatch(/text-action/);
+    expect(footerLink.className).toMatch(/text-link/);
     expect(footerLink.className).toMatch(/focus-visible:/);
   });
 
@@ -217,12 +217,12 @@ describe("AC11 — accessibility of the notice surfaces", () => {
     expect(arrow?.textContent).toBe("→");
   });
 
-  it("the SiteFooter link uses text-action with a focus-visible ring (no gold)", () => {
+  it("the SiteFooter link uses text-link with a focus-visible ring (no gold)", () => {
     render(<SiteFooter />);
     const link = within(screen.getByRole("contentinfo")).getByRole("link", {
       name: "About your data",
     });
-    expect(link.className).toMatch(/text-action/);
+    expect(link.className).toMatch(/text-link/);
     expect(link.className).toMatch(/focus-visible:/);
     expect(link.className).not.toMatch(/text-gold|text-\[#E5AB28\]|text-accent/i);
   });
