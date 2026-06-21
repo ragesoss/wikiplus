@@ -3,7 +3,7 @@
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { signIn, signOut, useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { currentCallbackUrl } from "@/lib/auth/callback-url";
 import { contributorHref } from "@/lib/wiki/topicRoute";
 import { WikiGlyph } from "./WikiGlyph";
@@ -37,6 +37,18 @@ export function AuthControl({
 }) {
   const { data: session, status } = useSession();
   const [connecting, setConnecting] = useState(false);
+
+  // The login click does a full-page redirect to meta.wikimedia.org; `connecting` is one-way set
+  // true on that click (label → "Connecting…", disabled, aria-busy). If the user then hits browser
+  // Back, the page is restored from the bfcache with React state intact, so the button would stay
+  // stuck on "Connecting…" and disabled. `pageshow` fires on every show INCLUDING a bfcache restore
+  // (`event.persisted`), so resetting here releases the stuck state on back-navigation. Resetting
+  // unconditionally is safe — a fresh load already has `connecting === false`.
+  useEffect(() => {
+    const reset = () => setConnecting(false);
+    window.addEventListener("pageshow", reset);
+    return () => window.removeEventListener("pageshow", reset);
+  }, []);
 
   const compact = variant === "topic-compact";
   // Icon-only collapse applies only to the compact skin (the < md Topic chrome), and only while the
