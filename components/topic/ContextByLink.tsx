@@ -19,7 +19,7 @@ import { contributorHref } from "@/lib/wiki/topicRoute";
 //     the WORD carries the meaning (never color-alone) + the underline marks the link.
 //   - `@prototype` / no curator → the NON-linked "seed clip · no curator" label (no <a>, no href).
 //
-// `surface` picks the AA-safe link tone: `light` (the card footer) → `text-action` underline-on-hover;
+// `surface` picks the AA-safe link tone: `light` (the card footer) → `text-link` underline-on-hover;
 // `indigo` (the General band's white-on-`bg-brand` tile) → WHITE + a persistent underline (the
 // underline, not a color shift, carries "this is a link" on indigo — §6.3). It carries NO read-path
 // cost — it is static markup built from `clip.curatedBy`, already on every clip the topic read loads.
@@ -46,7 +46,7 @@ export function ContextByLink({
   const linkClass =
     surface === "indigo"
       ? "text-white underline hover:text-white/90"
-      : "text-action underline-offset-2 hover:underline";
+      : "text-link underline-offset-2 hover:underline";
 
   return (
     <span className={prefixClass}>

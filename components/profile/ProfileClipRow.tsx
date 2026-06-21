@@ -45,7 +45,7 @@ export function ProfileClipRow({
         <Link
           href={topicHref(clip.topicTitle)}
           aria-label={`On ${clip.topicTitle} — view this topic`}
-          className="font-bold text-action hover:underline"
+          className="font-bold text-link hover:underline"
         >
           {clip.topicTitle}
         </Link>
