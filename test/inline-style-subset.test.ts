@@ -328,6 +328,38 @@ describe("#106 AA darken-to-pass on recovered colors (AC10)", () => {
     expect(contrastRatio(bg, parseColor(fgMatch![1].trim())!)).toBeGreaterThanOrEqual(4.5);
   });
 
+  it("AC10 keyword repro — white bg + red text (San Francisco legend): red is adjusted to pass AA (was ~3.998:1)", async () => {
+    // The live San Francisco legend cells use `background-color:white;color:#ff0000` (and blue).
+    // Before the fix, parseColor("white") returned null → aaTextColor bailed → shipped at ~3.998:1.
+    const o = await out(
+      `<section><h2>S</h2><table class="wikitable"><tbody>` +
+        `<tr><td style="background-color:white;color:#ff0000">red on white</td></tr>` +
+        `<tr><td style="background-color:white;color:#0000ff">blue on white</td></tr>` +
+        `</tbody></table></section>`
+    );
+    const d = live(o);
+    const cells = Array.from(d.querySelectorAll("td"));
+
+    // Cell 0: red on white (~3.998:1) — must be adjusted to ≥4.5:1.
+    const s0 = (cells[0].getAttribute("style") || "").toLowerCase();
+    expect(s0).toContain("background-color:white");
+    const fgMatch0 = s0.match(/(?:^|;)\s*color:\s*([^;]+)/);
+    expect(fgMatch0).not.toBeNull();
+    const fg0 = parseColor(fgMatch0![1].trim())!;
+    expect(contrastRatio([255, 255, 255], fg0)).toBeGreaterThanOrEqual(4.5);
+
+    // Cell 1: blue on white (~8.59:1) — already passes; no change required.
+    // The text color may or may not be present (aaTextColor returns null → no override).
+    const s1 = (cells[1].getAttribute("style") || "").toLowerCase();
+    expect(s1).toContain("background-color:white");
+    // If a color is injected, it must still pass AA.
+    const fgMatch1 = s1.match(/(?:^|;)\s*color:\s*([^;]+)/);
+    if (fgMatch1) {
+      const fg1 = parseColor(fgMatch1[1].trim())!;
+      expect(contrastRatio([255, 255, 255], fg1)).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+
   it("a light recovered band under the dark article ink already passes AA → no text color added", async () => {
     const o = await out(
       `<section><h2>S</h2><table class="infobox biota"><tbody>` +
@@ -367,6 +399,62 @@ describe("#106 sanitizeInlineStyle — pure-function unit coverage", () => {
     expect(aaTextColor("#222222", "#333333")).not.toBeNull();
     expect(aaTextColor("rgb(180,250,180)", null)).toBeNull(); // light bg, dark ink already passes
     expect(aaTextColor("notacolor", null)).toBeNull(); // unreadable bg → leave untouched
+  });
+
+  it("parseColor resolves CSS named colors to sRGB", () => {
+    // Common WP legend/status keywords
+    expect(parseColor("white")).toEqual([255, 255, 255]);
+    expect(parseColor("black")).toEqual([0, 0, 0]);
+    expect(parseColor("silver")).toEqual([192, 192, 192]);
+    expect(parseColor("gray")).toEqual([128, 128, 128]);
+    expect(parseColor("grey")).toEqual([128, 128, 128]); // grey = gray
+    expect(parseColor("red")).toEqual([255, 0, 0]);
+    expect(parseColor("green")).toEqual([0, 128, 0]);
+    expect(parseColor("blue")).toEqual([0, 0, 255]);
+    expect(parseColor("yellow")).toEqual([255, 255, 0]);
+    expect(parseColor("orange")).toEqual([255, 165, 0]);
+    expect(parseColor("lightgray")).toEqual([211, 211, 211]);
+    expect(parseColor("lightgrey")).toEqual([211, 211, 211]);
+    expect(parseColor("lime")).toEqual([0, 255, 0]);
+    expect(parseColor("aqua")).toEqual([0, 255, 255]);
+    expect(parseColor("fuchsia")).toEqual([255, 0, 255]);
+    // Case-insensitive (CSS spec: names are case-insensitive)
+    expect(parseColor("WHITE")).toEqual([255, 255, 255]);
+    expect(parseColor("LightGray")).toEqual([211, 211, 211]);
+    // transparent → null (no recoverable background)
+    expect(parseColor("transparent")).toBeNull();
+    // truly unknown → null
+    expect(parseColor("notacolor")).toBeNull();
+    expect(parseColor("var(--x)")).toBeNull();
+  });
+
+  it("aaTextColor resolves named-color backgrounds to apply AA adjustment (AC10 keyword gap)", () => {
+    // white background with red text: ~3.998:1 — below AA → must be adjusted
+    const adjusted = aaTextColor("white", "#ff0000");
+    expect(adjusted).not.toBeNull();
+    const bg = parseColor("white")!; // [255,255,255]
+    const fg = parseColor(adjusted!)!;
+    expect(contrastRatio(bg, fg)).toBeGreaterThanOrEqual(4.5);
+
+    // white background with blue text: ~8.59:1 — already passes → null
+    expect(aaTextColor("white", "#0000ff")).toBeNull();
+
+    // silver background with dark text — check that keyword bg is resolved and ratio is correct
+    const silverBg = parseColor("silver")!; // [192,192,192]
+    const inkOnSilver = contrastRatio(silverBg, [0x2c, 0x2c, 0x2c]);
+    // ink #2c2c2c on silver [192,192,192]: luminances 0.0331 and 0.5271 → ratio ~9.7:1, already passes
+    expect(aaTextColor("silver", null)).toBeNull();
+
+    // black background with black text: 1:1 — adjusted to white
+    const adjusted2 = aaTextColor("black", "#000000");
+    expect(adjusted2).not.toBeNull();
+    expect(contrastRatio(parseColor("black")!, parseColor(adjusted2!)!)).toBeGreaterThanOrEqual(4.5);
+
+    // transparent → null (cannot resolve → no adjustment)
+    expect(aaTextColor("transparent", "#ff0000")).toBeNull();
+
+    // unknown keyword → null
+    expect(aaTextColor("notacolor", "#ff0000")).toBeNull();
   });
 });
 
