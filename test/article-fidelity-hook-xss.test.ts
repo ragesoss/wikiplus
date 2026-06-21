@@ -53,11 +53,11 @@ function noEventHandlers(div: HTMLElement): boolean {
   return true;
 }
 
-describe("QA #74 — colspan-keeping hook cannot be coerced into rescuing anything else", () => {
-  it("style/on*/javascript: co-located on the SAME element as colspan are all dropped; colspan survives", async () => {
+describe("QA #74/#106 — colspan-keeping hook + inline-style carrier cannot be coerced into rescuing a threat", () => {
+  it("on*/javascript:/position/background co-located with colspan are all dropped; colspan + the sanitized layout subset survive", async () => {
     const o = await out(
       `<section><table class="infobox biota"><tbody>` +
-        `<tr><th colspan="2" rowspan="1" scope="col" style="background:red;position:fixed" ` +
+        `<tr><th colspan="2" rowspan="1" scope="col" style="text-align:center;background:red;position:fixed" ` +
         `onclick="evil()" onmouseover="evil()" onfocus="evil()">Banner</th></tr>` +
         `<tr><td colspan="2"><a href="javascript:alert(1)">x</a></td></tr>` +
         `</tbody></table></section>`
@@ -68,14 +68,18 @@ describe("QA #74 — colspan-keeping hook cannot be coerced into rescuing anythi
     expect(banner?.getAttribute("colspan")).toBe("2");
     expect(banner?.getAttribute("rowspan")).toBe("1");
     expect(banner?.getAttribute("scope")).toBe("col");
-    // nothing hostile survives, even sharing the element
-    expect(banner?.hasAttribute("style")).toBe(false);
+    // #106: ONLY the allowlisted, value-safe layout declaration is recovered…
+    const s = (banner?.getAttribute("style") || "").toLowerCase();
+    expect(s).toContain("text-align:center");
+    // …and the hostile declarations on the SAME element are gone (property/value gate).
+    expect(s).not.toContain("background"); // non-allowlisted shorthand
+    expect(s).not.toContain("position:fixed"); // never allowlisted inline (AC7)
     expect(noEventHandlers(d)).toBe(true);
     expect(o.toLowerCase()).not.toContain("javascript:");
     expect(o.toLowerCase()).not.toContain("position:fixed");
   });
 
-  it("case/mixed-case variants (COLSPAN, oNcLick, STYLE) do not slip a handler/style through", async () => {
+  it("case/mixed-case variants (COLSPAN, oNcLick, STYLE) — handlers die; an allowlisted style declaration is recovered", async () => {
     const o = await out(
       `<section><table class="infobox biota"><tbody>` +
         `<tr><th COLSPAN="2" STYLE="color:red" oNcLick="evil()" ScOpE="col">B</th></tr>` +
@@ -86,11 +90,13 @@ describe("QA #74 — colspan-keeping hook cannot be coerced into rescuing anythi
     // colspan/scope are still recognized (HTML attrs are case-insensitive) and kept…
     expect(th?.hasAttribute("colspan")).toBe(true);
     expect(th?.hasAttribute("scope")).toBe(true);
-    // …but no casing of style/on* survives.
-    expect(th?.hasAttribute("style")).toBe(false);
+    // #106: the allowlisted `color` longhand is recovered (sanitized), but no casing of an
+    // event handler survives, and the recovered style carries no banned token.
+    const s = (th?.getAttribute("style") || "").toLowerCase();
+    expect(s).toContain("color:red");
+    expect(s).not.toMatch(/url\s*\(/);
+    expect(s).not.toContain("position");
     expect(noEventHandlers(d)).toBe(true);
-    const names = allAttrNames(d);
-    expect(names.has("style")).toBe(false);
   });
 
   it("a non-data attr NAMED to look structural (colspanx) is not rescued; data-* are inert per DOMPurify default, not the hook", async () => {
@@ -145,16 +151,17 @@ describe("QA #74 — hook does NOT leak onto the shared DOMPurify singleton", ()
 
     // A subsequent INDEPENDENT sanitize on the SAME global singleton with the SAME
     // custom URI regexp, WITHOUT re-adding the hook. If the hook leaked, colspan/scope
-    // would survive here — and worse, a forceKeepAttr leak could rescue arbitrary attrs.
-    // NOTE: `style`/`onclick` are NOT in this allowlist, so DOMPurify drops them on its
-    // own merits. The leak we are hunting is whether the hook's `forceKeepAttr` persisted:
-    // if it did, colspan/scope (which the custom URI regexp drops) would survive here.
+    // (and, post-#106, img width/height) would survive here — and worse, a forceKeepAttr
+    // leak could rescue arbitrary attrs. NOTE: `style`/`onclick` are NOT in this allowlist,
+    // so DOMPurify drops them on its own merits. The leak we are hunting is whether the
+    // hook's `forceKeepAttr` persisted: if it did, colspan/scope/img-dims (which the custom
+    // URI regexp drops) would survive here.
     const leaked = DOMPurify.sanitize(
       `<table><tbody><tr><th colspan="2" scope="col" style="background:red" ` +
-        `onclick="evil()">B</th></tr></tbody></table>`,
+        `onclick="evil()"><img src="//x/a.jpg" width="50" height="50"></th></tr></tbody></table>`,
       {
-        ALLOWED_TAGS: ["table", "tbody", "tr", "th", "td"],
-        ALLOWED_ATTR: ["colspan", "rowspan", "scope", "class"],
+        ALLOWED_TAGS: ["table", "tbody", "tr", "th", "td", "img"],
+        ALLOWED_ATTR: ["colspan", "rowspan", "scope", "class", "src", "width", "height"],
         ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto):|\.{0,2}\/|#)/i,
       }
     ).toLowerCase();
@@ -162,6 +169,9 @@ describe("QA #74 — hook does NOT leak onto the shared DOMPurify singleton", ()
     // hook gone → colspan/scope drop again (URI-validated away), proving no leak
     expect(leaked).not.toContain("colspan");
     expect(leaked).not.toContain("scope");
+    // #106: the IMG-gated width/height rescue also did not persist — they drop again here.
+    expect(leaked).not.toMatch(/width="50"/);
+    expect(leaked).not.toMatch(/height="50"/);
     // and the singleton's normal protections are intact for a later caller
     expect(leaked).not.toContain("onclick");
     expect(leaked).not.toContain("style");
