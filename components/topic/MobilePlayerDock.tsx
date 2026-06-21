@@ -119,7 +119,10 @@ export function MobilePlayerDock({
 
   // ── Frame sizing (§6.2/§6.3/§6.4). ──
   // Docked: 16:9 fills the full width (aspect-video, ~0.56·VW); 9:16 is height-capped at
-  // min(55vh,420px) so a Short can't tower, centered + letterboxed on black.
+  // min(45vh,420px) so a Short can't tower, centered + letterboxed on black. The vertical cap is
+  // 45vh (not 55vh) so the frame + an expanded note fit within the dock height-cap (§6.2) at the
+  // shortest in-scope width (360px) WITHOUT internal scroll in the common case; the dock-level cap
+  // + internal scroll below is the hard guarantee for any note length / viewport.
   // Maximized: 16:9 fills the full landscape rectangle; 9:16 fills the full height upright,
   // centered/letterboxed — both via flex centering inside the inset-0 section.
   const frameClass = maximized
@@ -128,24 +131,46 @@ export function MobilePlayerDock({
       : "h-full w-full bg-black"
     : vertical
       ? "mx-auto w-auto bg-black [aspect-ratio:9/16]" +
-        " h-[min(55vh,420px)] max-h-[min(55vh,420px)]"
+        " h-[min(45vh,420px)] max-h-[min(45vh,420px)]"
       : "w-full bg-black aspect-video";
 
   const rootStyle: CSSProperties = {
     // Reserve the safe-area insets so chrome never hides under a notch / home indicator (§6.1).
-    paddingTop: edge === "top" && !maximized ? "env(safe-area-inset-top)" : undefined,
-    paddingBottom:
-      edge === "bottom" && !maximized ? "env(safe-area-inset-bottom)" : undefined,
+    // Docked: pad the parked edge. Maximized (§6.3/§6.4): the condensed Close/Exit bar sits at the
+    // very top/right edge, so pad top + right (and bottom) so it always clears a notch / curved
+    // corner / home indicator in landscape — the safe area applies in BOTH layout modes.
+    paddingTop: maximized
+      ? "env(safe-area-inset-top)"
+      : edge === "top"
+        ? "env(safe-area-inset-top)"
+        : undefined,
+    paddingRight: maximized ? "env(safe-area-inset-right)" : undefined,
+    paddingLeft: maximized ? "env(safe-area-inset-left)" : undefined,
+    paddingBottom: maximized
+      ? "env(safe-area-inset-bottom)"
+      : edge === "bottom"
+        ? "env(safe-area-inset-bottom)"
+        : undefined,
+    // Docked dock-height cap (§6.2 fit guarantee, the no-overflow safety net): the WHOLE dock can
+    // never exceed the viewport minus the safe-area insets, so however tall the chrome + frame +
+    // an expanded note sum, the bottom-pinned dock can't grow upward past the top edge and clip the
+    // title bar (credit / Move / Maximize / Close) off-screen. The title bar is pinned and the
+    // frame + supplemental/note region is the internal scroll area (the flex layout below) — the
+    // same scroll-not-clip discipline PlayerModal uses. Maximized is inset-0, so no cap there.
+    maxHeight: maximized
+      ? undefined
+      : "calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom))",
   };
 
   const rootClass =
     // Shared: a fixed layer below modals (z-40 < ModalShell z-50, §9), ink box, 2px ink border,
     // white-on-ink chrome. No backdrop, occupies only its own box (docked) or the whole viewport
-    // (maximized). No offset shadow on mobile (it would clip at the viewport edge).
-    "fixed z-40 border-2 border-ink bg-ink text-white" +
+    // (maximized). No offset shadow on mobile (it would clip at the viewport edge). A flex column in
+    // BOTH modes so the title bar can be pinned and the body region scrolls within the height cap.
+    "fixed z-40 flex flex-col border-2 border-ink bg-ink text-white" +
     (maximized
       ? // Maximized: the SAME section grows to fill the viewport (CSS, not native fullscreen).
-        " inset-0 flex flex-col"
+        " inset-0"
       : // Docked: full-width bar pinned to the parked edge.
         " inset-x-0" + (edge === "top" ? " top-0" : " bottom-0")) +
     // Reduced-motion-gated dock-in (§9): class only when motion is allowed and not maximized
@@ -157,8 +182,9 @@ export function MobilePlayerDock({
       {/* ── Title bar (shared, §5.1): ＋plus eyebrow + caption + creator credit (left) · the
           park / maximize / Close controls (right). White on ink ≈ 15:1 — clears AA/AAA. In
           maximized mode the chrome condenses to a thin Close bar (caption credit only; park
-          hidden — §6.3/§6.4). ── */}
-      <div className="flex items-start gap-2 px-3 py-2">
+          hidden — §6.3/§6.4). PINNED (shrink-0) so the dock-height cap never scrolls or clips
+          the credit / Move / Maximize / Close off-screen (§6.2 fit guarantee). ── */}
+      <div className="flex shrink-0 items-start gap-2 px-3 py-2">
         <div className="min-w-0 flex-1">
           <p className="plus-disp text-[11px] font-bold uppercase tracking-wide text-white/70">
             ＋plus
@@ -214,6 +240,16 @@ export function MobilePlayerDock({
         </div>
       </div>
 
+      {/* ── Dock body (supplemental row + frame). Docked: the INTERNAL SCROLL AREA — `min-h-0
+          flex-1 overflow-y-auto` under the pinned title bar and within the section's dock-height
+          cap (§6.2). However tall the chrome + frame + an expanded note sum, the title bar stays
+          visible and this region scrolls (Close / Move / Maximize / credit are never pushed
+          off-screen). Maximized: `flex flex-1` so the inner frame-fill div fills the viewport. ── */}
+      <div
+        className={
+          maximized ? "flex min-h-0 flex-1 flex-col" : "min-h-0 flex-1 overflow-y-auto"
+        }
+      >
       {/* ── Supplemental row (parameterized, §5.2). Hidden in maximized mode (the reader is
           watching, not reading — §6.3/§6.4); it returns on exit. ── */}
       {!maximized && (
@@ -318,6 +354,7 @@ export function MobilePlayerDock({
             </p>
           )}
         </div>
+      </div>
       </div>
     </section>
   );

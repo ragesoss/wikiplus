@@ -319,6 +319,16 @@ async function openMobileDockVertical(page: Page): Promise<void> {
   await page.waitForTimeout(200);
 }
 
+/** Open a vertical Short docked, then expand its curated "Context ▸" note. This is the stressing
+ *  fit case (a tall 9:16 frame + an expanded note): the dock's height-cap + internal scroll keep
+ *  the title bar (credit / Move / Maximize / Close) on-screen and the dock within the viewport
+ *  (§6.2 fit guarantee) — the state a horizontal clip can never exercise. */
+async function openMobileDockVerticalExpanded(page: Page): Promise<void> {
+  await openMobileDockVertical(page);
+  await page.getByRole("button", { name: /^Context/ }).click();
+  await page.waitForTimeout(150);
+}
+
 /** Open a vertical Short docked, then maximize it (explicit ⤢ button — a Short's best frame is
  *  portrait-tall, so its maximize is reachable without a rotation gesture). Fills full height. */
 async function openMobileDockMaximizedVertical(page: Page): Promise<void> {
@@ -552,13 +562,26 @@ export const SCENES: Scene[] = [
     id: "mobile-player-vertical",
     group: "Players · mobile unified",
     label: "Mobile dock — vertical 9:16 clip",
-    note: "A 9:16 Short docked: height-capped at min(55vh,420px), centered + letterboxed on black — the vertical fit at 390px.",
+    note: "A 9:16 Short docked: height-capped at min(45vh,420px), centered + letterboxed on black — the vertical fit at 390px.",
     route: "/topic/Photosynthesis/",
     stub: "curated",
     viewports: ["mobile"],
     auth: ["out"],
     ready: topicReady,
     prepare: openMobileDockVertical,
+    clip: "viewport",
+  },
+  {
+    id: "mobile-player-vertical-expanded",
+    group: "Players · mobile unified",
+    label: "Mobile dock — vertical 9:16, expanded note",
+    note: "The stressing fit case: a tall 9:16 frame WITH the curated note expanded. The dock's height-cap + internal scroll keep the title bar (credit / Move / Maximize / Close) on-screen and the whole dock within the viewport (§6.2) — the no-overflow guarantee a horizontal clip can't exercise.",
+    route: "/topic/Photosynthesis/",
+    stub: "curated",
+    viewports: ["mobile"],
+    auth: ["out"],
+    ready: topicReady,
+    prepare: openMobileDockVerticalExpanded,
     clip: "viewport",
   },
   {

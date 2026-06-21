@@ -657,6 +657,15 @@
     "focus": false
   },
   {
+    "id": "mobile-player-vertical-expanded",
+    "group": "Players · mobile unified",
+    "label": "Mobile dock — vertical 9:16, expanded note",
+    "viewport": "mobile",
+    "auth": "out",
+    "file": "mobile-player-vertical-expanded-mobile-logged-out.png",
+    "focus": false
+  },
+  {
     "id": "mobile-player-top-parked",
     "group": "Players · mobile unified",
     "label": "Mobile dock — parked at the top edge",
