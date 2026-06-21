@@ -98,12 +98,34 @@ describe("ADVERSARIAL XSS probe (QA independent, live-DOM asserted)", () => {
     }
   });
 
-  it("style attr on an allowed table cell is dropped (no CSS injection)", async () => {
+  it("a url()/javascript: inline-style value on a table cell is dropped (no CSS injection)", async () => {
+    // #106 boundary: `background` is a NON-allowlisted shorthand AND carries a url() token,
+    // so the whole declaration dies — the cell ends with no style and issues no request.
     const o = await out(
       `<section><table class="wikitable"><tr><td style="background:url(javascript:alert(1))">c</td></tr></table></section>`
     );
     const d = live(o);
     expect(d.querySelector("td")?.hasAttribute("style")).toBe(false);
+    expect(o.toLowerCase()).not.toContain("javascript:");
+    expect(o.toLowerCase()).not.toMatch(/url\s*\(/);
+  });
+
+  it("a background-color longhand on a table cell SURVIVES sanitized (#106 / #93 — recovered per-cell color)", async () => {
+    // The positive case: an allowlisted `background-color` whose value carries no banned
+    // token is the per-cell color recovery (#93). It survives, scoped to its own cell.
+    const o = await out(
+      `<section><table class="wikitable"><tr>` +
+        `<td style="background-color:#cfe8cf">ok</td>` +
+        `<td>plain</td></tr></table></section>`
+    );
+    const d = live(o);
+    const cells = Array.from(d.querySelectorAll("td"));
+    expect((cells[0].getAttribute("style") || "").toLowerCase()).toContain("background-color:#cfe8cf");
+    // The recovered color is scoped to the one cell — it does not bleed to the sibling.
+    expect(cells[1].hasAttribute("style")).toBe(false);
+    // …and nothing hostile is anywhere in the surviving style.
+    expect(o.toLowerCase()).not.toMatch(/url\s*\(/);
+    expect(o.toLowerCase()).not.toContain("position");
   });
 
   it("citation external link carries rel=noopener (no reverse-tabnabbing regression)", async () => {
