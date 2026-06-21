@@ -53,7 +53,7 @@ export default function ContributePage() {
   // AFTER it re-renders enabled (a disabled element can't take focus) — design §"Focus
   // management": a keyboard user can immediately retry instead of focus dropping to <body>.
   const refocusOnFail = useRef(false);
-  // OAuth-return error (design §4): meta.wikimedia.org / Auth.js can bounce back with
+  // OAuth-return error (design §4): en.wikipedia.org / Auth.js can bounce back with
   // ?error=… (cancelled or provider failure). Map it to the honest, non-blocking notice
   // shown above the login gate's "Log in with Wikipedia" Try-again button.
   const [oauthError, setOauthError] = useState<string | null>(null);

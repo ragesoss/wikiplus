@@ -14,9 +14,11 @@ import { getDb } from "@/lib/db/client";
 // CHOICES (recorded in ARCHITECTURE):
 //   - Auth.js v5 (next-auth@5 beta) — App-Router-native (`handlers`/`auth`/`signIn`/`signOut`
 //     from one config), first-class multi-provider OAuth so Google is additive later (D2).
-//   - The BUILT-IN Wikimedia provider (`next-auth/providers/wikimedia`) — authorizes at
-//     meta.wikimedia.org, with the DEFAULT identify-only scope (D5: stable `sub` + username;
-//     no edit/act-on-behalf grant). We pass the consumer creds explicitly from env (below).
+//   - The BUILT-IN Wikimedia provider (`next-auth/providers/wikimedia`), with its three
+//     endpoints OVERRIDDEN (below) so the user authorizes at en.wikipedia.org — a consent
+//     screen Wikipedia editors recognize — using the DEFAULT identify-only scope (D5: stable
+//     `sub` + username; no edit/act-on-behalf grant). We pass the consumer creds explicitly
+//     from env (below).
 //   - JWT session strategy (NO database adapter, NO server-side session store) — AC4/D3: an
 //     ordinary read resolves the header from the signed JWT cookie with no per-read DB hit,
 //     and C needs no Redis/session table. The ONLY DB write a login makes is the find-or-create
@@ -90,6 +92,16 @@ export const authConfig: NextAuthConfig = {
     Wikimedia({
       clientId,
       clientSecret,
+      // Override the built-in provider's three endpoints (which default to meta.wikimedia.org)
+      // to authorize at en.wikipedia.org. The consumer is registered ONCE at meta
+      // (Special:OAuthConsumerRegistration lives only there), but CentralAuth/SUL recognizes it
+      // on every Wikimedia wiki — so authorizing at en.wikipedia.org shows Wikipedia editors a
+      // recognizable consent screen while the global `sub` identity is unchanged (no identity
+      // fragmentation, no re-registration). The trailing `?scope=` is preserved to keep the
+      // DEFAULT identify-only scope (D5 — no edit/act-on-behalf grant; do not add scopes).
+      authorization: "https://en.wikipedia.org/w/rest.php/oauth2/authorize?scope=",
+      token: "https://en.wikipedia.org/w/rest.php/oauth2/access_token",
+      userinfo: "https://en.wikipedia.org/w/rest.php/oauth2/resource/profile",
       // Descriptive User-Agent on the token + userinfo round-trips (Wikimedia etiquette, D5).
       [customFetch]: wikimediaFetch,
     }),
