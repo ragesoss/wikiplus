@@ -10,6 +10,7 @@ const article: FullArticle = {
   title: "Photosynthesis",
   displayTitle: "Photosynthesis",
   url: "https://en.wikipedia.org/wiki/Photosynthesis",
+  styleCss: "",
   lead: {
     title: "Photosynthesis",
     url: "https://en.wikipedia.org/wiki/Photosynthesis",

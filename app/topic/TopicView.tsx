@@ -703,11 +703,12 @@ export function TopicView() {
     }
   }, [railItems, activeSlug]);
 
-  // ── Wide-table / cladogram overflow flag (design §4.2 / wiki-style-reuse §4–§5). ──
-  // Mark each contained scroll region (`.wiki-tablewrap` wide data tables AND
-  // `.wiki-clade` cladogram trees) whose content is wider than the region with
-  // `data-overflow`, so the CSS "Scroll table →" hint appears ONLY when scrolling is
-  // actually needed. Inert when there are no tables/clades.
+  // ── Wide-region overflow flag (design §4.2 / templatestyles-reuse §4–§5). ──
+  // Mark each contained scroll region (`.wiki-tablewrap` wide data tables,
+  // `.wiki-clade` cladogram trees, AND `.tmulti` multi-image montages) whose content
+  // is wider than the region with `data-overflow`, so the CSS "Scroll table →" hint
+  // appears ONLY when scrolling is actually needed. Inert when there are no
+  // tables/clades/montages.
   //
   // The article body is injected via `dangerouslySetInnerHTML` and paints on a later,
   // unknowably-delayed commit (longer still under CPU contention), so the wrappers are not
@@ -729,7 +730,7 @@ export function TopicView() {
     )
       return;
 
-    const SELECTOR = ".wiki-tablewrap, .wiki-clade";
+    const SELECTOR = ".wiki-tablewrap, .wiki-clade, .tmulti";
     let cancelled = false;
     const resizeObservers = new Map<HTMLElement, ResizeObserver>();
 
@@ -1430,6 +1431,7 @@ export function TopicView() {
                   url={article.url}
                   qid={qid}
                   lead={article.lead}
+                  styleCss={article.styleCss}
                 />
               )}
             </div>
