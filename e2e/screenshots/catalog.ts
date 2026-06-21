@@ -469,6 +469,20 @@ export const SCENES: Scene[] = [
 
   // ── Other pages ──
   {
+    id: "about",
+    group: "Other pages",
+    label: "About — How it works (placeholder)",
+    note: "Placeholder shell so the homepage hero's primary \"How it works\" CTA has a destination; content is a separate build.",
+    route: "/about",
+    stub: "plain",
+    auth: ["out"],
+    ready: async (page) => {
+      await page.getByRole("heading", { name: /How it works/i }).waitFor();
+      await page.waitForTimeout(200);
+    },
+    clip: "fullPage",
+  },
+  {
     id: "about-data",
     group: "Other pages",
     label: "About your data",
