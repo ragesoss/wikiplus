@@ -39,6 +39,10 @@
 // ~0.8 MB of `mdn-data` into the bundle. The subpaths ship only the parser/generator/walker
 // /tokenizer/utils; the lexer/validation API and its `mdn-data` table are never reached.
 
+// Type-only import (erased at build, pulls no runtime `css-tree` / `mdn-data` into the
+// bundle) — for the AST `List`/`ListItem` shapes used when translating `.mw-parser-output`.
+import type { CssNode, List, ListItem } from "css-tree";
+
 // At-rules that fetch the network or re-target outside the article column are dropped
 // wholesale. @media/@supports/@keyframes are KEPT (their inner rules are scoped by the
 // selector pass — except @keyframes keyframe selectors, see `keyframeRules`).
@@ -133,6 +137,36 @@ export async function scopeArticleCss(css: string): Promise<string> {
     return hit;
   };
 
+  // Translate Wikipedia's content-root scope away from a single selector's child list, in
+  // place. Removes every `.mw-parser-output` ClassSelector (decoded + case-folded, so an
+  // escaped `.mw-parser\2d output` is still recognized). When the removed class was the ONLY
+  // simple selector in its compound (its neighbors on both sides are combinators or list
+  // ends), its joining combinator is removed too — the FOLLOWING one if present, else the
+  // PRECEDING one — so no dangling `table >` / `> table` is left. A compound that keeps
+  // another simple selector (`.mw-parser-output.foo`, `div.mw-parser-output`) keeps all its
+  // combinators. This only ever makes a selector LESS specific; it cannot add an ancestor or
+  // reach outside what `.wiki-body ` (added next) confines.
+  const stripParserOutput = (children: List<CssNode>) => {
+    const targets: ListItem<CssNode>[] = [];
+    children.forEach((data, item) => {
+      if (data.type === "ClassSelector" && normIdent(data.name) === "mw-parser-output") {
+        targets.push(item);
+      }
+    });
+    for (const item of targets) {
+      const prev = item.prev;
+      const next = item.next;
+      const aloneInCompound =
+        (!prev || prev.data.type === "Combinator") &&
+        (!next || next.data.type === "Combinator");
+      children.remove(item);
+      if (aloneInCompound) {
+        if (next && next.data.type === "Combinator") children.remove(next);
+        else if (prev && prev.data.type === "Combinator") children.remove(prev);
+      }
+    }
+  };
+
   try {
     // Tolerant parse: a malformed fragment becomes an inert `Raw` node rather than
     // throwing. Acceptable ONLY because application is via `textContent` (a `Raw` fragment
@@ -208,14 +242,36 @@ export async function scopeArticleCss(css: string): Promise<string> {
       },
     });
 
-    // Pass 3 — selectors. Prepend `.wiki-body ` (descendant combinator) to every selector
-    // in every `SelectorList` — which covers a rule's top-level selectors (across comma
-    // lists and CSS nesting) AND the inner selectors of :is()/:where()/:has()/:not() (each
-    // parses its argument as a SelectorList), so every branch is confined, not just the
-    // outer subject. The leading descendant prefix — not specificity — is what makes scope
-    // escape structurally impossible: the matched subject must descend from `.wiki-body`.
+    // Pass 3 — selectors. Two steps per selector, in order: (3a) translate Wikipedia's
+    // content-root scope `.mw-parser-output` away, then (3b) prepend the `.wiki-body `
+    // descendant prefix that is the X4 scope gate.
     //
-    // Two selectors are NOT prefixed:
+    // (3a) Wikipedia keys EVERY TemplateStyles rule under its content-root class
+    //   `.mw-parser-output` (e.g. `.mw-parser-output table.clade td.clade-label`). The
+    //   sanitize/section-split path drops that wrapper, so the rendered article DOM has ZERO
+    //   `.mw-parser-output` elements — a rule still demanding that ancestor matches nothing
+    //   and is inert. We remove the `.mw-parser-output` class token from each selector so the
+    //   reused rule resolves against the sanitized `.wiki-body` DOM as-is (ARCHITECTURE
+    //   "TemplateStyles reuse mechanism"; the comment on `prepClades` in article.ts):
+    //     `.mw-parser-output table.clade td.clade-label` → `table.clade td.clade-label`
+    //     `.mw-parser-output.foo .bar` (compound) → `.foo .bar` (drop only the class token)
+    //     `div.mw-parser-output` (compound) → `div`
+    //     `.mw-parser-output` alone → "" (then 3b makes it `.wiki-body`, never empty)
+    //   When the dropped class was the ONLY simple selector in its compound, its joining
+    //   combinator is dropped too (the following one, else the preceding) so no dangling
+    //   `table >`/`> table` survives. This only makes a selector LESS specific — it can never
+    //   add an ancestor or let a selector escape, and 3b's prefix still runs after it.
+    //
+    // (3b) Prepend `.wiki-body ` (descendant combinator) to every selector in every
+    //   `SelectorList` — which covers a rule's top-level selectors (across comma lists and
+    //   CSS nesting) AND the inner selectors of :is()/:where()/:has()/:not() (each parses its
+    //   argument as a SelectorList), so every branch is confined, not just the outer subject.
+    //   The leading descendant prefix — not specificity — is what makes scope escape
+    //   structurally impossible: the matched subject must descend from `.wiki-body`. A
+    //   selector emptied by 3a becomes exactly `.wiki-body` (one class, no trailing
+    //   combinator) — still scoped, never empty/unscoped.
+    //
+    // Two selectors are NOT prefixed by 3b:
     //   - @keyframes keyframe selectors (`from`/`to`/`0%`) — a prefixed keyframe selector
     //     is invalid and silently kills the animation (skipped via `keyframeSelectorLists`).
     //   - a relative selector that begins with a combinator (e.g. the `> .x` inside
@@ -228,8 +284,15 @@ export async function scopeArticleCss(css: string): Promise<string> {
         if (keyframeSelectorLists.has(selectorList)) return;
         selectorList.children.forEach((selector) => {
           if (selector.type !== "Selector") return;
+          stripParserOutput(selector.children);
           const first = selector.children.first;
           if (first && first.type === "Combinator") return; // relative selector (:has(> …))
+          if (selector.children.isEmpty) {
+            // 3a emptied a selector that was solely `.mw-parser-output` → make it exactly
+            // `.wiki-body` (still scoped; never empty/unscoped — X4).
+            selector.children.prependData({ type: "ClassSelector", name: "wiki-body" });
+            return;
+          }
           selector.children.prependData({ type: "Combinator", name: " " });
           selector.children.prependData({ type: "ClassSelector", name: "wiki-body" });
         });
