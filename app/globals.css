@@ -939,6 +939,70 @@ figure.wikifig .credit {
   transition: background 0.25s, box-shadow 0.25s;
 }
 
+/* ── Mobile article disclosure + reading scale (issue #121, design §4/§5.2/§5.6). ──────────────
+   On a phone (`< md`) each top-level `h2` section is a collapsible disclosure: ArticleSections wraps
+   the `h2` heading in a full-width <button aria-expanded>, and the group body is `hidden` until open
+   (so collapsed links leave the tab order — AC9). These rules style ONLY the `< md` phone branch;
+   on `≥ md` the disclosure button is not rendered at all (ArticleSections renders plain headings), so
+   the desktop/tablet column is byte-for-byte today (AC6). Color is expressed through the existing
+   article-column ink token / `currentColor` only — no literal hex — so #119's dark skin themes the
+   chevron and heading for free (design §9). */
+@media (max-width: 767px) {
+  /* The heading row IS the toggle: a full-column-width button that inherits the faithful Wikipedia
+     serif `h2` look (the `.sec h2` rules above still set the type, hairline rule, and size — the
+     button just lays out the chevron + text and meets the 44px touch target). No Indigo Press fill,
+     border, or shadow bleeds into the article column (the article-fidelity principle). */
+  .sec h2.sec-h2-toggle {
+    /* Drop the heading's own bottom padding/margin onto the button so the hairline rule still hugs
+       the row; the button owns the tappable box. */
+    padding-bottom: 0;
+  }
+  .sec h2.sec-h2-toggle > button {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    width: 100%;
+    min-height: 44px; /* ≥ 44×44 touch target — the whole row is the hit area (AC5 / OQ2) */
+    padding: 0.3em 0 0.3em;
+    margin: 0;
+    border: 0;
+    background: none;
+    font: inherit; /* inherit the serif `.sec h2` type — the row keeps the faithful heading look */
+    color: inherit;
+    text-align: start;
+    cursor: pointer;
+  }
+  /* Leading chevron — a CSS triangle in `currentColor` (inherits the heading ink token; #119 themes
+     it for free). State is conveyed by SHAPE (rotation), never color (AC9): collapsed points
+     inline-end (▶); expanded rotates +90° to point down (▼). Drawn with logical-edge borders so it
+     mirrors correctly in RTL. */
+  .sec-chevron {
+    flex: 0 0 auto;
+    width: 0;
+    height: 0;
+    margin-inline: 0.15rem 0.1rem;
+    border-block: 5px solid transparent; /* top + bottom edges */
+    border-inline-start: 7px solid currentColor; /* the pointing edge */
+    border-inline-end: 0;
+    transform: rotate(0deg);
+    transform-origin: 30% 50%;
+    transition: transform 0.18s ease;
+  }
+  .sec h2.sec-h2-toggle > button[aria-expanded="true"] .sec-chevron {
+    transform: rotate(90deg);
+  }
+  .sec-h2-text {
+    min-width: 0;
+  }
+
+  /* Mobile reading scale (AC5 / §5.6): a legibly-larger-than-desktop 16px body at a comfortable
+     measure (desktop/tablet keeps 0.95rem). Gated to the SAME `< md` phone branch as the collapse. */
+  .wiki-body {
+    font-size: 1rem;
+    line-height: 1.6;
+  }
+}
+
 /* ── Accessibility: visible focus everywhere (design §11.2 / AC21). ── */
 :focus-visible {
   outline: 3px solid var(--color-brand);
@@ -1071,6 +1135,11 @@ figure.wikifig .credit {
 /* ── Reduced motion (design §10.4, binding). ── */
 @media (prefers-reduced-motion: reduce) {
   .sec.active > :is(h2, h3, h4) {
+    transition: none;
+  }
+  /* The disclosure chevron rotation is instant under reduced motion (the shape still changes —
+     AC9 — only the tween is suppressed), matching the `.sec.active` discipline (design §7). */
+  .sec-chevron {
     transition: none;
   }
   .skeleton-bar {

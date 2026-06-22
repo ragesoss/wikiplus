@@ -306,6 +306,45 @@ The full article body is fetched and rendered **in the browser**, not on our ori
 - **Section anchoring:** the client maps each clip's `section_anchor` onto the live article's
   headings (slug + text), surviving edits, with a `general` fallback for orphans.
 
+### Mobile rendering — one fetch, reproduce mobile behaviors (not the mobile-html endpoint)
+
+On a phone the article column reads like **mobile Wikipedia** — collapsible sections, comfortable
+type scale and touch targets, wide tables/infoboxes that fit a narrow column. We achieve this by
+keeping the **single `page/html` (desktop Parsoid) fetch and sanitize/rewrite pipeline above** and
+**reproducing the mobile behaviors ourselves** in responsive CSS/JS, branched purely by **viewport**
+(a CSS media query + a small client toggle) — not by fetching Wikipedia's `page/mobile-html` (Page
+Content Service) endpoint and not by server User-Agent detection.
+
+- **No second HTML source.** `page/mobile-html` is a *different DOM contract* (PCS-specific
+  `pcs-ref-*` citations, `pcs-edit-section-*` chrome, `pcs-collapse-table` / `pcs-widen-image-ancestor`
+  classes) that would require a second, parallel sanitize/strip/citation/section-walk path to
+  maintain alongside the desktop one. The fidelity work (#74, #104/#105, citations, math) is all
+  tuned against desktop Parsoid output; a second source doubles that surface.
+- **The collapse behavior isn't free from the endpoint anyway.** PCS ships its collapsible-section
+  and lazy-image behavior as a bundled **`<script>` runtime plus inline `style="display:none"` and
+  toggled classes** — exactly the things the **DOMPurify allowlist deliberately strips** (no
+  `<script>`, no `<style>`, no `style=`; the X4 invariant). So even via `mobile-html` the sanitized
+  DOM would arrive with every section statically expanded and no script — we would still implement
+  the collapse ourselves. Fetching the heavier endpoint buys a new DOM to maintain without
+  delivering the behavior.
+- **Section anchors stay stable by construction.** The kebab section slugs are derived from heading
+  **`textContent`**, which is byte-identical between the two endpoints — so keeping the desktop fetch
+  preserves the section-anchoring contract (TOC, scroll-sync, clip→section matching) unchanged; no
+  re-derivation or slug mapping is needed.
+- **No ISR cache-splitting.** Because the article is fetched and transformed **client-side** and the
+  same HTML serves every device, there is no device-class cache key, no UA sniffing, and no need to
+  render both variants server-side. The mobile experience is a presentational branch in the browser
+  over one cached shell.
+- **Sanitization unchanged (X4).** This approach introduces **no new HTML source and no allowlist
+  change** — `style`/`<style>`/`<script>`/`<iframe>`/`<math>`/`<svg>` stay disallowed, the
+  `colspan`/`rowspan`/`scope` + image `width`/`height` inert-attribute hook is untouched, and the
+  existing `test/article*.test.ts` invariants hold.
+- **Shared styling surface.** The mobile behaviors are scoped to the article column's existing
+  `.wiki-body` / `.sec` styling surface in `app/globals.css`. The dark-Wikipedia **skin system**
+  (#119) layers over this same surface; the two are built against one shared article-column
+  structure (skin = color/theme tokens; mobile = layout/disclosure) so they compose rather than
+  collide.
+
 ## Topic discovery & search
 
 Topics are created on demand, so users need to *reach* uncurated ones. A search box resolves a
