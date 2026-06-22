@@ -33,7 +33,8 @@ DOM, no new tokens.
 | # | Element | Component / node | Role in the intro |
 |---|---|---|---|
 | A | **Theater surface** | `.about-theater-field` radial on `<main>` (`app/about/page.tsx`); plus the lit miniature surface | **Step 5** — brightens from a dimmer start to its final committed tone, coupled to the lamp reaching max. |
-| B | **Lamp** | the white `+` aperture (clipped to `#proj-pclip`) + the two warm `bloom` radials in `Projector.tsx` | **Step 1** flickers, **Step 2** ramps dim→bright. |
+| B | **Lamp** | the white `+` aperture (clipped to `#proj-pclip`) + the two warm `bloom` radials in `Projector.tsx`, **over the designed OFF-state lens base** (see §2.1.1) | **Step 1** flickers, **Step 2** ramps dim→bright, **starting from the designed OFF lens** (dark interior + geometric `+`), not a dimmed copy of the lit lamp. |
+| B′ | **OFF-state lens base** | a small **always-present `off-lens` group** Dev adds to `Projector.tsx` directly above the lit `about-lamp-light` group: a dark interior fill on the lamp-base ellipse, a geometric `+`, and a faint reflection (the committed handoff OFF state, adapted to the angled lens — §2.1.1) | The **floor the intro starts on**: visible by geometry from t = 0 so the lens is never an empty/edgeless hole. Static (never animates); fully occluded by the lit group once it reaches opacity 1. |
 | C | **Beam** | the three nested warm cones (+ motes) in `Beams.tsx`, apex ~`(287,773)` in the 1280×880 frame | **Step 3** projects/extends from the apex outward to the page. |
 | D | **＋plus layer** | the separable `<PlusLayer>`-family subtree in `TopicMiniature.tsx` — the right-gutter **overview + contents cards**, the **general strip** (3 clips), and the bottom **tall portrait clip** | **Step 4** reveals onto the already-present article ground. |
 | E | **Article ground** | in `TopicMiniature.tsx` — the **title input**, the **body lines**, the **section-heading bars** | Present and fully visible from the **first painted frame**; NOT animated (AC5). |
@@ -98,47 +99,73 @@ Animations API (WAAPI). Values are **multipliers/opacities on existing tokens**,
 #### B — Lamp (the `+` aperture group + the two `bloom` radials)
 
 The lamp's "brightness" is expressed as the **opacity of the lamp light layers** (the clipped white
-`+` aperture fill, the `url(#proj-plamp)` glass radial, and the two `bloom` circles) over the
-always-present cool lens stack beneath them. At dim, those warm/white light layers are low-opacity, so
-the lens reads as a barely-lit "off-ish" lamp; at full they are opacity 1 = today's lit projector.
+`+` aperture fill, the `url(#proj-plamp)` glass radial, and the two `bloom` circles) **rising over the
+designed OFF-state lens base** beneath them (the new `off-lens` group — §2.1.1). At t = 0 the lit
+layers are at opacity 0, so the lens reads as the **designed OFF projector**: a dark interior with the
+`+` aperture visible **by geometry** (a dark `+` with a faint lighter outline), a faint glass
+reflection, and **no warm bloom**. As the group's opacity rises, the white-hot `+` and warm bloom
+"light up" over that off geometry; at full they are opacity 1 = today's lit projector, fully occluding
+the off base.
+
+> **Not a 6 %-opacity glow.** The intro must **not** start the projector as the lit lamp at a near-zero
+> opacity (which nearly hides it). It starts as the committed **OFF** state — the `+` is legible while
+> off because it reads by *geometry* (a dark plus on a darker field), exactly as the handoff specifies
+> (*"the lens interior is dark, and the plus-shaped aperture … reads by geometry, not glow. We'll light
+> it up when it's on."*). The lit-layer opacity below is what *animates*; the off base is the static
+> floor it animates over.
+
 Treat the aperture-`+`-fill + glass radial + both bloom circles as one **`lamp-light` group** whose
 group opacity is animated (a single wrapping `<g>` Dev adds, or per-node parallel keyframes — Dev's
-choice; the group is cleaner).
+choice; the group is cleaner). The `off-lens` base group (§2.1.1) sits directly **beneath** it and does
+**not** animate.
+
+The transition both phases drive is **the lens lighting up**: the static OFF base (§2.1.1) — a dark
+geometric `+` on a dark interior, no bloom — is **overtaken by the lit `lamp-light` group** (the
+white-hot `+`, the warm glass radial, and the two bloom circles) as that group's opacity rises 0 → 1.
+The flicker is the lamp *striking* (uneven flashes of the LIT layer over the still-present off lens);
+the warm-up is the steady ramp of the lit `+` + bloom to full while the off-state's dark geometric `+`
+is progressively buried by the glow. **The OFF base never animates and never leaves** — so the lens is
+never empty/edgeless at any frame; only the lit layer + bloom animate on top of it.
 
 **P1 — flicker** (`animation: lamp-flicker 520ms steps/linear, one-shot`). *Uneven* flashes — irregular
 gaps, not a smooth pulse (the spec's "a few quick, uneven flashes, like a real projector striking").
-Concrete rhythm (group opacity of `lamp-light`):
+Concrete rhythm (group opacity of `lamp-light`, **layered over the static OFF base**):
 
-| % of P1 | t (ms) | opacity | note |
+| % of P1 | t (ms) | `lamp-light` opacity | what reads on screen |
 |---|---|---|---|
-| 0%   | 0   | 0.06 | near-dark (cool lens shows; aperture barely warm) |
-| 6%   | 30  | 0.55 | first strike (quick) |
-| 12%  | 62  | 0.10 | drop |
+| 0%   | 0   | **0.00** | the **designed OFF lens** — dark interior, geometric `+`, faint reflection, no bloom (§2.1.1). The lit layer is fully absent. |
+| 6%   | 30  | 0.55 | first strike (quick) — the white `+` + bloom flash *over* the off `+` |
+| 12%  | 62  | 0.06 | drop — falls back almost to the bare OFF lens |
 | 16%  | 84  | 0.70 | second strike |
-| 19%  | 100 | 0.12 | drop (uneven gap — shorter than the first) |
+| 19%  | 100 | 0.08 | drop (uneven gap — shorter than the first) |
 | 30%  | 156 | 0.40 | weak third strike |
-| 34%  | 177 | 0.08 | drop |
+| 34%  | 177 | 0.05 | drop — nearly the OFF lens again |
 | 52%  | 270 | 0.85 | fourth strike (longer gap before it — the "catch") |
 | 58%  | 300 | 0.30 | settle dip |
-| 100% | 520 | 0.30 | hold dim, ready to warm up |
+| 100% | 520 | 0.30 | hold low, ready to warm up — off `+` still reading through the partial glow |
 
 Use `steps`-like hard transitions (or `linear` with near-coincident keys) so each strike reads as a
-*snap*, not a fade — that is the projector-striking character. Keep peaks below 0.9 so P1 never reaches
-full brightness before P2 (preserves AC3 onset order: flicker → warm-up). End P1 at **0.30** so P2 has
-a clear dim→bright run.
+*snap*, not a fade — that is the projector-striking character. The drops fall to **near 0** (the lit
+layer all but vanishes) so each gap snaps back toward the visible OFF lens, which makes the strikes
+read as a lamp catching against a real dark lens rather than a dimmer wobbling. Keep peaks below 0.9 so
+P1 never reaches full brightness before P2 (preserves AC3 onset order: flicker → warm-up). End P1 at
+**0.30** so P2 has a clear dim→bright run.
 
 **P2 — warm-up dim→bright** (`lamp-warm 720ms cubic-bezier(0.22,0.61,0.36,1)` — *easeOutQuart*, a
-filament-like fast-then-settle ramp):
+filament-like fast-then-settle ramp). This is the off `+` being **overtaken** by the lit `+` + bloom:
 
-| t (ms) | `lamp-light` group opacity |
-|---|---|
-| 520  | 0.30 (hand-off from P1) |
-| 760  | 0.78 |
-| 1000 | 0.94 |
-| 1240 | **1.00 (max — the committed lit projector)** |
+| t (ms) | `lamp-light` group opacity | what reads on screen |
+|---|---|---|
+| 520  | 0.30 (hand-off from P1) | off `+` geometry still visible through a partial glow |
+| 760  | 0.78 | the white `+` + warm bloom now dominate; off geometry mostly buried |
+| 1000 | 0.94 | off base all but fully occluded by the glow |
+| 1240 | **1.00 (max — the committed lit projector)** | lit group fully opaque → OFF base completely hidden beneath it |
 
-After t = 1240 the lamp holds at opacity 1 = the static poster lamp. **No residual transform** on the
-lamp; the bloom radials are not scaled (their committed radius is the final look).
+After t = 1240 the lamp holds at opacity 1 = the static poster lamp, and the lit group **fully occludes
+the OFF base** (the lit lamp-base radial + white `+` + bloom paint over the off interior + off `+`; see
+§2.2 AC2 confirmation). **No residual transform** on the lamp; the bloom radials are not scaled (their
+committed radius is the final look). The OFF base group remains in the DOM beneath, unanimated and
+covered — never `display:none`'d, so a re-mount/replay starts cleanly from the off lens again.
 
 #### C — Beam (the three cone `<polygon>`s + the motes `<g>`)
 
@@ -250,8 +277,9 @@ drift — e.g. equal-end keyframes, or a shared timeline in WAAPI.)
   overlay (A). All `opacity`/`transform` only.
 - **Static from t = 0 (never animated):** the card (F), the article ground (E — title input, body
   lines, section bars), the projector *body* (the indigo chassis, lens stack, feet, dials — only the
-  *light* layers animate), the committed `.about-theater-field` radial tokens, the miniature drop
-  shadow, layout/flow of every box.
+  *light* layers animate), **the `off-lens` base (B′ — the designed OFF interior + geometric `+` +
+  reflection; the floor the lit layers animate over, occluded once lit — §2.1.1 / §2.2)**, the
+  committed `.about-theater-field` radial tokens, the miniature drop shadow, layout/flow of every box.
 
 ---
 
@@ -261,22 +289,68 @@ drift — e.g. equal-end keyframes, or a shared timeline in WAAPI.)
 
 | Element | t = 0 state |
 |---|---|
-| Lamp light group (B) | opacity **0.06** — dim/off; the cool lens stack shows, the warm/white aperture is barely lit. (AC1a) |
+| Lamp light group (B) | opacity **0.00** — the lit layers (white `+`, glass radial, both blooms) are **fully absent**; the projector renders in its **designed OFF state** via the always-present `off-lens` base beneath it — dark interior + `+` aperture visible **by geometry** + faint reflection, **no warm bloom** (§2.1.1, AC1a). |
+| OFF-state lens base (B′) | **fully present + visible** (static): the dark off interior, the geometric dark `+` with its faint lighter outline, and the faint glass reflection. This is what reads as "the projector is off" at first paint. |
 | ＋plus layer (D) | **hidden** — opacity 0; the miniature shows the **bare article ground only** (title + body lines + section heads). (AC1b) |
 | Beam (C) | hidden — `scaleX(0.04)`, opacity 0 (not yet thrown). |
 | Surface (A) | **dimmer** — dimming overlay at opacity **0.55** over the committed radial. (AC1c) |
 | Article ground (E) | **fully present + visible** (title input focusable, body/section bars painted). |
 | Card (F) | fully present, lit, legible. |
 
-All three AC1 conditions hold at the first painted frame: lamp dim, plus hidden, surface dimmer — and
-each is independently testable (a brightness/opacity signal below its final value; plus nodes
-hidden/transparent).
+All three AC1 conditions hold at the first painted frame: **lamp off (designed OFF lens, lit layer at
+opacity 0)**, plus hidden, surface dimmer — and each is independently testable (the lit-layer opacity
+is 0 / below its final value; plus nodes hidden/transparent). The lamp's AC1a "observably not-yet-lit"
+signal is now **stronger and truer to the handoff**: the lens is unmistakably a dark, off projector
+whose aperture you can still *see* (by geometry), not a near-invisible 6 %-opacity ghost of the lit lamp.
+
+#### 2.1.1 The designed OFF-state lens base (`off-lens` group) — what Dev adds + how it maps onto the angled lens
+
+The committed handoff defines the projector's OFF state on the **front round lens**
+(`docs/design/about-centerpiece-handoff/Projector.dc.html`): a **dark bezel `#2C2C2C`**, a **glass
+off-mode dark interior `#201c3a`** (stroke `#16132a`), a **large `+` aperture that reads by GEOMETRY,
+not glow** — fill `#2e2a52`, faint stroke `#433d72` at 0.6 opacity, "magnified to nearly fill the
+visible glass" — and a **faint glass reflection** (`#8086ca` at ~0.2, a small rotated ellipse). The
+shipped `Projector.tsx` uses the **ANGLED ON lens** (the ellipse stack with a vertical major axis for
+the yaw), so the OFF treatment is **adapted onto that angled geometry**, not the round-lens coordinates
+verbatim. Dev adds a small static `off-lens` `<g>` directly **above** the existing cool lens stack and
+directly **below** the `about-lamp-light` group in `Projector.tsx` (i.e. it paints on top of the
+`lamp-base` ellipse, under the lit layers), composed of three nodes:
+
+1. **Dark off interior** — fill the lens interior in the handoff's off-mode dark tone. The lit lens
+   already has a `lamp-base` ellipse at `cx438 cy272 rx32 ry47`; lay an off-interior ellipse of the
+   **same geometry** (`cx438 cy272 rx32 ry47`, optionally `rx31 ry46` to sit just inside the ink rim)
+   filled **`#201c3a`** (the handoff `--`-class off interior; introduce a token e.g.
+   `--color-lens-off-interior: #201c3a` rather than a raw hex, per AC18-style token discipline) with a
+   thin **`#16132a`** stroke. This replaces the *visual role* of the handoff's `r47` off-mode glass
+   circle, mapped to the angled ellipse.
+2. **Geometric `+` aperture** — a `+`-shaped `<path>` **clipped to `#proj-pclip`** (the same clip the
+   lit white `+` uses, ellipse `cx438 cy272 rx31 ry46`), sized to **nearly fill the visible glass**
+   (use the lit `+`'s own path bounds — `d="M429,225 h18 v33 h23 v28 h-23 v33 h-18 v-33 h-23 v-28 h23
+   v-33 z"` — or a path of equivalent extent), filled **`#2e2a52`** with a faint **`#433d72` stroke at
+   stroke-opacity 0.6**. This is the load-bearing element: the `+` must be **legible while off**, read
+   by *geometry* (a dark plus sitting on the slightly-darker `#201c3a` interior, edged by the faint
+   lighter outline) — **never** a glow. Tokens e.g. `--color-aperture-off: #2e2a52`,
+   `--color-aperture-off-edge: #433d72`.
+3. **Faint glass reflection** — a small rotated ellipse, fill **`#8086ca` at opacity ~0.2**, placed
+   high-left on the glass and rotated ~`-32°` (the handoff reflection), scaled to the angled lens (a
+   small ellipse, e.g. `rx ~11 ry ~7`, positioned upper-left of the lens centre at roughly
+   `cx ~424 cy ~250`, `transform="rotate(-32 424 250)"`). Decorative sheen only; it persists from the
+   off state and is harmless under the lit glow (the lit bloom/radial sit above it). Token e.g.
+   `--color-glass-sheen: #8086ca`.
+
+The whole `off-lens` group is **static** (never keyframed), `aria-hidden` like the rest of the SVG, and
+carries no functional signal. It exists so the lamp's "off" state is the **designed** off lens — dark
+interior + geometric `+` + reflection — and so the lens is **never an empty or edgeless hole** at any
+frame of the intro (the lit layers animate *over* it). Concrete intent for Dev: keep all three nodes on
+the same `cx438 cy272` centre as the angled lens stack, reuse `#proj-pclip` for the `+` so it can't
+spill past the glass, and place the group's three nodes in paint order interior → `+` → reflection.
 
 ### 2.2 Final (settled) state — AC2
 
 After t ≤ 2200 ms (and at all times once settled) the scene is **pixel-equivalent to `178c148`**:
 
 - Lamp light group opacity **1** (committed lit projector); no residual transform.
+- **OFF-state `off-lens` base fully occluded** (see the AC2 note below) — present in the DOM, painting nothing the viewer can see.
 - Beam group `scaleX(1)` identity, opacity 1; the three cones at their committed per-cone opacities.
 - All four plus groups opacity 1, identity transform (committed indigo cards/clips).
 - Dimming overlay opacity **0** (fully transparent; may be `display:none`/removed once at 0 — but only
@@ -288,6 +362,25 @@ After t ≤ 2200 ms (and at all times once settled) the scene is **pixel-equival
 the animations either complete to identity/opacity-1 values that equal the static CSS, or Dev tears
 down the animation and the inline overlay node so the DOM re-reads as today's static poster.
 
+> **AC2 — the settled lens is pixel-equivalent to today's static `Projector.tsx`, with the OFF base
+> present underneath.** The `off-lens` group adds DOM but must contribute **zero visible pixels once
+> the lamp is lit**, so the settled projector equals the committed lit projector exactly. This holds by
+> **paint-order occlusion**, no fade-out needed: the `off-lens` group sits **below** `about-lamp-light`,
+> and at settle the lit group is fully opaque (group opacity 1). The lit group's **clipped glass-lamp
+> radial** (`ellipse cx438 cy272 rx32 ry47 fill=url(#proj-plamp)`) is an **opaque** radial (its stops
+> are solid colours — `content-white` → `lamp-core` → `lamp-edge`, no transparency), painting over the
+> **entire** off interior + off `+` (both bounded by the same `cx438 cy272 rx32 ry47` ellipse / the
+> `#proj-pclip` clip), and the lit white `+` paints over the off `+`. The two warm **bloom** radials
+> (`r150`, `r96`, centred on the lens) paint over the faint reflection's region. Net: every off-state
+> pixel lies beneath an opaque lit pixel at settle → the visible lens is byte-for-byte the committed lit
+> lens. **Therefore the off base needs no settle-time fade** (it is hidden by occlusion, not by opacity)
+> and is **never** `display:none`'d. *Verification Dev/QA owes:* if for any reason the lit glass radial
+> does **not** fully cover the off interior/`+` at settle (e.g. a future tweak makes a lit stop
+> translucent or shrinks the lit lamp-base/glass ellipse below the off interior's extent), then add a
+> belt-and-braces `off-lens` opacity fade `1 → 0` completing **by lamp-max (t = 1240)** so the off base
+> is gone by settle. Default = occlusion (no fade); the fade is the fallback only if occlusion is not
+> total. Either way the settled lens equals `178c148`.
+
 ---
 
 ## 3. Reduced motion — `prefers-reduced-motion: reduce` (AC6)
@@ -298,13 +391,16 @@ gated behind `@media (prefers-reduced-motion: no-preference)`, exactly like ever
 animation in `globals.css`: the dock-in, the search-grow, the gs-fade).
 
 Under `reduce`, on the first painted frame:
-- the lamp light group is at opacity 1 (full brightness),
+- the lamp light group is at opacity 1 (full brightness) — **the designed OFF lens is never shown**
+  (it is part of the intro; the lit group occludes it from the first paint exactly as at settle),
 - the beam group is `scaleX(1)` / opacity 1 (cones present, reaching the page),
 - all plus groups are opacity 1 (fully revealed),
 - the dimming overlay is opacity 0 / absent (surface at final committed tone).
 
 i.e. **identical to AC2's settled state, immediately** — no flicker, no dim-start, no beam-extend, no
-delayed/animated plus reveal, no surface ramp. **No flashing, no late content.**
+delayed/animated plus reveal, no surface ramp, **and no off→on light-up: the projector is lit from the
+first frame.** The `off-lens` base is in the DOM but contributes zero visible pixels (occluded by the
+opaque lit group), so a `reduce` user sees only the lit poster. **No flashing, no late content.**
 
 **Implementation mirror (binding):** wrap **all** the warm-up keyframes/animations in
 `@media (prefers-reduced-motion: no-preference)` (the gate the spec mandates and `globals.css` already
@@ -471,9 +567,21 @@ the three beam cones + motes (`Beams.tsx`), the four `<PlusLayer>` groups (`Topi
 new decorative `aria-hidden` dimming overlay over the theater field / miniature stage. Implement to the
 keyframe tables in §1.2 and the bookends in §2.
 
+**One new static element this revision adds:** the **`off-lens` base group** in `Projector.tsx` (§2.1.1)
+— the designed OFF lens (dark interior `#201c3a`-class + geometric `+` `#2e2a52` with a faint `#433d72`
+edge + a faint `#8086ca` reflection), adapted onto the angled lens, painted **between** the cool lens
+ellipse stack and the `about-lamp-light` group. It is **static** (never keyframed) and the floor the
+lit-layer light-up animates over. New colour tokens (off interior / off aperture / off-aperture edge /
+glass sheen) per the project's token discipline, not raw hex in the component.
+
 Hard requirements (re-stated so Dev never guesses):
 - Element **default** (no-animation) values **are the final-state values** → `reduce` and no-JS get the
-  static poster for free (§3).
+  static poster for free (§3). For the lamp specifically: the `about-lamp-light` group's **default
+  opacity is 1** (lit). The `off-lens` base is the floor it animates *over* in the no-preference path
+  only — under `reduce`/no-JS the lit group at opacity 1 occludes it, so the OFF state never shows.
+- The projector's t = 0 (no-preference) **off state is the designed OFF lens** (§2.1.1) — dark interior
+  + `+` visible **by geometry** + faint reflection, **no bloom** — **not** a near-zero-opacity copy of
+  the lit lamp. The lit `lamp-light` group **animates from opacity 0** (not 0.06) over that off base.
 - **No focus move, no input gating, no `aria-hidden`/`display:none` on content, no layout animation**
   (CLS = 0) — §5.
 - The surface overlay reaches 0 **exactly at lamp-max** (t = 1240) — drive both off one shared end so
