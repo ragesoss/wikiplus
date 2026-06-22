@@ -45,7 +45,7 @@ export const HOW_IT_WORKS = {
     {
       n: "02",
       label: "Find and curate the best videos",
-      body: "There's a lot of great social media content, but there's a lot of trash as well. Organize the best videos and add notes for context, so the next person can jump straight to the good stuff.",
+      body: "When you find a great video, add it — along with a curation note about who made it, how accurate it is, and what it covers.",
     },
     {
       n: "03",
