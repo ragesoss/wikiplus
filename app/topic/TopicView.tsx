@@ -31,6 +31,7 @@ import {
   MobilePlayerDock,
   type MobileDockClip,
   type DockKind,
+  type DockMetrics,
 } from "@/components/topic/MobilePlayerDock";
 import { PlayerModal } from "@/components/topic/PlayerModal";
 import { Toc, type TocEntry } from "@/components/topic/Toc";
@@ -212,10 +213,18 @@ export function TopicView() {
     clip: MobileDockClip;
     candidate: Candidate | null;
   } | null>(null);
-  // The dock's parked edge, mirrored up so the page spacer (§6.6) can reserve space at the right
-  // edge (bottom-pad when parked bottom, top-pad when parked top). The dock reports changes via
-  // `onEdgeChange`; default bottom (matches the dock's own default).
-  const [dockEdge, setDockEdge] = useState<"top" | "bottom">("bottom");
+  // The dock's parked edge + MEASURED rendered height, reported up via `onDockMetrics` (issue #135,
+  // design §3). The page spacer reserves EXACTLY this height at the parked edge (bottom-pad when
+  // parked bottom, top-pad when parked top) — tied to the dock's ACTUAL height, not a fixed guess,
+  // so the article can always be scrolled fully clear with no dead gap. It updates live as the dock
+  // resizes (expand/collapse the note, swap a different-aspect clip, park to the other edge), and is
+  // removed on dismiss (the dock unmounts → `mobileDock` null → no spacer). Maximized reports
+  // height 0 (it covers everything and needs no spacer). Default bottom matches the dock's default.
+  const [dockMetrics, setDockMetrics] = useState<DockMetrics>({
+    edge: "bottom",
+    height: 0,
+    docked: true,
+  });
   // #71 §6.5: the Candidate currently playing in the pinned dock. `PinnedClip` is display-only
   // (it copies display fields), so the dock can't re-run `promote` from it; we hold the candidate
   // here so the logged-out "Curate this video" CTA can route into the curate flow for THIS
@@ -972,7 +981,9 @@ export function TopicView() {
   const playClip = useCallback(
     (clip: Clip) => {
       if (isMobile()) {
-        setDockEdge("bottom");
+        // Reset the spacer metrics to the default (a fresh dock mounts collapsed + bottom); the
+        // dock re-reports its measured height synchronously on mount (issue #135 §3).
+        setDockMetrics({ edge: "bottom", height: 0, docked: true });
         setMobileDock({
           kind: "curated",
           clip: {
@@ -1005,7 +1016,9 @@ export function TopicView() {
     (c: Candidate) => {
       if (!c.embedUrl) return; // defensive — only wired when embedUrl is present
       if (isMobile()) {
-        setDockEdge("bottom");
+        // Reset the spacer metrics to the default (a fresh dock mounts collapsed + bottom); the
+        // dock re-reports its measured height synchronously on mount (issue #135 §3).
+        setDockMetrics({ edge: "bottom", height: 0, docked: true });
         setMobileDock({
           kind: "candidate",
           clip: {
@@ -1566,12 +1579,22 @@ export function TopicView() {
         auth={<HeaderAuth />}
       />
 
-      {/* Edge-aware page spacer — TOP arm (issue #120, §6.6 reflow). While the dock is open and
-          parked at the TOP it reserves scroll space at the START of the content so the top of the
-          article isn't permanently hidden under the bar (the symmetric new case the toggle
-          introduces). Mobile-only; removed on dismiss / when parked bottom. */}
-      {mobileDock && dockEdge === "top" && (
-        <div aria-hidden className="h-[min(60vh,500px)] lg:hidden" />
+      {/* Edge-aware page spacer — TOP arm (issue #120 §6.6 reflow, sized per issue #135 §3). While
+          the dock is open and parked at the TOP it reserves scroll space at the START of the content
+          so the top of the article isn't permanently hidden under the bar (the symmetric new case
+          the toggle introduces). The height is the dock's MEASURED rendered height (+ the top
+          safe-area inset) reported via `onDockMetrics` — tied to the dock's actual size, not a fixed
+          guess. Mobile-only; removed on dismiss / when parked bottom. */}
+      {mobileDock && dockMetrics.docked && dockMetrics.edge === "top" && (
+        <div
+          aria-hidden
+          className={dockMetrics.height > 0 ? "lg:hidden" : "h-[min(56vh,460px)] lg:hidden"}
+          style={
+            dockMetrics.height > 0
+              ? { height: `calc(${dockMetrics.height}px + env(safe-area-inset-top))` }
+              : undefined
+          }
+        />
       )}
 
       {/* Illumination falloff (design header-topic-integration Decision 2 / §3.2 / AC8 / AC8b):
@@ -1881,15 +1904,28 @@ export function TopicView() {
         </div>
       </div>
 
-      {/* Edge-aware page spacer — BOTTOM arm (issue #120, §6.6 reflow). While the dock is open and
-          parked at the BOTTOM it reserves scroll space at the page bottom so the last article
-          section (and a candidate's card controls) can be scrolled clear of the bar. Additive at
-          the bottom only; removed on dismiss (mobileDock → null) so the page reflows to full
-          height. The dock is mobile-only, so the spacer never affects desktop. Maximized mode
-          needs no spacer (it covers everything and restores on exit). The TOP arm sits near the
-          start of the content (above the masthead). */}
-      {mobileDock && dockEdge === "bottom" && (
-        <div aria-hidden className="h-[min(60vh,500px)] lg:hidden" />
+      {/* Edge-aware page spacer — BOTTOM arm (issue #120 §6.6 reflow, sized per issue #135 §3).
+          While the dock is open and parked at the BOTTOM it reserves scroll space at the page bottom
+          so the last article section (and a candidate's card controls) can be scrolled clear of the
+          bar. The height is the dock's MEASURED rendered height (+ the bottom safe-area inset)
+          reported via `onDockMetrics` — tied to the dock's actual size, not a fixed guess, so there
+          is no dead gap and no still-hidden last section. Additive at the bottom only; removed on
+          dismiss (mobileDock → null) so the page reflows to full height. Until the first measurement
+          (or where `ResizeObserver`/layout is unavailable, e.g. jsdom) the spacer falls back to the
+          bounded static `min(56vh,460px)` (design §3 Dev note) — never the old 60vh, never unbounded.
+          The dock is mobile-only, so the spacer never affects desktop. Maximized mode reports
+          `docked: false` (it covers everything and restores on exit), so no spacer renders then. The
+          TOP arm sits near the start of the content (above the masthead). */}
+      {mobileDock && dockMetrics.docked && dockMetrics.edge === "bottom" && (
+        <div
+          aria-hidden
+          className={dockMetrics.height > 0 ? "lg:hidden" : "h-[min(56vh,460px)] lg:hidden"}
+          style={
+            dockMetrics.height > 0
+              ? { height: `calc(${dockMetrics.height}px + env(safe-area-inset-bottom))` }
+              : undefined
+          }
+        />
       )}
 
       {/* Non-modal, single-instance candidate player (issue #10). Mounts on play,
@@ -1920,8 +1956,9 @@ export function TopicView() {
           so a CurateModal / AddModal opened from a CTA correctly covers it. KEYED on the clip
           identity so a swap to a different clip resets the dock's internal state (collapsed + parked
           bottom) per §8 swap; React keeps the SAME element across a same-clip re-render so playback
-          is never interrupted. The dockEdge state is mirrored from the dock's `onEdgeChange` so the
-          edge-aware page spacer moves with the dock (§6.6). */}
+          is never interrupted. The dock reports its parked edge + measured height up via
+          `onDockMetrics` so the edge-aware page spacer reserves exactly the dock's actual height at
+          the right edge and tracks it live (issue #135 §3). */}
       {mobileDock && (
         <MobilePlayerDock
           key={`${mobileDock.kind}:${mobileDock.clip.embedUrl ?? mobileDock.clip.caption}`}
@@ -1930,7 +1967,7 @@ export function TopicView() {
           signedIn={signedIn}
           prefersReduced={prefersReduced.current}
           onClose={dismissMobileDock}
-          onEdgeChange={setDockEdge}
+          onDockMetrics={setDockMetrics}
           // Candidate, logged out: route the playing candidate into the gated curate flow (the same
           // `promote` → `requireLogin({gate:"curate"})` path the desktop dock uses; §5.2 / #71 §6.5).
           onCurate={

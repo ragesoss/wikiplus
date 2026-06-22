@@ -350,6 +350,170 @@ describe("MobilePlayerDock — curated no-embed shows the note (§8 no-embed cur
   });
 });
 
+describe("MobilePlayerDock — frame-first launch order (#135 §1.1, AC-1/AC-3)", () => {
+  // The corrected launch inversion: the video frame is the FIRST region after the slim title bar,
+  // and everything secondary (chips / Context / match reason / CTA / expanded note) comes AFTER the
+  // frame in DOM order. This is what makes the frame the hero and fully visible on open; it would
+  // fail against the old frame-last layout.
+  function frameAndSecondaryOrder(root: HTMLElement) {
+    const frame = root.querySelector("[data-dock-frame]")!;
+    // The secondary region is the lone overflow-y-auto column under the frame.
+    const secondary = root.querySelector(".overflow-y-auto.flex-1");
+    return { frame, secondary };
+  }
+
+  it("renders the frame BEFORE the secondary region (curated)", () => {
+    render(<MobilePlayerDock kind="curated" clip={curatedPayload()} onClose={vi.fn()} />);
+    const { frame, secondary } = frameAndSecondaryOrder(dock());
+    expect(frame).not.toBeNull();
+    expect(secondary).not.toBeNull();
+    // DOCUMENT_POSITION_FOLLOWING (4): `secondary` follows `frame` in document order.
+    expect(frame.compareDocumentPosition(secondary!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("renders the frame BEFORE the secondary region (candidate)", () => {
+    render(
+      <MobilePlayerDock
+        kind="candidate"
+        clip={candidatePayload}
+        onClose={vi.fn()}
+        signedIn={false}
+        onCurate={vi.fn()}
+      />
+    );
+    const { frame, secondary } = frameAndSecondaryOrder(dock());
+    expect(frame.compareDocumentPosition(secondary!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // The "Curate this video" CTA is inside the secondary region (after the frame), not above it.
+    const cta = screen.getByRole("button", { name: /Curate this video/ });
+    expect(secondary!.contains(cta)).toBe(true);
+  });
+
+  it("marks the frame box and the title bar as shrink-0 (never the element that scrolls)", () => {
+    render(<MobilePlayerDock kind="curated" clip={curatedPayload()} onClose={vi.fn()} />);
+    const frame = dock().querySelector("[data-dock-frame]")!;
+    expect(frame.className).toMatch(/shrink-0/);
+    // The secondary region — and only it — is the overflow scroll area.
+    const scrollers = dock().querySelectorAll(".overflow-y-auto");
+    // Exactly the secondary region scrolls when collapsed (the expanded-note panel adds a second
+    // only when open — not here).
+    expect(scrollers.length).toBe(1);
+    expect((scrollers[0] as HTMLElement).className).toMatch(/flex-1/);
+  });
+
+  it("the logged-out curated join nudge sits inside the secondary region, after the frame", () => {
+    render(
+      <MobilePlayerDock
+        kind="curated"
+        clip={curatedPayload()}
+        onClose={vi.fn()}
+        signedIn={false}
+        onJoin={vi.fn()}
+      />
+    );
+    const secondary = dock().querySelector(".overflow-y-auto.flex-1")!;
+    const nudge = screen.getByRole("button", {
+      name: "Log in to curate videos for this topic",
+    });
+    expect(secondary.contains(nudge)).toBe(true);
+  });
+
+  it("collapses the title-bar controls into ONE horizontal row, each a separate 44px button (#135 §1.3.1)", () => {
+    render(<MobilePlayerDock kind="curated" clip={curatedPayload()} onClose={vi.fn()} />);
+    const maximize = screen.getByRole("button", { name: "Maximize video to fill the screen" });
+    const move = screen.getByRole("button", { name: "Move player to top of screen" });
+    const close = screen.getByRole("button", { name: "Close video player" });
+    // All three controls share one flex-row container (collapsed, not the old vertical flex-col).
+    const row = maximize.parentElement!;
+    expect(row).toBe(move.parentElement);
+    expect(row).toBe(close.parentElement);
+    expect(row.className).toMatch(/flex-row/);
+    // Each control keeps its own 44px touch target.
+    for (const b of [maximize, move, close]) {
+      expect(b.className).toMatch(/min-h-\[44px\]/);
+    }
+  });
+});
+
+describe("MobilePlayerDock — measured-height report (#135 §3, AC-2)", () => {
+  it("reports {edge, height, docked} up via onDockMetrics on mount", () => {
+    const onDockMetrics = vi.fn();
+    render(
+      <MobilePlayerDock
+        kind="curated"
+        clip={curatedPayload()}
+        onClose={vi.fn()}
+        onDockMetrics={onDockMetrics}
+      />
+    );
+    expect(onDockMetrics).toHaveBeenCalled();
+    const m = onDockMetrics.mock.calls.at(-1)![0];
+    expect(m).toMatchObject({ edge: "bottom", docked: true });
+    expect(typeof m.height).toBe("number");
+  });
+
+  it("re-reports the new edge when parked to the top (drives the edge-aware spacer)", async () => {
+    const onDockMetrics = vi.fn();
+    render(
+      <MobilePlayerDock
+        kind="curated"
+        clip={curatedPayload()}
+        onClose={vi.fn()}
+        onDockMetrics={onDockMetrics}
+      />
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: "Move player to top of screen" })
+    );
+    expect(onDockMetrics.mock.calls.at(-1)![0]).toMatchObject({ edge: "top", docked: true });
+  });
+
+  it("reports docked:false while maximized (no page spacer is reserved then)", async () => {
+    const onDockMetrics = vi.fn();
+    render(
+      <MobilePlayerDock
+        kind="curated"
+        clip={curatedPayload()}
+        onClose={vi.fn()}
+        onDockMetrics={onDockMetrics}
+      />
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: "Maximize video to fill the screen" })
+    );
+    expect(onDockMetrics.mock.calls.at(-1)![0]).toMatchObject({ docked: false, height: 0 });
+  });
+});
+
+describe("MobilePlayerDock — bounded dock + 9:16 frame cap (#135 §2.3/§2.6)", () => {
+  it("caps the docked height at 88dvh − insets (never 100dvh)", () => {
+    render(<MobilePlayerDock kind="curated" clip={curatedPayload()} onClose={vi.fn()} />);
+    const style = dock().getAttribute("style") ?? "";
+    expect(style).toMatch(/88dvh/);
+    expect(style).not.toMatch(/100dvh/);
+  });
+
+  it("caps the 9:16 frame at min(46vh,380px), centered + letterboxed", () => {
+    render(
+      <MobilePlayerDock
+        kind="curated"
+        clip={curatedPayload({ orientation: "vertical" })}
+        onClose={vi.fn()}
+      />
+    );
+    const frameBox = dock().querySelector("[data-dock-frame] > div")!;
+    expect(frameBox.className).toMatch(/min\(46vh,380px\)/);
+    expect(frameBox.className).toMatch(/mx-auto/);
+    expect(frameBox.className).toMatch(/aspect-ratio:9\/16/);
+  });
+
+  it("16:9 stays full-width aspect-video", () => {
+    render(<MobilePlayerDock kind="curated" clip={curatedPayload()} onClose={vi.fn()} />);
+    const frameBox = dock().querySelector("[data-dock-frame] > div")!;
+    expect(frameBox.className).toMatch(/aspect-video/);
+    expect(frameBox.className).toMatch(/w-full/);
+  });
+});
+
 describe("MobilePlayerDock — reduced motion (§9)", () => {
   it("applies the motion dock-in class when motion is allowed", () => {
     render(
