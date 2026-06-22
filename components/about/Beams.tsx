@@ -1,20 +1,20 @@
-// <Beams> — the three nested warm beam cones, inline SVG (docs/design/about-page.md §2.3; polygons
-// read from Centerpiece.dc.html). All three originate at the projector aperture (x ≈ 368) and fall
-// rightward toward the page (faint → bright, outer → center); their overlap reads as a soft plus
-// over the dark room. Plus the five faint motes.
+// <Beams> — the warm beam cones for the About poster: three nested cones that originate at the
+// projector aperture (lower-left of the scene) and fan up-and-right onto the Topic-page miniature
+// (upper-right) — the long diagonal "throw" across the dark room. Outer faint → center brightest;
+// the overlap reads as a soft plus. Plus a few drifting motes along the throw.
 //
 // The beams are volumetric ONLY against the dark room — they do NOT paint a light gradient onto the
-// page (AC7); the miniature reads as evenly lit via its own warm outer glow. Pure decoration:
-// aria-hidden + role="presentation" + focusable="false" (§4.3, AC15), pointer-events:none.
+// miniature (it reads as evenly lit via its own warm glow). Pure decoration: aria-hidden +
+// role="presentation" + focusable="false", pointer-events:none.
 //
-// It fills the stage at viewBox 0 0 1280 720 (the reference frame), so it scales natively with the
-// fixed-ratio stage (§2.6) — no per-width re-derivation.
+// viewBox 0 0 1280 880 = the poster reference frame; it scales natively with the fixed-ratio stage,
+// so the cone geometry needs no per-width re-derivation.
 
 export function Beams({ idPrefix = "beam" }: { idPrefix?: string }) {
   const grad = `${idPrefix}-cbeam`;
   return (
     <svg
-      viewBox="0 0 1280 720"
+      viewBox="0 0 1280 880"
       preserveAspectRatio="none"
       aria-hidden="true"
       role="presentation"
@@ -35,19 +35,21 @@ export function Beams({ idPrefix = "beam" }: { idPrefix?: string }) {
           <stop offset="1" stopColor="var(--color-beam-warm)" stopOpacity="0.16" />
         </linearGradient>
       </defs>
-      {/* outer → top-left & bottom-left corners of the page (frames the whole topic) */}
-      <polygon points="368,558 368,606 686,715 686,78" fill={`url(#${grad})`} opacity="0.16" />
-      {/* middle → top & bottom of the gutter */}
-      <polygon points="368,564 368,600 712,618 712,112" fill={`url(#${grad})`} opacity="0.24" />
-      {/* center → the general strip (brightest, widest core) */}
-      <polygon points="368,574 368,588 712,426 712,264" fill={`url(#${grad})`} opacity="0.36" />
-      {/* faint motes drifting in the beam */}
+      {/* apex at the projector aperture (~287,773, lower-left); the far edge lands across the page's
+          left side (~x 708), framing the DROPPED miniature top → bottom (~y 280–860). outer →
+          widest/faintest. */}
+      <polygon points="287,750 287,796 722,860 706,280" fill={`url(#${grad})`} opacity="0.16" />
+      {/* middle */}
+      <polygon points="287,758 287,788 712,792 708,398" fill={`url(#${grad})`} opacity="0.24" />
+      {/* center → the brightest, narrow core along the throw, aimed at the page's middle */}
+      <polygon points="287,766 287,780 712,700 710,540" fill={`url(#${grad})`} opacity="0.36" />
+      {/* faint motes drifting in the beam, along the lower-left → page throw */}
       <g fill="var(--color-beam-warm)">
-        <circle cx="520" cy="512" r="1.6" opacity="0.5" />
-        <circle cx="582" cy="448" r="1.3" opacity="0.4" />
-        <circle cx="624" cy="392" r="1.4" opacity="0.45" />
-        <circle cx="660" cy="470" r="1.2" opacity="0.4" />
-        <circle cx="700" cy="332" r="1.3" opacity="0.4" />
+        <circle cx="412" cy="722" r="1.6" opacity="0.5" />
+        <circle cx="512" cy="690" r="1.3" opacity="0.4" />
+        <circle cx="606" cy="662" r="1.4" opacity="0.45" />
+        <circle cx="700" cy="636" r="1.2" opacity="0.4" />
+        <circle cx="800" cy="606" r="1.3" opacity="0.4" />
       </g>
     </svg>
   );

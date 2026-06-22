@@ -87,9 +87,10 @@ export function TopicMiniature() {
         border: "1px solid var(--color-card-hairline)",
         borderRadius: 4,
         overflow: "hidden",
-        // The warm outer glow (first layer) + the drop shadow into the dark room (second layer).
-        boxShadow:
-          "0 0 78px 8px rgba(255,243,210,0.42), 0 24px 64px rgba(0,0,0,0.55)",
+        // A soft drop shadow grounds the page in the dark room. No warm halo glow — a box-shadow glow
+        // traces the page's rectangle (reads as a rectangular outline); the beam landing on the page
+        // is what should read as "lit", not a glow tracing its edges.
+        boxShadow: "0 24px 64px rgba(0,0,0,0.5)",
         padding: "30px 28px 34px",
       }}
     >

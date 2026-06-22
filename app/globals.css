@@ -1230,6 +1230,20 @@ figure.wikifig .credit {
    a length lets the scale be a clean length÷length = unitless ratio (`100cqw / var(--stage-w)`) — no
    nested calc, which the CSS engine parses reliably. Used for the full dark scene (1280×720) at ≥ lg
    AND for the miniature-alone frame (560×660) < lg — each instance sets its own three values. */
+/* ── The About "theater" field — the WHOLE /about page is one warm-dark room: a radial that is warm
+   (theater-1) toward the projector lamp and falls to near-black (theater-3) at the edges. The four
+   centerpiece elements (the How-it-works card, the projector, the beam, the lit page miniature) are
+   composed WITHIN this single full-page field — there is no separate scene "box". */
+.about-theater-field {
+  background-color: var(--color-theater-3);
+  background-image: radial-gradient(
+    115% 115% at 32% 60%,
+    var(--color-theater-1) 0%,
+    var(--color-theater-2) 45%,
+    var(--color-theater-3) 100%
+  );
+}
+
 /* ── The one "How it works" card — the only light surface on the dark About theater (design: the
    warm zine card catching the projector's light). On the near-black theater the zine HARD offset
    shadow (ink on near-black) would not read, so the card uses a warm outer glow + a faint dark drop
