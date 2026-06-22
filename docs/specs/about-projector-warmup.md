@@ -7,12 +7,17 @@
 centerpiece … Future follow-up.") and `docs/design/about-centerpiece-handoff/README.md` →
 "Interactions & behavior" (the planned 3-step sequence; the static off/on projector + a hideable
 plus layer were shipped to drive it).
-**Current static implementation this animates (the end state):** the About page as it ships today on
-branch `about-projector-warmup` — `app/about/page.tsx` (full-bleed dark theater, `SiteHeader
-host="flat"`, content vertically centered), `components/about/Centerpiece.tsx`,
+**Current static implementation this animates (the end state):** the committed static About **poster**
+on `main` at `178c148` ("Compose About as one full-page poster in a single theater field") — the look
+this build animates *into*. It is **one full-page warm-dark "theater" field** (`.about-theater-field`
+on `<main>`) with **four elements composed within that one field**: the "How it works" card, the
+projector, its beam, and the lit Topic-page miniature. There is **no separate scene box** — the
+`.about-stage` is **transparent**, so the page field shows through it; the projector's bloom and the
+miniature's glow read as light in one continuous room. The files: `app/about/page.tsx`
+(`SiteHeader host="flat"`, content vertically centered in the field), `components/about/Centerpiece.tsx`,
 `Projector.tsx`, `Beams.tsx`, `TopicMiniature.tsx` (the separable `<PlusLayer>`-family subtree),
-`HowItWorks.tsx`, and `app/globals.css` (`.about-stage` / `.about-stage-inner`, `.how-it-works-card`,
-the `--color-theater-*` radial stops).
+`HowItWorks.tsx`, and `app/globals.css` (`.about-theater-field`, `.about-stage` / `.about-stage-inner`,
+`.how-it-works-card`, the `--color-theater-*` radial stops).
 
 > This build adds a **one-shot, on-load "projector warm-up" intro** to the existing `/about`
 > centerpiece scene. It introduces **no new content, no schema/auth/Server-Action/data change**, and
@@ -78,16 +83,18 @@ The five choreographed steps (the owner's intent, verbatim in intent):
    real projector striking. (The lamp is the white "+" aperture + warm bloom in `Projector.tsx`.)
 2. **Warm-up (dim → bright).** The lamp/aperture **ramps from dim to full brightness** after the
    flicker settles.
-3. **Beam projects.** The **beam appears and extends** from the projector aperture across to the
-   Topic-page miniature — the three nested warm cones in `Beams.tsx` reach the page.
+3. **Beam projects.** The **beam appears and extends** from the projector aperture (lower-left) along
+   the **long diagonal throw up-right** to the dropped Topic-page miniature (upper-right) — the three
+   nested warm cones in `Beams.tsx` reach the page.
 4. **＋plus layer reveals.** The miniature goes from **lacking** the ＋plus content (the bare Wikipedia
    article ground only — title + body lines + section heads) to **having** it: the indigo ＋plus layer
    (the plus cards + the clips, the separable `<PlusLayer>`-family subtree in `TopicMiniature.tsx`)
    **reveals in**.
 5. **Surface reaches full brightness.** The page/theater surface starts **dimmer** (darker) and
    reaches today's committed color/brightness **only when the projector is fully illuminated at max
-   brightness**. ("Surface" = the scene's theater radial + the miniature's lit appearance; the overall
-   scene brightens up to its final tone.)
+   brightness**. ("Surface" = the full-page theater field's radial (`.about-theater-field`) + the
+   miniature's lit appearance under the beam; the overall scene brightens up to its final tone. There
+   is no separate scene-box radial — the `.about-stage` is transparent and the field is the surface.)
 
 The five steps form one continuous choreography; their exact phase boundaries, overlaps, easing, and
 per-phase timing are **UX's contract** (this spec fixes the *order* and the *start/end states*, not the
@@ -110,9 +117,14 @@ block any content or control.
 
 ### Out of scope (state explicitly)
 
-- **Any change to the static final look.** The end state must be **pixel-equivalent to today's
-  committed static About page** (the `233a5fc` look). This build adds an intro that *resolves into*
-  that look; it does not restyle the projector, beams, miniature, card, theater, header, or tokens.
+- **Any change to the static final look.** The end state must be **pixel-equivalent to the committed
+  static About poster on `main` at `178c148`** (the one full-page theater field; card overlaid
+  upper-left, projector lower-left, long diagonal beam, dropped miniature upper-right at `≥ xl`). This
+  build adds an intro that *resolves into* that look; it does not restyle the projector, beams,
+  miniature, card, theater field, header, the responsive composition/tiers, or tokens. (Note: the
+  miniature today has **no** warm rectangular halo glow — just a soft drop shadow; the beam landing on
+  it is the "lit" cue. Step 5 must not add a halo back — it brightens the *beam's lit cue + the
+  miniature's existing surface tone*, not a new glow.)
 - **Real / final copy.** The explainer copy stays as-is (placeholder this round per
   `docs/specs/about-page.md`); the animation does not touch copy. The "How it works" card is **not**
   part of the warm-up choreography (it is the page's light surface and load-bearing copy; it does not
@@ -134,8 +146,9 @@ block any content or control.
 Each is independently testable by a QA engineer (Vitest/RTL for DOM/structure/reduced-motion-policy
 assertions; Playwright for the rendered sequence, the settled state, and reduced-motion parity) and by
 UX against the motion design spec. **None depends on final/real copy.** "Final static state" means the
-committed static About look as it ships on `about-projector-warmup` at `233a5fc` (the look this build
-animates *into*).
+committed static About **poster** as it ships on `main` at `178c148` — the one full-page theater field
+with the card, projector, beam, and dropped miniature composed within it (the look this build animates
+*into*).
 
 **Start state, end state (the bookends)**
 
@@ -148,15 +161,17 @@ animates *into*).
    dimmer** than the final committed tone. (Testable: at animation start the plus-layer elements are
    hidden/transparent and a brightness/opacity signal on the lamp/surface is below its final value.)
 
-2. **Final state equals today's committed static look, exactly.** After the intro completes (and at all
-   times once settled), the centerpiece renders **pixel-equivalent to the current committed static
-   About page** — same projector at full brightness, same three beams, same fully-revealed ＋plus
-   layer, same theater radial tone, same miniature glow, same "How it works" card. Verifiable two ways:
-   (i) a Playwright screenshot of the **settled** scene matches the committed baseline within the
-   project's normal pixel tolerance; (ii) once settled, no element carries a non-final inline
-   opacity/transform/brightness left over from the intro (the animation leaves the DOM in the same
-   visual state the static page has today). The intro is **additive and one-shot** — it does not
-   permanently alter the static look (AC10).
+2. **Final state equals the committed static poster (`178c148`), exactly.** After the intro completes
+   (and at all times once settled), the centerpiece renders **pixel-equivalent to the committed static
+   About poster on `main` at `178c148`** — same one full-page theater field, same projector at full
+   brightness, same three diagonal beams reaching the dropped miniature, same fully-revealed ＋plus
+   layer, same theater radial tone, same miniature drop shadow (no warm halo), same "How it works" card
+   in its tier-appropriate position (overlaid upper-left at `≥ xl`; first-in-flow above the scene when
+   stacked). Verifiable two ways: (i) a Playwright screenshot of the **settled** scene matches the
+   committed baseline within the project's normal pixel tolerance; (ii) once settled, no element carries
+   a non-final inline opacity/transform/brightness left over from the intro (the animation leaves the
+   DOM in the same visual state the static poster has today). The intro is **additive and one-shot** —
+   it does not permanently alter the static look (AC10).
 
 **The ordered sequence (the five steps)**
 
@@ -233,23 +248,31 @@ animates *into*).
 
 **Responsive (the intro works coherently at every supported width)**
 
-12. **Responsive choreography — defined per width tier.** The intro plays coherently at all three of the
-    current centerpiece layouts, with the reduced form below `lg` defined as follows (the projector +
-    beams are **only shown `≥ lg`** in the current `Centerpiece.tsx`; below `lg` the miniature shows
-    **alone**):
-    - **`≥ xl` (card LEFT + full scene RIGHT) and `lg`–`xl` (stacked: card first, full scene below):** the
-      **full five-step choreography** runs — flicker → warm-up → beam reaches the miniature → ＋plus reveal
-      → surface brightens.
-    - **`< lg` (miniature ALONE, no projector / no beams):** steps 1–3 have no on-screen projector or
-      beams to play, so the reduced intro is **step 4 (the ＋plus layer reveals in on the article ground)
-      + step 5 (the miniature/surface brightens to its final tone)**. The plus-reveal + surface-brighten
-      still play, coherently, with the same start/end-state guarantees (AC1, AC2) for the elements that
-      are present. The miniature still ends pixel-equivalent to today's `< lg` static miniature.
+12. **Responsive choreography — defined per width tier (the poster tiers of `178c148`).** The intro
+    plays coherently at all three of the current poster layouts. The projector + beams are **only
+    present `≥ lg`** in the current `Centerpiece.tsx`; below `lg` the miniature shows **alone** on the
+    field (no projector, no beams). The tiers:
+    - **`≥ xl` — the full POSTER:** the "How it works" card is **overlaid upper-left** (real-font, z
+      above the beam), the projector sits **lower-left below the card**, a long **diagonal beam throws
+      up-right** to the **dropped Topic-page miniature on the upper-right** (its bottom aligned with the
+      projector's lower edge). The **full five-step choreography** runs — flicker → warm-up dim→bright →
+      the diagonal beam reaches the dropped miniature → ＋plus reveal → surface reaches full brightness.
+      The card is **not** part of the choreography (AC6/AC7); it is present and lit from first paint.
+    - **`lg`–`xl` — STACKED (card FIRST, the full poster scene below it):** the same projector + beam +
+      miniature scene runs the **full five-step choreography**; only the page layout differs (the card
+      is stacked above the scene rather than overlaid on it).
+    - **`< lg` — STACKED, miniature ALONE (no projector / no beams):** steps 1–3 have no on-screen
+      projector or beams to play, so the reduced intro is **step 4 (the ＋plus layer reveals in on the
+      already-present article ground) + step 5 (the miniature surface brightens to its final tone)**.
+      The plus-reveal + surface-brighten still play, coherently, with the same start/end-state
+      guarantees (AC1, AC2) for the elements that are present. The miniature still ends pixel-equivalent
+      to today's `< lg` static miniature (soft drop shadow, no halo).
     - In **all** tiers, the page body **never scrolls horizontally** because of the intro (no element is
-      transformed/translated outside its clipped stage box), and the final state at every width equals
-      today's static look at that width (AC2).
-    (Testable: Playwright at mobile 390 / tablet 834 / desktop 1280 — assert the appropriate intro runs,
-    no horizontal scroll appears at any frame, and the settled state matches the baseline at each width.)
+      transformed/translated outside its clipped stage box — the `.about-stage` clips its inner frame),
+      and the final state at every width equals the static poster's look at that width (AC2).
+    (Testable: Playwright at mobile 390 / tablet 834 / desktop 1280 — assert the appropriate intro runs
+    for the tier, no horizontal scroll appears at any frame, and the settled state matches the baseline
+    at each width.)
 
 ---
 
@@ -312,10 +335,12 @@ owner / QA / UX confirm:
 - This is the long-deferred follow-up named in `docs/specs/about-page.md` (in-scope item 10 +
   the "animated centerpiece" out-of-scope note) and the centerpiece handoff's "Interactions &
   behavior." It is built on top of the **current** (post-redesign) About implementation
-  (`233a5fc`: full-bleed dark theater, `host="flat"`, card + scene), **not** the older
-  contained-panel composition described in `docs/design/about-page.md`. UX should write the motion spec
-  against the current components (`Centerpiece.tsx` / `Projector.tsx` / `Beams.tsx` /
-  `TopicMiniature.tsx`), whose ＋plus subtree is already separated for exactly this reveal.
+  (`178c148`: one full-page warm-dark theater field, `host="flat"`, the card + projector + beam +
+  dropped miniature composed as a single poster within that field; transparent stage), **not** the
+  older contained-panel composition described in `docs/design/about-page.md`. UX should write the motion
+  spec against the current components (`Centerpiece.tsx` / `Projector.tsx` / `Beams.tsx` /
+  `TopicMiniature.tsx`), whose ＋plus subtree is already separated for exactly this reveal, and against
+  the poster tiers in AC12.
 - **No new tokens/schema/data/auth/Server-Action.** This is a pure client-side animation over existing
   markup and existing `@theme` tokens (`--color-theater-*`, the lamp/bloom/beam warms, the indigo
   hardbox tokens) — confirm none is introduced (AC consistency).
@@ -340,7 +365,8 @@ owner / QA / UX confirm:
   `@media (prefers-reduced-motion: no-preference)` (mirroring the existing About/topic motion in
   `globals.css`), animating opacity/transform only, over the existing markup — the lamp (the white "+"
   aperture + bloom in `Projector.tsx`), the three beam cones (`Beams.tsx`), the separable ＋plus subtree
-  (`TopicMiniature.tsx`), and the scene surface (the `.about-stage`/theater radial + miniature). Keep the
+  (`TopicMiniature.tsx`), and the scene surface (the `.about-theater-field` radial + the lit miniature;
+  the `.about-stage` itself is transparent). Keep the
   article-ground present from the start; reveal only the plus layer. No focus move, no input gating, no
   layout shift. Ensure the screenshot-baseline capture settles deterministically (AC11) and refresh the
   About baseline. Hand to QA & Review for verification against AC1–AC12, then UX evaluates the built
