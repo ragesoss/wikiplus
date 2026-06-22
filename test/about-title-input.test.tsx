@@ -78,6 +78,49 @@ describe("AC11 — Enter navigates to the topic page (raw title, no hand-encodin
     // Spaces → underscores via titleToSlug; the title is passed raw to topicHref.
     expect(routerPush).toHaveBeenCalledWith("/topic/San_Francisco/");
   });
+
+  it("a title with reserved chars round-trips through topicHref (encoded once, single path segment)", async () => {
+    const user = userEvent.setup({ delay: null });
+    render(<MiniatureTitleInput />);
+    const input = screen.getByRole("textbox", { name: TITLE_INPUT_LABEL });
+    await user.clear(input);
+    // "C++" / "AT&T"-class titles: reserved chars are percent-encoded by titleToSlug, not
+    // hand-encoded by the component, and the result stays a single /topic/<segment>/ path.
+    await user.type(input, "Foo & Bar+");
+    await user.keyboard("{Enter}");
+    expect(routerPush).toHaveBeenCalledWith("/topic/Foo_%26_Bar%2B/");
+  });
+});
+
+// ── Security — a user-controlled title cannot coerce an unsafe navigation ──────
+// The input feeds router.push(topicHref(value.trim())); topicHref encodes via titleToSlug
+// (encodeURIComponent then %20→_). encodeURIComponent escapes every URL-significant char
+// (`:`, `/`, `//`), so a malicious title can never become a javascript:/data: scheme URL, an
+// open redirect, or escape the /topic/ segment via path traversal — the result is always a
+// same-origin relative path passed to client-side navigation.
+describe("Security — title cannot produce an unsafe navigation", () => {
+  it.each([
+    ["javascript:alert(1)", "/topic/javascript%3Aalert(1)/"],
+    ["//evil.com", "/topic/%2F%2Fevil.com/"],
+    ["https://evil.com", "/topic/https%3A%2F%2Fevil.com/"],
+    ["../../etc/passwd", "/topic/..%2F..%2Fetc%2Fpasswd/"],
+    ["data:text/html,<x>", "/topic/data%3Atext%2Fhtml%2C%3Cx%3E/"],
+  ])("neutralizes %j → a same-origin /topic/ path", async (evil, expected) => {
+    const user = userEvent.setup({ delay: null });
+    render(<MiniatureTitleInput />);
+    const input = screen.getByRole("textbox", { name: TITLE_INPUT_LABEL });
+    await user.clear(input);
+    // user.type interprets `{` `[` as special; this corpus has none, so it types literally.
+    await user.type(input, evil);
+    await user.keyboard("{Enter}");
+    expect(routerPush).toHaveBeenCalledTimes(1);
+    const pushed = routerPush.mock.calls[0][0] as string;
+    expect(pushed).toBe(expected);
+    // Belt-and-braces: always a relative /topic/ path, never a scheme/protocol-relative URL.
+    expect(pushed.startsWith("/topic/")).toBe(true);
+    expect(pushed).not.toMatch(/^[a-z]+:/i); // no javascript:/data:/https: scheme
+    expect(pushed.startsWith("//")).toBe(false); // no protocol-relative open redirect
+  });
 });
 
 // ── AC12 — empty / whitespace-only is a graceful no-op ────────────────────────
