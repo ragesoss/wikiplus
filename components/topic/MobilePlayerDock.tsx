@@ -252,7 +252,21 @@ export function MobilePlayerDock({
   //    height cap never scrolls or clips the credit / Move / Maximize / Close off-screen. The
   //    creator credit lives here, present in EVERY state (collapsed, expanded, top-parked, candidate,
   //    no-embed) — AC-4. In maximized mode the chrome condenses to a thin Close bar (credit caption;
-  //    park hidden — §6.3/§6.4). ──
+  //    park hidden — §6.3/§6.4).
+  //
+  //    NARROW-WIDTH TEXT BUDGET (AC-3/AC-4). Three full-word `shrink-0` controls would consume ~270px
+  //    and starve the `flex-1` text column at 360/390px (the caption truncating to just "＋…", the
+  //    credit dropping "· platform"). So below `sm` (640px — i.e. every in-scope phone width) the
+  //    control WORD is `sr-only`: the glyph shows, the word stays in the accessible name (the
+  //    `aria-label` + the `sr-only` span), so each control is still text-labeled for AT and ≥44px,
+  //    while the caption + the full credit stay legible. At `sm`+ (the < lg tablet, ~834px) and in
+  //    MAXIMIZED mode (the bar has only Exit + Close and full width) the words are restored visibly. ──
+  const showWords = maximized; // visible words at sm+ via `sm:not-sr-only`; always when maximized.
+  const wordClass = showWords
+    ? "ml-1"
+    : "sr-only sm:not-sr-only sm:ml-1";
+  const controlClass =
+    "inline-flex min-h-[44px] min-w-[44px] items-center justify-center px-2 py-1 text-sm font-semibold text-white hover:underline";
   const titleBar = (
     <div className="flex shrink-0 items-center gap-2 px-3 py-2">
       <div className="min-w-0 flex-1">
@@ -270,19 +284,21 @@ export function MobilePlayerDock({
       </div>
       {/* The ONE compact horizontal controls row (design §1.3.1) — right-aligned, vertically
           centered against the two text lines. Maximize · (Move) · Close, each a separate
-          focusable <button> with a 44px min target. */}
-      <div className="flex shrink-0 flex-row items-center gap-1">
-        {/* Maximize / Exit toggle (§6.5): glyph + WORD, so it is keyboard/AT-reachable and works
-            for a vertical Short with no landscape trigger. Never calls requestFullscreen. */}
+          focusable <button> with a 44px min target. The visible word collapses to the glyph below
+          `sm` so the text column keeps room (the accessible name still carries the word). */}
+      <div className="flex shrink-0 flex-row items-center gap-0.5">
+        {/* Maximize / Exit toggle (§6.5): glyph + accessible WORD, so it is keyboard/AT-reachable and
+            works for a vertical Short with no landscape trigger. Never calls requestFullscreen. */}
         <button
           type="button"
           onClick={() => setMaximized((m) => !m)}
           aria-label={
             maximized ? "Exit full-screen video" : "Maximize video to fill the screen"
           }
-          className="inline-flex min-h-[44px] items-center px-2 py-1 text-sm font-semibold text-white hover:underline"
+          className={controlClass}
         >
-          <span aria-hidden>⤢</span>&nbsp;{maximized ? "Exit" : "Maximize"}
+          <span aria-hidden>⤢</span>
+          <span className={wordClass}>{maximized ? "Exit" : "Maximize"}</span>
         </button>
         {/* Park toggle (§7): names the DESTINATION; glyph + WORD (never glyph/color alone).
             Hidden in maximized mode (parking is meaningless when the dock is the screen). */}
@@ -295,10 +311,12 @@ export function MobilePlayerDock({
                 ? "Move player to top of screen"
                 : "Move player to bottom of screen"
             }
-            className="inline-flex min-h-[44px] items-center px-2 py-1 text-sm font-semibold text-white hover:underline"
+            className={controlClass}
           >
-            <span aria-hidden>{edge === "bottom" ? "⤒" : "⤓"}</span>&nbsp;
-            {edge === "bottom" ? "Move to top" : "Move to bottom"}
+            <span aria-hidden>{edge === "bottom" ? "⤒" : "⤓"}</span>
+            <span className={wordClass}>
+              {edge === "bottom" ? "Move to top" : "Move to bottom"}
+            </span>
           </button>
         )}
         {/* Close (shared, §5.1): glyph + WORD; tearing it down removes the dock + iframe. */}
@@ -306,9 +324,10 @@ export function MobilePlayerDock({
           type="button"
           onClick={onClose}
           aria-label="Close video player"
-          className="inline-flex min-h-[44px] items-center px-2 py-1 text-sm font-semibold text-white hover:underline"
+          className={controlClass}
         >
-          <span aria-hidden>✕</span>&nbsp;Close
+          <span aria-hidden>✕</span>
+          <span className={wordClass}>Close</span>
         </button>
       </div>
     </div>

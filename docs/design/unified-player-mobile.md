@@ -181,7 +181,13 @@ first and treats the CTA as secondary-but-reachable.
    **caption** (`line-clamp-1`, bold); line 2 = the **creator credit** `handle · platformLabel`
    (muted white, `truncate`). On the right, **one compact horizontal controls row** (`flex-row`):
    the **Maximize/Exit** toggle (§6.5), the **park toggle** (§7), and the **Close** control, each a
-   separate real `<button>` in normal tab order (§9), each with a 44px min touch target.
+   separate real `<button>` in normal tab order (§9), each with a ≥44px min touch target. **Below
+   `sm` (every in-scope phone width) the control word is `sr-only` — the glyph shows and the word
+   stays in the accessible name** (`aria-label` + the `sr-only` span), so three full-word buttons
+   don't starve the caption/credit text column at 360/390px (the caption would otherwise truncate to
+   "＋…" and the credit drop its platform). At `sm`+ (the `< lg` tablet) and in **maximized** mode
+   (the thin bar has room) the words are restored **visibly**. Text-labeled-for-AT holds throughout —
+   the word is never carried by glyph or colour alone.
    - **CC BY-SA creator credit is in the shared title bar and therefore present in EVERY state,
      including the collapsed curated state and both maximized states** (§6). This satisfies the
      non-negotiable that creator attribution rides every clip surface (CURATION §5.2). The credit

@@ -427,10 +427,42 @@ describe("MobilePlayerDock — frame-first launch order (#135 §1.1, AC-1/AC-3)"
     expect(row).toBe(move.parentElement);
     expect(row).toBe(close.parentElement);
     expect(row.className).toMatch(/flex-row/);
-    // Each control keeps its own 44px touch target.
+    // Each control keeps its own ≥44px touch target (height AND width, now the words can collapse).
     for (const b of [maximize, move, close]) {
       expect(b.className).toMatch(/min-h-\[44px\]/);
+      expect(b.className).toMatch(/min-w-\[44px\]/);
     }
+  });
+
+  it("collapses the control WORD to sr-only below sm so the caption/credit keep room (AC-3/AC-4), keeping the accessible name", () => {
+    render(<MobilePlayerDock kind="curated" clip={curatedPayload()} onClose={vi.fn()} />);
+    for (const [glyphLabel, word] of [
+      ["Maximize video to fill the screen", "Maximize"],
+      ["Move player to top of screen", "Move to top"],
+      ["Close video player", "Close"],
+    ] as const) {
+      const btn = screen.getByRole("button", { name: glyphLabel });
+      // The visible word is in the DOM (the accessible name still carries it) but sr-only below sm,
+      // restored visibly at sm+ — so it never steals the narrow-width text column.
+      const wordSpan = Array.from(btn.querySelectorAll("span")).find((s) =>
+        s.textContent === word
+      )!;
+      expect(wordSpan, `${word} word span present`).toBeTruthy();
+      expect(wordSpan.className).toMatch(/sr-only/);
+      expect(wordSpan.className).toMatch(/sm:not-sr-only/);
+      // The aria-label (the accessible name) is unchanged — text-labeled for AT regardless.
+      expect(btn).toHaveAccessibleName(glyphLabel);
+    }
+  });
+
+  it("shows the control words VISIBLY when maximized (the thin bar has room — no sr-only there)", async () => {
+    render(<MobilePlayerDock kind="curated" clip={curatedPayload()} onClose={vi.fn()} />);
+    await userEvent.click(
+      screen.getByRole("button", { name: "Maximize video to fill the screen" })
+    );
+    const close = screen.getByRole("button", { name: "Close video player" });
+    const word = Array.from(close.querySelectorAll("span")).find((s) => s.textContent === "Close")!;
+    expect(word.className).not.toMatch(/sr-only/);
   });
 });
 
