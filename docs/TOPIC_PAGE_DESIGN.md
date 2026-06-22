@@ -377,27 +377,39 @@ On **mobile (`< lg`)**, **every** video — curated or candidate — plays in **
 viewport-fit player, `MobilePlayerDock`. It generalizes the candidate dock above into a single
 component: the frame, the creator credit (CC BY-SA), Close, the park toggle, and the maximize
 behavior are **identical for every clip**; only the supplemental info + action buttons differ by
-`(kind: curated | candidate) × (signedIn)`. (Full spec: `docs/design/unified-player-mobile.md`; issue
-#120.) The viewport is read **at play time**: a play click on a narrow viewport opens this dock; on a
-wide viewport it opens the desktop modal/pinned dock above. An open dock stays in its surface across a
-breakpoint crossing — only the next play re-evaluates — so a rehost never interrupts playback.
+`(kind: curated | candidate) × (signedIn)`. (Full spec: `docs/design/unified-player-mobile.md`; the
+launch/docked layout is `docs/design/mobile-player-launch.md`; issues #120, #135.) The viewport is
+read **at play time**: a play click on a narrow viewport opens this dock; on a wide viewport it opens
+the desktop modal/pinned dock above. An open dock stays in its surface across a breakpoint crossing —
+only the next play re-evaluates — so a rehost never interrupts playback.
+
+- **Video-first launch.** The dock is a frame-first flex column — a slim title bar (the eyebrow +
+  caption, the creator credit, and one compact row of Maximize · Move · Close), then the **video
+  frame as the hero**, then everything secondary below it. Tapping a clip lands the reader on the
+  picture: the **whole frame is fully visible on open**, with no scroll inside the dock to reach it.
+  The dock is **bounded** (capped at `88dvh − insets`, never the full screen; a 9:16 Short's frame
+  caps at `min(46vh,380px)`, centered + letterboxed), so a meaningful slice of the article stays
+  visible and scrollable. The frame and title bar never shrink or scroll; the secondary region below
+  the frame is the dock's sole scroll area. The page reserves space at the parked edge equal to the
+  dock's **measured actual height** so the article can be scrolled fully clear.
 
 - **One dock at a time.** Curated and candidate mobile playback share the single-instance guarantee:
   a second play (either kind) **swaps in place** (one `<section>`, one iframe, payload changed); there
   is never a curated dock *and* a candidate dock open at once. A curated⇄candidate swap re-renders the
   same dock with the new `kind`.
-- **Supplemental row, parameterized.** A **candidate** shows its one-line match reason; a **curated**
-  clip shows the **collapsed curation block** — held marking (if held) + stance/accuracy chips + a
-  **"Context ▸" tap-to-expand** that reveals the full note + "context by" on a light surface, scrolling
-  inside a bounded region so it never crowds the article off the screen. The creator credit lives in
-  the shared title bar, so the CC BY-SA attribution is present in every state. Logged out, a candidate
-  carries **"Curate this video"** and a curated clip carries the softer **"Log in to curate videos for
-  this topic"** nudge; signed in, neither.
+- **Secondary region, parameterized (below the frame).** Below the hero frame, a **candidate** shows
+  its one-line match reason; a **curated** clip shows the **collapsed curation block** — held marking
+  (if held) + a one-line stance/accuracy chips strip + a **"Context ▸" tap-to-expand** that reveals
+  the full note + "context by" on a light surface, scrolling inside a bounded region so it never
+  crowds the article off the screen and never moves the frame. The creator credit lives in the slim
+  title bar, so the CC BY-SA attribution is present in every state. Logged out, a candidate carries
+  **"Curate this video"** and a curated clip carries the softer **"Log in to curate videos for this
+  topic"** nudge, both below the frame; signed in, neither.
 - **Movable, keep-reading (the park toggle).** A **labeled toggle button** ("Move to top" / "Move to
   bottom", keyboard-operable, never drag — drag fights touch scroll and is hard for AT) parks the
   full-width dock at the top or bottom edge while the article stays scrollable. The page reserves space
-  at the parked edge (an additive, edge-aware spacer, removed on dismiss) so the article never hides
-  permanently behind the bar.
+  at the parked edge (an additive, edge-aware spacer sized to the dock's measured height, removed on
+  dismiss) so the article never hides permanently behind the bar.
 - **Orientation-aware maximize is CSS-only, never the native Fullscreen API.** Turning the phone
   landscape (or the explicit **⤢ Maximize/Exit** button) grows the **same `<section>` and the same
   iframe** to fill the viewport via CSS (`fixed inset-0`) — a 16:9 clip fills the landscape width, a

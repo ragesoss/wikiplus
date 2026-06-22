@@ -103,7 +103,7 @@ function longArticleHtml(lead: string): string {
 
 /** A short two-section article whose headings share NO keyword with RESP_YT_ITEMS, so the five
  *  candidates all land in the General band (the suggestion-state captures). */
-const SUGGESTION_ARTICLE_HTML = `<!DOCTYPE html><html><body>
+export const SUGGESTION_ARTICLE_HTML = `<!DOCTYPE html><html><body>
   <section><p>Cellular respiration is the set of metabolic reactions that convert nutrients into ATP.</p></section>
   <section data-mw-section-id="1"><h2 id="glycolysis">Glycolysis</h2><p>Glycolysis body.</p></section>
   <section data-mw-section-id="2"><h2 id="citric">Citric acid cycle</h2><p>Citric acid cycle body.</p></section>
@@ -175,7 +175,7 @@ async function stubEmbeds(page: Page): Promise<void> {
   );
 }
 
-async function stubTopic(
+export async function stubTopic(
   page: Page,
   opts: { qid: string; title: string; article: string; youtube: () => YouTubeItemStub[] }
 ): Promise<void> {
@@ -411,9 +411,10 @@ async function openMobileDockVertical(page: Page): Promise<void> {
 }
 
 /** Open a vertical Short docked, then expand its curated "Context ▸" note. This is the stressing
- *  fit case (a tall 9:16 frame + an expanded note): the dock's height-cap + internal scroll keep
- *  the title bar (credit / Move / Maximize / Close) on-screen and the dock within the viewport
- *  (§6.2 fit guarantee) — the state a horizontal clip can never exercise. */
+ *  fit case (a tall 9:16 frame + an expanded note): the frame + title bar are shrink-0 and stay
+ *  fully visible while the note scrolls inside the bounded secondary region, the dock staying within
+ *  the 88dvh ceiling (frame-first fit guarantee, mobile-player-launch.md §2) — the state a
+ *  horizontal clip can never exercise. */
 async function openMobileDockVerticalExpanded(page: Page): Promise<void> {
   await openMobileDockVertical(page);
   await page.getByRole("button", { name: /^Context/ }).click();
@@ -674,7 +675,7 @@ export const SCENES: Scene[] = [
     id: "mobile-player-curated",
     group: "Players · mobile unified",
     label: "Mobile dock — curated, collapsed curation",
-    note: "Curated clip docked at the bottom: title-bar credit + chips + 'Context ▸'. Logged-out adds the join nudge.",
+    note: "Curated clip docked at the bottom, frame-first: slim title bar (credit) → video frame (the hero, fully visible) → chips + 'Context ▸' below the frame. Logged-out adds the join nudge below. A meaningful article slice stays visible above.",
     route: "/topic/Photosynthesis/",
     stub: "curated",
     viewports: ["mobile"],
@@ -686,7 +687,7 @@ export const SCENES: Scene[] = [
     id: "mobile-player-curated-expanded",
     group: "Players · mobile unified",
     label: "Mobile dock — curated, expanded note",
-    note: "The 'Context ▸' expander opened: full note + 'context by' on a light surface, scrolling inside the bounded region. Logged-out arm shows the join nudge after the note.",
+    note: "The 'Context ▸' expander opened: full note + 'context by' on a light surface BELOW the frame, scrolling inside the bounded secondary region. The frame stays its size and stays fully visible above. Logged-out arm shows the join nudge after the note.",
     route: "/topic/Photosynthesis/",
     stub: "curated",
     viewports: ["mobile"],
@@ -698,7 +699,7 @@ export const SCENES: Scene[] = [
     id: "mobile-player-candidate",
     group: "Players · mobile unified",
     label: "Mobile dock — candidate, match reason",
-    note: "Candidate docked: one-line match reason in place of the note. Logged-out shows '✦ Curate this video'; signed-in is metadata-only.",
+    note: "Candidate docked, frame-first: slim title bar (credit) → video frame (the hero) → one-line match reason below it. Logged-out shows '✦ Curate this video' below the frame; signed-in is metadata-only.",
     route: "/topic/Cellular_respiration/",
     stub: "suggestions",
     viewports: ["mobile"],
@@ -710,7 +711,7 @@ export const SCENES: Scene[] = [
     id: "mobile-player-vertical",
     group: "Players · mobile unified",
     label: "Mobile dock — vertical 9:16 clip",
-    note: "A 9:16 Short docked: height-capped at min(45vh,420px), centered + letterboxed on black — the vertical fit at 390px.",
+    note: "A 9:16 Short docked, frame-first: height-capped at min(46vh,380px), centered + letterboxed on black, fully visible with the article slice above — the vertical fit at 390px.",
     route: "/topic/Photosynthesis/",
     stub: "curated",
     viewports: ["mobile"],
@@ -723,7 +724,7 @@ export const SCENES: Scene[] = [
     id: "mobile-player-vertical-expanded",
     group: "Players · mobile unified",
     label: "Mobile dock — vertical 9:16, expanded note",
-    note: "The stressing fit case: a tall 9:16 frame WITH the curated note expanded. The dock's height-cap + internal scroll keep the title bar (credit / Move / Maximize / Close) on-screen and the whole dock within the viewport (§6.2) — the no-overflow guarantee a horizontal clip can't exercise.",
+    note: "The stressing fit case: a tall 9:16 frame (fully visible, frame-first) WITH the curated note expanded BELOW it. The frame + title bar stay pinned (shrink-0); the note scrolls inside the bounded secondary region and the whole dock stays within the 88dvh ceiling.",
     route: "/topic/Photosynthesis/",
     stub: "curated",
     viewports: ["mobile"],
@@ -736,7 +737,7 @@ export const SCENES: Scene[] = [
     id: "mobile-player-top-parked",
     group: "Players · mobile unified",
     label: "Mobile dock — parked at the top edge",
-    note: "The park toggle's other state: the dock pinned to the top, the article reflowed below it (the toggle now reads 'Move to bottom').",
+    note: "The park toggle's other state: the dock pinned to the top with the internal order identical (slim title bar at the top edge → frame → secondary below), the article reflowed below it (the toggle now reads 'Move to bottom').",
     route: "/topic/Photosynthesis/",
     stub: "curated",
     viewports: ["mobile"],
