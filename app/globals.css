@@ -1230,6 +1230,21 @@ figure.wikifig .credit {
    a length lets the scale be a clean length÷length = unitless ratio (`100cqw / var(--stage-w)`) — no
    nested calc, which the CSS engine parses reliably. Used for the full dark scene (1280×720) at ≥ lg
    AND for the miniature-alone frame (560×660) < lg — each instance sets its own three values. */
+/* ── The one "How it works" card — the only light surface on the dark About theater (design: the
+   warm zine card catching the projector's light). On the near-black theater the zine HARD offset
+   shadow (ink on near-black) would not read, so the card uses a warm outer glow + a faint dark drop
+   instead, with the thin ink edge for the hardbox boundary. The warm fill + brand/violet/ink text
+   keep AA on the card. */
+.how-it-works-card {
+  background: var(--color-card-warm);
+  border: 2px solid var(--color-ink);
+  border-radius: 4px;
+  padding: 28px 30px 30px;
+  box-shadow:
+    0 0 64px 6px rgba(255, 243, 210, 0.16),
+    0 18px 48px rgba(0, 0, 0, 0.5);
+}
+
 .about-stage {
   container-type: inline-size;
   position: relative;

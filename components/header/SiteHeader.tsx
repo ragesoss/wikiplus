@@ -113,7 +113,7 @@ export function TopicHeaderSearch({
   );
 }
 
-type Host = "home" | "topic" | "page";
+type Host = "home" | "topic" | "page" | "flat";
 
 interface SiteHeaderProps {
   /** Which host config (design §2). Default "home" (the unchanged landing hero).
@@ -122,7 +122,12 @@ interface SiteHeaderProps {
    *  - "page"  — the sticky, scroll-aware CONTENT-PAGE header: the same continuous beam→slim
    *    collapse as Topic, but with no search / seam / title cue — just the wordmark beam and a
    *    right-anchored auth. Any content page gets the smooth beam transition AND a beam-landing
-   *    page-top surface for free by choosing this host (no per-page scroll wiring or illum). */
+   *    page-top surface for free by choosing this host (no per-page scroll wiring or illum).
+   *  - "flat"  — "projector OFF": a slim, static (NOT scroll-aware) bar with the FLAT lockup
+   *    (Tier C — no lit aperture, no beam) + a right-anchored auth, on the cool header field. For
+   *    pages whose own body hosts projector imagery (e.g. /about, whose centerpiece graphic IS a
+   *    projector throwing a beam) — a header beam too would read as two projectors. No band, no
+   *    collapse, no beam-landing illum surface. */
   host?: Host;
   /** The auth control node (exactly ONE AuthControl per header — AC9). */
   auth: ReactNode;
@@ -145,6 +150,9 @@ export function SiteHeader({
   }
   if (host === "page") {
     return <PageSiteHeader auth={auth} />;
+  }
+  if (host === "flat") {
+    return <FlatSiteHeader auth={auth} />;
   }
   return <HomeSiteHeader auth={auth} />;
 }
@@ -305,6 +313,29 @@ function HomeSiteHeader({ auth }: { auth: ReactNode }) {
         style={{ height: 56 }}
       >
         {auth}
+      </div>
+    </div>
+  );
+}
+
+// ── Host D — flat / "projector OFF". A slim, STATIC top bar (no scroll-aware band, no beam) for a
+// page that hosts its own projector imagery in the body (e.g. /about, whose centerpiece IS a
+// projector throwing a beam): a header beam too would read as two projectors. The wordmark is the
+// FLAT lockup (Tier C — no lit aperture, no beam, no "pedia") as the home link, with a single
+// right-anchored AuthControl, on the cool header field. No band collapse and no beam-landing
+// `.beam-page-illum` surface — the flat lockup butts straight onto the page body below. The bar is
+// the SLIM_BAR_HEIGHT chrome row, so the wordmark + auth sit at the same scale as every other host's
+// slim row. ──────────────────────────────────────────────────────────────────────────────────────
+function FlatSiteHeader({ auth }: { auth: ReactNode }) {
+  return (
+    <div className="relative bg-[var(--color-header-field)]">
+      <div
+        className="mx-auto flex max-w-[1200px] items-center px-5"
+        style={{ minHeight: SLIM_BAR_HEIGHT }}
+      >
+        <HeaderProjector variant="lockup-flat" as="a" href="/" />
+        {/* The single AuthControl, right-anchored on the wordmark row (AC9). */}
+        <div className="ml-auto flex shrink-0 items-center">{auth}</div>
       </div>
     </div>
   );

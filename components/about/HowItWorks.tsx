@@ -1,25 +1,33 @@
-// <HowItWorks> — the §B explainer (docs/design/about-page.md §6.1; AC19). The LOAD-BEARING,
-// accessibility-anchored "How it works": the real, reliable explainer a screen-reader / keyboard /
-// mobile user reads, on the light page canvas where AA contrast is easy to guarantee (always present
-// at every width, unlike the §A in-scene card which is desktop-only decoration). Both read from the
-// SAME HOW_IT_WORKS copy object, so a copy edit updates both at once.
+// <HowItWorks> — THE "How it works" card: the single, load-bearing explainer of the wiki+ thesis and
+// the one light surface on the dark About page. A warm zine card (it reads as catching the
+// projector's light) carrying the real heading + numbered steps. It is the page's primary VISIBLE
+// heading (an <h2>) and the accessible <ol> of steps; the centerpiece graphic beside it is decoration.
+// There is exactly ONE of these — no decorative in-scene duplicate to read twice.
 //
-// Structure is the contract (AC19): a heading + a real <ol> of numbered steps, each an eyebrow
-// number + a label + a body slot. Copy lives in HOW_IT_WORKS (copy.ts), isolated from layout so real
-// copy drops into the text values only — no structural change. 3 steps now; 3–4 supported.
+// Layout-neutral: it owns the card chrome + content; the parent (<Centerpiece>) sizes and places it
+// (a left column beside the graphic when wide; stacked FIRST, above the graphic, when it reflows
+// narrow). `className` merges onto the card root for that placement.
 //
-// A11y (§9.1): the eyebrow text is the brand indigo on body grey — that pair is 4.39:1, just under
-// AA 4.5:1, so per the §9.1 Dev action the eyebrow TEXT is darkened to --color-violet (6.75:1, AA),
-// and the gold stays a thin DECORATIVE rule only. The <ol> carries order semantically; the visible
-// number glyph is decorative styling on top (aria-hidden), never the sole carrier of order (§9.4).
+// On the dark theater the card uses a warm outer glow + a thin ink edge — NOT the zine hard offset
+// shadow, which (ink-on-near-black) doesn't read on the dark field; `.how-it-works-card` (globals.css)
+// owns that surface. Copy lives in HOW_IT_WORKS (copy.ts), isolated from layout (3 steps; 3–4
+// supported by a one-line array push).
+//
+// A11y: the eyebrow text is --color-violet on the warm card (AA ≥ 4.5:1) and the gold rule is a
+// decorative accent only; the heading/body use ink / warm prose (AA on the warm fill). The <ol>
+// carries step order semantically; the big number glyph is decorative styling (aria-hidden), never
+// the sole carrier of order.
 
 import { HOW_IT_WORKS } from "./copy";
 
-export function HowItWorks() {
+export function HowItWorks({ className = "" }: { className?: string }) {
   return (
-    <section aria-labelledby="how-it-works-heading" className="mx-auto max-w-[760px] px-4">
+    <section
+      aria-labelledby="how-it-works-heading"
+      className={`how-it-works-card ${className}`}
+    >
       {/* Eyebrow — gold accent rule + label. The word carries the meaning; the rule colour is
-          decorative. Text is --color-violet for AA on the body grey (§9.1). */}
+          decorative. Text is --color-violet for AA on the warm card fill. */}
       <p className="plus-disp flex items-center text-xs font-bold uppercase tracking-[0.18em] text-violet">
         <span aria-hidden className="mr-3 h-[2px] w-6 bg-[var(--color-gold-accent)]" />
         {HOW_IT_WORKS.eyebrow}
@@ -32,11 +40,11 @@ export function HowItWorks() {
         {HOW_IT_WORKS.heading}
       </h2>
 
-      <p className="mt-4 max-w-[62ch] text-[1.0625rem] leading-relaxed text-ink2">
+      <p className="mt-4 text-[1.0625rem] leading-relaxed text-[color:var(--color-prose-warm)]">
         {HOW_IT_WORKS.lead}
       </p>
 
-      <ol className="mt-8 flex flex-col gap-7">
+      <ol className="mt-7 flex flex-col gap-6">
         {HOW_IT_WORKS.steps.map((step) => (
           <li key={step.n} className="flex gap-4">
             <span aria-hidden className="bignum shrink-0 text-2xl leading-none text-brand">
@@ -44,7 +52,9 @@ export function HowItWorks() {
             </span>
             <div>
               <h3 className="plus-disp text-base font-bold text-ink">{step.label}</h3>
-              <p className="mt-1 text-[0.95rem] leading-relaxed text-ink2">{step.body}</p>
+              <p className="mt-1 text-[0.95rem] leading-relaxed text-[color:var(--color-prose-warm)]">
+                {step.body}
+              </p>
             </div>
           </li>
         ))}
