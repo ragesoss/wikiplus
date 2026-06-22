@@ -35,21 +35,30 @@ export function Beams({ idPrefix = "beam" }: { idPrefix?: string }) {
           <stop offset="1" stopColor="var(--color-beam-warm)" stopOpacity="0.16" />
         </linearGradient>
       </defs>
-      {/* apex at the projector aperture (~287,773, lower-left); the far edge lands across the page's
-          left side (~x 708), framing the DROPPED miniature top → bottom (~y 280–860). outer →
-          widest/faintest. */}
-      <polygon points="287,750 287,796 722,860 706,280" fill={`url(#${grad})`} opacity="0.16" />
-      {/* middle */}
-      <polygon points="287,758 287,788 712,792 708,398" fill={`url(#${grad})`} opacity="0.24" />
-      {/* center → the brightest, narrow core along the throw, aimed at the page's middle */}
-      <polygon points="287,766 287,780 712,700 710,540" fill={`url(#${grad})`} opacity="0.36" />
-      {/* faint motes drifting in the beam, along the lower-left → page throw */}
-      <g fill="var(--color-beam-warm)">
-        <circle cx="412" cy="722" r="1.6" opacity="0.5" />
-        <circle cx="512" cy="690" r="1.3" opacity="0.4" />
-        <circle cx="606" cy="662" r="1.4" opacity="0.45" />
-        <circle cx="700" cy="636" r="1.2" opacity="0.4" />
-        <circle cx="800" cy="606" r="1.3" opacity="0.4" />
+      {/* The BEAM group — the three cones + motes, wrapped so the About warm-up intro can grow the
+          beam ALONG ITS THROW from the apex outward (a scaleX about the shared lower-left apex
+          ~287,773, in this 1280×880 user space) and fade it in as one unit; the motes ride the same
+          transform, streaming out with the beam. At rest the group is scaleX(1)/opacity 1 = today's
+          committed cones (the default, so reduced-motion / no-JS get the full beam for free). The
+          group keeps the apex pinned and never exceeds s = 1, so no frame widens the clipped stage.
+          Decorative (the whole SVG is aria-hidden). */}
+      <g className="about-beam-grow" style={{ transformOrigin: "287px 773px" }}>
+        {/* apex at the projector aperture (~287,773, lower-left); the far edge lands across the page's
+            left side (~x 708), framing the DROPPED miniature top → bottom (~y 280–860). outer →
+            widest/faintest. */}
+        <polygon points="287,750 287,796 722,860 706,280" fill={`url(#${grad})`} opacity="0.16" />
+        {/* middle */}
+        <polygon points="287,758 287,788 712,792 708,398" fill={`url(#${grad})`} opacity="0.24" />
+        {/* center → the brightest, narrow core along the throw, aimed at the page's middle */}
+        <polygon points="287,766 287,780 712,700 710,540" fill={`url(#${grad})`} opacity="0.36" />
+        {/* faint motes drifting in the beam, along the lower-left → page throw */}
+        <g fill="var(--color-beam-warm)">
+          <circle cx="412" cy="722" r="1.6" opacity="0.5" />
+          <circle cx="512" cy="690" r="1.3" opacity="0.4" />
+          <circle cx="606" cy="662" r="1.4" opacity="0.45" />
+          <circle cx="700" cy="636" r="1.2" opacity="0.4" />
+          <circle cx="800" cy="606" r="1.3" opacity="0.4" />
+        </g>
       </g>
     </svg>
   );

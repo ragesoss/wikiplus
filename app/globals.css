@@ -1274,3 +1274,149 @@ figure.wikifig .credit {
   transform-origin: top left;
   transform: scale(calc(100cqw / var(--stage-w)));
 }
+
+/* ── The About "projector warm-up" intro (docs/design/about-projector-warmup.md). ──
+   A one-shot, on-load choreography over the existing static poster: lamp flicker → warm-up
+   dim→bright → beam grows along its throw → the ＋plus layer staggers in onto the article ground →
+   the room brightens to its committed tone (coupled to lamp-max). It animates OPACITY/TRANSFORM
+   ONLY (GPU-composited, zero layout shift) and resolves to EXACTLY the committed static look.
+
+   The DEFAULT (no-animation) values below ARE the final static poster — the lamp light group at
+   opacity 1, the beam at scaleX(1)/opacity 1, every plus group at opacity 1, the room-dim overlay
+   at opacity 0. So a reduced-motion render, a no-JS / pre-hydration render, and the settled scene
+   are all the committed poster with nothing to suppress. The intro adds the appearance keyframes
+   only inside `@media (prefers-reduced-motion: no-preference)` AND only under `.about-intro` (added
+   by <Centerpiece> on mount when motion is allowed) — exactly the gate the rest of globals.css uses
+   for `wikiplus-search-grow` / `.pinned-dock-in` / `.gs-fade-in`. */
+
+/* The room-dimming overlay (Surface, §1.2-A). Decorative veil filled with the theater edge colour;
+   at rest it is fully transparent (the committed radial shows through untouched), so it can never
+   overshoot the final tone. It sits at the lowest z of the scene content (below the beam at
+   z-index:1, the projector/miniature at z-index:2, and the card) so it dims the room, not the card
+   copy. pointer-events:none so it never intercepts a click meant for the title input. */
+.about-room-dim {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: var(--color-theater-3);
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* The beam grows from the apex (the lower-left projector aperture, ~287,773 in the 1280×880 user
+   space). transform-box:view-box makes the inline transform-origin resolve in that viewBox space, so
+   the scaleX pins to the apex; at rest the group is the identity transform (the committed cones). */
+.about-beam-grow {
+  transform-box: view-box;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* ── Step 1+2 — Lamp: a few quick uneven flashes (the projector striking), then a fast-then-settle
+     dim→bright filament ramp to max at t = 1240ms. group opacity of the warm/white lamp-light layers
+     over the always-present cool lens (the "off-ish" lamp). ── */
+  @keyframes about-lamp-flicker {
+    0% { opacity: 0.06; }   /* t=0 near-dark */
+    6% { opacity: 0.55; }   /* first strike */
+    12% { opacity: 0.1; }
+    16% { opacity: 0.7; }   /* second strike */
+    19% { opacity: 0.12; }
+    30% { opacity: 0.4; }   /* weak third */
+    34% { opacity: 0.08; }
+    52% { opacity: 0.85; }  /* fourth strike — the "catch" */
+    58% { opacity: 0.3; }
+    100% { opacity: 0.3; }  /* hold dim, ready to warm up */
+  }
+  @keyframes about-lamp-warm {
+    0% { opacity: 0.3; }    /* hand-off from the flicker */
+    33% { opacity: 0.78; }
+    67% { opacity: 0.94; }
+    100% { opacity: 1; }    /* max — the committed lit projector */
+  }
+  /* The scene runs the lamp in two phases via a single group whose animation list chains the
+     flicker (0→520ms, stepped feel) then the warm-up (520→1240ms, easeOutQuart), each filling
+     forwards so the group holds at its end value between/after phases. */
+  .about-intro .about-stage--scene .about-lamp-light {
+    animation:
+      about-lamp-flicker 520ms steps(1, end) 0ms 1 both,
+      about-lamp-warm 720ms cubic-bezier(0.22, 0.61, 0.36, 1) 520ms 1 both;
+  }
+
+  /* ── Step 3 — Beam grows along the throw (scaleX about the apex) + fades in, reaching the
+     miniature at t = 1240ms. Starts at t = 560ms (just after warm-up begins). ── */
+  @keyframes about-beam-throw {
+    0% { transform: scaleX(0.04); opacity: 0; }
+    24% { transform: scaleX(0.45); opacity: 0.55; }
+    65% { transform: scaleX(0.86); opacity: 0.92; }
+    100% { transform: scaleX(1); opacity: 1; }
+  }
+  .about-intro .about-stage--scene .about-beam-grow {
+    animation: about-beam-throw 680ms cubic-bezier(0.16, 0.84, 0.44, 1) 560ms 1 both;
+  }
+
+  /* ── Step 4 — ＋plus reveal: each group fades + scales up + slides a small nudge ALONG the beam's
+     throw (down-left → settle), staggered so the "+" assembles in the order the light fills the page
+     (strip first where the core lands, then the gutter fills top→bottom). Per-group 380ms; last
+     group settles by t = 2000ms. ── */
+  @keyframes about-plus-reveal {
+    0% {
+      opacity: 0;
+      transform: translate(-9px, 8px) scale(0.92);
+    }
+    100% {
+      opacity: 1;
+      transform: translate(0, 0) scale(1);
+    }
+  }
+  .about-intro .about-stage--scene .about-plus {
+    transform-origin: center;
+    animation: about-plus-reveal 380ms cubic-bezier(0.2, 0.7, 0.3, 1) both;
+  }
+  .about-intro .about-stage--scene .about-plus--strip { animation-delay: 1240ms; }
+  .about-intro .about-stage--scene .about-plus--overview { animation-delay: 1360ms; }
+  .about-intro .about-stage--scene .about-plus--contents { animation-delay: 1480ms; }
+  .about-intro .about-stage--scene .about-plus--portrait { animation-delay: 1620ms; }
+
+  /* ── Step 5 — Surface: the room-dim overlay fades 0.55 → 0, REACHING 0 EXACTLY AT t = 1240ms (the
+     lamp's max). Held dimmer from t = 0 until the ramp begins (t = 600ms), then easeInOut to 0. The
+     coupling is structural: this animation and the lamp warm-up share the same t = 1240 end, so the
+     surface can never reach its final tone before lamp-max (AC4). ── */
+  @keyframes about-room-brighten {
+    0% { opacity: 0.55; }       /* t=0 dimmer room */
+    27% { opacity: 0.55; }      /* t≈600ms ramp onset */
+    64% { opacity: 0.3; }       /* t≈900ms brightening */
+    100% { opacity: 0; }        /* t=1240ms — overlay gone, final tone, coupled to lamp-max */
+  }
+  .about-intro .about-stage--scene .about-room-dim {
+    animation: about-room-brighten 1240ms cubic-bezier(0.33, 0, 0.67, 1) 0ms 1 both;
+  }
+
+  /* ── < lg — miniature ALONE (the reduced intro, §4.3): steps 4 + 5 only (no on-screen
+     projector/beam). The plus layer reveals with a neutral upward nudge (no beam axis to ride),
+     staggered the same order, starting at t = 240ms with the last group settled by t = 1000ms. The
+     room-dim overlay scoped to this stage fades 0.55 → 0 over t = 0 → 700ms. ── */
+  @keyframes about-plus-reveal-mini {
+    0% {
+      opacity: 0;
+      transform: translateY(10px) scale(0.92);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+  .about-intro .about-stage--mini .about-plus {
+    transform-origin: center;
+    animation: about-plus-reveal-mini 380ms cubic-bezier(0.2, 0.7, 0.3, 1) both;
+  }
+  .about-intro .about-stage--mini .about-plus--strip { animation-delay: 240ms; }
+  .about-intro .about-stage--mini .about-plus--overview { animation-delay: 360ms; }
+  .about-intro .about-stage--mini .about-plus--contents { animation-delay: 480ms; }
+  .about-intro .about-stage--mini .about-plus--portrait { animation-delay: 620ms; }
+  @keyframes about-room-brighten-mini {
+    0% { opacity: 0.55; }
+    100% { opacity: 0; }
+  }
+  .about-intro .about-stage--mini .about-room-dim {
+    animation: about-room-brighten-mini 700ms cubic-bezier(0.33, 0, 0.67, 1) 0ms 1 both;
+  }
+}

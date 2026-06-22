@@ -317,6 +317,23 @@ export async function homeReady(page: Page): Promise<void> {
   await page.waitForTimeout(300);
 }
 
+/** Wait for the About centerpiece to be SETTLED (docs/design/about-projector-warmup.md §6). The
+ *  page plays a one-shot "projector warm-up" intro on load; the baseline must capture the SETTLED
+ *  final state, never a mid-intro frame. Two independent guards (belt-and-braces): force reduced
+ *  motion — under which the FIRST paint is the final state (no intro to race) — AND wait for the
+ *  `data-about-intro="settled"` readiness signal the Centerpiece exposes (covers a no-preference
+ *  capture too). So the regenerated About baseline equals the committed static poster (AC11). */
+async function aboutSettled(page: Page): Promise<void> {
+  await homeReady(page); // wordmark link + first heading (the home-host ready signal)
+  // Force the no-intro path: under `reduce` the first painted scene IS the settled poster.
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  // …and/or wait the settled signal (covers a no-preference capture if the harness ever runs one).
+  await page
+    .locator('[data-about-intro="settled"]')
+    .waitFor({ timeout: 3000 })
+    .catch(() => {});
+}
+
 /** Open the blocking PlayerModal by playing the first curated clip. */
 async function openPlayerModal(page: Page): Promise<void> {
   await page.locator("#general-band").waitFor();
@@ -796,7 +813,9 @@ export const SCENES: Scene[] = [
     note: "The projector→page→＋plus thesis hero (full scene ≥ lg; miniature-alone < lg) + the How-it-works steps.",
     route: "/about",
     stub: "plain",
-    ready: homeReady, // /about is a home-host-family page (no Wikipedia fetch) — use the homeReady waiter
+    // The About scene plays a one-shot warm-up intro; wait for the SETTLED final state (and force
+    // reduced motion) so the baseline is deterministic and equals the static poster (AC11).
+    ready: aboutSettled,
     clip: "fullPage",
   },
   {

@@ -79,18 +79,28 @@ export function Projector({ idPrefix = "proj" }: { idPrefix?: string }) {
       <ellipse cx="424" cy="272" rx="40" ry="56" fill="var(--color-indigo-dark)" stroke="var(--color-ink)" strokeWidth="1.6" />
       <ellipse cx="438" cy="272" rx="38" ry="54" fill="var(--color-ink)" />
       <ellipse cx="438" cy="272" rx="32" ry="47" fill="var(--color-lamp-base)" />
-      <g clipPath={`url(#${clip})`}>
-        <ellipse cx="438" cy="272" rx="32" ry="47" fill={`url(#${lamp})`} />
-      </g>
-      {/* Warm bloom over the bezel/body. */}
-      <circle cx="438" cy="272" r="150" fill={`url(#${bloom})`} />
-      <circle cx="438" cy="272" r="96" fill={`url(#${bloom})`} />
-      {/* The white "+" aperture — the lamp the beams originate from (pure white, clipped). */}
-      <g clipPath={`url(#${clip})`}>
-        <path
-          d="M429,225 h18 v33 h23 v28 h-23 v33 h-18 v-33 h-23 v-28 h23 v-33 z"
-          fill="var(--color-content-white)"
-        />
+      {/* The LAMP LIGHT group — the warm/white light layers that read as "the lamp is lit": the two
+          warm bloom radials, the clipped glass lamp radial, and the white "+" aperture. The
+          always-present cool lens stack beneath (above) is the "off-ish" lamp. The About warm-up
+          intro animates THIS group's opacity (flicker → dim→bright) over the static lens; at rest
+          the group is opacity 1 = today's committed lit projector (the default, so reduced-motion /
+          no-JS get the lit lamp for free). Grouping the light layers keeps the intro a single
+          group-opacity tween. The group stays decorative (the whole SVG is aria-hidden). */}
+      <g className="about-lamp-light">
+        {/* Warm bloom over the bezel/body. */}
+        <circle cx="438" cy="272" r="150" fill={`url(#${bloom})`} />
+        <circle cx="438" cy="272" r="96" fill={`url(#${bloom})`} />
+        {/* The clipped glass lamp radial (the warm glow inside the aperture). */}
+        <g clipPath={`url(#${clip})`}>
+          <ellipse cx="438" cy="272" rx="32" ry="47" fill={`url(#${lamp})`} />
+        </g>
+        {/* The white "+" aperture — the lamp the beams originate from (pure white, clipped). */}
+        <g clipPath={`url(#${clip})`}>
+          <path
+            d="M429,225 h18 v33 h23 v28 h-23 v33 h-18 v-33 h-23 v-28 h23 v-33 z"
+            fill="var(--color-content-white)"
+          />
+        </g>
       </g>
     </svg>
   );

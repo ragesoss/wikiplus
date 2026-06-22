@@ -110,14 +110,15 @@ export function TopicMiniature() {
         </div>
         {/* Right (gutter top) — the PLUS LAYER's overview + contents cards. */}
         <div aria-hidden="true" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          {/* Overview card — three white blocks. */}
-          <div style={{ ...HARDBOX_STYLE, padding: 11, display: "flex", gap: 8 }}>
+          {/* Overview card — three white blocks. PLUS LAYER reveal group (order 2). */}
+          <div className="about-plus about-plus--overview" style={{ ...HARDBOX_STYLE, padding: 11, display: "flex", gap: 8 }}>
             {[0, 1, 2].map((i) => (
               <span key={i} style={{ flex: 1, height: 30, borderRadius: 3, background: "var(--color-content-white)" }} />
             ))}
           </div>
-          {/* Contents / TOC card — white "+" glyph + a header rule, then five short white rule lines. */}
-          <div style={{ ...HARDBOX_STYLE, padding: 11, display: "flex", flexDirection: "column", gap: 8 }}>
+          {/* Contents / TOC card — white "+" glyph + a header rule, then five short white rule lines.
+              PLUS LAYER reveal group (order 3). */}
+          <div className="about-plus about-plus--contents" style={{ ...HARDBOX_STYLE, padding: 11, display: "flex", flexDirection: "column", gap: 8 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
               <span style={{ color: "var(--color-content-white)", fontSize: 11, fontWeight: 800, lineHeight: 1 }}>＋</span>
               <span style={{ height: 6, width: 42, borderRadius: 3, background: "var(--color-content-white)" }} />
@@ -132,8 +133,9 @@ export function TopicMiniature() {
         </div>
       </div>
 
-      {/* ── (b) General strip (the horizontal stroke of the "+") — three clips. PLUS LAYER. ── */}
-      <div aria-hidden="true" style={{ display: "flex", gap: 18, alignItems: "flex-start", margin: "18px 0" }}>
+      {/* ── (b) General strip (the horizontal stroke of the "+") — three clips. PLUS LAYER reveal
+          group (order 1 — the beam's core lands here, so it leads the stagger). ── */}
+      <div className="about-plus about-plus--strip" aria-hidden="true" style={{ display: "flex", gap: 18, alignItems: "flex-start", margin: "18px 0" }}>
         <Clip width={190} height={116} curation="accurate" />
         <Clip width={88} height={116} curation="opinion" />
         <Clip width={190} height={116} curation="accurate" />
@@ -156,9 +158,9 @@ export function TopicMiniature() {
             ))}
           </div>
         </div>
-        {/* Right (gutter bottom) — the tall portrait clip (PLUS LAYER), completing the vertical
-            stroke of the "+". */}
-        <div aria-hidden="true" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        {/* Right (gutter bottom) — the tall portrait clip (PLUS LAYER reveal group, order 4 —
+            completes the vertical stroke of the "+"). */}
+        <div className="about-plus about-plus--portrait" aria-hidden="true" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           <Clip width="100%" height={212} curation="caveat" />
         </div>
       </div>
