@@ -4,11 +4,17 @@ import userEvent from "@testing-library/user-event";
 import type { FullArticle } from "@/lib/wiki/article";
 import type { Candidate } from "@/lib/data/types";
 
-// END-TO-END wiring of the pinned candidate player through TopicView (issue #10,
+// END-TO-END wiring of the DESKTOP pinned candidate player through TopicView (issue #10,
 // docs/specs/pinned-player.md AC1/AC3/AC4/AC5/AC6/AC7/AC8/AC10; design §3/§9 state
 // table). Same posture as topic-view.test.tsx: next/navigation + the wiki module are
 // MOCKED (no network in CI). The candidate set is SEEDED into localStorage so the
 // no-key path (liveCandidatesEnabled() === false → suggestCandidates no-op) keeps it.
+//
+// Issue #120 split the candidate play path by viewport at play time: mobile (< lg) routes
+// into the unified `MobilePlayerDock` ("Video player"), desktop (≥ lg) keeps the bottom-left
+// `PinnedPlayer` ("Video preview"). This file pins the DESKTOP dock, so `beforeEach` stubs
+// matchMedia to report a DESKTOP viewport (`(min-width: 1024px)` matches). The mobile-dock
+// wiring (the < lg arm) is covered in mobile-player-dock-wiring.test.tsx.
 //
 // Required fixtures (spec §"Acceptance criteria" preamble): one YouTube candidate WITH
 // embedUrl, one YouTube candidate WITHOUT embedUrl, one NON-YouTube candidate.
@@ -171,6 +177,19 @@ beforeEach(async () => {
   // Replace the seeded candidate set with our deterministic three-shape fixture.
   // listCandidates reads this key; with no YouTube key the live path is a no-op so it sticks.
   window.localStorage.setItem("wikiplus.candidates", JSON.stringify(SEED));
+  // Issue #120: report a DESKTOP viewport so the candidate play path routes into the
+  // bottom-left PinnedPlayer (this file's subject), not the mobile dock. The shared setup's
+  // matchMedia returns matches:false for every query; here `(min-width: 1024px)` must MATCH.
+  window.matchMedia = ((query: string) => ({
+    matches: /min-width:\s*1024px/.test(query),
+    media: query,
+    onchange: null,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  })) as unknown as typeof window.matchMedia;
 });
 afterEach(() => {
   vi.clearAllMocks();
@@ -403,30 +422,19 @@ describe("State table sanity — idle has no dock/iframe (State A)", () => {
   });
 });
 
-describe("Mobile spacer (design §6.2 / AC3) reserves bottom space only while open", () => {
-  it("the aria-hidden bottom spacer appears with the dock and is removed on dismiss", async () => {
+describe("Desktop dock reserves no mobile page spacer (issue #120)", () => {
+  it("the mobile-only edge spacer never renders for the DESKTOP PinnedPlayer", async () => {
+    // The desktop dock sits in the empty lower-left and needs no reflow spacer; the
+    // edge-aware `lg:hidden` spacer belongs to the mobile `MobilePlayerDock` only (the spacer
+    // wiring is covered in mobile-player-dock-wiring.test.tsx). On this desktop viewport,
+    // opening the candidate dock must NOT inject the mobile spacer.
     const { container } = render(<TopicView />);
-    // No spacer when idle.
     expect(container.querySelector("div[aria-hidden].lg\\:hidden")).toBeNull();
 
     await userEvent.click(
       (await screen.findAllByRole("button", { name: "Play: Glycolysis explained" }))[0]
     );
     await screen.findByRole("region", { name: "Video preview" });
-    // Spacer present alongside the open dock (mobile reserves scroll space).
-    await waitFor(() =>
-      expect(
-        container.querySelector("div[aria-hidden].lg\\:hidden")
-      ).not.toBeNull()
-    );
-
-    await userEvent.click(
-      screen.getByRole("button", { name: "Close video preview" })
-    );
-    await waitFor(() =>
-      expect(
-        container.querySelector("div[aria-hidden].lg\\:hidden")
-      ).toBeNull()
-    );
+    expect(container.querySelector("div[aria-hidden].lg\\:hidden")).toBeNull();
   });
 });
