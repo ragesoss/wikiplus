@@ -37,7 +37,7 @@ const T = {
   ink: "#2C2C2C", // --color-ink   (input text, suggestion title)
   ink2: "#595959", // --color-ink2  (visible label, description, no-results hint)
   muted: "#717171", // --color-muted (placeholder — the AA floor color)
-  action: "#1F6F95", // --color-action (magnifier icon)
+  link: "#1F6757", // --color-link (= teal-dk) — the magnifier / link-glyph color
   brand: "#676EB4", // --color-brand  (focus ring, active-row left bar)
   activeTint: "#EEF0FB", // active option background tint
   gold: "#E5AB28", // forbidden — must never appear
@@ -72,8 +72,8 @@ describe("AC12 — TopicSearch token contrast (design §Tokens, AA table)", () =
     expect(contrast(T.ink2, T.white)).toBeGreaterThanOrEqual(AA_TEXT);
   });
 
-  it("magnifier / action icon on white clears AA", () => {
-    expect(contrast(T.action, T.white)).toBeGreaterThanOrEqual(AA_TEXT);
+  it("magnifier / link icon on white clears AA", () => {
+    expect(contrast(T.link, T.white)).toBeGreaterThanOrEqual(AA_TEXT);
   });
 
   // Non-text UI components: ≥ 3:1.
@@ -94,7 +94,7 @@ describe("AC12 — TopicSearch token contrast (design §Tokens, AA table)", () =
 
   // Indigo Press: gold is deliberately unused anywhere in the search surface.
   it("does not use the forbidden gold token", () => {
-    const used = [T.ink, T.ink2, T.muted, T.action, T.brand, T.activeTint];
+    const used = [T.ink, T.ink2, T.muted, T.link, T.brand, T.activeTint];
     expect(used).not.toContain(T.gold);
   });
 });

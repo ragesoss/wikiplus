@@ -9,6 +9,7 @@
 import type { ArticleSection } from "@/lib/data/types";
 import { slugToTitle, topicHref } from "./topicRoute";
 import { scopeArticleCss } from "./cssScope";
+import { sanitizeInlineStyle, aaTextColor } from "./inlineStyle";
 
 const REST = "https://en.wikipedia.org/api/rest_v1";
 // Wikimedia etiquette: a descriptive Api-User-Agent identifying wiki+ + a contact
@@ -214,18 +215,31 @@ export async function fetchFullArticle(
   if (!res.ok) throw new Error(`Wikipedia article error ${res.status}`);
   const rawHtml = await res.text();
 
-  // --- TemplateStyles reuse (ARCHITECTURE "TemplateStyles reuse mechanism"; #105) -----
-  // The page's own in-body `<style>`/TemplateStyles blocks supply the article column's
-  // faithful layout. Read their CSS *text* from a throwaway parse of the RAW HTML BEFORE
-  // the DOMPurify pass — `DOMParser` does not execute styles/scripts in a detached
-  // document, and we only read `textContent`, so this is the raw CSS source string and
-  // touches nothing in the sanitize path. The `<style>` *elements* are still excluded
-  // from the DOMPurify allowlist and removed by `stripChrome` (X4 unchanged); only their
-  // text is reused. `scopeArticleCss` sanitizes + scopes it under `.wiki-body`; the
-  // result is applied later via a `<style>` element's `textContent` (NEVER innerHTML).
-  // Empty for an article with no styled content (the apply component then mounts nothing).
-  const styleSrc = collectStyleCss(rawHtml);
+  // --- Pre-sanitize raw-HTML pass (TemplateStyles reuse #105 + inline-`style` encode #106)
+  // A SINGLE throwaway `DOMParser` parse of the RAW HTML, BEFORE the DOMPurify pass —
+  // `DOMParser` executes no styles/scripts in a detached document, and we only read string
+  // values, so this touches nothing in the sanitize path. Two reads happen here, both on the
+  // raw source the browser would tokenize:
+  //
+  //   (a) #105 TemplateStyles reuse: collect the CSS *text* of the page's in-body
+  //       `<style>`/TemplateStyles blocks. The `<style>` *elements* are still excluded from
+  //       the DOMPurify allowlist and removed by `stripChrome` (X4 unchanged); only their
+  //       text is reused. `scopeArticleCss` sanitizes + scopes it under `.wiki-body`; the
+  //       result is applied later via a `<style>` element's `textContent` (NEVER innerHTML).
+  //       Empty for an article with no styled content (the apply component mounts nothing).
+  //
+  //   (b) #106 inline-`style` encode: recover an allowlisted, value-sanitized layout-only
+  //       subset of each element's inline `style` onto an inert `data-wikiplus-style` carrier
+  //       (the original `style` is dropped), so it rides through the unchanged DOMPurify pass
+  //       and is renamed back to `style` AFTER sanitize. DOMPurify 3.x strips `style` before
+  //       any hook can read it, so this is the only place the raw `style` bytes still exist.
+  //       See `encodeInlineStyles` + ARCHITECTURE "DOMPurify allowlist".
+  const preDoc = new DOMParser().parseFromString(rawHtml, "text/html");
+  const styleSrc = collectStyleCss(preDoc);
   const styleCss = await scopeArticleCss(styleSrc);
+  await encodeInlineStyles(preDoc.body);
+  // The encoded HTML (carrier attrs in place of inline `style`) is what feeds DOMPurify.
+  const encodedHtml = preDoc.body.innerHTML;
 
   const DOMPurify = (await import("dompurify")).default;
 
@@ -283,17 +297,33 @@ export async function fetchFullArticle(
   // layout/a11y attribute names — it can rescue nothing else (not `style`, not
   // `on*`, not `href`/`src`). It is removed in `finally` so it never leaks into
   // any other DOMPurify.sanitize call (DOMPurify is a global singleton here).
+  //
+  // The img `width`/`height` PRESENTATIONAL attributes are ALSO re-permitted, gated on
+  // `tagName === "IMG"` (#106): the per-image scaled display size of a `.tmulti` montage
+  // ships on the `<img>`'s `width`/`height` attributes (e.g. `width="181" height="111"`),
+  // and DOMPurify 3.x URI-validates those numeric values away under the custom
+  // `ALLOWED_URI_REGEXP` (the same mechanism that drops `colspan`/`scope`) even though they
+  // are in `ALLOWED_ATTR`. They are inert presentational attributes (a length/number only,
+  // no URL/script/style); re-permitting exactly them on images is what lets the montage
+  // crop band clip the image at its scaled size. Still no other attribute is rescued, and
+  // the hook is removed in `finally`.
   const KEEP_INERT_ATTRS = new Set(["colspan", "rowspan", "scope"]);
   const keepInertAttrs: Parameters<typeof DOMPurify.addHook>[1] = (
-    _node,
+    node,
     data
   ) => {
     if (KEEP_INERT_ATTRS.has(data.attrName)) data.forceKeepAttr = true;
+    else if (
+      (node as Element).tagName === "IMG" &&
+      (data.attrName === "width" || data.attrName === "height")
+    ) {
+      data.forceKeepAttr = true;
+    }
   };
   DOMPurify.addHook("uponSanitizeAttribute", keepInertAttrs);
   let clean: string;
   try {
-    clean = DOMPurify.sanitize(rawHtml, {
+    clean = DOMPurify.sanitize(encodedHtml, {
       ALLOWED_TAGS: [
         "section", "p", "div", "span", "br", "hr",
         "h1", "h2", "h3", "h4", "h5", "h6",
@@ -323,13 +353,19 @@ export async function fetchFullArticle(
 
   // Order matters:
   //   1. stripChrome FIRST — remove navboxes/metadata/edit-links so later passes
-  //      (link rewrite, citation prep) never touch chrome we're about to drop.
-  //   2. prepCitations — normalize the marker↔reference anchors to pure in-page
+  //      (link rewrite, citation prep) never touch chrome we're about to drop. Running it
+  //      before the inline-`style` decode also means a stripped chrome element never gets a
+  //      `style` restored (it is already gone).
+  //   2. decodeInlineStyles — rename the inert `data-wikiplus-style` carrier back to `style`
+  //      (#106). MUST run BEFORE the layout-consuming passes (`prepClades`/`wrapTables`) so
+  //      they see the recovered montage/table geometry.
+  //   3. prepCitations — normalize the marker↔reference anchors to pure in-page
   //      `#cite_*` hashes BEFORE rewriteLinks, and tag elements for the React layer.
-  //   3. rewriteLinks — routes the REMAINING links; it now EXEMPTS `#cite_*`/`#cite_ref_*`
+  //   4. rewriteLinks — routes the REMAINING links; it now EXEMPTS `#cite_*`/`#cite_ref_*`
   //      in-page anchors (kept functional) and de-links only other bare `#` anchors.
-  //   4. cleanFigures / cleanMath / wrapTables — image, math, and table presentation.
+  //   5. cleanFigures / cleanMath / wrapTables — image, math, and table presentation.
   stripChrome(root);
+  decodeInlineStyles(root);
   prepCitations(root, title);
   rewriteLinks(root, title);
   cleanFigures(root);
@@ -398,21 +434,104 @@ export async function fetchFullArticle(
 
 /**
  * Collect the CSS *text* of the page's in-body `<style>`/TemplateStyles blocks from the
- * raw Parsoid HTML (TemplateStyles modules arrive as `<style data-mw-deduplicate=…
+ * raw-HTML parse (TemplateStyles modules arrive as `<style data-mw-deduplicate=…
  * typeof="mw:Extension/templatestyles">` inside `mw-empty-elt` spans, plus any other
- * in-body `<style>`). Parsed in a detached `DOMParser` document — no styles/scripts
- * execute and only `textContent` is read, so this returns the raw CSS source untouched
- * by sanitize. Concatenated newest-last; `scopeArticleCss` sanitizes + scopes the result.
+ * in-body `<style>`). Reads from the detached pre-sanitize `DOMParser` document — no
+ * styles/scripts execute and only `textContent` is read, so this returns the raw CSS source
+ * untouched by sanitize. Concatenated newest-last; `scopeArticleCss` sanitizes + scopes it.
  * Returns `""` when the page ships no `<style>` blocks (the reuse path is then a no-op).
  */
-function collectStyleCss(rawHtml: string): string {
-  const doc = new DOMParser().parseFromString(rawHtml, "text/html");
+function collectStyleCss(preDoc: Document): string {
   const parts: string[] = [];
-  for (const styleEl of Array.from(doc.querySelectorAll("style"))) {
+  for (const styleEl of Array.from(preDoc.querySelectorAll("style"))) {
     const css = styleEl.textContent;
     if (css && css.trim()) parts.push(css);
   }
   return parts.join("\n");
+}
+
+/**
+ * Pre-DOMPurify ENCODE pass for the inline-`style` subset (#106). Runs on the raw-HTML parse,
+ * where the original `style` bytes still exist (DOMPurify 3.x strips `style` before any hook
+ * can read it). For each element:
+ *
+ *   1. STRIP any source-supplied `data-wikiplus-style` FIRST (carrier-hijack defense, spike
+ *      §2.1 step 1 / §5 HIJACK) — the carrier must only ever hold OUR sanitized output, never
+ *      a value the fetched HTML chose; otherwise hostile HTML supplying its own
+ *      `data-wikiplus-style="position:fixed;background-color:url(//evil)"` would ride through
+ *      as inert data and be promoted to a live `style` by the decode pass. This strip is
+ *      load-bearing for X4 and is done on EVERY element regardless of whether it has a `style`.
+ *   2. read the RAW `getAttribute("style")` bytes (NEVER `el.style.cssText`, which launders
+ *      escapes and drops behavior/expression — hiding the threat), run them through
+ *      `sanitizeInlineStyle` (property allowlist + the shared value gate), drop the original
+ *      `style`, and re-emit only the surviving allowlisted subset onto `data-wikiplus-style`.
+ *      If nothing survives, no carrier attribute is added (AC4).
+ */
+async function encodeInlineStyles(root: HTMLElement): Promise<void> {
+  // Step 1: remove any source-supplied carrier on every element (HIJACK defense), so the
+  // carrier name is exclusively ours below.
+  for (const el of Array.from(root.querySelectorAll("[data-wikiplus-style]"))) {
+    el.removeAttribute("data-wikiplus-style");
+  }
+  // Step 2: sanitize each element's raw inline `style` into the carrier.
+  for (const el of Array.from(root.querySelectorAll("[style]"))) {
+    const cleaned = await sanitizeInlineStyle(el.getAttribute("style") || "");
+    el.removeAttribute("style");
+    if (cleaned) el.setAttribute("data-wikiplus-style", cleaned);
+  }
+}
+
+/**
+ * Post-DOMPurify DECODE pass for the inline-`style` subset (#106). Runs on the CLEAN parsed
+ * DOM. Renames the inert `data-wikiplus-style` carrier back to `style` on each element — the
+ * value is ONLY ever the css-tree-sanitized, allowlist-filtered string the encode pass
+ * produced (every byte re-serialized by css-tree, so it cannot carry markup, a banned
+ * function token, a non-allowlisted property, or `position`).
+ *
+ * Then applies the AA darken-to-pass rule (AC10 / UX §5): where a recovered `background-color`
+ * paired with its text color (a recovered `color`, else the article ink) fails AA contrast,
+ * add a passing text `color` to the same `style` — keeping the recovered background hue so the
+ * cell/band still reads as itself, never recoloring the recovered background toward a different
+ * value. Meaning never rests on color alone (text/position/weight/hairline carry the signal).
+ */
+function decodeInlineStyles(root: HTMLElement): void {
+  for (const el of Array.from(root.querySelectorAll("[data-wikiplus-style]"))) {
+    const cleaned = el.getAttribute("data-wikiplus-style") || "";
+    el.removeAttribute("data-wikiplus-style");
+    if (!cleaned) continue;
+
+    // Read the recovered background/text colors from the sanitized declaration string to
+    // apply the AA darken-to-pass adjustment, keeping the recovered background hue.
+    const decls = cleaned.split(";").map((d) => d.trim()).filter(Boolean);
+    let bg: string | null = null;
+    let fg: string | null = null;
+    for (const d of decls) {
+      const i = d.indexOf(":");
+      if (i < 0) continue;
+      const prop = d.slice(0, i).trim().toLowerCase();
+      const val = d.slice(i + 1).trim();
+      if (prop === "background-color") bg = val;
+      else if (prop === "color") fg = val;
+    }
+    let style = cleaned;
+    if (bg) {
+      const aaColor = aaTextColor(bg, fg);
+      if (aaColor) {
+        // The recovered pair fails AA → set a passing text color (replacing a failing
+        // recovered `color`, or adding one over the article ink), keeping the background hue.
+        style = fg
+          ? decls
+              .map((d) =>
+                d.toLowerCase().startsWith("color:") && !d.toLowerCase().startsWith("background")
+                  ? `color: ${aaColor}`
+                  : d
+              )
+              .join("; ")
+          : `${cleaned}; color: ${aaColor}`;
+      }
+    }
+    el.setAttribute("style", style);
+  }
 }
 
 function finishSection(

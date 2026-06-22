@@ -343,7 +343,7 @@ function NotFoundBody({ readError }: { readError: boolean }) {
           : "We couldn't find a contributor with that username."}
       </p>
       <p className="mt-3 text-sm">
-        <Link href="/" className="text-action underline">
+        <Link href="/" className="text-link underline">
           Back home
         </Link>
       </p>

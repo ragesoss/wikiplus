@@ -38,10 +38,18 @@
 // entry, which builds its default syntax WITH the lexer config at module init and so pulls
 // ~0.8 MB of `mdn-data` into the bundle. The subpaths ship only the parser/generator/walker
 // /tokenizer/utils; the lexer/validation API and its `mdn-data` table are never reached.
+//
+// The declaration-VALUE safety gate (the X4 drop logic for url()/image-set()/expression()/
+// -moz-element()/behavior tokens, decoded) lives in the SHARED `cssDeclSafety` module so the
+// block path here and the inline-`style` path (`sanitizeInlineStyle`) call one audited copy.
+// This module layers the BLOCK-path policy on top: the at-rule drop-list, the script-binding
+// property drop-list, the `position` value strip (fixed/absolute/sticky — `relative`/`static`
+// kept for clade `td.clade-bar`), and the selector scope/translate passes.
 
 // Type-only import (erased at build, pulls no runtime `css-tree` / `mdn-data` into the
 // bundle) — for the AST `List`/`ListItem` shapes used when translating `.mw-parser-output`.
 import type { CssNode, List, ListItem } from "css-tree";
+import { loadDeclSafety } from "./cssDeclSafety";
 
 // At-rules that fetch the network or re-target outside the article column are dropped
 // wholesale. @media/@supports/@keyframes are KEPT (their inner rules are scoped by the
@@ -64,29 +72,6 @@ const DROP_PROPERTIES = new Set(["behavior", "-moz-binding", "binding"]);
 // `relative`/`static` are kept (clade `td.clade-bar` uses `position: relative`).
 const DROP_POSITION_VALUES = new Set(["fixed", "absolute", "sticky"]);
 
-// A declaration whose value carries any of these fetch/script function tokens is dropped.
-// Two complementary scans run against the value, EITHER firing the drop:
-//   1. a TEXTUAL scan on the comment-stripped, whitespace-collapsed value — NOT an AST
-//      `Url`-node check — because the browser tokenizer strips comments before recognizing
-//      function tokens, so `u/**/rl(…)` is a real `url()` the browser honors but css-tree
-//      emits no `Url` node for. The textual scan closes that gap (spike §4.3).
-//   2. a TOKEN-level scan (`valueHasBadFnToken`) that tokenizes the value and decodes each
-//      function-name token before comparing — so an escaped function name (`\75 rl(`,
-//      `ur\6c(`, `\000075rl(`) is caught even though its raw literal is not `url(`. The
-//      token scan reads only function/url TOKENS, never string contents, so a harmless
-//      `content:"\75rl("` string literal is not mistaken for a real `url(`.
-const BAD_VALUE_FN = /(?:url|image-set|-webkit-image-set|expression|-moz-element)\s*\(/i;
-const BAD_VALUE_BEHAVIOR = /behaviou?r\s*:/i;
-// Decoded function names that fetch the network or run script. `url` also covers the
-// `<url-token>` grammar form (`url(unquoted)`), handled separately as a token type.
-const BAD_FN_NAMES = new Set([
-  "url",
-  "image-set",
-  "-webkit-image-set",
-  "expression",
-  "-moz-element",
-]);
-
 /**
  * Sanitize + scope a stylesheet so every rule is confined under `.wiki-body` and every
  * network/script/off-column vector is stripped. Returns ONE scoped stylesheet string, or
@@ -97,45 +82,16 @@ const BAD_FN_NAMES = new Set([
  */
 export async function scopeArticleCss(css: string): Promise<string> {
   if (!css || !css.trim()) return "";
-  const [parse, generate, walk, tokenizer, decodeIdent] = await Promise.all([
+  const [parse, walk, decl] = await Promise.all([
     import("css-tree/parser").then((m) => m.default),
-    import("css-tree/generator").then((m) => m.default),
     import("css-tree/walker").then((m) => m.default),
-    import("css-tree/tokenizer"),
-    import("css-tree/utils").then((m) => m.ident.decode),
+    loadDeclSafety(),
   ]);
-  const { tokenize, tokenTypes } = tokenizer;
-
-  // Decode CSS escape sequences in an identifier, then lowercase — the form a browser
-  // compares against. `@imp\ort` → `import`, `po\73 ition` → `position`, `f\69xed` → `fixed`.
-  const normIdent = (s: string | undefined | null) =>
-    decodeIdent(s || "").toLowerCase();
-
-  // Token-level scan: tokenize the value and decode each function-name token before
-  // comparing to the banned set, so an ESCAPED function name (`\75 rl(`, `ur\6c(`,
-  // `\000075rl(`) is caught. A bare `<url-token>` (`url(unquoted)`) is always a fetch.
-  // Reads only function/url TOKENS — never string-token contents — so a benign
-  // `content:"\75rl("` string literal is not mistaken for a real `url(`.
-  const valueHasBadFnToken = (value: string): boolean => {
-    let hit = false;
-    try {
-      tokenize(value, (type, start, end) => {
-        if (hit) return;
-        if (type === tokenTypes.Url) {
-          hit = true; // `<url-token>`: url( unquoted ) — always a network fetch
-          return;
-        }
-        if (type === tokenTypes.Function) {
-          // function-token raw is `name(`; drop the trailing `(`, then decode the name.
-          const raw = value.slice(start, end).replace(/\($/, "");
-          if (BAD_FN_NAMES.has(normIdent(raw))) hit = true;
-        }
-      });
-    } catch {
-      return true; // un-tokenizable value is not safe — fail closed
-    }
-    return hit;
-  };
+  // The shared declaration-value gate (one audited X4 copy) + the escape-decoding ident
+  // helper and value serializer it loaded. `generate` here serializes selectors/values and
+  // the whole AST; `valueIsDeclarationSafe` is the SAME value-drop predicate the inline path
+  // uses; `normIdent`/`decodeIdent` decode CSS escapes before any keyword comparison.
+  const { generate, normIdent, decodeIdent, valueIsDeclarationSafe } = decl;
 
   // Translate Wikipedia's content-root scope away from a single selector's child list, in
   // place. Removes every `.mw-parser-output` ClassSelector (decoded + case-folded, so an
@@ -215,28 +171,24 @@ export async function scopeArticleCss(css: string): Promise<string> {
           if (list) list.remove(item);
           return;
         }
-        // Serialize the value once, then strip CSS comments and collapse whitespace for the
-        // textual scan (defeats `u/**/rl(` / `exp ression(` style obfuscation).
         const rawValue = generate(node.value);
-        const value = rawValue
-          .replace(/\/\*[\s\S]*?\*\//g, "")
-          .replace(/\s+/g, "");
-        // Decode the whole value for the keyword check (position values are keywords, never
-        // strings, so a whole-value decode cannot mis-read a string literal): `f\69xed`
-        // and `\66ixed` both decode to `fixed`.
-        if (prop === "position" && DROP_POSITION_VALUES.has(decodeIdent(value).toLowerCase())) {
-          if (list) list.remove(item);
-          return;
+        // Block-path `position` policy: drop only the out-of-flow values; `relative`/`static`
+        // stay (clade `td.clade-bar` uses `position: relative`). Decode the whole value for
+        // the keyword check (position values are keywords, never strings, so a whole-value
+        // decode cannot mis-read a string literal): `f\69xed` and `\66ixed` both → `fixed`.
+        if (prop === "position") {
+          const posVal = decodeIdent(
+            rawValue.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\s+/g, "")
+          ).toLowerCase();
+          if (DROP_POSITION_VALUES.has(posVal)) {
+            if (list) list.remove(item);
+            return;
+          }
         }
-        // Two scans, either fires the drop: the textual scan on the comment-stripped value
-        // (catches `u/**/rl(`), and the token-level decoded scan (catches escaped function
-        // names like `\75 rl(` / `ur\6c(` / `\000075rl(`). Run the token scan on the raw
-        // serialized value so its tokenizer sees comments/whitespace as the browser does.
-        if (
-          BAD_VALUE_FN.test(value) ||
-          BAD_VALUE_BEHAVIOR.test(value) ||
-          valueHasBadFnToken(rawValue)
-        ) {
+        // The SHARED value gate — the one audited X4 copy: drops any value carrying a
+        // url()/image-set()/expression()/-moz-element()/behavior token (textual comment-
+        // stripped scan + token-level decoded scan), fail-closed on un-tokenizable.
+        if (!valueIsDeclarationSafe(rawValue)) {
           if (list) list.remove(item);
         }
       },

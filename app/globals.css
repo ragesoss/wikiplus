@@ -7,6 +7,9 @@
   --color-sprout: #2a8270; /* teal */
   --color-teal-dk: #1f6757;
   --color-action: #1f6f95;
+  --color-link: var(--color-teal-dk); /* interactive in-chrome text-link / link-glyph affordance.
+     Brand green for AA on every chrome surface (white + grey panels); see docs/design/chrome-link-green.md.
+     NOT the article wikilink (#3366cc) and NOT solid CTA fills (those stay --color-action). */
   --color-accred: #b0353b; /* AA-safe red (design §9.3) */
   --color-ink: #2c2c2c;
   --color-ink2: #595959;
@@ -695,11 +698,15 @@ figure.wikifig .credit {
    the same primitives:
      - MODERN box (vcard/settlement/bio): semantic `infobox-*` classes on every cell.
      - TAXOBOX (`infobox biota`): classless raw `<th colspan="2">` banners + `<td>`
-       data cells; its inline styling (centered banners, the taxon-colored band, the
-       ~200px width) is stripped at sanitize, so we re-key off the structure.
-   Taxon-band color stays neutral grey: it arrives as an inline `style` (the inline-`style`
-   path, kept stripped), so structural fidelity — centered/bold/hairline banners — is the
-   bar, AA-safe via position/weight/hairline rather than color (design §1 delta 1). */
+       data cells; the structural treatment (centered banners, ~200px width) is keyed off
+       the structure here.
+   The per-taxon band color (`{{Taxobox colour}}`) and per-cell colors ARE recovered from
+   the layout-only inline-`style` subset (#106, ARCHITECTURE "DOMPurify allowlist"): the
+   sanitized inline `background-color` on the banner `<th>`/cell wins over the grey band
+   default below by inline specificity, AA-darkened to pass where a recovered pair would
+   fail. The band's grey default below is the FALLBACK when an article ships no recoverable
+   band color; the structural signal (centered/bold/hairline) carries the band in greyscale
+   regardless, so meaning never rests on color alone (design §4.2/§5). */
 .wiki-body table.wiki-infobox,
 .wiki-body table.infobox {
   float: right;
@@ -727,8 +734,8 @@ figure.wikifig .credit {
    banners (D1/D2). Taxobox key cells are plain `<td>` (never `<th>`), so `th[colspan]`
    catches ONLY banners, never a data row (verified against live Parsoid markup of
    Dendrobium kingianum / Lion / Marie Curie / San Francisco / Aagaard Glacier).
-   Band = Wikipedia header grey #eaecf0 (NEVER indigo); the exact per-taxon color is a
-   known structural-only limit (see §C / ARCHITECTURE). */
+   Band = Wikipedia header grey #eaecf0 (NEVER indigo) as the fallback; a recovered
+   per-taxon inline `background-color` (#106) overrides it by inline specificity. */
 .wiki-body table.infobox th[colspan],
 .wiki-body table.infobox .infobox-above,
 .wiki-body table.infobox .infobox-header {

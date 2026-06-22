@@ -8,7 +8,7 @@ import Link from "next/link";
 // required element: a single text link "About your data" → /about/data.
 //
 // Visual (Indigo Press, quiet): a `border-t border-ink/10` hairline, generous top padding,
-// `text-sm text-ink2`; the link uses the standard link affordance (`text-action` + hover/focus
+// `text-sm text-ink2`; the link uses the standard link affordance (`text-link` + hover/focus
 // underline + the focus-visible ring) — never gold, never color alone (AC11). It sits in normal
 // document flow at the end of the page (NOT position:fixed — a sticky footer would fight the
 // vertical-first scroll). Rendered as a <footer> (contentinfo) landmark so AT users can jump to it.
@@ -24,7 +24,7 @@ export function SiteFooter({
       <div className={`${containerClassName} py-8`}>
         <Link
           href="/about/data"
-          className="text-sm text-action hover:underline focus-visible:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-action focus-visible:ring-offset-2"
+          className="text-sm text-link hover:underline focus-visible:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-link focus-visible:ring-offset-2"
         >
           About your data
         </Link>

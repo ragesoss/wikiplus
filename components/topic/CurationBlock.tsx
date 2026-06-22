@@ -107,7 +107,7 @@ export function CuratorNote({ clip }: { clip: Clip }) {
 /**
  * The "context by <curator>" attribution (CURATION §5.4 / Decision C7) — links IN to the curator
  * profile; `@prototype` → the non-linked "seed clip · no curator" label. `surface="light"` picks
- * the AA-safe `text-action` link tone (both the modal block and the dock's expanded note panel
+ * the AA-safe `text-link` link tone (both the modal block and the dock's expanded note panel
  * are light surfaces).
  */
 export function CurationContextBy({ clip }: { clip: Clip }) {

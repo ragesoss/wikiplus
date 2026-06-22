@@ -417,7 +417,7 @@ export function TopicSearch({ variant = "home", prefill }: TopicSearchProps) {
           <button
             type="submit"
             aria-label={SUBMIT_NAME}
-            className="flex items-center border-l-2 border-ink px-2.5 text-action hover:bg-bg2"
+            className="flex items-center border-l-2 border-ink px-2.5 text-link hover:bg-bg2"
           >
             <MagnifierIcon />
           </button>
@@ -515,7 +515,7 @@ export function TopicSearch({ variant = "home", prefill }: TopicSearchProps) {
           aria-expanded={false}
           aria-controls={listboxId}
           onClick={expand}
-          className="flex h-11 w-11 items-center justify-center text-action"
+          className="flex h-11 w-11 items-center justify-center text-link"
         >
           <MagnifierIcon />
         </button>

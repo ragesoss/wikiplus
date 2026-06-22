@@ -416,11 +416,31 @@ describe("#74 — infobox / taxobox layout fidelity", () => {
     expect(prevRow.querySelector("img")).toBeNull();
   });
 
-  it("the inline style that carried the taxobox banner band/width is stripped (X4 — option a is necessary)", async () => {
+  it("the taxobox banner band color + box width survive SANITIZED inline style (#106 — recovers #74's grey partial)", async () => {
+    // #106 boundary: the allowlisted layout-only inline-`style` subset is KEPT (sanitized);
+    // everything else is dropped. The taxon-band `background-color` (AC3) and the box
+    // `width` (AC1) now survive on the produced DOM, while the X4 threats stay dropped.
     const out = await fullHtml(`<section><p>x</p>${TAXOBOX()}</section>`);
-    expect(out).not.toMatch(/style=/i); // banners/box carry NO surviving inline style
-    expect(out).not.toContain("rgb(180,250,180)"); // the taxon band color does not survive
-    expect(out).not.toContain("width: 200px");
+    const doc = new DOMParser().parseFromString(out, "text/html");
+    // The banner <th> keeps a sanitized inline style carrying the faithful taxon-band color.
+    const band = Array.from(doc.querySelectorAll("th[colspan]")).find((th) =>
+      (th.textContent || "").includes("Pink rock orchid")
+    )!;
+    expect(band).not.toBeNull();
+    expect(band.getAttribute("style")).toContain("background-color:rgb(180,250,180)");
+    // The box keeps its sanitized width (montage/box geometry, AC1).
+    const box = doc.querySelector("table.infobox.biota")!;
+    expect(box.getAttribute("style")).toMatch(/width\s*:\s*200px/);
+    // X4: no recovered declaration carries a url()/position/behavior/expression token —
+    // the surviving inline style is ONLY the value-sanitized, allowlisted layout subset.
+    for (const el of Array.from(doc.querySelectorAll("[style]"))) {
+      const s = (el.getAttribute("style") || "").toLowerCase();
+      expect(s).not.toMatch(/url\s*\(/);
+      expect(s).not.toContain("position");
+      expect(s).not.toContain("behavior");
+      expect(s).not.toContain("expression");
+      expect(s).not.toContain("image-set");
+    }
   });
 
   it("modern infobox-* semantic classes survive sanitize (the CSS keys off them)", async () => {
@@ -487,28 +507,47 @@ describe("X4 — sanitize blocks XSS alongside the widened (citations/tables/mat
     expect(out).not.toContain("evil.test");
     expect(out.toLowerCase()).not.toContain("<svg");
     expect(out.toLowerCase()).not.toContain("<math");
-    expect(out).not.toMatch(/style=/i); // no inline style attribute survives
+    // #106: the `background:url(javascript:alert(1))` inline style is a NON-allowlisted
+    // `background` shorthand AND carries a url() token, so the whole declaration is dropped —
+    // this <p> ends with no style at all, and no url()/javascript: leaks via inline style.
+    expect(out).not.toMatch(/style=/i);
+    expect(out.toLowerCase()).not.toMatch(/url\s*\(/);
     // legit widened markup survives in the SAME payload
     expect(out).toContain("wiki-tablewrap");
     expect(out).toContain("mwe-math-fallback-image-display");
     expect(out).toContain("data-cite-marker");
   });
 
-  // #74: the `uponSanitizeAttribute` hook that re-permits the inert `colspan`/
-  // `rowspan`/`scope` attrs (which the custom ALLOWED_URI_REGEXP would otherwise
-  // drop, #74) must NOT rescue any other attribute and must NOT leak past the
-  // sanitize call. These two assertions guard the new XSS surface directly.
-  it("X4 (#74): the colspan-keeping hook rescues ONLY colspan/rowspan/scope — never style/on*/javascript:", async () => {
+  // #74 + #106: the `uponSanitizeAttribute` hook re-permits the inert `colspan`/`rowspan`/
+  // `scope` attrs (and, gated on IMG, img `width`/`height` — #106) which the custom
+  // ALLOWED_URI_REGEXP would otherwise drop. It must NOT rescue any other attribute and must
+  // NOT leak past the sanitize call. Under the #106 inline-`style` boundary, `style` is
+  // re-introduced ONLY via the value-sanitized carrier — so the X4 threats on a colspan
+  // banner (a `background` shorthand carrying a url-able value, `position`, `on*`,
+  // `javascript:`) still die, while an allowlisted layout declaration (here `text-align`) is
+  // the only thing recovered.
+  it("X4 (#74/#106): hook rescues ONLY colspan/rowspan/scope; inline style on a banner keeps only the sanitized layout subset", async () => {
     const out = await fullHtml(
       `<section><table class="infobox biota"><tbody>` +
-        `<tr><th colspan="2" style="background:red" onclick="evil()">Banner</th></tr>` +
+        `<tr><th colspan="2" style="text-align:center;background:red;position:fixed;color:expression(alert(1))" onclick="evil()">Banner</th></tr>` +
         `<tr><td colspan="2" rowspan="3"><a href="javascript:alert(1)">x</a></td></tr>` +
         `</tbody></table></section>`
     );
+    const doc = new DOMParser().parseFromString(out, "text/html");
     expect(out).toContain('colspan="2"'); // load-bearing inert span survives
     expect(out).toContain('rowspan="3"');
-    expect(out).not.toMatch(/style=/i); // the hook did NOT rescue style
-    expect(out).not.toMatch(/onclick/i); // …nor the event handler
+    const banner = Array.from(doc.querySelectorAll("th[colspan]")).find((th) =>
+      (th.textContent || "").includes("Banner")
+    )!;
+    const s = (banner.getAttribute("style") || "").toLowerCase();
+    // The allowlisted, value-safe declaration is recovered…
+    expect(s).toContain("text-align:center");
+    // …and every X4 threat on the SAME banner is gone (property/value gate, not the hook).
+    expect(s).not.toContain("background"); // non-allowlisted `background` shorthand
+    expect(s).not.toContain("position"); // never allowlisted inline (AC7)
+    expect(s).not.toContain("expression"); // banned value token (AC8)
+    expect(s).not.toMatch(/url\s*\(/);
+    expect(out).not.toMatch(/onclick/i); // the hook did NOT rescue the event handler
     expect(out.toLowerCase()).not.toContain("javascript:"); // …nor the hostile href
   });
 

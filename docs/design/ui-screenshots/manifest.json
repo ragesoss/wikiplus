@@ -729,6 +729,33 @@
     "focus": false
   },
   {
+    "id": "about",
+    "group": "Other pages",
+    "label": "About — How it works (placeholder)",
+    "viewport": "mobile",
+    "auth": "out",
+    "file": "about-mobile-logged-out.png",
+    "focus": false
+  },
+  {
+    "id": "about",
+    "group": "Other pages",
+    "label": "About — How it works (placeholder)",
+    "viewport": "tablet",
+    "auth": "out",
+    "file": "about-tablet-logged-out.png",
+    "focus": false
+  },
+  {
+    "id": "about",
+    "group": "Other pages",
+    "label": "About — How it works (placeholder)",
+    "viewport": "desktop",
+    "auth": "out",
+    "file": "about-desktop-logged-out.png",
+    "focus": false
+  },
+  {
     "id": "about-data",
     "group": "Other pages",
     "label": "About your data",
