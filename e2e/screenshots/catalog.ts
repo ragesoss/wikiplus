@@ -50,7 +50,13 @@ export type Clip =
   | { x: number; y: number; width: number; height: number };
 
 /** A fixture profile — the external-call stubs + seeded topic a scene renders against. */
-export type StubProfile = "curated" | "suggestions" | "empty" | "missing" | "plain";
+export type StubProfile =
+  | "curated"
+  | "suggestions"
+  | "empty"
+  | "missing"
+  | "plain"
+  | "article-mobile";
 
 export interface Scene {
   /** Filename stem + index key, e.g. "topic-general-curated". Combined with viewport + auth. */
@@ -101,6 +107,52 @@ const SUGGESTION_ARTICLE_HTML = `<!DOCTYPE html><html><body>
   <section><p>Cellular respiration is the set of metabolic reactions that convert nutrients into ATP.</p></section>
   <section data-mw-section-id="1"><h2 id="glycolysis">Glycolysis</h2><p>Glycolysis body.</p></section>
   <section data-mw-section-id="2"><h2 id="citric">Citric acid cycle</h2><p>Citric acid cycle body.</p></section>
+</body></html>`;
+
+/** The mobile-article fixture (issue #121, design §10): an article shaped to exercise EVERY mobile
+ *  state in one capture set — a **taxobox in the lead** (stacks full-width at phone width — AC4), a
+ *  multi-`h2` section stack (the collapsed/expanded disclosure — AC1/AC3), nested `h3` content under
+ *  an `h2` (renders inside the expanded group), and a **wide data table** inside a section (scrolls
+ *  horizontally in `.wiki-tablewrap`, no page-level overflow — AC4). The taxobox lives BEFORE the
+ *  first `h2`, so article.ts keeps it in the always-open lead; the wide table lives inside an `h2`
+ *  body so it is revealed on expand and the observers flag its overflow. */
+const MOBILE_ARTICLE_HTML = `<!DOCTYPE html><html><body>
+  <section>
+    <table class="infobox biota">
+      <caption>Lion</caption>
+      <tr><th colspan="2">Lion</th></tr>
+      <tr><td colspan="2" style="text-align:center"><img src="//up.example/lion.jpg" width="200" height="150" alt="Lion"></td></tr>
+      <tr><th scope="row">Kingdom</th><td>Animalia</td></tr>
+      <tr><th scope="row">Family</th><td>Felidae</td></tr>
+      <tr><th scope="row">Genus</th><td>Panthera</td></tr>
+      <tr><th scope="row">Species</th><td>P. leo</td></tr>
+    </table>
+    <p>The lion (<i>Panthera leo</i>) is a large cat of the genus <i>Panthera</i>, native to Africa and India. It has a muscular, broad-chested body and a short, rounded head.</p>
+  </section>
+  <section data-mw-section-id="1"><h2 id="etymology">Etymology</h2>
+    <p>The English word "lion" derives via Anglo-Norman from the Latin <i>leonem</i>.</p>
+  </section>
+  <section data-mw-section-id="2"><h2 id="taxonomy">Taxonomy</h2>
+    <p>The lion is part of the genus <i>Panthera</i> within the family Felidae.</p>
+    <section data-mw-section-id="3"><h3 id="subspecies">Subspecies</h3>
+      <p>Two subspecies are recognised today, distinguished by range and morphology.</p>
+    </section>
+  </section>
+  <section data-mw-section-id="4"><h2 id="population">Population by region</h2>
+    <p>A wide table of recorded population estimates, wider than a phone column:</p>
+    <table class="wikitable">
+      <caption>Estimated wild lion population by region and year</caption>
+      <tr><th>Region</th><th>1990</th><th>2000</th><th>2010</th><th>2020</th><th>Trend</th><th>Protected areas</th></tr>
+      <tr><td>West Africa</td><td>2,000</td><td>1,200</td><td>850</td><td>400</td><td>Declining</td><td>Limited</td></tr>
+      <tr><td>East Africa</td><td>20,000</td><td>15,000</td><td>11,000</td><td>8,000</td><td>Declining</td><td>Extensive</td></tr>
+      <tr><td>Southern Africa</td><td>12,000</td><td>11,500</td><td>11,000</td><td>10,500</td><td>Stable</td><td>Extensive</td></tr>
+      <tr><td>India (Gir)</td><td>250</td><td>320</td><td>411</td><td>674</td><td>Increasing</td><td>Single reserve</td></tr>
+    </table>
+  </section>
+  <section data-mw-section-id="5"><h2 id="behaviour">Behaviour</h2>
+    <p>Lions are social and live in groups called prides.</p>
+  </section>
+  <section data-mw-section-id="6"><h2 id="references">References</h2><p>Cited works.</p></section>
 </body></html>`;
 
 // ── Fixture profiles ────────────────────────────────────────────────────────────────────────────
@@ -161,6 +213,16 @@ export async function applyStub(page: Page, profile: StubProfile): Promise<void>
         qid: "Q146",
         title: "Cat",
         article: longArticleHtml("The cat is a domestic species of small carnivorous mammal."),
+        youtube: () => [],
+      });
+    case "article-mobile":
+      // The mobile-article-rendering fixture (#121): an uncurated topic (created on demand) whose
+      // article carries a lead taxobox, nested `h3` content, and a wide table — the shapes the
+      // mobile collapse / infobox-stacking / table-scroll scenes capture (design §10).
+      return stubTopic(page, {
+        qid: "Q140",
+        title: "Lion",
+        article: MOBILE_ARTICLE_HTML,
         youtube: () => [],
       });
     case "missing":
@@ -271,6 +333,35 @@ async function openPinnedPlayer(page: Page): Promise<void> {
   await page.waitForTimeout(200);
 }
 
+/** Wait for the article column to be present, then scroll the collapsed `h2` disclosure stack into
+ *  view (past the lead + TOC). On a phone (`< md`) each `h2` section is a collapsed disclosure button
+ *  (`.sec-h2-toggle > button`); this frames the stack of closed rows (design §10 collapsed scene). */
+async function articleCollapsedStack(page: Page): Promise<void> {
+  await topicReady(page);
+  // The first collapsed `h2` toggle marks the top of the section stack; scroll it near the top.
+  const firstToggle = page.locator(".sec-h2-toggle > button").first();
+  await firstToggle.waitFor();
+  await firstToggle.evaluate((el) =>
+    el.scrollIntoView({ block: "start", behavior: "instant" as ScrollBehavior })
+  );
+  await page.waitForTimeout(300);
+}
+
+/** Open one `h2` disclosure (the "Taxonomy" section, which carries nested `h3` content) and scroll
+ *  it to the top, so the capture shows the expanded body + a nested `h3` in document order while the
+ *  neighbouring sections stay collapsed (design §10 expanded scene). */
+async function articleExpandSection(page: Page, name: RegExp): Promise<void> {
+  await topicReady(page);
+  const toggle = page.getByRole("button", { name });
+  await toggle.waitFor();
+  await toggle.click();
+  await page.locator(`[aria-expanded="true"]`).first().waitFor();
+  await toggle.evaluate((el) =>
+    el.scrollIntoView({ block: "start", behavior: "instant" as ScrollBehavior })
+  );
+  await page.waitForTimeout(400); // let the reveal lay out + the overflow observers flag the table
+}
+
 /** Reveal the mobile header search (icon → expanded field). */
 async function revealMobileSearch(page: Page): Promise<void> {
   await page.locator("header.header-shared").waitFor();
@@ -368,6 +459,63 @@ export const SCENES: Scene[] = [
     stub: "curated",
     prepare: collapseHeader,
     clip: "viewport",
+  },
+
+  // ── Topic — mobile article rendering (issue #121, design §10) ──
+  // The phone (`< md`) article column reads like mobile Wikipedia: `h2` sections collapse to tappable
+  // disclosure rows, the infobox stacks full-width in the open lead, and wide tables scroll inside
+  // their region. All mobile-only + logged-out (the disclosure is auth-independent — design §10).
+  {
+    id: "topic-article-mobile-collapsed",
+    group: "Topic · mobile article",
+    label: "Mobile article — collapsed section stack (default)",
+    note: "Phone default: the lead, then a stack of collapsed `h2` disclosure rows (closed chevrons).",
+    route: "/topic/Lion/",
+    stub: "article-mobile",
+    prepare: articleCollapsedStack,
+    viewports: ["mobile"],
+    auth: ["out"],
+    clip: "viewport",
+    focus: true,
+  },
+  {
+    id: "topic-article-mobile-expanded",
+    group: "Topic · mobile article",
+    label: "Mobile article — one section expanded",
+    note: "Taxonomy expanded (open chevron) revealing its body + a nested `h3`; siblings stay collapsed.",
+    route: "/topic/Lion/",
+    stub: "article-mobile",
+    prepare: (page) => articleExpandSection(page, /^Taxonomy/),
+    viewports: ["mobile"],
+    auth: ["out"],
+    clip: "viewport",
+    focus: true,
+  },
+  {
+    id: "topic-article-mobile-infobox",
+    group: "Topic · mobile article",
+    label: "Mobile article — full-width stacked infobox",
+    note: "The taxobox stacks full-width at the top of the always-open lead at phone width (AC4).",
+    route: "/topic/Lion/",
+    stub: "article-mobile",
+    ready: topicReady,
+    viewports: ["mobile"],
+    auth: ["out"],
+    clip: "viewport",
+    focus: true,
+  },
+  {
+    id: "topic-article-mobile-table",
+    group: "Topic · mobile article",
+    label: "Mobile article — wide table scrolls in its region",
+    note: "An expanded section's wide table scrolls horizontally in `.wiki-tablewrap`; the page never scrolls sideways (AC4).",
+    route: "/topic/Lion/",
+    stub: "article-mobile",
+    prepare: (page) => articleExpandSection(page, /^Population by region/),
+    viewports: ["mobile"],
+    auth: ["out"],
+    clip: "viewport",
+    focus: true,
   },
 
   // ── Topic — overview card & TOC ──

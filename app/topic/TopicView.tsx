@@ -7,7 +7,9 @@ import {
   ArticleLeadBlock,
   ArticleSections,
   ArticleSkeleton,
+  ownerH2SlugMap,
 } from "@/components/topic/ArticleBody";
+import { useIsPhone } from "@/components/topic/useIsPhone";
 import { AddModal } from "@/components/topic/AddModal";
 import {
   ArticleNotFound,
@@ -208,6 +210,15 @@ export function TopicView() {
   const [removeFor, setRemoveFor] = useState<Clip | null>(null);
 
   const [activeSlug, setActiveSlug] = useState<string | null>(null);
+
+  // ── Mobile article disclosure (issue #121, design §5.2/§5.4). ──────────────────────────────────
+  // On a phone (`< md`) each top-level `h2` section is a collapsible disclosure; the open-state set
+  // lives HERE (not in ArticleSections) so `goTo`/anchor-jump can expand a collapsed group BEFORE it
+  // scrolls (design §5.4 — the load-bearing AC3 behavior). On `≥ md` the column renders fully
+  // expanded with no disclosure (AC6) and this state is inert (nothing reads it). The set holds the
+  // slugs of the `h2` sections that bear an OPEN disclosure; sections start collapsed (AC1).
+  const isPhone = useIsPhone();
+  const [openH2Slugs, setOpenH2Slugs] = useState<Set<string>>(new Set());
 
   // ── Resolve the page identity (title ⇄ QID), then canonicalize the URL. ──
   // Title route: title is canonical; resolve QID under the hood (seeded store first,
@@ -618,6 +629,45 @@ export function TopicView() {
   const scrollBehavior = (): ScrollBehavior =>
     prefersReduced.current ? "auto" : "smooth";
 
+  // Map every section slug → the slug of the `h2` group that owns it (an `h3`/`h4` maps to its
+  // parent `h2`; an `h2`/loose member maps to itself). Drives `requestExpand` so a jump to a nested
+  // `h3` opens the right `h2` group (design §5.4). Recomputed only when the section set changes.
+  const ownerH2 = useMemo(
+    () => ownerH2SlugMap(article?.sections ?? []),
+    [article]
+  );
+
+  // Toggle one `h2` group open/closed (the disclosure button — design §5.2). Phone-only effect; on
+  // `≥ md` the button is not rendered so this never fires.
+  const toggleH2 = useCallback((h2Slug: string) => {
+    setOpenH2Slugs((prev) => {
+      const next = new Set(prev);
+      if (next.has(h2Slug)) next.delete(h2Slug);
+      else next.add(h2Slug);
+      return next;
+    });
+  }, []);
+
+  // Ensure the `h2` group that owns `slug` is EXPANDED (design §5.4, AC3). On a phone a `goTo`/anchor
+  // to a collapsed section must reveal it before scrolling. Returns true iff it had to expand a
+  // currently-collapsed group (so the caller can defer the scroll one frame for the layout to settle
+  // — the revealed body changes the document height). On `≥ md` (everything already shown) it is a
+  // no-op returning false.
+  const requestExpand = useCallback(
+    (slug: string): boolean => {
+      if (!isPhone) return false;
+      const owner = ownerH2.get(slug) ?? slug;
+      let didExpand = false;
+      setOpenH2Slugs((prev) => {
+        if (prev.has(owner)) return prev;
+        didExpand = true;
+        return new Set(prev).add(owner);
+      });
+      return didExpand;
+    },
+    [isPhone, ownerH2]
+  );
+
   const goTo = useCallback(
     (slug: string) => {
       lockUntil.current = Date.now() + 200;
@@ -627,21 +677,36 @@ export function TopicView() {
           ?.scrollIntoView({ behavior: scrollBehavior(), block: "start" });
         return;
       }
-      const el = sectionEls.current.get(slug);
-      if (el) {
-        const y = window.scrollY + el.getBoundingClientRect().top - HEAD - 16;
-        window.scrollTo({ top: y, behavior: scrollBehavior() });
+      // The actual scroll + rail-pairing, factored out so it can run AFTER an expand commits (the
+      // revealed section's element is only measurable once the disclosure body is no longer `hidden`).
+      const scrollToTarget = () => {
+        const el = sectionEls.current.get(slug);
+        if (el) {
+          const y = window.scrollY + el.getBoundingClientRect().top - HEAD - 16;
+          window.scrollTo({ top: y, behavior: scrollBehavior() });
+        }
+        // Bring the matching card into the rail.
+        const item = railItems.find((c) => c.sectionSlug === slug);
+        const card = item && cardEls.current.get(item.id);
+        const rail = railRef.current;
+        if (card && rail) {
+          rail.scrollTo({ top: card.offsetTop - 8, behavior: "auto" });
+        }
+        setActiveSlug(slug);
+      };
+      // Phone: expand the owning `h2` group if collapsed, then scroll once the reveal has laid out
+      // (rAF) so the target's position is measured against the expanded body (design §5.4). When the
+      // group was already open (or on `≥ md`), scroll immediately — no layout shift to wait for.
+      const expanded = requestExpand(slug);
+      if (expanded && typeof requestAnimationFrame !== "undefined") {
+        lockUntil.current = Date.now() + 320; // hold sync off through the reveal + scroll
+        setActiveSlug(slug); // reflect the target immediately (the TOC/active cue, before the scroll)
+        requestAnimationFrame(() => requestAnimationFrame(scrollToTarget));
+      } else {
+        scrollToTarget();
       }
-      // Bring the matching card into the rail.
-      const item = railItems.find((c) => c.sectionSlug === slug);
-      const card = item && cardEls.current.get(item.id);
-      const rail = railRef.current;
-      if (card && rail) {
-        rail.scrollTo({ top: card.offsetTop - 8, behavior: "auto" });
-      }
-      setActiveSlug(slug);
     },
-    [railItems]
+    [railItems, requestExpand]
   );
 
   // Article → rail sync (AC12). Active = deepest section whose heading crossed
@@ -657,7 +722,13 @@ export function TopicView() {
         const line = HEAD + READ;
         let current: string | null = null;
         for (const [slug, el] of sectionEls.current) {
-          if (el.getBoundingClientRect().top <= line) current = slug;
+          const rect = el.getBoundingClientRect();
+          // Skip a section with no rendered box — a `< md` collapsed disclosure body is `hidden`, so
+          // its inner `h3`/`h4` sections report a zero rect and must NOT be picked as active (design
+          // §6: only an expanded, visible section can be the active one). A visible section always
+          // has a non-zero height; the always-present `h2` toggle rows still track normally.
+          if (rect.width === 0 && rect.height === 0) continue;
+          if (rect.top <= line) current = slug;
         }
         if (current && current !== activeSlug) {
           setActiveSlug(current);
@@ -1585,6 +1656,9 @@ export function TopicView() {
                 sections={article.sections}
                 activeSlug={activeSlug}
                 sectionRef={setSectionRef}
+                isPhone={isPhone}
+                openH2Slugs={openH2Slugs}
+                onToggleH2={toggleH2}
               />
             )}
           </div>
