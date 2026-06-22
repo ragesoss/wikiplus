@@ -767,7 +767,7 @@
   {
     "id": "about",
     "group": "Other pages",
-    "label": "About — How it works (placeholder)",
+    "label": "About — centerpiece + how it works",
     "viewport": "mobile",
     "auth": "out",
     "file": "about-mobile-logged-out.png",
@@ -776,7 +776,16 @@
   {
     "id": "about",
     "group": "Other pages",
-    "label": "About — How it works (placeholder)",
+    "label": "About — centerpiece + how it works",
+    "viewport": "mobile",
+    "auth": "in",
+    "file": "about-mobile-logged-in.png",
+    "focus": false
+  },
+  {
+    "id": "about",
+    "group": "Other pages",
+    "label": "About — centerpiece + how it works",
     "viewport": "tablet",
     "auth": "out",
     "file": "about-tablet-logged-out.png",
@@ -785,10 +794,28 @@
   {
     "id": "about",
     "group": "Other pages",
-    "label": "About — How it works (placeholder)",
+    "label": "About — centerpiece + how it works",
+    "viewport": "tablet",
+    "auth": "in",
+    "file": "about-tablet-logged-in.png",
+    "focus": false
+  },
+  {
+    "id": "about",
+    "group": "Other pages",
+    "label": "About — centerpiece + how it works",
     "viewport": "desktop",
     "auth": "out",
     "file": "about-desktop-logged-out.png",
+    "focus": false
+  },
+  {
+    "id": "about",
+    "group": "Other pages",
+    "label": "About — centerpiece + how it works",
+    "viewport": "desktop",
+    "auth": "in",
+    "file": "about-desktop-logged-in.png",
     "focus": false
   },
   {

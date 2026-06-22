@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600;700;800;900&family=Open+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{background:#e7e5df;}
+</style>
+</helmet>
+
+<div style="width:max-content;min-width:100%;min-height:100vh;box-sizing:border-box;padding:52px 52px 96px;background:#e7e5df;font-family:'Open Sans',system-ui,sans-serif;">
+
+  <header style="max-width:880px;margin-bottom:40px;">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">
+      <span style="display:inline-block;width:28px;height:2px;background:#E5AB28;"></span>
+      <span style="font-family:'Source Sans 3',sans-serif;font-size:12px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#8a857c;">wiki+ · about · the projector</span>
+    </div>
+    <h1 style="font-family:'Source Sans 3',sans-serif;font-weight:900;font-size:38px;line-height:1.05;letter-spacing:-0.02em;color:#2C2C2C;margin:0 0 14px;">The projector &mdash; on, yawed at eye level</h1>
+    <p style="font-family:'Open Sans',sans-serif;font-size:15px;line-height:1.62;color:#5f5a52;margin:0;max-width:800px;">Wider faceplate and a larger lens, matching the face&#8209;on proportions. A rounded&#8209;rect prism (faceplate = cross&#8209;section), pure yaw at eye level &mdash; no top, a curved side wall, a back leg just visible, and the elliptical lens projecting the blown&#8209;out plus toward you and a touch right.</p>
+  </header>
+
+  <div style="flex:none;width:660px;">
+    <div style="font-family:'Source Sans 3',sans-serif;font-size:11px;font-weight:700;letter-spacing:.13em;text-transform:uppercase;color:#8a857c;margin:0 0 11px 2px;">On, yawed &mdash; <span style="color:#676EB4;">face-on proportions, big elliptical lens</span></div>
+    <div style="background:#ffffff;border:1px solid #e2ddd3;border-radius:4px;overflow:hidden;box-shadow:0 1px 2px rgba(40,40,40,.12),0 12px 34px rgba(40,40,40,.10);">
+      <svg viewBox="0 0 660 440" width="100%" style="display:block;">
+        <defs>
+          <linearGradient id="pbeam" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0" stop-color="#fff0cd" stop-opacity="0.5"/>
+            <stop offset="1" stop-color="#fff0cd" stop-opacity="0"/>
+          </linearGradient>
+          <radialGradient id="plamp" cx="0.5" cy="0.5" r="0.5">
+            <stop offset="0" stop-color="#ffffff"/>
+            <stop offset="0.62" stop-color="#fff7e4"/>
+            <stop offset="1" stop-color="#f4dba8"/>
+          </radialGradient>
+          <radialGradient id="pbloom" cx="0.5" cy="0.5" r="0.5">
+            <stop offset="0" stop-color="#fffbf3" stop-opacity="0.96"/>
+            <stop offset="0.34" stop-color="#fff4d8" stop-opacity="0.74"/>
+            <stop offset="0.66" stop-color="#ffe4a4" stop-opacity="0.32"/>
+            <stop offset="1" stop-color="#ffe4a4" stop-opacity="0"/>
+          </radialGradient>
+          <clipPath id="pclip"><ellipse cx="438" cy="272" rx="31" ry="46"/></clipPath>
+        </defs>
+        <rect width="660" height="440" fill="#ffffff"/>
+
+        <!-- floor shadow -->
+        <ellipse cx="300" cy="362" rx="236" ry="16" fill="#2C2C2C" opacity="0.08"/>
+        <!-- back-left leg -->
+        <rect x="94" y="320" width="20" height="22" rx="2" fill="#2C2C2C"/>
+
+        <!-- side wall spanning faceplate -> rear plate, curving with the silhouette -->
+        <path d="M168,211 L88,214 Q66,214 66,235 L66,309 Q66,330 88,330 L168,333 Q146,334 146,312 L146,232 Q146,210 168,211 Z" fill="#565d9e" stroke="#2C2C2C" stroke-width="2.5"/>
+        <!-- front feet (behind the faceplate so it isn't occluded) -->
+        <rect x="196" y="328" width="26" height="15" rx="2" fill="#2C2C2C"/>
+        <rect x="330" y="322" width="26" height="15" rx="2" fill="#2C2C2C"/>
+        <!-- faceplate: cross-section, shorter on the right (lens side farther) -->
+        <path d="M168,211 L384,219 Q406,220 406,242 L406,302 Q406,324 384,325 L168,333 Q146,334 146,312 L146,232 Q146,210 168,211 Z" fill="#676EB4" stroke="#2C2C2C" stroke-width="2.5"/>
+        <!-- power light -->
+        <circle cx="176" cy="236" r="5" fill="#2A8270" stroke="#2C2C2C" stroke-width="1.4"/>
+        <!-- focus dial -->
+        <circle cx="212" cy="302" r="14" fill="#565d9e" stroke="#2C2C2C" stroke-width="2"/>
+        <circle cx="212" cy="302" r="6" fill="#5248AF" stroke="#2C2C2C" stroke-width="1.5"/>
+        <!-- vent grille, left of the lens -->
+        <g stroke="#565d9e" stroke-width="3" stroke-linecap="round">
+          <line x1="330" y1="252" x2="330" y2="306"/>
+          <line x1="344" y1="252" x2="344" y2="306"/>
+          <line x1="358" y1="252" x2="358" y2="306"/>
+        </g>
+
+        <!-- ===== protruding lens barrel (big, elliptical to match the angle) ===== -->
+        <ellipse cx="418" cy="272" rx="46" ry="62" fill="#6970b0" stroke="#2C2C2C" stroke-width="2.5"/>
+        <ellipse cx="424" cy="272" rx="40" ry="56" fill="#565d9e" stroke="#2C2C2C" stroke-width="1.6"/>
+        <!-- dark bezel -->
+        <ellipse cx="438" cy="272" rx="38" ry="54" fill="#2C2C2C"/>
+        <!-- warm blown-out glass -->
+        <ellipse cx="438" cy="272" rx="32" ry="47" fill="#ffdf9f"/>
+        <g clip-path="url(#pclip)">
+          <ellipse cx="438" cy="272" rx="32" ry="47" fill="url(#plamp)"/>
+        </g>
+        <!-- warm light bleed -->
+        <circle cx="438" cy="272" r="150" fill="url(#pbloom)"/>
+        <circle cx="438" cy="272" r="96" fill="url(#pbloom)"/>
+        <!-- cast beam: mostly at viewer, a touch right -->
+        <polygon points="478,240 478,304 660,392 660,152" fill="url(#pbeam)"/>
+        <!-- the plus aperture, blown to white -->
+        <g clip-path="url(#pclip)">
+          <path d="M429,225 h18 v33 h23 v28 h-23 v33 h-18 v-33 h-23 v-28 h23 v-33 z" fill="#ffffff"/>
+        </g>
+      </svg>
+    </div>
+    <p style="font-family:'Open Sans',sans-serif;font-size:12px;line-height:1.5;color:#7a756c;margin:14px 2px 0;max-width:660px;">Faceplate proportions and lens size now track the face&#8209;on design. Tunable: yaw amount, side&#8209;wall depth, lens ellipse ratio, beam spread.</p>
+  </div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{
+  &quot;$preview&quot;: { &quot;width&quot;: 760, &quot;height&quot;: 560 }
+}">
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

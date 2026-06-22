@@ -792,15 +792,11 @@ export const SCENES: Scene[] = [
   {
     id: "about",
     group: "Other pages",
-    label: "About — How it works (placeholder)",
-    note: "Placeholder shell so the homepage hero's primary \"How it works\" CTA has a destination; content is a separate build.",
+    label: "About — centerpiece + how it works",
+    note: "The projector→page→＋plus thesis hero (full scene ≥ lg; miniature-alone < lg) + the How-it-works steps.",
     route: "/about",
     stub: "plain",
-    auth: ["out"],
-    ready: async (page) => {
-      await page.getByRole("heading", { name: /How it works/i }).waitFor();
-      await page.waitForTimeout(200);
-    },
+    ready: homeReady, // /about is a home-host-family page (no Wikipedia fetch) — use the homeReady waiter
     clip: "fullPage",
   },
   {

@@ -33,6 +33,56 @@
      biased knee near #FCFCFC) to the body grey #F7F7F7 over this distance, then flat grey below — so
      the white beam lands on a white page top and the brightness falls off just under the lamp. */
   --topic-illum-falloff: 96px;
+
+  /* ── About-page centerpiece tokens (docs/design/about-page.md §7.2). The projector→page→＋plus
+     hero is recreated from the committed handoff; every colour the illustration introduces that is
+     not already an Indigo Press token lives here and is referenced via the token (AC18). The
+     projector violet, the curation teal/blue, the indigo plus cards, the ink borders, and the
+     Wikipedia hairline all REUSE the existing tokens above (§7.1) — only the values below are new.
+
+     Gold #E5AB28 stays a SPARING accent here (the thin eyebrow rule only — never a fill, never a
+     signal — VISUAL_IDENTITY §9.1), and is distinct from the wordmark daylight golds above. */
+  --color-gold-accent: #e5ab28; /* the thin 2px eyebrow rule (§A card + §B section) — accent only */
+
+  /* Projector body shading (the angled "on" mini-LED projector, §2.2). */
+  --color-indigo-light: #7d83c4; /* lit faces / barrel highlight */
+  --color-indigo-barrel: #6970b0; /* lens rim (barrel mid) */
+  --color-indigo-dark: #565d9e; /* side wall, dial ring, vent strokes, lens collar */
+
+  /* The illustration's decorative "opinion" curation bar — the BRIGHTER handoff red, NOT the
+     AA-text-safe --color-accred. It is a decorative solid block (never text, never a signal here;
+     the real fact/opinion signal is text-labelled on the actual Topic page), so it carries no
+     color-only meaning (§9.4). */
+  --color-clip-opinion: #c44949;
+
+  /* The warm paper mat (the handoff page tone). The page itself stays body grey; this is available
+     for a faint warm mat under the dark scene panel if used. */
+  --color-canvas-warm: #e7e5df;
+
+  /* Dark-theater radial stops (§2.1) — the scene panel's own background. */
+  --color-theater-1: #2c2a54; /* 0% (warm centre behind the lamp) */
+  --color-theater-2: #17152f; /* 46% */
+  --color-theater-3: #0a0915; /* 100% */
+
+  /* Lamp glass radial (§2.2) — core is content-white, this is the mid → outer; base is the flat fill. */
+  --color-lamp-core: #fff7e4; /* radial mid stop */
+  --color-lamp-edge: #f4dba8; /* radial outer stop */
+  --color-lamp-base: #ffdf9f; /* glass base fill */
+
+  /* Warm bloom radial (§2.2) — the light bleed over the bezel/body. */
+  --color-bloom-1: #fffbf3;
+  --color-bloom-2: #fff4d8;
+  --color-bloom-3: #ffe4a4; /* → transparent at the radial edge */
+
+  /* The beam-cone fill + motes (§2.3) — the shared #cbeam gradient colour. */
+  --color-beam-warm: #fff3da;
+
+  /* The Topic-page miniature's abstracted contents (§2.4). */
+  --color-line-body: #e6e2d8; /* placeholder body-line grey */
+  --color-line-section: #bdb6aa; /* placeholder section-heading grey */
+  --color-card-hairline: #e2ddd3; /* the miniature card's 1px warm border */
+  --color-card-warm: #faf8f1; /* the in-scene §A "How it works" card fill */
+  --color-prose-warm: #5f5a52; /* warm body prose on the §A card (AA on #faf8f1 ≈ 6.4:1) */
 }
 
 body {
@@ -1126,4 +1176,72 @@ figure.wikifig .credit {
 .field:focus {
   outline: 3px solid var(--color-brand);
   outline-offset: 2px;
+}
+
+/* ── About-page miniature title input (docs/design/about-page.md §3). ──
+   The article title in the centerpiece's Topic-page miniature is a real, editable text input that
+   must read as the static serif title, NOT a form control (AC10). At rest it has no box/border/
+   background/affordance distinguishing it from the surrounding serif text; the Wikipedia hairline
+   rule + padding live on the wrapper (the title block), so the rule reads as the article's title
+   underline, not an input underline.
+
+   - Hover (pointer only): the smallest "this is editable" hint — a faint dotted underline under the
+     title text (offset above the existing hairline rule so the two never collide) + `cursor: text`.
+   - Focus-visible (keyboard, AC16): the site-default brand ring around the title block — the
+     conventional, obvious cue a keyboard user expects, matching every other focus ring in the app.
+   - Mouse focus (`:focus:not(:focus-visible)`): NO ring — only the native caret — so click-to-edit
+     doesn't pop a heavy ring (same pattern as .auth-account-trigger / .search-field). */
+.about-title-input {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  width: 100%;
+  color: #000;
+  outline: none; /* at rest; focus-visible restores a ring on the wrapper below */
+}
+.about-title-input:hover {
+  cursor: text;
+  text-decoration: underline dotted color-mix(in srgb, var(--color-wikirule) 50%, transparent);
+  text-underline-offset: 5px;
+}
+.about-title-block:has(.about-title-input:focus-visible) {
+  outline: 3px solid var(--color-brand);
+  outline-offset: 2px;
+}
+.about-title-input:focus,
+.about-title-input:focus-visible {
+  outline: none; /* the ring lives on the wrapper (.about-title-block), not the borderless input */
+}
+
+/* ── About-page centerpiece stage scaling (docs/design/about-page.md §2.6). ──
+   The handoff scene is a fixed 1280×720 illustration. To keep it sharp and proportional in a fluid
+   container — without re-deriving every px measurement in % — map the WHOLE scene to a fixed-ratio
+   stage that scales to its container width: a fixed reference inner layer with
+   `transform: scale(containerWidth / referenceWidth)`, transform-origin top-left, so all the exact
+   px values (card padding, clip sizes, the 1fr 132px grids) are preserved verbatim and merely scaled
+   as a unit. The scale is driven purely in CSS via container-query units (`cqw`) — no JS, no resize
+   listener — so the live title input stays crisp (vector text under a CSS scale) and proportions
+   never distort (one uniform scale, never independent x/y).
+
+   The reference geometry is carried in two LENGTH custom properties set per instance (`--stage-w` /
+   `--stage-h`, in px) plus the matching unitless `--stage-ar` for the aspect box. Keeping `--stage-w`
+   a length lets the scale be a clean length÷length = unitless ratio (`100cqw / var(--stage-w)`) — no
+   nested calc, which the CSS engine parses reliably. Used for the full dark scene (1280×720) at ≥ lg
+   AND for the miniature-alone frame (560×660) < lg — each instance sets its own three values. */
+.about-stage {
+  container-type: inline-size;
+  position: relative;
+  width: 100%;
+  aspect-ratio: var(--stage-ar);
+}
+.about-stage-inner {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: var(--stage-w);
+  height: var(--stage-h);
+  transform-origin: top left;
+  transform: scale(calc(100cqw / var(--stage-w)));
 }
