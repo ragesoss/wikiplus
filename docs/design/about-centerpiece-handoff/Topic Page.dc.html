@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600;700;800;900&family=Open+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{background:#e7e5df;}
+</style>
+</helmet>
+
+<div style="width:max-content;min-width:100%;min-height:100vh;box-sizing:border-box;padding:52px 52px 96px;background:#e7e5df;font-family:'Open Sans',system-ui,sans-serif;">
+
+  <header style="max-width:880px;margin-bottom:40px;">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">
+      <span style="display:inline-block;width:28px;height:2px;background:#E5AB28;"></span>
+      <span style="font-family:'Source Sans 3',sans-serif;font-size:12px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#8a857c;">wiki+ · about · topic-page element</span>
+    </div>
+    <h1 style="font-family:'Source Sans 3',sans-serif;font-weight:900;font-size:38px;line-height:1.05;letter-spacing:-0.02em;color:#2C2C2C;margin:0 0 14px;">The Topic page, as a plus&#8209;shaped layer</h1>
+    <p style="font-family:'Open Sans',sans-serif;font-size:15px;line-height:1.62;color:#5f5a52;margin:0;max-width:800px;">The Wikipedia article fills the page (a long article &mdash; we see the lead and first two sections). Over it, the indigo <strong>cards</strong> carry the brand color: a short horizontal <strong>strip</strong> of clips crosses a narrow vertical <strong>gutter</strong> of plus components, and the massed cards alone make the &ldquo;&#65291;&rdquo; emerge. Each clip is a play button plus one curation bar &mdash; teal <em>accurate</em>, red <em>opinion</em>, blue <em>caveat</em>.</p>
+  </header>
+
+  <div style="flex:none;width:560px;">
+    <div style="background:#ffffff;border:1px solid #e2ddd3;border-radius:4px;overflow:hidden;box-shadow:0 1px 2px rgba(40,40,40,.12),0 12px 34px rgba(40,40,40,.10);padding:30px 28px 34px;">
+
+      <!-- masthead: article lead (left) + gutter up-arm (overview + contents) -->
+      <div style="display:grid;grid-template-columns:1fr 132px;gap:20px;align-items:start;">
+        <div style="min-width:0;padding-top:2px;">
+          <h1 style="font-family:Georgia,serif;font-size:28px;font-weight:400;color:#000;margin:0 0 13px;border-bottom:1px solid #a2a9b1;padding-bottom:9px;line-height:1.12;">Acer palmatum</h1>
+          <div style="display:flex;flex-direction:column;gap:10px;">
+            <div style="height:10px;border-radius:5px;background:#e6e2d8;"></div>
+            <div style="height:10px;border-radius:5px;background:#e6e2d8;"></div>
+            <div style="height:10px;border-radius:5px;background:#e6e2d8;"></div>
+            <div style="height:10px;border-radius:5px;background:#e6e2d8;width:88%;"></div>
+            <div style="height:10px;border-radius:5px;background:#e6e2d8;width:54%;"></div>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:14px;">
+          <!-- OVERVIEW -->
+          <div style="background:#676EB4;border:2px solid #2C2C2C;box-shadow:3px 3px 0 #2C2C2C;padding:11px;display:flex;gap:8px;">
+            <span style="flex:1;height:30px;border-radius:3px;background:#fff;"></span>
+            <span style="flex:1;height:30px;border-radius:3px;background:#fff;"></span>
+            <span style="flex:1;height:30px;border-radius:3px;background:#fff;"></span>
+          </div>
+          <!-- CONTENTS (real-TOC: short entry lines) -->
+          <div style="background:#676EB4;border:2px solid #2C2C2C;box-shadow:3px 3px 0 #2C2C2C;padding:11px;display:flex;flex-direction:column;gap:8px;">
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px;"><span style="color:#fff;font-size:11px;font-weight:800;line-height:1;">&#65291;</span><span style="height:6px;width:42px;border-radius:3px;background:#fff;"></span></div>
+            <div style="height:5px;width:64%;border-radius:2.5px;background:rgba(255,255,255,.6);"></div>
+            <div style="height:5px;width:46%;border-radius:2.5px;background:rgba(255,255,255,.6);"></div>
+            <div style="height:5px;width:72%;border-radius:2.5px;background:rgba(255,255,255,.6);"></div>
+            <div style="height:5px;width:38%;border-radius:2.5px;background:rgba(255,255,255,.6);"></div>
+            <div style="height:5px;width:56%;border-radius:2.5px;background:rgba(255,255,255,.6);"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- strip: short horizontal row of clips (the crossbar) -->
+      <div style="display:flex;gap:18px;align-items:flex-start;margin:18px 0;">
+        <!-- landscape · accurate -->
+        <div style="position:relative;flex:none;width:190px;height:116px;background:#676EB4;border:2px solid #2C2C2C;box-shadow:3px 3px 0 #2C2C2C;">
+          <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;"><div style="width:0;height:0;border-top:11px solid transparent;border-bottom:11px solid transparent;border-left:18px solid #fff;margin-left:3px;"></div></div>
+          <div style="position:absolute;left:8px;bottom:8px;width:46px;height:12px;border-radius:2px;background:#2A8270;border:2px solid #2C2C2C;"></div>
+        </div>
+        <!-- portrait · opinion -->
+        <div style="position:relative;flex:none;width:88px;height:116px;background:#676EB4;border:2px solid #2C2C2C;box-shadow:3px 3px 0 #2C2C2C;">
+          <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;"><div style="width:0;height:0;border-top:11px solid transparent;border-bottom:11px solid transparent;border-left:18px solid #fff;margin-left:3px;"></div></div>
+          <div style="position:absolute;left:8px;bottom:8px;width:46px;height:12px;border-radius:2px;background:#C44949;border:2px solid #2C2C2C;"></div>
+        </div>
+        <!-- landscape · accurate (right end aligns to the gutter → cross node) -->
+        <div style="position:relative;flex:none;width:190px;height:116px;background:#676EB4;border:2px solid #2C2C2C;box-shadow:3px 3px 0 #2C2C2C;">
+          <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;"><div style="width:0;height:0;border-top:11px solid transparent;border-bottom:11px solid transparent;border-left:18px solid #fff;margin-left:3px;"></div></div>
+          <div style="position:absolute;left:8px;bottom:8px;width:46px;height:12px;border-radius:2px;background:#2A8270;border:2px solid #2C2C2C;"></div>
+        </div>
+      </div>
+
+      <!-- body: article sections (left) + gutter down-arm (one clip) -->
+      <div style="display:grid;grid-template-columns:1fr 132px;gap:20px;align-items:start;">
+        <div style="min-width:0;">
+          <div style="height:14px;width:188px;border-radius:7px;background:#bdb6aa;margin-bottom:16px;"></div>
+          <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:26px;">
+            <div style="height:10px;border-radius:5px;background:#e6e2d8;"></div>
+            <div style="height:10px;border-radius:5px;background:#e6e2d8;"></div>
+            <div style="height:10px;border-radius:5px;background:#e6e2d8;width:94%;"></div>
+            <div style="height:10px;border-radius:5px;background:#e6e2d8;width:58%;"></div>
+          </div>
+          <div style="height:14px;width:150px;border-radius:7px;background:#bdb6aa;margin-bottom:16px;"></div>
+          <div style="display:flex;flex-direction:column;gap:10px;">
+            <div style="height:10px;border-radius:5px;background:#e6e2d8;"></div>
+            <div style="height:10px;border-radius:5px;background:#e6e2d8;"></div>
+            <div style="height:10px;border-radius:5px;background:#e6e2d8;width:96%;"></div>
+            <div style="height:10px;border-radius:5px;background:#e6e2d8;"></div>
+            <div style="height:10px;border-radius:5px;background:#e6e2d8;width:46%;"></div>
+          </div>
+        </div>
+        <!-- down-arm: a single tall portrait clip -->
+        <div style="display:flex;flex-direction:column;gap:14px;">
+          <div style="position:relative;width:100%;height:212px;background:#676EB4;border:2px solid #2C2C2C;box-shadow:3px 3px 0 #2C2C2C;">
+            <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;"><div style="width:0;height:0;border-top:11px solid transparent;border-bottom:11px solid transparent;border-left:18px solid #fff;margin-left:3px;"></div></div>
+            <div style="position:absolute;left:8px;bottom:8px;width:46px;height:12px;border-radius:2px;background:#1F6F95;border:2px solid #2C2C2C;"></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+    <p style="font-family:'Open Sans',sans-serif;font-size:12px;line-height:1.5;color:#7a756c;margin:14px 2px 0;max-width:560px;">The article fills the page; the cards are the only brand color. Their arrangement &mdash; a strip of clips meeting a narrow gutter of plus components &mdash; is what reads as the &#65291;. Counts and proportions are free; the cross is the constant.</p>
+  </div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{
+  &quot;$preview&quot;: { &quot;width&quot;: 760, &quot;height&quot;: 760 }
+}">
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

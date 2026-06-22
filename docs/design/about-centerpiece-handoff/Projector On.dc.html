@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600;700;800;900&family=Open+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{background:#e7e5df;}
+</style>
+</helmet>
+
+<div style="width:max-content;min-width:100%;min-height:100vh;box-sizing:border-box;padding:52px 52px 96px;background:#e7e5df;font-family:'Open Sans',system-ui,sans-serif;">
+
+  <header style="max-width:880px;margin-bottom:40px;">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">
+      <span style="display:inline-block;width:28px;height:2px;background:#E5AB28;"></span>
+      <span style="font-family:'Source Sans 3',sans-serif;font-size:12px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#8a857c;">wiki+ · about · the projector</span>
+    </div>
+    <h1 style="font-family:'Source Sans 3',sans-serif;font-weight:900;font-size:38px;line-height:1.05;letter-spacing:-0.02em;color:#2C2C2C;margin:0 0 14px;">The projector &mdash; on, lamp blazing</h1>
+    <p style="font-family:'Open Sans',sans-serif;font-size:15px;line-height:1.62;color:#5f5a52;margin:0;max-width:800px;">The same mini&#8209;LED body, lit. Pointed straight at the viewer, the lens is <strong>blown out</strong> &mdash; light bleeds over the bezel and spills onto the body. The <strong>plus aperture</strong> is still there, still subtle, but now because the glare washes its edges rather than because it&rsquo;s dark.</p>
+  </header>
+
+  <div style="flex:none;width:640px;">
+    <div style="font-family:'Source Sans 3',sans-serif;font-size:11px;font-weight:700;letter-spacing:.13em;text-transform:uppercase;color:#8a857c;margin:0 0 11px 2px;">On &mdash; <span style="color:#676EB4;">pointed at you, blown out with light bleed</span></div>
+    <div style="background:#ffffff;border:1px solid #e2ddd3;border-radius:4px;overflow:hidden;box-shadow:0 1px 2px rgba(40,40,40,.12),0 12px 34px rgba(40,40,40,.10);">
+      <svg viewBox="0 0 640 420" width="100%" style="display:block;">
+        <defs>
+          <linearGradient id="pbeam" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0" stop-color="#EFE0B4" stop-opacity="0.55"/>
+            <stop offset="1" stop-color="#EFE0B4" stop-opacity="0"/>
+          </linearGradient>
+          <radialGradient id="pglass" cx="0.42" cy="0.38" r="0.7">
+            <stop offset="0" stop-color="#4a4780"/>
+            <stop offset="1" stop-color="#241f3a"/>
+          </radialGradient>
+          <clipPath id="lensclip"><circle cx="384" cy="266" r="46"/></clipPath>
+          <radialGradient id="plamp" cx="0.5" cy="0.5" r="0.5">
+            <stop offset="0" stop-color="#ffffff"/>
+            <stop offset="0.62" stop-color="#fff7e4"/>
+            <stop offset="1" stop-color="#f4dba8"/>
+          </radialGradient>
+          <radialGradient id="pbloom" cx="0.5" cy="0.5" r="0.5">
+            <stop offset="0" stop-color="#fffbf3" stop-opacity="0.96"/>
+            <stop offset="0.34" stop-color="#fff4d8" stop-opacity="0.74"/>
+            <stop offset="0.66" stop-color="#ffe4a4" stop-opacity="0.32"/>
+            <stop offset="1" stop-color="#ffe4a4" stop-opacity="0"/>
+          </radialGradient>
+        </defs>
+        <rect width="640" height="420" fill="#ffffff"/>
+
+        <!-- floor shadow -->
+        <ellipse cx="266" cy="348" rx="208" ry="20" fill="#2C2C2C" opacity="0.07"/>
+
+        <!-- zine offset shadow -->
+        <rect x="86" y="214" width="296" height="120" rx="22" fill="#2C2C2C" opacity="0.15"/>
+
+        <!-- ===== body ===== -->
+        <!-- main body -->
+        <rect x="78" y="206" width="286" height="120" rx="20" fill="#676EB4" stroke="#2C2C2C" stroke-width="2.5"/>
+        <!-- vent grille, next to the lens -->
+        <g stroke="#565d9e" stroke-width="3" stroke-linecap="round">
+          <line x1="288" y1="234" x2="288" y2="298"/>
+          <line x1="298" y1="234" x2="298" y2="298"/>
+          <line x1="308" y1="234" x2="308" y2="298"/>
+          <line x1="318" y1="234" x2="318" y2="298"/>
+        </g>
+        <!-- focus dial -->
+        <circle cx="200" cy="262" r="20" fill="#565d9e" stroke="#2C2C2C" stroke-width="2"/>
+        <circle cx="200" cy="262" r="9" fill="#5248AF" stroke="#2C2C2C" stroke-width="1.6"/>
+        <!-- power indicator -->
+        <circle cx="108" cy="228" r="5.5" fill="#2A8270" stroke="#2C2C2C" stroke-width="1.5"/>
+        <!-- feet -->
+        <rect x="118" y="326" width="22" height="11" rx="2" fill="#2C2C2C"/>
+        <rect x="300" y="326" width="22" height="11" rx="2" fill="#2C2C2C"/>
+
+        <!-- ===== big round lens (hero), throwing right ===== -->
+        <!-- collar mount -->
+        <circle cx="384" cy="266" r="66" fill="#7d83c4" stroke="#2C2C2C" stroke-width="2.5"/>
+        <circle cx="384" cy="266" r="66" fill="none" stroke="#565d9e" stroke-width="6" opacity="0.6"/>
+        <!-- dark bezel -->
+        <circle cx="384" cy="266" r="54" fill="#2C2C2C"/>
+        <!-- glass: ON — warm blown-out lens; the plus reads pure white, yellow only as spill -->
+        <circle cx="384" cy="266" r="47" fill="#ffdf9f"/>
+        <g clip-path="url(#lensclip)">
+          <circle cx="384" cy="266" r="46" fill="url(#plamp)"/>
+        </g>
+        <!-- warm light bleed spilling past the lens -->
+        <circle cx="384" cy="266" r="150" fill="url(#pbloom)"/>
+        <circle cx="384" cy="266" r="96" fill="url(#pbloom)"/>
+        <!-- the plus aperture, fully blown to white -->
+        <g clip-path="url(#lensclip)">
+          <path d="M370,220 h28 v32 h32 v28 h-32 v32 h-28 v-32 h-32 v-28 h32 z" fill="#ffffff"/>
+        </g>
+      </svg>
+    </div>
+    <p style="font-family:'Open Sans',sans-serif;font-size:12px;line-height:1.5;color:#7a756c;margin:14px 2px 0;max-width:640px;">In &ldquo;on&rdquo; mode: the lamp blazes toward you and the lens blows out. The plus stays a quiet read &mdash; this time the glare bleeds over its edges. Tunable: how hot the bloom is, how much it spills onto the body, how legible the &#65291; stays.</p>
+  </div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{
+  &quot;$preview&quot;: { &quot;width&quot;: 740, &quot;height&quot;: 560 }
+}">
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>
