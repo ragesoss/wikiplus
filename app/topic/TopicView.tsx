@@ -27,6 +27,11 @@ import type { SubmitOutcome } from "@/components/topic/useCurateSubmit";
 import { GeneralStrip } from "@/components/topic/GeneralStrip";
 import { Infobox } from "@/components/topic/Infobox";
 import { PinnedPlayer, type PinnedClip } from "@/components/topic/PinnedPlayer";
+import {
+  MobilePlayerDock,
+  type MobileDockClip,
+  type DockKind,
+} from "@/components/topic/MobilePlayerDock";
 import { PlayerModal } from "@/components/topic/PlayerModal";
 import { Toc, type TocEntry } from "@/components/topic/Toc";
 import { SiteHeader, TopicHeaderSearch } from "@/components/header/SiteHeader";
@@ -188,11 +193,29 @@ export function TopicView() {
   const [candidatesLoading, setCandidatesLoading] = useState(false);
   const [candidateAnnounce, setCandidateAnnounce] = useState("");
 
-  // Curated clips keep the blocking PlayerModal (Decision 4 — kept, not unified;
-  // see the candidate `onPlay` note below). Candidates play in the NON-MODAL,
-  // single-instance PinnedPlayer driven by its own single state value (§3, AC4).
+  // Playback surfaces are chosen by VIEWPORT at play time (issue #120, design §3 / A1):
+  //   - Desktop (≥ lg): curated → the blocking PlayerModal (`player`); YouTube candidate →
+  //     the bottom-left non-modal PinnedPlayer dock (`pinned`/`pinnedCandidate`).
+  //   - Mobile (< lg): BOTH curated AND candidate play in the ONE unified, non-modal,
+  //     viewport-fit MobilePlayerDock driven by its single state value (`mobileDock`) — one dock,
+  //     one iframe, swapped in place on a second play (the unification's payoff).
+  // The viewport is read when the play click fires (A1: no live re-host mid-play — a breakpoint
+  // crossing while a dock is open leaves it in its surface; only the next play re-evaluates).
   const [player, setPlayer] = useState<Clip | null>(null);
   const [pinned, setPinned] = useState<PinnedClip | null>(null);
+  // The single mobile dock instance (issue #120, §12). Carries `kind` + the playable +
+  // supplemental fields; the originating candidate rides alongside (for the logged-out "Curate
+  // this video" CTA to re-run `promote`). A curated→candidate or candidate→curated mobile swap
+  // re-sets THIS one value (single instance, swap in place). `null` = no dock.
+  const [mobileDock, setMobileDock] = useState<{
+    kind: DockKind;
+    clip: MobileDockClip;
+    candidate: Candidate | null;
+  } | null>(null);
+  // The dock's parked edge, mirrored up so the page spacer (§6.6) can reserve space at the right
+  // edge (bottom-pad when parked bottom, top-pad when parked top). The dock reports changes via
+  // `onEdgeChange`; default bottom (matches the dock's own default).
+  const [dockEdge, setDockEdge] = useState<"top" | "bottom">("bottom");
   // #71 §6.5: the Candidate currently playing in the pinned dock. `PinnedClip` is display-only
   // (it copies display fields), so the dock can't re-run `promote` from it; we hold the candidate
   // here so the logged-out "Curate this video" CTA can route into the curate flow for THIS
@@ -930,28 +953,86 @@ export function TopicView() {
     [requireLogin, runDismiss]
   );
 
-  // ── Candidate play (issue #10, design §3/§9). Open the NON-MODAL PinnedPlayer for
-  // a YouTube candidate WITH an embedUrl (AC1). A YouTube candidate without an
-  // embedUrl, and every non-YouTube candidate, never reach here: VideoThumb only
-  // calls onPlay for `platform === "youtube"`, and we only PASS onPlay when an
-  // embedUrl exists — so the no-embed YouTube and non-YouTube paths both fall through
-  // to VideoThumb's existing window.open(watchUrl) (design §9 State F/G; AC7/AC8). No
-  // src-less iframe is ever rendered. Setting `pinned` to candidate B while A plays
-  // SWAPS in place — the same dock element stays mounted, only its payload (and thus
-  // the iframe src/caption/credit) changes (AC4/AC5, single instance, no second dock).
-  const playCandidate = useCallback((c: Candidate) => {
-    if (!c.embedUrl) return; // defensive — only wired when embedUrl is present
-    setPinned({
-      embedUrl: c.embedUrl,
-      caption: c.caption,
-      orientation: c.orientation,
-      creator: { handle: c.creator.handle },
-      platformLabel: c.platformLabel,
-    });
-    // Keep the originating candidate so the logged-out "Curate this video" CTA can re-run
-    // `promote` for THIS candidate (#71 §6.5).
-    setPinnedCandidate(c);
-  }, []);
+  // The mobile-vs-desktop surface split, read at PLAY TIME (issue #120, A1): true on a viewport
+  // narrower than the `lg` breakpoint (1024px). Playback is a client interaction, so the check is
+  // a live `matchMedia` read on click — never baked into SSR. SSR-safe (defaults to desktop where
+  // `matchMedia` is absent; the click only happens client-side anyway).
+  const isMobile = useCallback(
+    () =>
+      typeof window !== "undefined" &&
+      typeof window.matchMedia === "function" &&
+      !window.matchMedia("(min-width: 1024px)").matches,
+    []
+  );
+
+  // ── Curated clip play (issue #120, §3/§12). Desktop → the blocking PlayerModal (unchanged).
+  // Mobile → the unified MobilePlayerDock with `kind="curated"`, the single `mobileDock` state.
+  // A curated clip opens the dock EVEN WITHOUT an embedUrl (it shows the "can't be embedded"
+  // message + the curation block — the note is worth reading; design §8 no-embed curated).
+  const playClip = useCallback(
+    (clip: Clip) => {
+      if (isMobile()) {
+        setDockEdge("bottom");
+        setMobileDock({
+          kind: "curated",
+          clip: {
+            embedUrl: clip.embedUrl,
+            caption: clip.caption,
+            orientation: clip.orientation,
+            creator: { handle: clip.creator.handle },
+            platformLabel: clip.platformLabel,
+            curated: clip,
+          },
+          candidate: null,
+        });
+        return;
+      }
+      setPlayer(clip);
+    },
+    [isMobile]
+  );
+
+  // ── Candidate play (issue #10/#120, design §3/§9). Only reached for a YouTube candidate WITH an
+  // embedUrl (AC1): VideoThumb only calls onPlay for `platform === "youtube"`, and we only PASS
+  // onPlay when an embedUrl exists — so the no-embed YouTube and non-YouTube paths both fall
+  // through to VideoThumb's existing window.open(watchUrl) (design §9 State F/G; AC7/AC8). No
+  // src-less iframe is ever rendered.
+  //   - Desktop → the bottom-left PinnedPlayer (unchanged): setting `pinned` to candidate B while A
+  //     plays SWAPS in place (same dock element, only the payload changes — single instance).
+  //   - Mobile → the unified MobilePlayerDock with `kind="candidate"` (the single `mobileDock`
+  //     state): a second tap swaps in place there too (one dock for both kinds).
+  const playCandidate = useCallback(
+    (c: Candidate) => {
+      if (!c.embedUrl) return; // defensive — only wired when embedUrl is present
+      if (isMobile()) {
+        setDockEdge("bottom");
+        setMobileDock({
+          kind: "candidate",
+          clip: {
+            embedUrl: c.embedUrl,
+            caption: c.caption,
+            orientation: c.orientation,
+            creator: { handle: c.creator.handle },
+            platformLabel: c.platformLabel,
+            matchReason: c.matchReason,
+          },
+          // Keep the originating candidate so the logged-out "Curate this video" CTA can re-run
+          // `promote` for THIS candidate (§5.2 / #71 §6.5).
+          candidate: c,
+        });
+        return;
+      }
+      setPinned({
+        embedUrl: c.embedUrl,
+        caption: c.caption,
+        orientation: c.orientation,
+        creator: { handle: c.creator.handle },
+        platformLabel: c.platformLabel,
+      });
+      setPinnedCandidate(c);
+    },
+    [isMobile]
+  );
 
   // Dismiss the PinnedPlayer (AC6): drop the state so the dock + iframe unmount
   // (playback stops; no hidden iframe). On a keyboard dismiss the Close button is the
@@ -963,6 +1044,16 @@ export function TopicView() {
     // Drop the originating candidate alongside `pinned` so a stale candidate can't
     // leak the logged-out "Curate this video" CTA into a later clip (#71 §6.5).
     setPinnedCandidate(null);
+    focusBandHeading();
+  }, [focusBandHeading]);
+
+  // Dismiss the unified mobile dock (issue #120, §8 dismissed): drop the state so the dock + iframe
+  // unmount (playback stops; no hidden iframe) and the edge-aware page spacer is removed. Mirrors
+  // `dismissPinned` exactly for focus: a keyboard Close (focus inside the dock) returns focus to
+  // the General band heading rather than dropping it to <body> (§9 Close return); a touch Close is
+  // harmlessly anchored there too.
+  const dismissMobileDock = useCallback(() => {
+    setMobileDock(null);
     focusBandHeading();
   }, [focusBandHeading]);
   // Curate (candidate Promote) — gated (design §2b). Signed in → open the real CurateModal
@@ -1475,6 +1566,14 @@ export function TopicView() {
         auth={<HeaderAuth />}
       />
 
+      {/* Edge-aware page spacer — TOP arm (issue #120, §6.6 reflow). While the dock is open and
+          parked at the TOP it reserves scroll space at the START of the content so the top of the
+          article isn't permanently hidden under the bar (the symmetric new case the toggle
+          introduces). Mobile-only; removed on dismiss / when parked bottom. */}
+      {mobileDock && dockEdge === "top" && (
+        <div aria-hidden className="h-[min(60vh,500px)] lg:hidden" />
+      )}
+
       {/* Illumination falloff (design header-topic-integration Decision 2 / §3.2 / AC8 / AC8b):
           the FIRST thing in the Topic page content, flush beneath the sticky header. It is a
           FULL-BLEED, decorative BACKGROUND paint (the `.topic-illum` white→grey gradient over a grey
@@ -1535,7 +1634,7 @@ export function TopicView() {
           generalCandidates={generalCandidates}
           loading={candidatesLoading}
           prefersReduced={prefersReduced.current}
-          onPlay={setPlayer}
+          onPlay={playClip}
           onPlayCandidate={playCandidate}
           onPromote={promote}
           onDismiss={dismiss}
@@ -1698,7 +1797,7 @@ export function TopicView() {
                 signedIn={signedIn}
                 voted={votedClip(clip)}
                 onUpvote={upvote}
-                onPlay={setPlayer}
+                onPlay={playClip}
                 onGoToSection={(slug) => slug && goTo(slug)}
                 onEdit={(c) => setEditClip(c)}
                 onDelete={(c) => setDeleteFor(c)}
@@ -1782,13 +1881,14 @@ export function TopicView() {
         </div>
       </div>
 
-      {/* Mobile-only bottom spacer (design §6.2, AC3): while the full-width pinned
-          bar is open it reserves scroll space at the page BOTTOM so the last
-          candidate's Promote / Not-relevant row can be scrolled clear of the bar.
-          Additive at the bottom only — never shifts content the reader is viewing.
-          Desktop needs none (the dock sits in the empty lower-left). Removed on
-          dismiss (pinned → null) so the page reflows to full height (§9 State H). */}
-      {pinned && (
+      {/* Edge-aware page spacer — BOTTOM arm (issue #120, §6.6 reflow). While the dock is open and
+          parked at the BOTTOM it reserves scroll space at the page bottom so the last article
+          section (and a candidate's card controls) can be scrolled clear of the bar. Additive at
+          the bottom only; removed on dismiss (mobileDock → null) so the page reflows to full
+          height. The dock is mobile-only, so the spacer never affects desktop. Maximized mode
+          needs no spacer (it covers everything and restores on exit). The TOP arm sits near the
+          start of the content (above the masthead). */}
+      {mobileDock && dockEdge === "bottom" && (
         <div aria-hidden className="h-[min(60vh,500px)] lg:hidden" />
       )}
 
@@ -1809,6 +1909,40 @@ export function TopicView() {
           onCurate={
             !signedIn && pinnedCandidate
               ? () => promote(pinnedCandidate)
+              : undefined
+          }
+        />
+      )}
+
+      {/* Unified mobile video player (issue #120). The ONE non-modal, movable, viewport-fit player
+          for BOTH curated and candidate clips on mobile. Mounts on play, unmounts on dismiss
+          (iframe created/torn down with it — embed-never-host). Sibling of the modals; z-40 < z-50
+          so a CurateModal / AddModal opened from a CTA correctly covers it. KEYED on the clip
+          identity so a swap to a different clip resets the dock's internal state (collapsed + parked
+          bottom) per §8 swap; React keeps the SAME element across a same-clip re-render so playback
+          is never interrupted. The dockEdge state is mirrored from the dock's `onEdgeChange` so the
+          edge-aware page spacer moves with the dock (§6.6). */}
+      {mobileDock && (
+        <MobilePlayerDock
+          key={`${mobileDock.kind}:${mobileDock.clip.embedUrl ?? mobileDock.clip.caption}`}
+          kind={mobileDock.kind}
+          clip={mobileDock.clip}
+          signedIn={signedIn}
+          prefersReduced={prefersReduced.current}
+          onClose={dismissMobileDock}
+          onEdgeChange={setDockEdge}
+          // Candidate, logged out: route the playing candidate into the gated curate flow (the same
+          // `promote` → `requireLogin({gate:"curate"})` path the desktop dock uses; §5.2 / #71 §6.5).
+          onCurate={
+            mobileDock.kind === "candidate" && !signedIn && mobileDock.candidate
+              ? () => promote(mobileDock.candidate as Candidate)
+              : undefined
+          }
+          // Curated, logged out: the topic-level join nudge through the same `curate` gate (the same
+          // binding PlayerModal uses; §5.2 / #71 §7).
+          onJoin={
+            mobileDock.kind === "curated" && !signedIn
+              ? () => requireLogin({ gate: "curate", action: () => {} })
               : undefined
           }
         />

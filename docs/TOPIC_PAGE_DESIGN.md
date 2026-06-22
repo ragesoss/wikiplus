@@ -157,16 +157,19 @@ preview is a hook only: the **full, untruncated note lives in the opened player*
 tile thumbnail is already the click-to-open affordance (no separate "read more" control). Candidate
 tiles are unaffected — they carry no note and no chips (CURATION §6).
 
-**Curated player anatomy (issue #63).** Opening a curated clip — General **or** section-anchored —
-opens the blocking `PlayerModal`, which now renders a **curation block beneath the video frame**:
-creator credit (links out) → held marking (only when held) → **stance + accuracy chips** → the
-**full context-note text** → `context by <curator>` (links in to the curator profile; the
-`@prototype` stub shows the non-linked "seed clip · no curator" label). The block sits on a light
+**Curated player anatomy (issue #63).** On **desktop (`≥ lg`)**, opening a curated clip — General
+**or** section-anchored — opens the blocking `PlayerModal`, which renders a **curation block beneath
+the video frame**: creator credit (links out) → held marking (only when held) → **stance + accuracy
+chips** → the **full context-note text** → `context by <curator>` (links in to the curator profile;
+the `@prototype` stub shows the non-linked "seed clip · no curator" label). The block sits on a light
 surface inside the existing dialog focus trap, mirroring the rail card's reading order so the same
 curated clip carries identical trust signals wherever a reader opens it (the parity goal). The video
 frame's own states (autoplay-on-open iframe, the "can't be embedded" fallback) are unchanged; the
-curation block renders below it either way. (This is distinct from the candidate **pinned** player
-in §"The pinned candidate player" — candidates have no note/chips, so that player gains nothing.)
+curation block renders below it either way. On **mobile (`< lg`)** the same curated clip opens the
+**unified mobile player** instead (§"The unified mobile video player") — a non-modal, movable,
+viewport-fit dock that shows the credit + chips with the full note one tap away. The curation block's
+**content** is identical across both surfaces: it is the single shared `CurationBlock` source of
+truth, so the note never forks between the modal and the dock.
 
 **Logged-out reader model (issue #71).** The Topic view distinguishes a **logged-out reader** from a
 **signed-in curator** along one axis (`signedIn`). Browsing reads as reading: a logged-out reader's
@@ -325,25 +328,29 @@ iteration, kept for history).
 
 ## The pinned candidate player (in-app preview)
 
-Curated clips play in a **blocking, focus-trapping modal** (`PlayerModal` / `ModalShell`). That is
-wrong for *evaluating* auto-suggested candidates, which is a triage loop: watch, compare against the
-article, promote or dismiss, then watch the next. So **candidate** videos use a different surface — a
-**persistent, non-modal pinned player** that keeps playing while the reader keeps reading and lets a
-second click swap what's playing. (Full spec: `docs/design/pinned-player.md`; issue #10.)
+Curated clips play in a **blocking, focus-trapping modal on desktop** (`PlayerModal` / `ModalShell`).
+That is wrong for *evaluating* auto-suggested candidates, which is a triage loop: watch, compare
+against the article, promote or dismiss, then watch the next. So **candidate** videos use a different
+surface — a **persistent, non-modal pinned player** that keeps playing while the reader keeps reading
+and lets a second click swap what's playing. (Full spec: `docs/design/pinned-player.md`; issue #10.)
 
-- **Candidates only, this run.** Only **YouTube** candidates (with an `embedUrl`) open the pinned
-  player. Curated clips keep the blocking modal; **non-YouTube** candidates and YouTube candidates
-  **with no `embedUrl`** keep the existing **new-tab** behavior (`window.open(watchUrl)`). The
-  curated-modal / candidate-pinned split is a **recorded inconsistency / follow-up** (whether the
-  pinned model should later replace the modal everywhere), not a defect.
-- **Standard position + size.** **Desktop (`lg`+):** a fixed dock in the **bottom-left** corner
+On **mobile (`< lg`)** there is no such split: **both** curated and candidate clips play in the **one
+unified mobile player** (§"The unified mobile video player"), so the triage loop and the curated
+viewing experience share a single surface on the small screen. The desktop split below applies at
+`≥ lg`.
+
+- **Desktop candidate dock, this run.** At `≥ lg`, only **YouTube** candidates (with an `embedUrl`)
+  open the pinned player; curated clips keep the blocking modal; **non-YouTube** candidates and
+  YouTube candidates **with no `embedUrl`** keep the existing **new-tab** behavior
+  (`window.open(watchUrl)`). A fast-follow flips desktop curated playback onto the unified player too
+  (and absorbs the wide-viewport vertical-clip width cap, issue #70); the component is already built
+  `kind`/`signedIn`-parameterized so that is a routing change, not a redesign.
+- **Standard position + size (desktop `≥ lg`).** A fixed dock in the **bottom-left** corner
   (`bottom/left: 1rem`), width capped at `min(380px, calc(100vw − 2rem))`; vertical 9:16 Shorts are
   height-capped (`min(60vh, 460px)`) and the dock narrows to that frame. Bottom-**left** is deliberate
   — the sticky plus rail and every candidate's **Promote / Not relevant** controls live on the right,
   so docking left keeps them visible and operable while the player is open (no overlap, no layout
-  shift). **Mobile (< `lg`, vertical-first):** a **full-width bottom bar / sheet** flush to the bottom
-  edge (with `env(safe-area-inset-bottom)`), 16:9 full-width and 9:16 height-capped + centered; while
-  open it reserves bottom padding on the page so the last candidate's controls scroll clear of the bar.
+  shift). On **mobile** the candidate plays in the unified mobile dock instead (below).
 - **Persistent + single instance.** `position: fixed`, survives scroll (iframe never re-mounts), one
   player and one iframe at a time; a second candidate click **swaps the iframe `src` in place** rather
   than stacking. The iframe is **created on explicit play and torn down on dismiss** (embed-never-host;
@@ -363,6 +370,55 @@ second click swap what's playing. (Full spec: `docs/design/pinned-player.md`; is
   the General-band-heading focus pattern), never dropped to `<body>`. Any dock-in motion is gated by
   the existing `prefers-reduced-motion` signal. All chrome is **white-on-`ink`** (AA, no gold) and the
   Close control is signaled by its **word**, never color alone.
+
+## The unified mobile video player
+
+On **mobile (`< lg`)**, **every** video — curated or candidate — plays in **one** non-modal, movable,
+viewport-fit player, `MobilePlayerDock`. It generalizes the candidate dock above into a single
+component: the frame, the creator credit (CC BY-SA), Close, the park toggle, and the maximize
+behavior are **identical for every clip**; only the supplemental info + action buttons differ by
+`(kind: curated | candidate) × (signedIn)`. (Full spec: `docs/design/unified-player-mobile.md`; issue
+#120.) The viewport is read **at play time**: a play click on a narrow viewport opens this dock; on a
+wide viewport it opens the desktop modal/pinned dock above. An open dock stays in its surface across a
+breakpoint crossing — only the next play re-evaluates — so a rehost never interrupts playback.
+
+- **One dock at a time.** Curated and candidate mobile playback share the single-instance guarantee:
+  a second play (either kind) **swaps in place** (one `<section>`, one iframe, payload changed); there
+  is never a curated dock *and* a candidate dock open at once. A curated⇄candidate swap re-renders the
+  same dock with the new `kind`.
+- **Supplemental row, parameterized.** A **candidate** shows its one-line match reason; a **curated**
+  clip shows the **collapsed curation block** — held marking (if held) + stance/accuracy chips + a
+  **"Context ▸" tap-to-expand** that reveals the full note + "context by" on a light surface, scrolling
+  inside a bounded region so it never crowds the article off the screen. The creator credit lives in
+  the shared title bar, so the CC BY-SA attribution is present in every state. Logged out, a candidate
+  carries **"Curate this video"** and a curated clip carries the softer **"Log in to curate videos for
+  this topic"** nudge; signed in, neither.
+- **Movable, keep-reading (the park toggle).** A **labeled toggle button** ("Move to top" / "Move to
+  bottom", keyboard-operable, never drag — drag fights touch scroll and is hard for AT) parks the
+  full-width dock at the top or bottom edge while the article stays scrollable. The page reserves space
+  at the parked edge (an additive, edge-aware spacer, removed on dismiss) so the article never hides
+  permanently behind the bar.
+- **Orientation-aware maximize is CSS-only, never the native Fullscreen API.** Turning the phone
+  landscape (or the explicit **⤢ Maximize/Exit** button) grows the **same `<section>` and the same
+  iframe** to fill the viewport via CSS (`fixed inset-0`) — a 16:9 clip fills the landscape width, a
+  9:16 clip fills the full height upright. This is a deliberate per-platform decision: we embed
+  third-party iframes and control only the container, not the inner `<video>`. **iPhone Safari has no
+  Fullscreen API for an arbitrary element/iframe**, so a native path cannot work on the device most
+  readers use; and programmatic native fullscreen requires a **user gesture**, which an
+  `orientationchange` event is not — so even Android Chrome would reject `iframe.requestFullscreen()`
+  fired from a rotate handler. A CSS maximize is fully controlled, identical cross-platform, and
+  testable. The embed's **own** native-fullscreen button is left intact (`allowFullScreen` stays) for
+  any reader who taps it inside the iframe. The explicit Maximize/Exit button makes the behavior
+  reachable without a rotation gesture — essential for AT users, for rotation-locked phones, and for a
+  vertical Short (whose best frame is portrait-tall regardless of device orientation).
+- **Accessibility model (non-modal).** Like the candidate dock, the unified dock is a **labeled
+  landmark** (`<section aria-label="Video player">`), **not** a dialog — no `aria-modal`, **no focus
+  trap**, no backdrop, no focus steal on open — **even maximized** (a layout, not a modality; exited by
+  rotation / Exit / Close, never Esc). Close, the park toggle, the Maximize/Exit toggle, the "Context"
+  expander, and the logged-out CTA are all real keyboard-operable `<button>`s with the visible focus
+  ring; on keyboard Close, focus returns to the General band heading. All signals are carried by a
+  **word**, never color or position alone; chrome is white-on-`ink` (AA, no gold), the expanded note on
+  a light surface (`text-ink2`). Motion (dock-in, park, maximize) is gated by `prefers-reduced-motion`.
 
 ## Data implications (already reflected in the clip model)
 
