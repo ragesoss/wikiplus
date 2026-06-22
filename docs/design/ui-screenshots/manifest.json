@@ -1,5 +1,41 @@
 [
   {
+    "id": "topic-article-mobile-collapsed",
+    "group": "Topic · mobile article",
+    "label": "Mobile article — collapsed section stack (default)",
+    "viewport": "mobile",
+    "auth": "out",
+    "file": "topic-article-mobile-collapsed-mobile-logged-out.png",
+    "focus": true
+  },
+  {
+    "id": "topic-article-mobile-expanded",
+    "group": "Topic · mobile article",
+    "label": "Mobile article — one section expanded",
+    "viewport": "mobile",
+    "auth": "out",
+    "file": "topic-article-mobile-expanded-mobile-logged-out.png",
+    "focus": true
+  },
+  {
+    "id": "topic-article-mobile-infobox",
+    "group": "Topic · mobile article",
+    "label": "Mobile article — full-width stacked infobox",
+    "viewport": "mobile",
+    "auth": "out",
+    "file": "topic-article-mobile-infobox-mobile-logged-out.png",
+    "focus": true
+  },
+  {
+    "id": "topic-article-mobile-table",
+    "group": "Topic · mobile article",
+    "label": "Mobile article — wide table scrolls in its region",
+    "viewport": "mobile",
+    "auth": "out",
+    "file": "topic-article-mobile-table-mobile-logged-out.png",
+    "focus": true
+  },
+  {
     "id": "home",
     "group": "Home",
     "label": "Home — landing page",
