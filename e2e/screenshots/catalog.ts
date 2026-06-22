@@ -469,6 +469,16 @@ export const SCENES: Scene[] = [
 
   // ── Other pages ──
   {
+    id: "about",
+    group: "Other pages",
+    label: "About — centerpiece + how it works",
+    note: "The projector→page→＋plus thesis hero (full scene ≥ lg; miniature-alone < lg) + the How-it-works steps.",
+    route: "/about",
+    stub: "plain",
+    ready: homeReady, // /about is a home-host-family page (no Wikipedia fetch) — use the homeReady waiter
+    clip: "fullPage",
+  },
+  {
     id: "about-data",
     group: "Other pages",
     label: "About your data",
