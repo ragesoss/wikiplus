@@ -32,25 +32,25 @@ export const SCENE_DESCRIPTION =
  *  one-line array push, no structural change. */
 export const HOW_IT_WORKS = {
   eyebrow: "How it works",
-  heading: "Lorem ipsum dolor sit amet consectetur",
+  heading: "Curating the best of what's missing from Wikipedia",
   lead:
-    "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor " +
-    "incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud.",
+    "Wikipedia does an incredible job of organizing knowledge through text and images. " +
+    "But there's so much more out there, in the world of video.",
   steps: [
     {
       n: "01",
-      label: "Lorem ipsum dolor",
-      body: "Lorem ipsum dolor sit amet, consectetur adipiscing elit sed do eiusmod.",
+      label: "Watch videos in your encyclopedia",
+      body: "As you read a Wikipedia article, browse related videos from YouTube, TikTok and beyond.",
     },
     {
       n: "02",
-      label: "Tempor incididunt",
-      body: "Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi.",
+      label: "Find and curate the best videos",
+      body: "There's a lot of great social media content, but there's a lot of trash as well. Organize the best videos and add notes for context, so the next person can jump straight to the good stuff.",
     },
     {
       n: "03",
-      label: "Duis aute irure",
-      body: "Duis aute irure dolor in reprehenderit in voluptate velit esse cillum.",
+      label: "Join the global free knowledge community",
+      body: "Organizing the world's knowledge is too big a job for one person, too complex for one medium, and too important to leave to for-profit companies.",
     },
   ],
 } as const;
