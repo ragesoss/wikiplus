@@ -69,6 +69,18 @@
   --color-lamp-edge: #f4dba8; /* radial outer stop */
   --color-lamp-base: #ffdf9f; /* glass base fill */
 
+  /* The lens's designed OFF state (the projector before the lamp strikes — the About warm-up intro's
+     starting floor; docs/design/about-projector-warmup.md §2.1.1). A dark interior with a geometric
+     "+" aperture that reads by GEOMETRY (a dark plus on the slightly-darker interior, edged by the
+     lighter outline), never a glow. Adapted from the committed off-mode lens in
+     docs/design/about-centerpiece-handoff/Projector.dc.html. The lit lamp occludes all of this once
+     on, so these never show in the settled poster. */
+  --color-lens-off-interior: #201c3a; /* dark off-mode glass interior */
+  --color-lens-off-rim: #16132a; /* the thin interior-edge stroke */
+  --color-aperture-off: #2e2a52; /* the geometric "+" fill (off) */
+  --color-aperture-off-edge: #433d72; /* the "+"'s faint lighter outline */
+  --color-glass-sheen: #8086ca; /* the faint upper-left glass reflection */
+
   /* Warm bloom radial (§2.2) — the light bleed over the bezel/body. */
   --color-bloom-1: #fffbf3;
   --color-bloom-2: #fff4d8;
@@ -1282,10 +1294,12 @@ figure.wikifig .credit {
    ONLY (GPU-composited, zero layout shift) and resolves to EXACTLY the committed static look.
 
    The DEFAULT (no-animation) values below ARE the final static poster — the lamp light group at
-   opacity 1, the beam at scaleX(1)/opacity 1, every plus group at opacity 1, the room-dim overlay
-   at opacity 0. So a reduced-motion render, a no-JS / pre-hydration render, and the settled scene
-   are all the committed poster with nothing to suppress. The intro adds the appearance keyframes
-   only inside `@media (prefers-reduced-motion: no-preference)` AND only under `.about-intro` (added
+   opacity 1 (occluding the always-present designed OFF lens base beneath it in Projector.tsx), the
+   beam at scaleX(1)/opacity 1, every plus group at opacity 1, the room-dim overlay at opacity 0. So
+   a reduced-motion render, a no-JS / pre-hydration render, and the settled scene are all the
+   committed lit poster with nothing to suppress (the OFF lens never shows). The intro adds the
+   appearance keyframes only inside `@media (prefers-reduced-motion: no-preference)` AND only under
+   `.about-intro` (added
    by <Centerpiece> on mount when motion is allowed) — exactly the gate the rest of globals.css uses
    for `wikiplus-search-grow` / `.pinned-dock-in` / `.gs-fade-in`. */
 
@@ -1311,20 +1325,22 @@ figure.wikifig .credit {
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  /* ── Step 1+2 — Lamp: a few quick uneven flashes (the projector striking), then a fast-then-settle
-     dim→bright filament ramp to max at t = 1240ms. group opacity of the warm/white lamp-light layers
-     over the always-present cool lens (the "off-ish" lamp). ── */
+  /* ── Step 1+2 — Lamp: the lit warm/white layers strike on OVER the designed OFF lens base (the
+     dark interior + geometric "+"; §2.1.1). The group opacity rises from 0 (only the OFF lens shows)
+     through a few quick uneven flashes (the projector striking — each drop falls near 0 so the gap
+     snaps back toward the visible OFF lens), then a fast-then-settle dim→bright filament ramp to max
+     at t = 1240ms (where the lit layers fully occlude the OFF base = the committed lit projector). ── */
   @keyframes about-lamp-flicker {
-    0% { opacity: 0.06; }   /* t=0 near-dark */
+    0% { opacity: 0; }      /* t=0 — the designed OFF lens (lit layers fully absent) */
     6% { opacity: 0.55; }   /* first strike */
-    12% { opacity: 0.1; }
+    12% { opacity: 0.06; }  /* drop — back toward the bare OFF lens */
     16% { opacity: 0.7; }   /* second strike */
-    19% { opacity: 0.12; }
+    19% { opacity: 0.08; }
     30% { opacity: 0.4; }   /* weak third */
-    34% { opacity: 0.08; }
+    34% { opacity: 0.05; }  /* drop — nearly the OFF lens again */
     52% { opacity: 0.85; }  /* fourth strike — the "catch" */
     58% { opacity: 0.3; }
-    100% { opacity: 0.3; }  /* hold dim, ready to warm up */
+    100% { opacity: 0.3; }  /* hold low, ready to warm up — off "+" still reading through */
   }
   @keyframes about-lamp-warm {
     0% { opacity: 0.3; }    /* hand-off from the flicker */

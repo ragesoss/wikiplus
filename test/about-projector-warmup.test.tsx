@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, render, screen, waitFor } from "@testing-library/react";
 
@@ -128,6 +130,42 @@ describe("AC5/AC9 — plus groups present from first paint; graphics stay decora
     ]) {
       expect(container.querySelectorAll(`.${cls}`).length).toBeGreaterThanOrEqual(1);
     }
+  });
+
+  it("renders the static designed OFF-state lens base, decorative, beneath the lit lamp group", async () => {
+    setReducedMotion(false);
+    const { container } = render(<Centerpiece />);
+    await act(async () => {});
+    // The OFF lens base (design §2.1.1) is the floor the lit lamp lights up over: a dark interior,
+    // a geometric "+" aperture (reads by geometry), and a faint reflection. It is identified by its
+    // distinctive OFF-state fills (the lit lamp uses the lamp/bloom warms + content-white). It lives
+    // inside an aria-hidden SVG and never gates content. Two miniatures → at least one projector.
+    const offInterior = container.querySelector(
+      'ellipse[fill="var(--color-lens-off-interior)"]'
+    );
+    const offAperture = container.querySelector(
+      'path[fill="var(--color-aperture-off)"]'
+    );
+    expect(offInterior).not.toBeNull();
+    expect(offAperture).not.toBeNull();
+    // The OFF base is decorative — inside the aria-hidden projector SVG.
+    expect(offInterior!.closest("svg[aria-hidden='true']")).not.toBeNull();
+    // It is NOT the animated group — the lit layers carry .about-lamp-light; the OFF base does not.
+    expect(offInterior!.closest(".about-lamp-light")).toBeNull();
+    expect(offAperture!.closest(".about-lamp-light")).toBeNull();
+  });
+
+  it("starts the lit lamp group hidden (intro t=0 lit opacity is 0 over the OFF lens)", () => {
+    // The lit lamp-light group animates from opacity 0 (the OFF lens shows through) up to 1. The
+    // intro's first flicker keyframe sets the group to opacity 0; we assert that contract on the
+    // committed stylesheet so a regression that re-dims to a 6% ghost (or skips the OFF floor) is
+    // caught. (jsdom does not apply @media keyframes, so the source value is the assertable contract;
+    // the class binding + the OFF-base DOM are asserted in the sibling tests.)
+    const css = readFileSync(join(process.cwd(), "app/globals.css"), "utf8");
+    const flicker = css.match(/@keyframes about-lamp-flicker\s*\{([\s\S]*?)\n\s*\}/);
+    expect(flicker).not.toBeNull();
+    // The 0% (t=0) frame of the lit group is fully transparent — the designed OFF lens, not a glow.
+    expect(flicker![1]).toMatch(/0%\s*\{\s*opacity:\s*0(;|\s)/);
   });
 
   it("keeps the decorative projector + beam SVGs aria-hidden", async () => {

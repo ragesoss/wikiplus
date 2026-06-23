@@ -79,12 +79,63 @@ export function Projector({ idPrefix = "proj" }: { idPrefix?: string }) {
       <ellipse cx="424" cy="272" rx="40" ry="56" fill="var(--color-indigo-dark)" stroke="var(--color-ink)" strokeWidth="1.6" />
       <ellipse cx="438" cy="272" rx="38" ry="54" fill="var(--color-ink)" />
       <ellipse cx="438" cy="272" rx="32" ry="47" fill="var(--color-lamp-base)" />
+      {/* The designed OFF-state lens base (docs/design/about-projector-warmup.md §2.1.1). The
+          projector's lens BEFORE the lamp strikes: a dark interior, a geometric "+" aperture that
+          reads by GEOMETRY (a dark plus on the slightly-darker interior, edged by a faint lighter
+          outline — never a glow), and a faint glass reflection. It is the floor the About warm-up
+          intro's lit layers light up OVER (the lit group's opacity animates 0 → 1 above it). Static
+          (never animated). Each node sits a couple px INSIDE the lit glass radial's clip (#proj-pclip
+          rx31 ry46) — or, for the "+", inset within the lit white "+"'s path — so its anti-aliased
+          edge falls in the zone the opaque lit layers cover at 100%, and the lit lamp occludes the
+          whole off base pixel-for-pixel once on (AC2: the settled poster is the lit lamp exactly, no
+          residual edge ring). The thin warm lamp-base ring just beyond them is the committed art (the
+          lit radial is clipped to rx31; that ring reads warm whether off or lit), and when off the
+          interior still nearly fills the visible glass inside the ink rim. Decorative (the whole SVG
+          is aria-hidden); painted in order interior → rim → "+" → reflection. */}
+      <g>
+        {/* Dark off interior — inside the lit radial's clip so its edge is fully occluded at settle. */}
+        <ellipse cx="438" cy="272" rx="29" ry="44" fill="var(--color-lens-off-interior)" />
+        {/* The thin interior rim — stroke only, fully inside the clip (covered by the lit radial). */}
+        <ellipse
+          cx="438"
+          cy="272"
+          rx="27"
+          ry="42"
+          fill="none"
+          stroke="var(--color-lens-off-rim)"
+          strokeWidth="1.6"
+        />
+        {/* Geometric "+" aperture — an inset of the lit white "+"'s path, so its anti-aliased edge
+            sits inside the opaque lit "+"'s coverage and is occluded pixel-for-pixel at settle (AC2).
+            A dark plus edged by a faint lighter outline (read by geometry, never a glow), still sized
+            to nearly fill the glass; clipped to the same #proj-pclip so it can't spill past it. */}
+        <g clipPath={`url(#${clip})`}>
+          <path
+            d="M431,229 h14 v31 h21 v24 h-21 v31 h-14 v-31 h-21 v-24 h21 v-31 z"
+            fill="var(--color-aperture-off)"
+            stroke="var(--color-aperture-off-edge)"
+            strokeWidth="1.4"
+            strokeOpacity="0.6"
+          />
+        </g>
+        {/* Faint glass reflection — a small rotated sheen, upper-left of the lens centre. */}
+        <ellipse
+          cx="424"
+          cy="250"
+          rx="11"
+          ry="7"
+          fill="var(--color-glass-sheen)"
+          opacity="0.2"
+          transform="rotate(-32 424 250)"
+        />
+      </g>
       {/* The LAMP LIGHT group — the warm/white light layers that read as "the lamp is lit": the two
-          warm bloom radials, the clipped glass lamp radial, and the white "+" aperture. The
-          always-present cool lens stack beneath (above) is the "off-ish" lamp. The About warm-up
-          intro animates THIS group's opacity (flicker → dim→bright) over the static lens; at rest
-          the group is opacity 1 = today's committed lit projector (the default, so reduced-motion /
-          no-JS get the lit lamp for free). Grouping the light layers keeps the intro a single
+          warm bloom radials, the clipped glass lamp radial, and the white "+" aperture, painted OVER
+          the designed OFF-state lens base above. The About warm-up intro animates THIS group's
+          opacity (flicker → dim→bright) from 0 (the off lens shows through) up to 1, where the lit
+          glass radial + "+" + bloom fully occlude the off base = today's committed lit projector. At
+          rest the group is opacity 1 (the default, so reduced-motion / no-JS get the lit lamp for
+          free — the off base never shows). Grouping the light layers keeps the intro a single
           group-opacity tween. The group stays decorative (the whole SVG is aria-hidden). */}
       <g className="about-lamp-light">
         {/* Warm bloom over the bezel/body. */}
