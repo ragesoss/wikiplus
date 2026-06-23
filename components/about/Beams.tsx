@@ -35,14 +35,15 @@ export function Beams({ idPrefix = "beam" }: { idPrefix?: string }) {
           <stop offset="1" stopColor="var(--color-beam-warm)" stopOpacity="0.16" />
         </linearGradient>
       </defs>
-      {/* The BEAM group — the three cones + motes, wrapped so the About warm-up intro can grow the
-          beam ALONG ITS THROW from the apex outward (a scaleX about the shared lower-left apex
-          ~287,773, in this 1280×880 user space) and fade it in as one unit; the motes ride the same
-          transform, streaming out with the beam. At rest the group is scaleX(1)/opacity 1 = today's
-          committed cones (the default, so reduced-motion / no-JS get the full beam for free). The
-          group keeps the apex pinned and never exceeds s = 1, so no frame widens the clipped stage.
-          Decorative (the whole SVG is aria-hidden). */}
-      <g className="about-beam-grow" style={{ transformOrigin: "287px 773px" }}>
+      {/* The BEAM group — the three cones + motes, wrapped so the About warm-up intro can FADE the
+          beam IN (opacity only) as one unit; the motes ride the same group opacity, fading in with the
+          cones. The cones are at their COMMITTED FINAL GEOMETRY from the first frame — there is no
+          grow/scaleX/translate, so the beam can never widen the clipped stage and reads as a calm
+          "light arriving." At rest the group is opacity 1 = the committed cones (the default, so reduced-motion /
+          no-JS get the full beam for free). The `transform-box: view-box` rule + this matching
+          transform-origin are INERT (no transform animates) — they only pin the cone-edge
+          rasterization byte-identical to the committed poster (AC2). Decorative (SVG is aria-hidden). */}
+      <g className="about-beam" style={{ transformOrigin: "287px 773px" }}>
         {/* apex at the projector aperture (~287,773, lower-left); the far edge lands across the page's
             left side (~x 708), framing the DROPPED miniature top → bottom (~y 280–860). outer →
             widest/faintest. */}

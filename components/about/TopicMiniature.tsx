@@ -5,9 +5,9 @@
 // stage (Centerpiece §2.6), so the px are preserved verbatim and merely scaled as a unit.
 //
 // SEPARABLE PLUS LAYER (spec in-scope item 10 / §10.2): the indigo cards + clips render from one
-// <PlusLayer>-family subtree distinct from the article-ground subtree, so the ＋plus layer can be
-// hidden / revealed / animated later without a rewrite. NO animation is built now (static final
-// state only).
+// <PlusLayer>-family subtree distinct from the article-ground subtree (each plus group carries
+// `.about-plus`), so the About warm-up intro reveals the ＋plus layer (a fade onto the present article
+// ground) without re-architecting the miniature.
 //
 // A11y (§4.3, AC15): the miniature is decorative EXCEPT the one real control (the title input). An
 // aria-hidden ancestor would also hide the input, so we do NOT put aria-hidden on an ancestor of the
@@ -78,7 +78,23 @@ function Clip({
   );
 }
 
-export function TopicMiniature() {
+// `seedTitle` is the dynamic title for the current power-on (AC16–AC18), seeded into the title input.
+// `titleFlicker` switches on the §5.3 old→new title cross-flicker (the wrapper carries the
+// `about-title-flicker` class the keyframe keys off) — set by <Centerpiece> only during a restarted
+// power-on whose pick differs from the prior title; never on first/auto-play or under reduced motion.
+// `coolOverlay` renders the dim-cool illuminate veil — set by <Centerpiece> ONLY when the intro/toggle
+// machinery is engaged (motion-enabled). When false (reduced-motion / no-JS / settled capture) the
+// overlay is ABSENT from the DOM, so the settled miniature is byte-identical to the committed poster
+// (a z-index'd absolute child would otherwise re-rasterize the miniature's clipped edge — AC2/AC11).
+export function TopicMiniature({
+  seedTitle,
+  titleFlicker = false,
+  coolOverlay = false,
+}: {
+  seedTitle?: string;
+  titleFlicker?: boolean;
+  coolOverlay?: boolean;
+} = {}) {
   return (
     <div
       style={{
@@ -94,13 +110,25 @@ export function TopicMiniature() {
         padding: "30px 28px 34px",
       }}
     >
+      {/* The dim-cool "unlit screen" overlay (§1.2-D / AC4). Decorative, pointer-events:none, clipped
+          by this root's overflow:hidden so it can never bleed into the surrounding theater field
+          (AC4b). It multiplies the cool blue-grey over the miniature's surface and fades to 0 as the
+          page illuminates. Rendered only while the intro/toggle is engaged so a settled / reduced-
+          motion render is byte-identical to the committed poster (the comment above the prop). */}
+      {coolOverlay && <div className="about-mini-cool" aria-hidden="true" />}
       {/* ── (a) Masthead: article title + body lines (left) · plus cards (right) ── */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 132px", gap: 20, alignItems: "start" }}>
         {/* Left (article ground). The serif title is the LIVE input (§3) — the one real control,
             kept OUT of any aria-hidden subtree. The body lines beneath it are decorative. */}
         <div style={{ minWidth: 0, paddingTop: 2 }}>
-          <div style={{ margin: "0 0 13px" }}>
-            <MiniatureTitleInput />
+          {/* The title block, wrapped so the §5.3 old→new flicker can key its opacity to the lamp
+              strikes on a restarted power-on. The wrapper is structural-only at rest (no class, no
+              style); the input inside stays the editable, Enter-navigable control (AC18). */}
+          <div
+            className={titleFlicker ? "about-title-flicker" : undefined}
+            style={{ margin: "0 0 13px" }}
+          >
+            <MiniatureTitleInput seedTitle={seedTitle} />
           </div>
           <div aria-hidden="true" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {["100%", "100%", "100%", "88%", "54%"].map((w, i) => (

@@ -89,6 +89,19 @@
   /* The beam-cone fill + motes (§2.3) — the shared #cbeam gradient colour. */
   --color-beam-warm: #fff3da;
 
+  /* The projector "off" status-light red (docs/design/about-projector-warmup.md §1.2-A). The
+     warm-up's first step is RED → GREEN; the committed poster shows green, so this red shows only
+     while the projector is off / before the on-flip. A saturated indicator red that holds against
+     the indigo faceplate. Decorative (the SVG is aria-hidden) — the on/off state reaches assistive
+     tech via the power control's accessible name, never the colour (§6 / AC9). */
+  --color-status-off-red: #c0392b;
+
+  /* The miniature's dim-cool "unlit screen" tint (docs/design/about-projector-warmup.md §1.2-D). A
+     desaturated cool blue-grey; multiplied over the miniature's white/grey ground it reads as the
+     bluish dim of an unlit indoor screen. The .about-mini-cool overlay fills it and fades to 0 as
+     the page illuminates; its default opacity is 0 (the committed lit miniature shows through). */
+  --color-mini-cool: #2a3550;
+
   /* The Topic-page miniature's abstracted contents (§2.4). */
   --color-line-body: #e6e2d8; /* placeholder body-line grey */
   --color-line-section: #bdb6aa; /* placeholder section-heading grey */
@@ -1332,186 +1345,312 @@ figure.wikifig .credit {
 }
 
 /* ── The About "projector warm-up" intro (docs/design/about-projector-warmup.md). ──
-   A one-shot, on-load choreography over the existing static poster: lamp flicker → warm-up
-   dim→bright → beam grows along its throw → the ＋plus layer staggers in onto the article ground →
-   the room brightens to its committed tone (coupled to lamp-max). It animates OPACITY/TRANSFORM
-   ONLY (GPU-composited, zero layout shift) and resolves to EXACTLY the committed static look.
+   A one-shot, on-load choreography over the static poster — AND the projector's click/keyboard power
+   toggle. The on-sequence: status light RED → GREEN → lamp flicker → warm-up dim→bright → the beam
+   FADES IN at its committed geometry → the miniature illuminates (its dim-cool overlay lifts) → the
+   ＋plus layer FADES in. It animates OPACITY/FILTER ONLY (GPU-composited, zero layout shift) and
+   resolves to EXACTLY the committed static look. The BACKGROUND THEATER FIELD never animates (AC4b):
+   there is no whole-field dim and no .about-stage-scoped dim overlay — the only illumination over the
+   field is the beam fading in over it.
 
    The DEFAULT (no-animation) values below ARE the final static poster — the lamp light group at
-   opacity 1 (occluding the always-present designed OFF lens base beneath it in Projector.tsx), the
-   beam at scaleX(1)/opacity 1, every plus group at opacity 1, the room-dim overlay at opacity 0. So
-   a reduced-motion render, a no-JS / pre-hydration render, and the settled scene are all the
-   committed lit poster with nothing to suppress (the OFF lens never shows). The intro adds the
-   appearance keyframes only inside `@media (prefers-reduced-motion: no-preference)` AND only under
-   `.about-intro` (added
-   by <Centerpiece> on mount when motion is allowed) — exactly the gate the rest of globals.css uses
-   for `wikiplus-search-grow` / `.pinned-dock-in` / `.gs-fade-in`. */
+   opacity 1 (occluding the always-present OFF lens base in Projector.tsx), the status green layer at
+   opacity 1 / red at 0, the beam group at opacity 1 (no transform), the mini-cool overlay at 0, and
+   every plus group at opacity 1. So a reduced-motion render, a no-JS / pre-hydration render, and the
+   settled scene are all the committed lit poster with nothing to suppress. The keyframes apply only
+   inside `@media (prefers-reduced-motion: no-preference)` AND only under `.about-intro` — exactly the
+   gate the rest of globals.css uses for `wikiplus-search-grow` / `.pinned-dock-in` / `.gs-fade-in`.
 
-/* The room-dimming overlay (Surface, §1.2-A). Decorative veil filled with the theater edge colour;
-   at rest it is fully transparent (the committed radial shows through untouched), so it can never
-   overshoot the final tone. It sits at the lowest z of the scene content (below the beam at
-   z-index:1, the projector/miniature at z-index:2, and the card) so it dims the room, not the card
-   copy. pointer-events:none so it never intercepts a click meant for the title input. */
-.about-room-dim {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  background: var(--color-theater-3);
-  opacity: 0;
-  pointer-events: none;
-}
+   Power state is carried by two classes on the scene root, set by <Centerpiece>: `.about-on` (the
+   warm-up / lit state — the on-sequence keyframes run on each power-on) and `.about-off` (the
+   pre-illumination off state — red light, lamp off over the OFF lens, beam gone, miniature dim-cool,
+   plus gone; reached via a brief cool-down under motion, instantly under reduced motion). */
 
-/* The beam grows from the apex (the lower-left projector aperture, ~287,773 in the 1280×880 user
-   space). transform-box:view-box makes the inline transform-origin resolve in that viewBox space, so
-   the scaleX pins to the apex; at rest the group is the identity transform (the committed cones). */
-.about-beam-grow {
+/* The beam group `.about-beam` — the on-sequence fades it in by OPACITY only, at its committed
+   geometry (no transform/grow/scaleX — the jitter fix). `transform-box: view-box` is retained even
+   though no transform animates: it pins the cone-edge rasterization byte-identical to the committed
+   poster (an SVG group WITHOUT it re-anti-aliases the beam's far edge by ≤1/255, churning the desktop
+   baseline — AC2/AC11). It is inert (no transform is applied), so it does not move/scale the beam. */
+.about-beam {
   transform-box: view-box;
 }
 
-/* The designed OFF-state lens base (Projector.tsx §2.1.1 / §2.2). Its DEFAULT opacity is 0 — so a
-   reduced-motion / no-JS / settled render shows only the lit lamp (the OFF lens never appears, and it
-   contributes zero pixels at settle → the settled lens is byte-identical to the committed lit poster,
-   no anti-aliased seam at the lit radial's clip edge). During the intro it is visible from t=0 and
-   cross-fades OUT as the lit lamp rises (the keyframe in the no-preference block below). */
+/* The miniature dim-cool overlay (§1.2-D) — a decorative veil INSIDE the TopicMiniature root (which
+   is position:relative; overflow:hidden), so it is clipped to the miniature's own rounded rectangle
+   and cannot bleed into the surrounding theater field (AC4b). Filled with the cool blue-grey and
+   multiplied over the miniature's white/grey surface, it reads as the bluish dim of an unlit indoor
+   screen; it fades to 0 as the page illuminates. DEFAULT opacity 0 (the committed lit miniature shows
+   through untouched) so reduced-motion / no-JS / settled = fully lit. pointer-events:none so it never
+   intercepts the title input. */
+.about-mini-cool {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  background: var(--color-mini-cool);
+  opacity: 0;
+  pointer-events: none;
+}
+/* `mix-blend-mode` establishes a stacking context / compositing layer, which subtly re-anti-aliases
+   the miniature's clip edge even at opacity 0. It is only needed while the overlay is actually
+   visible (the engaged intro / toggle states), so scope it there — a settled / reduced-motion / no-JS
+   render (no `.about-intro`) gets a plain opacity-0 veil that contributes ZERO pixels, keeping the
+   settled miniature byte-identical to the committed poster (AC2). */
+.about-intro .about-mini-cool {
+  mix-blend-mode: multiply;
+}
+
+/* Status-light layers (§1.2-A) — two stacked circles of identical geometry in Projector.tsx. The
+   green layer is the committed poster light; the red layer shows only while off / before the on-flip.
+   DEFAULTS: red 0 / green 1 (the static poster). */
+.about-status-red {
+  opacity: 0;
+}
+.about-status-green {
+  opacity: 1;
+}
+
+/* The designed OFF-state lens base (Projector.tsx §2.1.1 / §2.2). DEFAULT opacity 0 — so a
+   reduced-motion / no-JS / settled render shows only the lit lamp (the OFF lens never appears and
+   contributes zero pixels at settle → the settled lens is byte-identical to the committed lit
+   poster). During the on-sequence it is visible from t=0 and cross-fades OUT as the lit lamp rises. */
 .about-off-lens {
   opacity: 0;
 }
 
+/* The projector power control (§6) — a real <button> wrapping the decorative SVG. Transparent at rest
+   so the projector still reads as the committed poster (AC2); brand focus-visible ring (the app
+   convention), offset so it never crops the bloom; no ring on pointer focus. */
+.about-projector-power {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  border-radius: 6px;
+}
+.about-projector-power:focus {
+  outline: none;
+}
+.about-projector-power:focus-visible {
+  outline: 3px solid var(--color-brand);
+  outline-offset: 4px;
+}
+
 @media (prefers-reduced-motion: no-preference) {
-  /* ── Step 1+2 — Lamp: the lit warm/white layers strike on OVER the designed OFF lens base (the
-     dark interior + geometric "+"; §2.1.1). ONE keyframe over 0 → 1240ms (flicker + warm-up folded
-     into a single animation, so no animation-list order can override the strikes): the group opacity
-     rises from 0 (only the OFF lens shows) through a few quick UNEVEN flashes — the projector striking
-     — in the first ~42% (≈0–520ms), then a fast-then-settle dim→bright filament ramp to max at 100%
-     (t = 1240ms, where the lit layers fully occlude the OFF base = the committed lit projector). The
-     "snap" of each strike is built from near-coincident keyframe pairs (a ~4ms rise/fall window around
-     each peak) under `linear` timing, so each flash reads as a hard catch — NOT a steps() quantization
-     (which collapses the strikes to one held value) and NOT a smooth pulse. Each drop falls near 0 so
-     the gap snaps back toward the visible OFF lens, reading as a lamp catching against a real dark
-     lens. Phase boundaries (flicker ends ~42% / 520ms, max at 1240ms) are unchanged. ── */
+  /* ── Step 0 — Status light RED → GREEN (t = 0 → 180ms): the first observable action. The green
+     layer crossfades 0 → 1 while the red layer crossfades 1 → 0; nothing else changes before this. ── */
+  @keyframes about-status-green-in {
+    0% { opacity: 0; }
+    100% { opacity: 1; }
+  }
+  @keyframes about-status-red-out {
+    0% { opacity: 1; }
+    100% { opacity: 0; }
+  }
+  .about-intro.about-on .about-stage--scene .about-status-green {
+    animation: about-status-green-in 180ms cubic-bezier(0.4, 0, 0.2, 1) 0ms 1 both;
+  }
+  .about-intro.about-on .about-stage--scene .about-status-red {
+    animation: about-status-red-out 180ms cubic-bezier(0.4, 0, 0.2, 1) 0ms 1 both;
+  }
+
+  /* ── Steps 1+2 — Lamp: the lit warm/white layers strike on OVER the designed OFF lens base (§2.1.1).
+     ONE keyframe over 0 → 1240ms (flicker + warm-up folded so no animation-list order can override the
+     strikes). The lit layers HOLD AT 0 until t = 180ms (=14.52%) so the red→green flip is the
+     unambiguous first action — the lamp does not strike before the light is green. Then a few quick
+     UNEVEN flashes (the projector striking, ~210–500ms), then a dim→bright filament ramp to max at
+     100% (t = 1240ms = the committed lit projector). The "snap" of each strike is near-coincident
+     keyframe pairs (~4ms windows) under `linear` timing — a hard catch, not a smooth pulse. ── */
   @keyframes about-lamp-up {
     0% { opacity: 0; }        /* t=0 — the designed OFF lens (lit layers fully absent) */
-    2.1% { opacity: 0; }
-    2.42% { opacity: 0.55; }  /* first strike (t≈30ms) */
-    2.74% { opacity: 0.55; }
-    4.68% { opacity: 0.55; }
-    5% { opacity: 0.06; }     /* drop — back toward the bare OFF lens */
-    6.45% { opacity: 0.06; }
-    6.77% { opacity: 0.7; }   /* second strike (t≈84ms) */
-    7.1% { opacity: 0.7; }
-    7.74% { opacity: 0.7; }
-    8.06% { opacity: 0.08; }  /* drop (shorter gap) */
-    12.26% { opacity: 0.08; }
-    12.58% { opacity: 0.4; }  /* weak third strike (t≈156ms) */
-    12.9% { opacity: 0.4; }
-    13.95% { opacity: 0.4; }
-    14.27% { opacity: 0.05; } /* drop — nearly the OFF lens again */
-    21.45% { opacity: 0.05; }
-    21.77% { opacity: 0.85; } /* fourth strike — the "catch" (t≈270ms) */
-    22.1% { opacity: 0.85; }
-    23.87% { opacity: 0.85; }
-    24.19% { opacity: 0.3; }  /* settle dip (t≈300ms) */
+    14.52% { opacity: 0; }    /* t=180ms — P0 done (green); lamp about to strike */
+    16.69% { opacity: 0; }
+    16.94% { opacity: 0.55; } /* first strike (t≈210ms) */
+    17.10% { opacity: 0.55; }
+    19.84% { opacity: 0.55; }
+    20.16% { opacity: 0.06; } /* drop (t≈250ms) — back toward the bare OFF lens */
+    23.06% { opacity: 0.06; }
+    23.39% { opacity: 0.7; }  /* second strike (t≈290ms) */
+    23.55% { opacity: 0.7; }
+    25.65% { opacity: 0.7; }
+    25.81% { opacity: 0.08; } /* drop (t≈320ms, shorter gap — uneven) */
+    30.32% { opacity: 0.08; }
+    30.65% { opacity: 0.4; }  /* weak third strike (t≈380ms) */
+    30.81% { opacity: 0.4; }
+    32.74% { opacity: 0.4; }
+    33.06% { opacity: 0.05; } /* drop (t≈410ms) — nearly the OFF lens again */
+    37.58% { opacity: 0.05; }
+    37.90% { opacity: 0.85; } /* fourth strike — the "catch" (t≈470ms, longer gap before it) */
+    38.06% { opacity: 0.85; }
+    40.16% { opacity: 0.85; }
+    40.32% { opacity: 0.3; }  /* settle dip (t≈500ms) */
     41.94% { opacity: 0.3; }  /* flicker end (t≈520ms) — hold low, hand off to the warm-up ramp */
     61.29% { opacity: 0.78; } /* warm-up (t≈760ms) */
-    80.65% { opacity: 0.94; } /* (t≈1000ms) */
+    80.65% { opacity: 0.94; } /* (t≈1000ms) — off base all but fully occluded */
     100% { opacity: 1; }      /* max (t=1240ms) — the committed lit projector */
   }
-  /* One animation, `linear` so every keyframe actually renders (the snap is in the keyframe pairs);
-     fills forwards so the group holds at opacity 1 after lamp-max. */
-  .about-intro .about-stage--scene .about-lamp-light {
+  .about-intro.about-on .about-stage--scene .about-lamp-light {
     animation: about-lamp-up 1240ms linear 0ms 1 both;
   }
 
-  /* ── The OFF-lens base cross-fades OUT as the lit lamp rises (§2.2 belt-and-braces). It is visible
-     at t = 0 (covering the warm lamp-base rim — the OFF lens reads as OFF) and reaches opacity 0 by
-     lamp-max (t = 1240ms, the same end as the lamp ramp), so by settle it contributes ZERO pixels and
-     the settled lens is byte-identical to the committed lit poster. It stays near full through the
-     flicker, then crossfades down through the warm-up as the lit layers take over. ── */
+  /* ── The OFF-lens base cross-fades OUT as the lit lamp rises (§2.1.1 / §2.2). Visible at t=0
+     (covering the warm lamp-base rim — the OFF lens reads as OFF), held near full through the flicker,
+     gone by lamp-max (t=1240ms) so the settled lens is byte-identical to the committed lit poster. ── */
   @keyframes about-off-lens-out {
     0% { opacity: 1; }    /* t=0 — the OFF lens, covering the warm rim */
+    14.52% { opacity: 1; } /* held until the green flip resolves (t=180ms) */
     42% { opacity: 1; }   /* held through the flicker (≈520ms) */
     100% { opacity: 0; }  /* gone by lamp-max (t=1240ms) */
   }
-  .about-intro .about-stage--scene .about-off-lens {
+  .about-intro.about-on .about-stage--scene .about-off-lens {
     animation: about-off-lens-out 1240ms cubic-bezier(0.4, 0, 0.6, 1) 0ms 1 both;
   }
 
-  /* ── Step 3 — Beam grows along the throw (scaleX about the apex) + fades in, reaching the
-     miniature at t = 1240ms. Starts at t = 560ms (just after warm-up begins). ── */
-  @keyframes about-beam-throw {
-    0% { transform: scaleX(0.04); opacity: 0; }
-    24% { transform: scaleX(0.45); opacity: 0.55; }
-    65% { transform: scaleX(0.86); opacity: 0.92; }
-    100% { transform: scaleX(1); opacity: 1; }
+  /* ── Step 3 — Beam FADES IN at its committed geometry (§1.2-C): opacity 0 → 1 over t = 560 → 1240ms,
+     reaching full AT lamp-max. NO transform/scale/translate — the cones are at their fixed final
+     geometry the whole time (a calm "light arriving," not a growing edge). ── */
+  @keyframes about-beam-fade {
+    0% { opacity: 0; }   /* t=560ms */
+    100% { opacity: 1; } /* t=1240ms — full, coupled to lamp-max */
   }
-  .about-intro .about-stage--scene .about-beam-grow {
-    animation: about-beam-throw 680ms cubic-bezier(0.16, 0.84, 0.44, 1) 560ms 1 both;
+  .about-intro.about-on .about-stage--scene .about-beam {
+    animation: about-beam-fade 680ms cubic-bezier(0.33, 0, 0.67, 1) 560ms 1 both;
   }
 
-  /* ── Step 4 — ＋plus reveal: each group fades + scales up + slides a small nudge ALONG the beam's
-     throw (down-left → settle), staggered so the "+" assembles in the order the light fills the page
-     (strip first where the core lands, then the gutter fills top→bottom). Per-group 380ms; last
-     group settles by t = 2000ms. ── */
-  @keyframes about-plus-reveal {
-    0% {
-      opacity: 0;
-      transform: translate(-9px, 8px) scale(0.92);
-    }
-    100% {
-      opacity: 1;
-      transform: translate(0, 0) scale(1);
-    }
+  /* ── Step 4 — Miniature illuminate (§1.2-D): the dim-cool overlay fades 0.62 → 0 over t = 560 →
+     1240ms — same window as the beam, reaching 0 AT lamp-max (the AC4 coupling). Confined to the
+     miniature element (clipped by its overflow:hidden). ── */
+  @keyframes about-mini-illuminate {
+    0% { opacity: 0.62; } /* t=560ms — dim + cool unlit screen (AC1c) */
+    100% { opacity: 0; }  /* t=1240ms — overlay gone, committed lit miniature, coupled to lamp-max */
   }
-  .about-intro .about-stage--scene .about-plus {
-    transform-origin: center;
-    animation: about-plus-reveal 380ms cubic-bezier(0.2, 0.7, 0.3, 1) both;
+  .about-intro.about-on .about-stage--scene .about-mini-cool {
+    animation: about-mini-illuminate 680ms cubic-bezier(0.33, 0, 0.67, 1) 560ms 1 both;
   }
-  .about-intro .about-stage--scene .about-plus--strip { animation-delay: 1240ms; }
-  .about-intro .about-stage--scene .about-plus--overview { animation-delay: 1360ms; }
-  .about-intro .about-stage--scene .about-plus--contents { animation-delay: 1480ms; }
-  .about-intro .about-stage--scene .about-plus--portrait { animation-delay: 1620ms; }
 
-  /* ── Step 5 — Surface: the room-dim overlay fades 0.55 → 0, REACHING 0 EXACTLY AT t = 1240ms (the
-     lamp's max). Held dimmer from t = 0 until the ramp begins (t = 600ms), then easeInOut to 0. The
-     coupling is structural: this animation and the lamp warm-up share the same t = 1240 end, so the
-     surface can never reach its final tone before lamp-max (AC4). ── */
-  @keyframes about-room-brighten {
-    0% { opacity: 0.55; }       /* t=0 dimmer room */
-    27% { opacity: 0.55; }      /* t≈600ms ramp onset */
-    64% { opacity: 0.3; }       /* t≈900ms brightening */
-    100% { opacity: 0; }        /* t=1240ms — overlay gone, final tone, coupled to lamp-max */
+  /* ── Step 5 — ＋plus FADE-IN (§1.2-D′): all four plus groups fade in TOGETHER (one shared delay, no
+     stagger) by OPACITY only — no scale/slide/translate. Onset AFTER the beam (t = 1240ms), settled by
+     t = 1760ms (within the 2000ms window). ── */
+  @keyframes about-plus-fade {
+    0% { opacity: 0; }
+    100% { opacity: 1; }
   }
-  .about-intro .about-stage--scene .about-room-dim {
-    animation: about-room-brighten 1240ms cubic-bezier(0.33, 0, 0.67, 1) 0ms 1 both;
+  .about-intro.about-on .about-stage--scene .about-plus {
+    animation: about-plus-fade 520ms cubic-bezier(0.33, 0, 0.67, 1) 1240ms 1 both;
+  }
+
+  /* ── The title old→new flicker on a RESTARTED power-on (§5.3): the title's opacity tracks the lamp's
+     P1 strike rhythm (peaks ~210/290/380/470ms, drops between) over the flicker window; <Centerpiece>
+     swaps the displayed text at the strong catch (~470ms), masked by the dip, so it reads as the
+     projector re-focusing. Opacity only (the input box is fixed — CLS = 0). Applied by <Centerpiece>
+     only when a prior title existed AND it differs from the new pick; never on first/auto-play, never
+     under reduced motion. ── */
+  @keyframes about-title-flicker {
+    0% { opacity: 1; }
+    36.76% { opacity: 1; }   /* t=180ms — flicker begins (after the green flip) */
+    42.86% { opacity: 0.25; } /* first strike dip (t≈210ms) */
+    51.47% { opacity: 1; }
+    58.82% { opacity: 0.3; }  /* (t≈290ms) */
+    67.65% { opacity: 1; }
+    77.94% { opacity: 0.18; } /* (t≈380ms) */
+    91.18% { opacity: 0.12; } /* the strong catch (t≈470ms) — text swaps here */
+    95% { opacity: 0.7; }
+    100% { opacity: 1; }      /* t=520ms — settled, NEW title, warms up with the page */
+  }
+  .about-intro.about-on .about-stage--scene .about-title-flicker .about-title-block {
+    animation: about-title-flicker 340ms linear 180ms 1 both;
   }
 
   /* ── < lg — miniature ALONE (the reduced intro, §4.3): steps 4 + 5 only (no on-screen
-     projector/beam). The plus layer reveals with a neutral upward nudge (no beam axis to ride),
-     staggered the same order, starting at t = 240ms with the last group settled by t = 1000ms. The
-     room-dim overlay scoped to this stage fades 0.55 → 0 over t = 0 → 700ms. ── */
-  @keyframes about-plus-reveal-mini {
-    0% {
-      opacity: 0;
-      transform: translateY(10px) scale(0.92);
-    }
-    100% {
-      opacity: 1;
-      transform: translateY(0) scale(1);
-    }
+     projector / status light / beam — and no toggle). The mini-cool overlay fades 0.62 → 0 and the
+     plus groups fade in (together, opacity only), over t = 240 → 940ms (a short beat after first paint
+     so the page reads "article first, then it lights up"). No beam to couple to. ── */
+  .about-intro.about-on .about-stage--mini .about-mini-cool {
+    animation: about-mini-illuminate 700ms cubic-bezier(0.33, 0, 0.67, 1) 240ms 1 both;
   }
-  .about-intro .about-stage--mini .about-plus {
-    transform-origin: center;
-    animation: about-plus-reveal-mini 380ms cubic-bezier(0.2, 0.7, 0.3, 1) both;
+  .about-intro.about-on .about-stage--mini .about-plus {
+    animation: about-plus-fade 520ms cubic-bezier(0.33, 0, 0.67, 1) 240ms 1 both;
   }
-  .about-intro .about-stage--mini .about-plus--strip { animation-delay: 240ms; }
-  .about-intro .about-stage--mini .about-plus--overview { animation-delay: 360ms; }
-  .about-intro .about-stage--mini .about-plus--contents { animation-delay: 480ms; }
-  .about-intro .about-stage--mini .about-plus--portrait { animation-delay: 620ms; }
-  @keyframes about-room-brighten-mini {
-    0% { opacity: 0.55; }
+
+  /* ── Power OFF — a brief coordinated cool-down (§3.2), motion-enabled only. Each layer transitions
+     into the AC1 OFF state (the inverse gesture of the warm-up, without re-running the flicker);
+     ~300ms total, all overlapping. The OFF state then holds steady (these are `forwards` fills, no
+     loop) until the next power-on. The background field is untouched (AC4b). ── */
+  @keyframes about-status-green-out {
+    0% { opacity: 1; }
     100% { opacity: 0; }
   }
-  .about-intro .about-stage--mini .about-room-dim {
-    animation: about-room-brighten-mini 700ms cubic-bezier(0.33, 0, 0.67, 1) 0ms 1 both;
+  @keyframes about-status-red-in {
+    0% { opacity: 0; }
+    100% { opacity: 1; }
   }
+  @keyframes about-lamp-down {
+    0% { opacity: 1; }
+    100% { opacity: 0; }
+  }
+  @keyframes about-off-lens-in {
+    0% { opacity: 0; }
+    100% { opacity: 1; }
+  }
+  @keyframes about-beam-fade-out {
+    0% { opacity: 1; }
+    100% { opacity: 0; }
+  }
+  @keyframes about-mini-recool {
+    0% { opacity: 0; }
+    100% { opacity: 0.62; }
+  }
+  @keyframes about-plus-fade-out {
+    0% { opacity: 1; }
+    100% { opacity: 0; }
+  }
+  .about-intro.about-off .about-stage--scene .about-status-green {
+    animation: about-status-green-out 140ms cubic-bezier(0.4, 0, 0.2, 1) 0ms 1 both;
+  }
+  .about-intro.about-off .about-stage--scene .about-status-red {
+    animation: about-status-red-in 140ms cubic-bezier(0.4, 0, 0.2, 1) 0ms 1 both;
+  }
+  .about-intro.about-off .about-stage--scene .about-lamp-light {
+    animation: about-lamp-down 260ms cubic-bezier(0.4, 0, 1, 1) 0ms 1 both;
+  }
+  .about-intro.about-off .about-stage--scene .about-off-lens {
+    animation: about-off-lens-in 260ms cubic-bezier(0.4, 0, 1, 1) 0ms 1 both;
+  }
+  .about-intro.about-off .about-stage--scene .about-beam {
+    animation: about-beam-fade-out 220ms cubic-bezier(0.4, 0, 1, 1) 0ms 1 both;
+  }
+  .about-intro.about-off .about-stage .about-mini-cool {
+    animation: about-mini-recool 220ms cubic-bezier(0.4, 0, 1, 1) 0ms 1 both;
+  }
+  .about-intro.about-off .about-stage .about-plus {
+    animation: about-plus-fade-out 200ms cubic-bezier(0.4, 0, 1, 1) 0ms 1 both;
+  }
+}
+
+/* ── The OFF rest state under REDUCED MOTION (and as the fill target if a cool-down is suppressed):
+   the toggle still works but SNAPS (§3.4). Setting the OFF values directly (no keyframes) flips the
+   scene to the AC1 off state instantly in both directions. These rules are OUTSIDE the no-preference
+   block so a reduced-motion user's user-initiated toggle reaches the off state with no animation. ── */
+.about-intro.about-off .about-stage .about-mini-cool {
+  opacity: 0.62;
+}
+.about-intro.about-off .about-stage--scene .about-status-green {
+  opacity: 0;
+}
+.about-intro.about-off .about-stage--scene .about-status-red {
+  opacity: 1;
+}
+.about-intro.about-off .about-stage--scene .about-lamp-light {
+  opacity: 0;
+}
+.about-intro.about-off .about-stage--scene .about-off-lens {
+  opacity: 1;
+}
+.about-intro.about-off .about-stage--scene .about-beam {
+  opacity: 0;
+}
+.about-intro.about-off .about-stage .about-plus {
+  opacity: 0;
 }

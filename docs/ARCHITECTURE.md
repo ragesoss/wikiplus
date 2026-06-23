@@ -863,6 +863,18 @@ build on additively.
       same topic. `deriveStats` is reused unchanged; the SQL only mirrors its semantics. The
       reference `LocalStorageDataStore` derives the same shape over its in-memory clip set (test +
       reference parity).
+    - **Second consumer — the `/about` dynamic miniature title.** `/about` (the orientation poster)
+      also reads `listCuratedTopics()` **server-side** to source the centerpiece miniature's article
+      title: it derives an eligible POOL (the curated titles whose length fits the miniature's single
+      title line — a ≤20-char cap, `TITLE_FIT_CAP`; an over-long title is excluded, never truncated)
+      and passes the pool + the fallback `"Acer palmatum"` to the client `<Centerpiece>`, which
+      (re)picks one per power-on. This **shifts `/about` from static-prerender to a dynamic read**
+      (`ƒ` in the build output) — acceptable for the prototype (the production ISR/Redis read path is
+      deferred). An empty / failed read falls back cleanly to `"Acer palmatum"`, so `/about` always
+      renders. **Deterministic-capture pin:** the screenshot harness appends `?capture=poster`, under
+      which `/about` forces the pool empty so the miniature shows the fallback — pinning the About
+      baseline to the committed poster (no churn as the seeded curations change) without any
+      test-only branch in the client component.
   - **Writes (server-DB):** `upsertTopic`, `addClip`, `recordDismissal` — same path, **auth-gated as
     of issue C** (rejected when anonymous; attributed to the real signed-in contributor). **As of
     issue #53 / D2 `updateClip` / `deleteClip` are also boundary actions** (`updateClipAction` /

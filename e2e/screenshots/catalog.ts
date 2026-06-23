@@ -812,7 +812,12 @@ export const SCENES: Scene[] = [
     group: "Other pages",
     label: "About — centerpiece + how it works",
     note: "The projector→page→＋plus thesis hero (full scene ≥ lg; miniature-alone < lg) + the How-it-works steps.",
-    route: "/about",
+    // `?capture=poster` is the deterministic-title pin (docs/design/about-projector-warmup.md §7.2):
+    // under it /about forces the eligible-title pool EMPTY so the miniature shows the fallback
+    // "Acer palmatum" — so the About baseline matches the committed poster `178c148` and never churns
+    // as the seeded curations change. (A documented capture hook on the page, not a test-only branch
+    // in the component.)
+    route: "/about?capture=poster",
     stub: "plain",
     // The About scene plays a one-shot warm-up intro; wait for the SETTLED final state (and force
     // reduced motion) so the baseline is deterministic and equals the static poster (AC11).

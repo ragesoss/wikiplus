@@ -63,8 +63,30 @@ export function Projector({ idPrefix = "proj" }: { idPrefix?: string }) {
         stroke="var(--color-ink)"
         strokeWidth="2.5"
       />
-      {/* Green power light. */}
-      <circle cx="176" cy="236" r="5" fill="var(--color-sprout)" stroke="var(--color-ink)" strokeWidth="1.4" />
+      {/* Power status light (docs/design/about-projector-warmup.md §1.2-A) — two stacked circles of
+          identical geometry: a RED off layer beneath + the GREEN on layer above. The committed poster
+          shows GREEN (green opacity 1, red 0 — the CSS defaults); the warm-up's first step crossfades
+          red → green, and a power-off crossfades back to red. Both share the ink stroke so the dot's
+          outline is stable across the swap. Decorative (the whole SVG is aria-hidden) — the on/off
+          state reaches assistive tech via the power control's accessible name, not this colour (AC9). */}
+      <circle
+        className="about-status-red"
+        cx="176"
+        cy="236"
+        r="5"
+        fill="var(--color-status-off-red)"
+        stroke="var(--color-ink)"
+        strokeWidth="1.4"
+      />
+      <circle
+        className="about-status-green"
+        cx="176"
+        cy="236"
+        r="5"
+        fill="var(--color-sprout)"
+        stroke="var(--color-ink)"
+        strokeWidth="1.4"
+      />
       {/* Focus dial: indigo-dark ring + violet hub. */}
       <circle cx="212" cy="302" r="14" fill="var(--color-indigo-dark)" stroke="var(--color-ink)" strokeWidth="2" />
       <circle cx="212" cy="302" r="6" fill="var(--color-violet)" stroke="var(--color-ink)" strokeWidth="1.5" />
