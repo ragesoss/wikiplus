@@ -45,3 +45,7 @@ playwright-report/
 # scripts/dev/shoot.sh + shots.sh default output dirs (gitignored captures). Anchored to the repo
 # root so it never swallows the committed e2e/screenshots/ catalog or a docs/design/ gallery.
 /screenshots/
+
+# Build worktrees (scripts/dev/worktree.sh) live under the repo root so reads/writes into them
+# inherit the trusted-directory grant (no per-worktree permission prompt); they must never be tracked.
+.claude/worktrees/
