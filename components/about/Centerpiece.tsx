@@ -299,10 +299,10 @@ export function Centerpiece({
           ONE of the two stage subtrees: the full poster scene when the viewport is ≥ lg wide AND
           ≥ 820px tall, the miniature-alone fallback otherwise (too narrow OR too short). It is a
           render-gate (not CSS visibility), so the fallback truly has no projector/beam/power-button
-          nodes in the DOM — the a11y contract (§4.2/§5.2). The width split that `lg:block`/`lg:hidden`
-          used to encode is now part of the JS query (min-width:1024), so those classes are dropped.
-          The `<main>`'s per-tier layout classes (the xl: overlay vs stacked) are unchanged and only
-          take effect when the full scene is the one rendered. ── */}
+          nodes in the DOM — the a11y contract (§4.2/§5.2). Width is part of the JS query
+          (`min-width:1024`); the stage subtrees carry no CSS width gate. The `<main>`'s per-tier
+          layout classes (the xl: overlay vs stacked) only take effect when the full scene is the one
+          rendered. ── */}
       <div className="w-full">
         {fullScene ? (
           // ≥ lg AND ≥ 820 tall — the poster scene (projector lower-left + beam + miniature

@@ -20,8 +20,8 @@ import { test, expect, type Page } from "@playwright/test";
 
 const ENABLED = !!process.env.ABOUT_WARMUP;
 
-// The intro lives in the ≥ lg poster scene (.about-stage--scene is `hidden lg:block`), so capture at
-// a desktop width where the projector + lamp render.
+// The intro lives in the full poster scene (.about-stage--scene), which renders only when the
+// viewport is ≥ lg wide AND ≥ 820px tall, so capture at a desktop size where the projector + lamp render.
 const LG_VIEWPORT = { width: 1280, height: 900 };
 
 const LAMP = ".about-stage--scene .about-lamp-light";
@@ -251,8 +251,9 @@ test.describe("About projector warm-up — runtime motion @about-warmup", () => 
     await page.setViewportSize({ width: 390, height: 900 });
     await page.goto("/about");
     await page.locator(".about-stage--mini").waitFor();
-    // The < lg composition is the miniature-alone stage; the ≥ lg poster scene (and its projector
-    // control + status light + beam) is `hidden lg:block`, so none of them are laid out/visible here.
+    // The < lg composition is the miniature-alone stage; the full poster scene (and its projector
+    // control + status light + beam) is not rendered here (the height-aware gate render-gates one
+    // subtree), so none of them are laid out/visible.
     await expect(page.getByRole("button", { name: /Turn the projector/ })).toHaveCount(0);
     expect(await page.locator(".about-stage--scene .about-status-red").isVisible()).toBe(false);
     expect(await page.locator(".about-stage--scene .about-beam").isVisible()).toBe(false);
