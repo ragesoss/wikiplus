@@ -1,5 +1,105 @@
 [
   {
+    "id": "home-skin-toggle",
+    "group": "Header · skin toggle",
+    "label": "Home header — skin toggle chip (left of auth)",
+    "viewport": "desktop",
+    "auth": "out",
+    "skin": "light",
+    "file": "home-skin-toggle-desktop-logged-out.png",
+    "focus": true
+  },
+  {
+    "id": "home-skin-toggle",
+    "group": "Header · skin toggle",
+    "label": "Home header — skin toggle chip (left of auth)",
+    "viewport": "desktop",
+    "auth": "out",
+    "skin": "zine-dark",
+    "file": "home-skin-toggle-desktop-logged-out-zine-dark.png",
+    "focus": true
+  },
+  {
+    "id": "home-skin-toggle",
+    "group": "Header · skin toggle",
+    "label": "Home header — skin toggle chip (left of auth)",
+    "viewport": "desktop",
+    "auth": "in",
+    "skin": "light",
+    "file": "home-skin-toggle-desktop-logged-in.png",
+    "focus": true
+  },
+  {
+    "id": "home-skin-toggle",
+    "group": "Header · skin toggle",
+    "label": "Home header — skin toggle chip (left of auth)",
+    "viewport": "desktop",
+    "auth": "in",
+    "skin": "zine-dark",
+    "file": "home-skin-toggle-desktop-logged-in-zine-dark.png",
+    "focus": true
+  },
+  {
+    "id": "topic-skin-toggle",
+    "group": "Header · skin toggle",
+    "label": "Topic header — skin toggle (icon-only, dense chrome)",
+    "viewport": "desktop",
+    "auth": "out",
+    "skin": "light",
+    "file": "topic-skin-toggle-desktop-logged-out.png",
+    "focus": true
+  },
+  {
+    "id": "topic-skin-toggle",
+    "group": "Header · skin toggle",
+    "label": "Topic header — skin toggle (icon-only, dense chrome)",
+    "viewport": "desktop",
+    "auth": "out",
+    "skin": "zine-dark",
+    "file": "topic-skin-toggle-desktop-logged-out-zine-dark.png",
+    "focus": true
+  },
+  {
+    "id": "topic-skin-toggle",
+    "group": "Header · skin toggle",
+    "label": "Topic header — skin toggle (icon-only, dense chrome)",
+    "viewport": "desktop",
+    "auth": "in",
+    "skin": "light",
+    "file": "topic-skin-toggle-desktop-logged-in.png",
+    "focus": true
+  },
+  {
+    "id": "topic-skin-toggle",
+    "group": "Header · skin toggle",
+    "label": "Topic header — skin toggle (icon-only, dense chrome)",
+    "viewport": "desktop",
+    "auth": "in",
+    "skin": "zine-dark",
+    "file": "topic-skin-toggle-desktop-logged-in-zine-dark.png",
+    "focus": true
+  },
+  {
+    "id": "account-menu-skin",
+    "group": "Header · skin toggle",
+    "label": "Account menu — skin-toggle mirror item (signed in)",
+    "viewport": "desktop",
+    "auth": "in",
+    "skin": "light",
+    "file": "account-menu-skin-desktop-logged-in.png",
+    "focus": true
+  },
+  {
+    "id": "account-menu-skin",
+    "group": "Header · skin toggle",
+    "label": "Account menu — skin-toggle mirror item (signed in)",
+    "viewport": "desktop",
+    "auth": "in",
+    "skin": "zine-dark",
+    "file": "account-menu-skin-desktop-logged-in-zine-dark.png",
+    "focus": true
+  },
+  {
     "id": "topic-article-mobile-collapsed",
     "group": "Topic · mobile article",
     "label": "Mobile article — collapsed section stack (default)",
