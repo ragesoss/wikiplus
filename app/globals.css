@@ -105,7 +105,9 @@
   /* The Topic-page miniature's abstracted contents (§2.4). */
   --color-line-body: #e6e2d8; /* placeholder body-line grey */
   --color-line-section: #bdb6aa; /* placeholder section-heading grey */
-  --color-card-hairline: #e2ddd3; /* the miniature card's 1px warm border */
+  --color-card-hairline: #e2ddd3; /* the miniature card's 1px warm border (lit) */
+  --color-mini-border-dim: #737c8e; /* the miniature's 1px border while dim/unlit — a cool grey that
+     reads as the edge of the unlit cool screen, so the warm hairline never rings the dark page */
   --color-card-warm: #faf8f1; /* the in-scene §A "How it works" card fill */
   --color-prose-warm: #5f5a52; /* warm body prose on the §A card (AA on #faf8f1 ≈ 6.4:1) */
 }
@@ -1390,6 +1392,14 @@ figure.wikifig .credit {
   opacity: 0;
   pointer-events: none;
 }
+/* The miniature page's 1px border. It lives on a class (not inline) so the dim states can dim it in
+   lockstep with the `.about-mini-cool` veil: the veil multiplies over the page SURFACE but is clipped
+   inside this border (overflow:hidden), so a static warm hairline would ring the darkened page. The
+   DEFAULT (settled / reduced-motion / no-JS / capture) is the committed warm hairline, so the settled
+   miniature stays byte-identical to the committed poster (AC2). */
+.about-mini-page {
+  border: 1px solid var(--color-card-hairline);
+}
 /* `mix-blend-mode` establishes a stacking context / compositing layer, which subtly re-anti-aliases
    the miniature's clip edge even at opacity 0. It is only needed while the overlay is actually
    visible (the engaged intro / toggle states), so scope it there — a settled / reduced-motion / no-JS
@@ -1529,6 +1539,18 @@ figure.wikifig .credit {
   .about-intro.about-on .about-stage--scene .about-mini-cool {
     animation: about-mini-illuminate 680ms cubic-bezier(0.33, 0, 0.67, 1) 560ms 1 both;
   }
+  /* The page border dims → warms in lockstep with the veil (same window/easing per stage), so the
+     1px edge illuminates WITH the surface instead of staying a warm hairline over the dim page. */
+  @keyframes about-mini-border-illuminate {
+    0% { border-color: var(--color-mini-border-dim); }
+    100% { border-color: var(--color-card-hairline); }
+  }
+  .about-intro.about-on .about-stage--scene .about-mini-page {
+    animation: about-mini-border-illuminate 680ms cubic-bezier(0.33, 0, 0.67, 1) 560ms 1 both;
+  }
+  .about-intro.about-on .about-stage--mini .about-mini-page {
+    animation: about-mini-border-illuminate 700ms cubic-bezier(0.33, 0, 0.67, 1) 240ms 1 both;
+  }
 
   /* ── Step 5 — ＋plus FADE-IN (§1.2-D′): all four plus groups fade in TOGETHER (one shared delay, no
      stagger) by OPACITY only — no scale/slide/translate. Onset AFTER the beam (t = 1240ms), settled by
@@ -1624,6 +1646,13 @@ figure.wikifig .credit {
   .about-intro.about-off .about-stage .about-mini-cool {
     animation: about-mini-recool 220ms cubic-bezier(0.4, 0, 1, 1) 0ms 1 both;
   }
+  @keyframes about-mini-border-recool {
+    0% { border-color: var(--color-card-hairline); }
+    100% { border-color: var(--color-mini-border-dim); }
+  }
+  .about-intro.about-off .about-stage .about-mini-page {
+    animation: about-mini-border-recool 220ms cubic-bezier(0.4, 0, 1, 1) 0ms 1 both;
+  }
   .about-intro.about-off .about-stage .about-plus {
     animation: about-plus-fade-out 200ms cubic-bezier(0.4, 0, 1, 1) 0ms 1 both;
   }
@@ -1635,6 +1664,9 @@ figure.wikifig .credit {
    block so a reduced-motion user's user-initiated toggle reaches the off state with no animation. ── */
 .about-intro.about-off .about-stage .about-mini-cool {
   opacity: 0.62;
+}
+.about-intro.about-off .about-stage .about-mini-page {
+  border-color: var(--color-mini-border-dim);
 }
 .about-intro.about-off .about-stage--scene .about-status-green {
   opacity: 0;

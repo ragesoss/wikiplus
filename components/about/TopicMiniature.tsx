@@ -97,10 +97,10 @@ export function TopicMiniature({
 } = {}) {
   return (
     <div
+      className="about-mini-page"
       style={{
         position: "relative",
         background: "var(--color-content-white)",
-        border: "1px solid var(--color-card-hairline)",
         borderRadius: 4,
         overflow: "hidden",
         // A soft drop shadow grounds the page in the dark room. No warm halo glow — a box-shadow glow
