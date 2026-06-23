@@ -27,6 +27,13 @@ import { signIn } from "../auth";
 
 export type Viewport = "mobile" | "tablet" | "desktop";
 export type AuthState = "out" | "in";
+/** The active skin for a capture (issue #119). "light" is the default Indigo Press zine (no
+ *  `data-skin`); "zine-dark" is the dark skin, selected by the `wikiplus-skin` cookie the spec sets
+ *  before navigation (mirroring the pre-paint bootstrap in app/layout.tsx). A scene opts into the
+ *  dark capture via `skins`; the default is light-only so the committed baseline does not double. */
+export type Skin = "light" | "zine-dark";
+/** The cookie the pre-paint bootstrap (app/layout.tsx) reads to select a non-default skin. */
+export const SKIN_COOKIE = "wikiplus-skin";
 
 /** Viewport sizes — the widths that select the app's mobile (< md) / tablet (md) / desktop (≥ lg)
  *  layouts. Heights are the rendering window; full-page captures grow past them. */
@@ -75,6 +82,11 @@ export interface Scene {
   viewports?: Viewport[];
   /** Auth states to capture (default: both). */
   auth?: AuthState[];
+  /** Skins to capture (issue #119; default: ["light"] — the default zine). A surface that should
+   *  also evidence the zine-dark skin adds "zine-dark"; the dark cell is captured + indexed
+   *  automatically with a `-zine-dark` filename suffix. The light baseline is always captured so the
+   *  byte-stable-light acceptance holds across a full refresh. */
+  skins?: Skin[];
   /** Drive the page to the state worth capturing (scroll, open a player, reveal search, …). */
   prepare?: (page: Page) => Promise<void>;
   /** Wait signal before capture (default: the header is present). */
@@ -470,6 +482,7 @@ export const SCENES: Scene[] = [
   // ── Home / landing ──
   {
     id: "home",
+    skins: ["light", "zine-dark"],
     group: "Home",
     label: "Home — landing page",
     note: "Daylight Projector header + Find-a-topic search + the 'Recently curated' topic list.",
@@ -492,6 +505,7 @@ export const SCENES: Scene[] = [
   // ── Topic — header states ──
   {
     id: "topic-header-tierA",
+    skins: ["light", "zine-dark"],
     group: "Topic · header",
     label: "Topic header — Tier A (scroll-top, full beam)",
     note: "The full projector beam over the article↔plus seam.",
@@ -502,6 +516,7 @@ export const SCENES: Scene[] = [
   },
   {
     id: "topic-header-slim",
+    skins: ["light", "zine-dark"],
     group: "Topic · header",
     label: "Topic header — slim sticky (scrolled, beam faded)",
     note: "The collapsed Tier-C card after scrolling past the burn threshold.",
@@ -528,6 +543,7 @@ export const SCENES: Scene[] = [
   // ── Topic — body ──
   {
     id: "topic-body",
+    skins: ["light", "zine-dark"],
     group: "Topic · body",
     label: "Topic — full two-world layout",
     note: "Article ↔ plus columns, top to bottom.",
@@ -538,6 +554,7 @@ export const SCENES: Scene[] = [
   },
   {
     id: "topic-body-sticky",
+    skins: ["light", "zine-dark"],
     group: "Topic · body",
     label: "Topic — body under the slim sticky header",
     note: "The viewport after scrolling: slim header over the article body.",
@@ -607,6 +624,7 @@ export const SCENES: Scene[] = [
   // ── Topic — overview card & TOC ──
   {
     id: "topic-overview",
+    skins: ["light", "zine-dark"],
     group: "Topic · overview & TOC",
     label: "Overview card (＋plus Infobox)",
     note: "The video-stats / curation-state card.",
@@ -618,6 +636,7 @@ export const SCENES: Scene[] = [
   },
   {
     id: "topic-toc",
+    skins: ["light", "zine-dark"],
     group: "Topic · overview & TOC",
     label: "Table of contents (plus card)",
     note: "Section list with curated/suggested badges.",
@@ -632,6 +651,7 @@ export const SCENES: Scene[] = [
   // ── General Strip — the three states ──
   {
     id: "general-curated",
+    skins: ["light", "zine-dark"],
     group: "General Strip",
     label: "General Strip — curated",
     note: "Human-curated clips (Photosynthesis).",
@@ -642,6 +662,7 @@ export const SCENES: Scene[] = [
   },
   {
     id: "general-suggestions",
+    skins: ["light", "zine-dark"],
     group: "General Strip",
     label: "General Strip — suggestions (unvetted)",
     note: "Auto-found candidates on an uncurated topic.",
@@ -652,6 +673,7 @@ export const SCENES: Scene[] = [
   },
   {
     id: "general-empty",
+    skins: ["light", "zine-dark"],
     group: "General Strip",
     label: "General Strip — empty",
     note: "Uncurated topic with no candidates yet.",
@@ -664,6 +686,7 @@ export const SCENES: Scene[] = [
   // ── Players ──
   {
     id: "player-modal",
+    skins: ["light", "zine-dark"],
     group: "Players",
     label: "PlayerModal — curated clip (blocking, desktop)",
     note: "The dialog player + curation note, opened from a curated tile. Desktop-only: on mobile/tablet (< lg) curated playback uses the unified mobile dock (issue #120).",
@@ -676,6 +699,7 @@ export const SCENES: Scene[] = [
   },
   {
     id: "pinned-player",
+    skins: ["light", "zine-dark"],
     group: "Players",
     label: "PinnedPlayer — candidate dock (non-modal, desktop)",
     note: "The corner dock, opened from a suggested candidate. Desktop-only: on mobile/tablet (< lg) candidate playback uses the unified mobile dock (issue #120).",
@@ -690,6 +714,7 @@ export const SCENES: Scene[] = [
   // ── Unified mobile player (issue #120) — all mobile-only states ──
   {
     id: "mobile-player-curated",
+    skins: ["light", "zine-dark"],
     group: "Players · mobile unified",
     label: "Mobile dock — curated, collapsed curation",
     note: "Curated clip docked at the bottom, frame-first: slim title bar (credit) → video frame (the hero, fully visible) → chips + 'Context ▸' below the frame. Logged-out adds the join nudge below. A meaningful article slice stays visible above.",
@@ -793,6 +818,7 @@ export const SCENES: Scene[] = [
   // ── Article not found (#19) ──
   {
     id: "topic-notfound",
+    skins: ["light", "zine-dark"],
     group: "Topic · not found",
     label: "Article not found (nonexistent title)",
     note: "The honest #19 missing-article recovery state.",
@@ -809,6 +835,7 @@ export const SCENES: Scene[] = [
   // ── Other pages ──
   {
     id: "about",
+    skins: ["light", "zine-dark"],
     group: "Other pages",
     label: "About — centerpiece + how it works",
     note: "The projector→page→＋plus thesis hero (full scene ≥ lg; miniature-alone < lg) + the How-it-works steps.",
@@ -821,6 +848,7 @@ export const SCENES: Scene[] = [
   },
   {
     id: "about-data",
+    skins: ["light", "zine-dark"],
     group: "Other pages",
     label: "About your data",
     note: "The persistent data-handling notice.",
@@ -835,6 +863,7 @@ export const SCENES: Scene[] = [
   },
   {
     id: "contribute",
+    skins: ["light", "zine-dark"],
     group: "Other pages",
     label: "Contribute (Add a clip)",
     note: "Logged-out gate vs the real add form.",
@@ -845,6 +874,7 @@ export const SCENES: Scene[] = [
   },
   {
     id: "contributor-profile",
+    skins: ["light", "zine-dark"],
     group: "Other pages",
     label: "Contributor profile",
     note: "Public profile (viewer arm) / own profile (My curations).",
@@ -862,8 +892,32 @@ export function sceneViewports(scene: Scene): Viewport[] {
 export function sceneAuth(scene: Scene): AuthState[] {
   return scene.auth ?? ["out", "in"];
 }
+export function sceneSkins(scene: Scene): Skin[] {
+  return scene.skins ?? ["light"];
+}
 
-/** The output filename stem for one (scene, viewport, auth) cell. */
-export function shotName(scene: Scene, viewport: Viewport, auth: AuthState): string {
-  return `${scene.id}-${viewport}-${auth === "in" ? "logged-in" : "logged-out"}`;
+/** The output filename stem for one (scene, viewport, auth, skin) cell. The light skin keeps the
+ *  historical name (no suffix) so the committed baseline filenames are stable; the dark skin appends
+ *  `-zine-dark`. */
+export function shotName(
+  scene: Scene,
+  viewport: Viewport,
+  auth: AuthState,
+  skin: Skin = "light"
+): string {
+  const base = `${scene.id}-${viewport}-${auth === "in" ? "logged-in" : "logged-out"}`;
+  return skin === "light" ? base : `${base}-${skin}`;
+}
+
+/** Set (or clear) the skin cookie BEFORE navigation — mirrors the pre-paint bootstrap in
+ *  app/layout.tsx, so the captured page renders the selected skin with no flash. Light clears the
+ *  cookie so the default (no `data-skin`) shell renders. */
+export async function applySkin(page: Page, skin: Skin, baseURL?: string): Promise<void> {
+  // Light is the default (no `data-skin`) — no cookie needed (and we must NOT clear cookies here, the
+  // signed-in arm has already set its session cookie). Only the dark skin adds its cookie.
+  if (skin === "light") return;
+  const url = new URL(baseURL ?? "http://localhost:3000");
+  await page.context().addCookies([
+    { name: SKIN_COOKIE, value: skin, domain: url.hostname, path: "/" },
+  ]);
 }
