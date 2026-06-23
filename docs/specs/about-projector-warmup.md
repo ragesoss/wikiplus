@@ -430,12 +430,15 @@ the intro's own pre-illumination start state (AC1), which the power toggle reuse
 **Responsive (the intro works coherently at every supported width)**
 
 12. **Responsive choreography — defined per width tier (the poster tiers of `178c148`).** The intro
-    plays coherently at all three of the current poster layouts. The projector + its status light +
-    beams are **only present `≥ lg`** in the current `Centerpiece.tsx`; below `lg` the miniature shows
-    **alone** on the field (no projector, no status light, no beams). Therefore the **status-light
-    RED → GREEN step (AC3 step 0) and the click/keyboard power toggle (AC13–AC15) apply only `≥ lg`** —
-    where the projector control exists — while the **topic-illuminate (AC3 step 4) and ＋plus fade
-    (AC3 step 5) still play `< lg`** on the standalone miniature. The tiers:
+    plays coherently at all three of the current poster layouts. The full poster scene (projector +
+    status light + beams + the dropped miniature) renders **only when the viewport is both ≥ lg wide
+    AND ≥ 820px tall**; below `lg` (too narrow) **and** on a ≥ lg-wide-but-< 820px-tall viewport (the
+    height-aware gate — `docs/design/about-height-aware-scene.md`) the miniature shows **alone** on the
+    field (no projector, no status light, no beams). Therefore the **status-light RED → GREEN step
+    (AC3 step 0) and the click/keyboard power toggle (AC13–AC15) apply only on the wide-AND-tall full
+    scene** — where the projector control exists — while the **topic-illuminate (AC3 step 4) and ＋plus
+    fade (AC3 step 5) still play** on the standalone miniature (in the < lg AND the wide-but-short
+    fallback). The tiers:
     - **`≥ xl` — the full POSTER:** the "How it works" card is **overlaid upper-left** (real-font, z
       above the beam), the projector sits **lower-left below the card**, a long **diagonal beam throws
       up-right** to the **dropped Topic-page miniature on the upper-right** (its bottom aligned with the
@@ -444,24 +447,34 @@ the intro's own pre-illumination start state (AC1), which the power toggle reuse
       ＋plus fades in. (The background field does not brighten — AC4b — so there is no surface step.) The
       projector is the interactive power control. The card is **not** part of the choreography (AC6/AC7);
       it is present and lit from first paint.
-    - **`lg`–`xl` — STACKED (card FIRST, the full poster scene below it):** the same projector + status
-      light + beam + miniature scene runs the **full choreography** and the projector is the interactive
-      control; only the page layout differs (the card is stacked above the scene rather than overlaid).
-    - **`< lg` — STACKED, miniature ALONE (no projector / no status light / no beams):** the red→green
-      step, the lamp flicker/warm-up, and the beam fade have no on-screen elements to play, and **there
-      is no power toggle** (no projector control present). The reduced intro is **the topic miniature
-      warming from dim/cool to full illumination (AC3 step 4) + the ＋plus layer fading in on the
-      already-present article ground (AC3 step 5)**. These still play, coherently, with the same
-      start/end-state guarantees (AC1, AC2) for the elements that are present (the miniature starts
-      dim+cool with no plus, ends fully-lit with the plus revealed). The miniature still ends
-      pixel-equivalent to today's `< lg` static miniature (soft drop shadow, no halo).
+    - **`lg`–`xl` AND ≥ 820px tall — STACKED (card FIRST, the full poster scene below it):** the same
+      projector + status light + beam + miniature scene runs the **full choreography** and the projector
+      is the interactive control; only the page layout differs (the card is stacked above the scene
+      rather than overlaid).
+    - **≥ lg wide but `< 820px` tall — STACKED, miniature ALONE (the wide-but-short fallback):** the
+      height-aware gate routes a wide-but-short viewport (e.g. iPad-Mini landscape 1024×768, a short ≥ lg
+      desktop window) to the **same miniature-alone composition the `< lg` tier uses** — no projector,
+      status light, beam, or power toggle, no orphaned beam, the dropped miniature never clipped. The
+      reduced intro (steps 4 + 5) plays on the standalone miniature, exactly as below.
+    - **`< lg` (any height) OR the wide-but-short fallback — STACKED, miniature ALONE (no projector /
+      no status light / no beams):** the red→green step, the lamp flicker/warm-up, and the beam fade have
+      no on-screen elements to play, and **there is no power toggle** (no projector control present). The
+      reduced intro is **the topic miniature warming from dim/cool to full illumination (AC3 step 4) +
+      the ＋plus layer fading in on the already-present article ground (AC3 step 5)**. These still play,
+      coherently, with the same start/end-state guarantees (AC1, AC2) for the elements that are present
+      (the miniature starts dim+cool with no plus, ends fully-lit with the plus revealed). The miniature
+      still ends pixel-equivalent to the committed static miniature-alone composition (soft drop shadow,
+      no halo).
     - In **all** tiers, the page body **never scrolls horizontally** because of the intro or a toggle (no
       element is transformed/translated outside its clipped stage box — the `.about-stage` clips its
       inner frame; the reveals are opacity/brightness/tint only), and the settled-on state at every
       width equals the static poster's look at that width (AC2).
-    (Testable: Playwright at mobile 390 / tablet 834 / desktop 1280 — assert the appropriate intro runs
-    for the tier, the toggle is present and operable only `≥ lg`, no horizontal scroll appears at any
-    frame, and the settled-on state matches the baseline at each width.)
+    (Testable: Playwright at mobile 390 / tablet 834 / desktop 1280×900 and the wide-but-short **1024×768**
+    (optionally 1024×700; the existing 1280 case is 1280 × ≥ 820, and a 1280×700 short-window assertion
+    of the fallback may be added) — assert the appropriate intro runs for the tier, the full scene +
+    toggle are present and operable only on the wide-AND-tall sizes while the wide-but-short size renders
+    the miniature-alone fallback (no projector/beam/toggle, no orphaned beam, no element clipped, no
+    horizontal scroll), and the settled-on state matches the baseline at each size.)
 
 **Click-to-toggle power (the new interactive control — applies `≥ lg`, where the projector exists)**
 

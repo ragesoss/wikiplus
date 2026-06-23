@@ -76,13 +76,25 @@ red status-light value (§1.2-A) — small cosmetic tokens, not data/schema.
 | F | **"How it works" card** | `HowItWorks.tsx` / `.how-it-works-card` | Present + legible + lit from the first frame; **not part of the choreography** (AC6/AC7). Never flickers, dims, or reveals. |
 | G | **Background theater field** | `.about-theater-field` radial on `<main>` | **STATIC — never animates** (AC4b). At its final committed tone from the first painted frame through every frame of the intro and any toggle. |
 
-**Stage geometry the choreography depends on** (read from `Centerpiece.tsx` / `Beams.tsx`): the
-`≥ lg` scene lives in the scaled **1280×880** `.about-stage` (clipped, `overflow:hidden`); the
+**Stage geometry the choreography depends on** (read from `Centerpiece.tsx` / `Beams.tsx`): the full
+poster scene lives in the scaled **1280×880** `.about-stage` (clipped, `overflow:hidden`); the
 projector div is at `left:8 top:600 width:420`, the miniature div at `left:700 top:270 width:560`. The
 beam cones throw **up-right** from the apex (~`287,773`) to the miniature's left edge. **In this
 revision the beam does not move** — it occupies that committed geometry from t = 0 and only its
-opacity changes. The miniature width is **560** in both the `≥ lg` stage and the `< lg` mini stage, so
-the title line is the same width everywhere the miniature shows (relevant to the fit-cap, §4 / §5).
+opacity changes. The miniature width is **560** in both the full-scene stage and the miniature-alone
+stage, so the title line is the same width everywhere the miniature shows (relevant to the fit-cap,
+§4 / §5).
+
+**When the full poster scene renders (the height-aware gate).** The full poster scene — projector,
+beam, status light, and the dropped miniature in the 1280×880 stage — renders only when the viewport
+is **both ≥ lg wide (1024px) AND ≥ 820px tall**. On a viewport that is ≥ lg wide but **< 820px tall**
+(e.g. iPad-Mini landscape 1024×768, or a short ≥ lg desktop window), the width-scaled stage is too
+tall for the vertically-centred content area, so the page renders the **miniature-alone layout**
+instead — the same reduced composition the < lg tier uses (the "How it works" card stacked above the
+lone miniature, the reduced intro of P4+P5, **no** projector, beam, status light, or power toggle).
+So the **status-light red→green step (P0) and the projector power toggle (§3 / §6) apply only on the
+wide-AND-tall full scene**, not merely "≥ lg." The threshold is **820px**
+(`docs/design/about-height-aware-scene.md`).
 
 ---
 
@@ -478,10 +490,12 @@ query — exactly the existing gate idiom.
 ## 4. Responsive — per width tier (AC12)
 
 The intro plays coherently at all three poster tiers of `178c148`. The projector + its status light +
-beams exist **only `≥ lg`** (they live in `.about-stage--scene hidden lg:block`); below `lg` the
+beams exist **only on the wide-AND-tall full poster scene** (≥ lg wide AND ≥ 820px tall — the
+height-aware gate, §0); on a wide-but-short viewport (≥ lg wide, < 820px tall) and below `lg` the
 miniature is **alone**. So the **status-light red→green step (P0) and the power toggle (§3 / §6) apply
-only `≥ lg`**; the **miniature illuminate (P4) and ＋plus fade (P5) still play `< lg`**. No tier scrolls
-horizontally at any frame (nothing scales/translates — §1.2; the stage is `overflow:hidden`).
+only on the wide-AND-tall full scene**; the **miniature illuminate (P4) and ＋plus fade (P5) still play
+in the miniature-alone fallback**. No tier scrolls horizontally at any frame (nothing scales/translates
+— §1.2; the stage is `overflow:hidden`).
 
 ### 4.1 `≥ xl` — the full POSTER (all steps)
 Card overlaid upper-left (present + lit from first paint; **not** in the choreography — AC6/AC7).
@@ -494,10 +508,12 @@ The same `.about-stage--scene` (projector + status light + beam + miniature) run
 identical timing/easing to §4.1, and the projector is the **interactive control**. Only the page layout
 differs (the card is stacked above the scene, not overlaid).
 
-### 4.3 `< lg` — STACKED, miniature ALONE (reduced intro: P4 + P5 only; NO toggle, NO red→green)
-There is **no on-screen projector, status light, or beam** (`.about-stage--scene hidden lg:block` is
-hidden; the `.about-stage--mini` miniature-alone stage renders). So P0–P3 have no elements to play and
-**there is no power toggle** (no projector control present). The reduced intro is:
+### 4.3 Miniature ALONE — STACKED (reduced intro: P4 + P5 only; NO toggle, NO red→green)
+This is the fallback composition: it renders on a **< lg** viewport (too narrow) **and** on a **≥ lg
+wide but < 820px tall** viewport (the height-aware gate routes a wide-but-short viewport here too —
+§0). There is **no on-screen projector, status light, or beam** (the `.about-stage--scene` subtree is
+not rendered; the `.about-stage--mini` miniature-alone stage renders). So P0–P3 have no elements to
+play and **there is no power toggle** (no projector control present). The reduced intro is:
 
 - **P4 — miniature illuminate:** the **same `.about-mini-cool` overlay** on the same miniature element
   fades `0.62 → 0`. Without a beam to couple to, it runs over `t = 240 → 940 ms` (a short beat after
@@ -507,18 +523,20 @@ hidden; the `.about-stage--mini` miniature-alone stage renders). So P0–P3 have
   same as §1.2-D′), onset `t = 240 ms` alongside the illuminate (no beam-land to wait for), settled by
   `t = 940 ms`.
 
-Total `< lg` intro ≈ **940 ms** (shorter — there's less to sequence; no flicker/beam/red→green).
+Total miniature-alone intro ≈ **940 ms** (shorter — there's less to sequence; no flicker/beam/red→green).
 Start/end-state guarantees (AC1/AC2) hold for the elements present: at t = 0 the miniature is dim+cool
-with no plus; at settle it equals the committed `< lg` miniature (soft drop shadow, **no halo**). A
-narrow visitor cannot interactively power-toggle (the projector isn't in the `< lg` composition — a
-flagged, accepted limitation per the spec's "assumptions the owner may want to reconsider").
+with no plus; at settle it equals the committed miniature-alone composition (soft drop shadow, **no
+halo**). A narrow OR short-landscape visitor cannot interactively power-toggle (the projector isn't in
+the miniature-alone composition — a flagged, accepted limitation per the spec's "assumptions the owner
+may want to reconsider").
 
 ### 4.4 No horizontal scroll, any tier (AC12)
 Every animated property is an **opacity** (or the miniature's confined filter/multiply) — **no geometry
 animates**, no element is translated/scaled. The miniature cool overlay is `inset:0` **inside** the
 `overflow:hidden` miniature (clipped to its rounded rect — cannot bleed into the field). Verified at
-390 / 834 / 1280 (AC12's test widths): the appropriate tier-intro runs, the toggle is present + operable
-**only `≥ lg`**, no horizontal scrollbar appears at any frame, settled = baseline at each width.
+390 / 834 / 1280×(≥820) plus the wide-but-short **1024×768** (AC12's test sizes): the appropriate
+tier-intro runs, the toggle is present + operable **only on the wide-AND-tall full scene**, no
+horizontal scrollbar appears at any frame, settled = baseline at each size.
 
 ### Reduced motion (RM) — all tiers (AC6)
 Under `prefers-reduced-motion: reduce`, on the first painted frame: status light **green**, lamp at

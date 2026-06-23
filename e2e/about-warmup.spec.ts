@@ -20,8 +20,8 @@ import { test, expect, type Page } from "@playwright/test";
 
 const ENABLED = !!process.env.ABOUT_WARMUP;
 
-// The intro lives in the ≥ lg poster scene (.about-stage--scene is `hidden lg:block`), so capture at
-// a desktop width where the projector + lamp render.
+// The intro lives in the full poster scene (.about-stage--scene), which renders only when the
+// viewport is ≥ lg wide AND ≥ 820px tall, so capture at a desktop size where the projector + lamp render.
 const LG_VIEWPORT = { width: 1280, height: 900 };
 
 const LAMP = ".about-stage--scene .about-lamp-light";
@@ -251,8 +251,9 @@ test.describe("About projector warm-up — runtime motion @about-warmup", () => 
     await page.setViewportSize({ width: 390, height: 900 });
     await page.goto("/about");
     await page.locator(".about-stage--mini").waitFor();
-    // The < lg composition is the miniature-alone stage; the ≥ lg poster scene (and its projector
-    // control + status light + beam) is `hidden lg:block`, so none of them are laid out/visible here.
+    // The < lg composition is the miniature-alone stage; the full poster scene (and its projector
+    // control + status light + beam) is not rendered here (the height-aware gate render-gates one
+    // subtree), so none of them are laid out/visible.
     await expect(page.getByRole("button", { name: /Turn the projector/ })).toHaveCount(0);
     expect(await page.locator(".about-stage--scene .about-status-red").isVisible()).toBe(false);
     expect(await page.locator(".about-stage--scene .about-beam").isVisible()).toBe(false);
@@ -262,6 +263,45 @@ test.describe("About projector warm-up — runtime motion @about-warmup", () => 
     await page.locator(miniCool).waitFor();
     expect(await opacityAt(page, miniCool, 240)).toBeCloseTo(0.62, 1);
     expect(await opacityAt(page, miniCool, 940)).toBeCloseTo(0, 1);
+  });
+
+  // ── Height-aware gate — wide-but-short falls back to the miniature-alone layout (issue #145) ──
+  // At 1024×768 (≥ lg WIDE but < 820px TALL) the height-aware gate
+  // (docs/design/about-height-aware-scene.md) renders the miniature-alone fallback: NO projector
+  // control / status light / beam (no orphaned beam pointing at nothing), the miniature scales cleanly,
+  // and the page never scrolls horizontally. NOTE: deferred to a chromium session — run with
+  // ABOUT_WARMUP=1 yarn test:e2e about-warmup.
+  test("wide-but-short (1024×768) renders the miniature-alone fallback with no horizontal overflow", async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: "no-preference" });
+    await page.setViewportSize({ width: 1024, height: 768 });
+    await page.goto("/about");
+    await page.locator(".about-stage--mini").waitFor();
+    // The full poster scene (and therefore the projector control, status light, and beam) is NOT in
+    // the DOM at all — the render-gate, not CSS visibility (the a11y contract / no orphaned beam).
+    await expect(page.getByRole("button", { name: /Turn the projector/ })).toHaveCount(0);
+    expect(await page.locator(".about-stage--scene").count()).toBe(0);
+    expect(await page.locator(".about-beam").count()).toBe(0);
+    // The reduced intro still plays on the standalone miniature (steps 4 + 5 — design §4.3).
+    const miniCool = ".about-stage--mini .about-mini-cool";
+    await page.locator(miniCool).waitFor();
+    // No horizontal document overflow at any sampled intro frame (nothing scales/translates; the
+    // miniature scales by width inside its overflow:hidden stage).
+    for (const t of [0, 300, 700, 940, 2000]) {
+      const { scrollWidth, clientWidth } = await page.evaluate((t) => {
+        document.getAnimations().forEach((a) => {
+          a.pause();
+          a.currentTime = t;
+        });
+        return {
+          scrollWidth: document.documentElement.scrollWidth,
+          clientWidth: document.documentElement.clientWidth,
+        };
+      }, t);
+      expect(
+        scrollWidth,
+        `scrollWidth (${scrollWidth}) must be <= clientWidth (${clientWidth}) + 1 at 1024×768, intro t=${t}ms`
+      ).toBeLessThanOrEqual(clientWidth + 1);
+    }
   });
 
   // ── AC8 — the title input is editable + Enter-navigable DURING the intro (no input gating) ──
