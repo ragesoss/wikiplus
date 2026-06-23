@@ -361,7 +361,7 @@ viewing experience share a single surface on the small screen. The desktop split
 - **Dismiss affordance.** A real, keyboard-operable **"✕ Close"** button (glyph **and** word) in the
   title bar; activating it removes the dock and its iframe from the DOM (playback stops).
 - **Metadata + actions (watch + act).** The title bar carries the clip's **caption** plus **creator
-  credit** (`handle · platformLabel`, the CC BY-SA attribution), reusing the strip/card footer pattern;
+  credit** (`handle · platformLabel`), reusing the strip/card footer pattern;
   no match reason inside the dock. Below the frame is the **action row**, so a reader can decide on the
   clip where they watched it: signed in, the candidate's two actions — **Curate** (primary, brand fill)
   and **Not relevant** (secondary) — using the same labels and weight as the on-card controls. Logged

@@ -188,7 +188,7 @@ describe("PinnedPlayer — AA chrome, never color-alone (AC13)", () => {
     expect(region.className).toMatch(/border-ink/);
   });
 
-  it("credits the creator alongside (CC BY-SA: handle · platformLabel)", () => {
+  it("credits the creator alongside (handle · platformLabel)", () => {
     render(<PinnedPlayer clip={clipA} onClose={vi.fn()} />);
     expect(
       screen.getByText("@2minuteclassroom · YouTube")

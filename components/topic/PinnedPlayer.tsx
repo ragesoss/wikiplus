@@ -32,7 +32,7 @@ export interface PinnedClip {
   embedUrl: string;
   caption: string;
   orientation: "vertical" | "horizontal";
-  /** Creator credit (CC BY-SA) — `handle · platformLabel`. */
+  /** Creator credit — `handle · platformLabel`. */
   creator: { handle: string };
   platformLabel: string;
 }

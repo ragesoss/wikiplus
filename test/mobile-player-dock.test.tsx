@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import {
@@ -535,6 +535,75 @@ describe("MobilePlayerDock — bounded dock + 9:16 frame cap (spec §6.2)", () =
     const frameBox = dock().querySelector("[data-dock-frame] > div")!;
     expect(frameBox.className).toMatch(/aspect-video/);
     expect(frameBox.className).toMatch(/w-full/);
+  });
+});
+
+describe("MobilePlayerDock — maximized / landscape (spec §5)", () => {
+  // The dock seeds `maximized` from matchMedia("(orientation: landscape)") on mount, so installing a
+  // landscape-matching matchMedia opens the dock in the maximized state (the rotate-to-maximize path,
+  // with no custom button). afterEach restores the default no-match shim from test/setup.ts.
+  function withLandscape() {
+    window.matchMedia = ((query: string) => ({
+      matches: /landscape/.test(query),
+      media: query,
+      onchange: null,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    })) as unknown as typeof window.matchMedia;
+  }
+  afterEach(() => {
+    window.matchMedia = ((query: string) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    })) as unknown as typeof window.matchMedia;
+  });
+
+  it("hides the four-cell bar and any reveal when maximized (video fills the screen)", () => {
+    withLandscape();
+    render(
+      <MobilePlayerDock
+        kind="candidate"
+        clip={candidatePayload}
+        onClose={vi.fn()}
+        signedIn
+        onCurate={vi.fn()}
+        onDismiss={vi.fn()}
+      />
+    );
+    // The full four-cell bar is gone: Move / Curate / See context do not render in maximized mode.
+    expect(
+      screen.queryByRole("button", { name: "Move player to top of screen" })
+    ).toBeNull();
+    expect(screen.queryByRole("button", { name: "Curate" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "See context" })).toBeNull();
+    // And there is no reveal region scroll area in maximized mode.
+    expect(dock().querySelectorAll(".overflow-y-auto.flex-1")).toHaveLength(0);
+  });
+
+  it("keeps a single condensed Close reachable so the reader is never stuck (spec §5)", () => {
+    withLandscape();
+    render(<MobilePlayerDock kind="candidate" clip={candidatePayload} onClose={vi.fn()} />);
+    const close = screen.getByRole("button", { name: "Close video player" });
+    expect(close.textContent).toMatch(/Close/); // glyph-above-WORD, never glyph-alone
+    // It is the ONLY control in maximized mode (no four-cell bar).
+    expect(dock().querySelectorAll("button")).toHaveLength(1);
+  });
+
+  it("activating the condensed Close tears the dock down (calls onClose)", async () => {
+    withLandscape();
+    const onClose = vi.fn();
+    render(<MobilePlayerDock kind="candidate" clip={candidatePayload} onClose={onClose} />);
+    await userEvent.click(screen.getByRole("button", { name: "Close video player" }));
+    expect(onClose).toHaveBeenCalledOnce();
   });
 });
 

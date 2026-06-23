@@ -347,6 +347,23 @@ export function MobilePlayerDock({
     </div>
   );
 
+  // ── The condensed maximized Close (spec §5) — in maximized/landscape the four-cell bar is hidden
+  //    so the video fills the screen, but a thin Close stays reachable so the reader is NEVER stuck.
+  //    Same handler + `aria-label` as the bar's Close cell; glyph-above-word (never glyph-alone),
+  //    ≥44px target, top/right against the safe-area insets (reserved on the root in maximized mode),
+  //    the global :focus-visible ring. Non-modal contract preserved (no focus-steal). ──
+  const maximizedClose = maximized && (
+    <button
+      type="button"
+      onClick={onClose}
+      aria-label="Close video player"
+      className="absolute right-2 top-2 z-10 flex min-h-[44px] min-w-[44px] flex-col items-center justify-center gap-0.5 rounded bg-black/60 px-2 py-1 text-center text-[11px] font-semibold leading-tight text-white hover:bg-black/80"
+    >
+      <span aria-hidden className="text-base leading-none">✕</span>
+      <span>Close</span>
+    </button>
+  );
+
   // ── The Curate reveal (spec §3) — the "act". Reuses the desktop #123 treatment, microcopy, and
   //    aria-labels verbatim so mobile + desktop read as one family. Candidate signed-in → ✦ Curate
   //    (brand-primary, leads) + ✕ Not relevant (quiet secondary); candidate logged-out → a single
@@ -496,8 +513,10 @@ export function MobilePlayerDock({
       {/* Fixed flex column. DOCKED order (identical top- and bottom-parked — spec §2.2): frame
           (shrink-0, the hero) → the four-cell control bar (shrink-0) → the reveal region (flex-1
           min-h-0 overflow-y-auto, the sole scroll area, present only when a reveal is open).
-          MAXIMIZED: the frame flexes to fill; the bar + reveals are hidden. */}
+          MAXIMIZED: the frame flexes to fill; the bar + reveals are hidden, but a thin condensed
+          Close stays reachable (spec §5) so the reader is never stuck. */}
       {frame}
+      {maximizedClose}
       {controlBar}
       {revealRegion}
     </section>
