@@ -14,8 +14,8 @@ import { SiteHeader } from "@/components/header/SiteHeader";
 //   Daylight Projector header (host="home", Tier A at every width) → a SIMPLIFIED search segment
 //   (just the search bar — the first, primary action, sitting inside the projected light) → the
 //   "Wiki, plus video." intro hero (eyebrow, the locked headline with the Indigo-Press "plus" block,
-//   a subheading, and two offset-shadow CTAs) → the demoted "Explore example topics" list (all four
-//   data states).
+//   a subheading, and two offset-shadow CTAs) → the demoted "Recently curated" topic list (all four
+//   data states, recency-ordered).
 //
 // The search is REUSED unforked (one TopicSearch, variant="home"). The hero's secondary CTA focuses
 // that search via the component's prefill+focus signal (a nonce bump seeds an empty field and moves
@@ -129,21 +129,39 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── The DEMOTED topic list (AC7) — secondary "explore" content below a quiet rule. The
-          data path (store.listTopics) and all four states are unchanged. ── */}
-      <section className="mx-auto max-w-5xl border-t border-ink/10 px-4 pb-12 pt-8">
-        <h2 className="text-lg font-medium text-ink">Explore example topics</h2>
-        <p className="mt-1 text-xs text-ink/50">
-          (Prototype: curations are shared — everyone sees the same topics and clips.)
+      {/* ── The DEMOTED "Recently curated" topic list (AC7) — the page's third and last beat: a
+          confident, on-identity close that reads as a continuation of the hero's Indigo-Press voice
+          (design homepage-recently-curated.md §5). It echoes the hero's eyebrow device at a quieter,
+          subordinate scale (the section title is the standard bold sans, a step DOWN from the hero
+          display headline, so it never rivals the search/hero). The data path (store.listTopics —
+          now recency-ordered DB-side, §4) and all four states are unchanged (§3.2). The topic CARD
+          markup is unchanged — a card redesign is a deferred follow-up (§7). ── */}
+      <section className="mx-auto mt-4 max-w-5xl border-t border-ink/15 px-4 pb-12 pt-10 sm:pt-14">
+        {/* Eyebrow device — the SAME indigo rule + uppercase tracked text as the hero's eyebrow, so
+            the two bands rhyme (§5.1). The rule is decorative (aria-hidden); the text is the label. */}
+        <p className="flex items-center text-xs font-bold uppercase tracking-[0.18em] text-ink2">
+          <span aria-hidden className="mr-3 h-[2px] w-8 bg-brand" />
+          Fresh from the community
         </p>
 
-        <div className="mt-4">
+        <h2 className="mt-3 text-xl font-bold text-ink sm:text-2xl">Recently curated</h2>
+
+        <p className="mt-2 max-w-[60ch] text-sm text-ink2">
+          The topics most recently curated on wiki+.{" "}
+          <span className="text-ink/50">
+            (Prototype: curations are shared, so everyone sees the same topics and clips.)
+          </span>
+        </p>
+
+        <div className="mt-6">
           {loadError ? (
             <p className="text-sm text-ink/50">Couldn&apos;t load topics — please refresh.</p>
           ) : topics === null ? (
-            <p className="text-sm text-ink/50">Loading…</p>
+            <p className="text-sm text-ink/50">Loading recently curated topics…</p>
           ) : topics.length === 0 ? (
-            <p className="text-sm text-ink/50">No topics yet.</p>
+            <p className="text-sm text-ink/50">
+              No topics curated yet — be the first by searching for one above.
+            </p>
           ) : (
             <ul className="grid gap-3 sm:grid-cols-2">
               {topics.map((t) => (

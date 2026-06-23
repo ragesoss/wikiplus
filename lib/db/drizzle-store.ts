@@ -43,10 +43,14 @@ export class DrizzleDataStore implements DataStore {
 
   // ── Topics ───────────────────────────────────────────────────────────────────────
   async listTopics(): Promise<Topic[]> {
+    // "Recently curated" ordering (homepage-recently-curated.md §4): most recently created-or-updated
+    // topic first (`updated_at` advances on create + metadata upsert — the cheapest "recently active"
+    // proxy, no join). A stable `title` tie-breaker keeps ordering deterministic when timestamps are
+    // equal (e.g. a single seed batch), so the grid never reshuffles between loads.
     const rows = await this.db
       .select()
       .from(topic)
-      .orderBy(topic.title);
+      .orderBy(desc(topic.updatedAt), topic.title);
     return rows.map(rowToTopic);
   }
 

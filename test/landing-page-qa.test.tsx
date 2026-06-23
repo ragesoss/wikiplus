@@ -229,10 +229,10 @@ describe("AC11 — accessible-name leaf semantics + keyboard reach", () => {
 
 // ── AC1/AC7 — composition: search dominant + above the demoted, framed list. ──
 describe("AC1/AC7 — hero leads, the topic list is demoted below it", () => {
-  it("the 'Explore example topics' list region sits AFTER the search in document order", async () => {
+  it("the 'Recently curated' list region sits AFTER the search in document order", async () => {
     render(<HomePage />);
     const search = await screen.findByRole("combobox", { name: /find a topic/i });
-    const listHeading = screen.getByRole("heading", { level: 2, name: /explore example topics/i });
+    const listHeading = screen.getByRole("heading", { level: 2, name: /recently curated/i });
     // Search precedes the demoted list (AC1 dominant/above; AC7 demoted/below).
     expect(
       search.compareDocumentPosition(listHeading) & Node.DOCUMENT_POSITION_FOLLOWING
@@ -243,10 +243,10 @@ describe("AC1/AC7 — hero leads, the topic list is demoted below it", () => {
     render(<HomePage />);
     const card = await screen.findByRole("link", { name: /Photosynthesis/i });
     expect(card.getAttribute("href")).toMatch(/^\/topic\/Photosynthesis\/?$/);
-    // The card lives under the demoted "Explore example topics" section, not the hero.
+    // The card lives under the demoted "Recently curated" section, not the hero.
     const section = card.closest("section");
     expect(section && within(section).getByRole("heading", { level: 2 })).toHaveTextContent(
-      /explore example topics/i
+      /recently curated/i
     );
   });
 });
