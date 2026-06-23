@@ -208,4 +208,92 @@ test.describe("About projector warm-up — runtime motion @about-warmup", () => 
     await expect(page.getByRole("button", { name: "Turn the projector off" })).toBeVisible();
     expect(await fieldBackground(page, 0)).toBe(offField); // field still unchanged
   });
+
+  // ── AC12 — responsive tiers + no horizontal scroll at any width during the intro ──
+  // The intro/toggle animate OPACITY/FILTER only (no transform/scale/translate) and the stage is
+  // overflow:hidden, so the page body can never widen at any frame or tier. Sample the document
+  // scrollWidth across the intro window at the three tier widths (mobile 390 / tablet 834 / desktop
+  // 1280) while the intro plays — it must never exceed clientWidth (+1px tolerance).
+  for (const [label, width] of [
+    ["mobile 390", 390],
+    ["tablet 834", 834],
+    ["desktop 1280", 1280],
+  ] as const) {
+    test(`AC12 — no horizontal document overflow during the intro at ${label}`, async ({ page }) => {
+      await page.emulateMedia({ reducedMotion: "no-preference" });
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto("/about");
+      // Pin EVERY animation at a sequence of mid-intro times and re-measure — catches any frame that
+      // would push the body wider (a transform escaping the clipped stage). Measure with vertical
+      // overflow allowed (a tall page is fine; only horizontal matters).
+      for (const t of [0, 300, 700, 1240, 1760, 2000]) {
+        const { scrollWidth, clientWidth } = await page.evaluate((t) => {
+          document.getAnimations().forEach((a) => {
+            a.pause();
+            a.currentTime = t;
+          });
+          return {
+            scrollWidth: document.documentElement.scrollWidth,
+            clientWidth: document.documentElement.clientWidth,
+          };
+        }, t);
+        expect(
+          scrollWidth,
+          `scrollWidth (${scrollWidth}) must be <= clientWidth (${clientWidth}) + 1 at ${label}, intro t=${t}ms`
+        ).toBeLessThanOrEqual(clientWidth + 1);
+      }
+    });
+  }
+
+  // ── AC12 — < lg: the miniature-alone reduced intro (NO projector / status light / beam / toggle) ──
+  test("AC12 — below lg there is no projector control, status light, or beam (miniature alone)", async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: "no-preference" });
+    await page.setViewportSize({ width: 390, height: 900 });
+    await page.goto("/about");
+    await page.locator(".about-stage--mini").waitFor();
+    // The < lg composition is the miniature-alone stage; the ≥ lg poster scene (and its projector
+    // control + status light + beam) is `hidden lg:block`, so none of them are laid out/visible here.
+    await expect(page.getByRole("button", { name: /Turn the projector/ })).toHaveCount(0);
+    expect(await page.locator(".about-stage--scene .about-status-red").isVisible()).toBe(false);
+    expect(await page.locator(".about-stage--scene .about-beam").isVisible()).toBe(false);
+    // The reduced intro DOES play on the standalone miniature: its dim-cool overlay illuminates
+    // 0.62 → 0 (steps 4 + 5 only — design §4.3). The overlay is present and rideable.
+    const miniCool = ".about-stage--mini .about-mini-cool";
+    await page.locator(miniCool).waitFor();
+    expect(await opacityAt(page, miniCool, 240)).toBeCloseTo(0.62, 1);
+    expect(await opacityAt(page, miniCool, 940)).toBeCloseTo(0, 1);
+  });
+
+  // ── AC8 — the title input is editable + Enter-navigable DURING the intro (no input gating) ──
+  test("AC8 — the title input accepts typing + Enter during the intro (input is never gated)", async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: "no-preference" });
+    await page.setViewportSize(LG_VIEWPORT);
+    await page.goto("/about");
+    // Grab the title input as soon as it renders — WHILE the intro is still running (do not wait for
+    // settle). It must be focusable + editable immediately (the intro never locks input — AC8).
+    const input = page.getByRole("textbox", { name: /press Enter to open that topic/ }).first();
+    await input.waitFor();
+    await input.click();
+    await input.fill("Helium");
+    await input.press("Enter");
+    // Enter navigates to the typed topic via topicHref (the input wiring is unchanged — AC18).
+    await page.waitForURL(/\/topic\/Helium/, { timeout: 4000 });
+    expect(page.url()).toContain("/topic/Helium");
+  });
+
+  // ── AC11 — the deterministic capture pin: ?capture=poster forces the fallback title ──
+  test("AC11 — ?capture=poster pins the miniature title to the fallback 'Acer palmatum'", async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: "reduce" }); // the capture path forces reduced motion
+    await page.setViewportSize(LG_VIEWPORT);
+    await page.goto("/about?capture=poster");
+    await page.locator('[data-about-intro="settled"]').waitFor({ timeout: 4000 }).catch(() => {});
+    // Under the pin the eligible pool is forced EMPTY → the client falls to the fallback, so EVERY
+    // rendered title input shows exactly "Acer palmatum" (AC11 — the baseline never churns).
+    const inputs = page.getByRole("textbox", { name: /press Enter to open that topic/ });
+    const count = await inputs.count();
+    expect(count).toBeGreaterThanOrEqual(1);
+    for (let i = 0; i < count; i++) {
+      await expect(inputs.nth(i)).toHaveValue("Acer palmatum");
+    }
+  });
 });
