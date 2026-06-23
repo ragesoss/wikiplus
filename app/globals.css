@@ -81,6 +81,7 @@
   --color-bleed-warm-white: #fffcf6; /* tighter inner bleed "+" */
   --color-header-field: #fafbfe; /* cool fluorescent header band above the burn boundary */
   --color-content-white: #ffffff; /* hero surface + beam interior below the burn boundary */
+  --color-content-white-2: #fcfcfc; /* the illum-falloff midpoint stop (the biased knee just under the lamp); the dark skin flattens it to --surface so there is no white beam on dark */
   --color-body-grey: #f7f7f7; /* the body / Topic page surface + the Topic illumination falloff's grey base */
 
   /* The Topic-only illumination falloff distance (design header-topic-integration §3.2.1): the top
@@ -399,7 +400,7 @@ html:has(header.header-shared) {
   background-image: linear-gradient(
     to bottom,
     var(--color-content-white) 0%,
-    #fcfcfc 45%,
+    var(--color-content-white-2) 45%,
     var(--color-body-grey) 100%
   );
   background-repeat: no-repeat;
@@ -421,7 +422,7 @@ html:has(header.header-shared) {
   background-image: linear-gradient(
     to bottom,
     var(--color-content-white) 0%,
-    #fcfcfc 45%,
+    var(--color-content-white-2) 45%,
     var(--color-body-grey) 100%
   );
   background-repeat: no-repeat;
@@ -1631,6 +1632,7 @@ figure.wikifig .credit {
      --surface, no white→grey gradient) with no per-rule change. */
   --color-body-grey: #16161d;
   --color-content-white: #16161d;
+  --color-content-white-2: #16161d; /* the falloff midpoint flattens too, so all three illum stops resolve to --surface — a flat dark field, no white→grey beam */
   --color-header-field: #1e1e27; /* the flat header band (no cool fluorescent field) */
 
   /* Faithful Wikipedia DARK-mode article palette (spec §5). Tracks MediaWiki Vector dark mode. */
