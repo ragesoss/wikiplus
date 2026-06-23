@@ -25,7 +25,7 @@ import { signIn } from "../auth";
 // seeded ephemeral Postgres (Playwright globalSetup). The logged-in arm uses the e2e session-cookie
 // helper (no real OAuth, no network egress).
 
-export type Viewport = "mobile" | "tablet" | "desktop";
+export type Viewport = "mobile" | "tablet" | "desktop" | "landscape-tablet";
 export type AuthState = "out" | "in";
 /** The active skin for a capture (issue #119). "light" is the default Indigo Press zine (no
  *  `data-skin`); "zine-dark" is the dark skin, selected by the `wikiplus-skin` cookie the spec sets
@@ -41,6 +41,11 @@ export const VIEWPORTS: Record<Viewport, { width: number; height: number }> = {
   mobile: { width: 390, height: 850 },
   tablet: { width: 834, height: 1000 },
   desktop: { width: 1280, height: 900 },
+  // A wide-but-short landscape tablet (iPad-Mini landscape). ≥ lg WIDE but < 820px TALL, so the
+  // About page's height-aware gate (docs/design/about-height-aware-scene.md) renders the
+  // miniature-alone fallback rather than the full poster scene. Only the dedicated
+  // `about-landscape-tablet` scene opts into this viewport — the default matrix is unaffected.
+  "landscape-tablet": { width: 1024, height: 768 },
 };
 
 /**
@@ -864,6 +869,28 @@ export const SCENES: Scene[] = [
     // reduced motion) so the baseline is deterministic and equals the static poster (AC11).
     ready: aboutSettled,
     clip: "fullPage",
+  },
+  {
+    // The wide-but-short About capture (issue #145, docs/design/about-height-aware-scene.md). At
+    // 1024×768 (≥ lg wide, < 820px tall) the height-aware gate renders the MINIATURE-ALONE fallback —
+    // the card stacked above the lone miniature, NO projector/beam/status-light/toggle, no orphaned
+    // beam, nothing clipped, no horizontal scroll. Captures ONLY the landscape-tablet viewport (the
+    // sole opter-in to that key); same deterministic `?capture=poster` pin + `aboutSettled` waiter as
+    // the standard About scene.
+    //
+    // BASELINE PENDING A CHROMIUM CAPTURE: this session has no chromium, so the PNG is not yet
+    // generated. Run `scripts/dev/shots.sh --scene about-landscape-tablet --commit ui` in a chromium
+    // session to produce + commit the baseline.
+    id: "about-landscape-tablet",
+    group: "Other pages",
+    label: "About — wide-but-short (landscape tablet, miniature-alone fallback)",
+    note: "1024×768: the height-aware gate falls back to the miniature-alone layout (no projector/beam/toggle, no orphaned beam, nothing clipped) — docs/design/about-height-aware-scene.md.",
+    route: "/about?capture=poster",
+    stub: "plain",
+    viewports: ["landscape-tablet"],
+    ready: aboutSettled,
+    clip: "fullPage",
+    focus: true,
   },
   {
     id: "about-data",

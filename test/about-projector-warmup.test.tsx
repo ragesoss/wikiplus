@@ -27,18 +27,43 @@ import {
   TITLE_INPUT_LABEL,
 } from "@/components/about/copy";
 
-/** Install a matchMedia that answers a given reduced-motion preference for the reduce query. */
+/**
+ * Install a matchMedia stub answering BOTH of the component's gate queries (the reduced-motion gate
+ * and the height-aware full-scene gate, docs/design/about-height-aware-scene.md §4). Two independent
+ * booleans, neither gates the other:
+ *   - `reduce`    → the `(prefers-reduced-motion: reduce)` query.
+ *   - `fullScene` → the `(min-width: 1024px) and (min-height: 820px)` query. Defaults to TRUE so the
+ *     full poster scene renders (the dominant wide-AND-tall case, and what most existing assertions
+ *     about the projector/toggle/scene need). Pass `false` for the wide-but-short / narrow fallback.
+ * Any other query answers `matches: false`.
+ */
+function setMatchMedia({
+  reduce = false,
+  fullScene = true,
+}: { reduce?: boolean; fullScene?: boolean } = {}): void {
+  window.matchMedia = ((query: string) => {
+    const isReduce = query.includes("prefers-reduced-motion: reduce");
+    const isFullScene =
+      query.includes("min-width: 1024px") && query.includes("min-height: 820px");
+    return {
+      matches: isReduce ? reduce : isFullScene ? fullScene : false,
+      media: query,
+      onchange: null,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    };
+  }) as unknown as typeof window.matchMedia;
+}
+
+/** Back-compat shim: most existing tests only care about the reduced-motion preference and want the
+ *  full scene to render (so the projector/toggle/scene assertions hold). It defaults the height gate
+ *  to TRUE — without this, a `matches:false` height query would render the MINI subtree (no
+ *  projector/toggle) and break those assertions. */
 function setReducedMotion(reduce: boolean): void {
-  window.matchMedia = ((query: string) => ({
-    matches: query.includes("prefers-reduced-motion: reduce") ? reduce : false,
-    media: query,
-    onchange: null,
-    addEventListener: vi.fn(),
-    removeEventListener: vi.fn(),
-    addListener: vi.fn(),
-    removeListener: vi.fn(),
-    dispatchEvent: vi.fn(),
-  })) as unknown as typeof window.matchMedia;
+  setMatchMedia({ reduce, fullScene: true });
 }
 
 beforeEach(() => {
@@ -103,9 +128,9 @@ describe("AC7 — content present and reachable regardless of motion mode", () =
     for (const step of HOW_IT_WORKS.steps) {
       expect(screen.getByText(step.label)).toBeInTheDocument();
     }
-    // The one real control is present + named (not gated/hidden by the intro). There are two
-    // miniatures in the DOM (≥ lg scene + < lg alone), so there are two title inputs — assert at
-    // least one and that each is a real, enabled textbox.
+    // The one real control is present + named (not gated/hidden by the intro). Exactly one stage
+    // renders (the height-aware render-gate; default full scene under the stub), so there is one
+    // title input — assert at least one and that each is a real, enabled textbox.
     const inputs = screen.getAllByRole("textbox", { name: TITLE_INPUT_LABEL });
     expect(inputs.length).toBeGreaterThanOrEqual(1);
     for (const input of inputs) expect(input).toBeEnabled();
@@ -267,7 +292,8 @@ describe("AC5/AC9 — plus groups present from first paint; graphics stay decora
     const { container } = render(<Centerpiece />);
     await act(async () => {});
     // Each plus reveal group exists in the DOM from the first frame (the intro reveals appearance
-    // via opacity — it never display:none / removes them). Two miniatures → two of each.
+    // via opacity — it never display:none / removes them). One stage renders (the render-gate), so
+    // one of each — assert at least one.
     for (const cls of [
       "about-plus--strip",
       "about-plus--overview",
@@ -422,6 +448,59 @@ describe("AC10 — one-shot per mount (no loop)", () => {
     await act(async () => {});
     expect(setIntervalSpy).not.toHaveBeenCalled();
     setIntervalSpy.mockRestore();
+  });
+});
+
+// ── Height-aware full-scene gate (docs/design/about-height-aware-scene.md §4.5) ──────────────────
+// The full poster scene renders only when the viewport is BOTH ≥ lg wide AND ≥ 820px tall; otherwise
+// (too narrow OR wide-but-short) the miniature-alone fallback renders. It is a render-gate, not CSS
+// visibility, so the fallback has NO projector/beam/power-button nodes in the DOM (the §5.2 a11y
+// contract). The state is read post-mount, so the very first render is the SSR full-scene default
+// (§4.3) — assert AFTER the mount effect flushes (the `act` tick below).
+describe("height-aware gate — the full scene needs ≥ lg wide AND ≥ 820px tall (§4.5)", () => {
+  it("wide AND tall (query true) → the full poster scene renders (projector present)", async () => {
+    setMatchMedia({ reduce: false, fullScene: true });
+    const { container } = render(<Centerpiece />);
+    await act(async () => {}); // flush the mount effect (the gate reads matchMedia post-mount)
+    // The full scene subtree is in the DOM, with the labeled projector power button…
+    expect(container.querySelector(".about-stage--scene")).not.toBeNull();
+    expect(screen.getByRole("button", { name: POWER_LABEL_ON })).toBeInTheDocument();
+    // …and the miniature-alone fallback is NOT (render-gate: exactly one subtree).
+    expect(container.querySelector(".about-stage--mini")).toBeNull();
+  });
+
+  it("wide-but-short (query false) → the miniature-alone fallback; NO projector/beam/button", async () => {
+    setMatchMedia({ reduce: false, fullScene: false });
+    const { container } = render(<Centerpiece />);
+    await act(async () => {});
+    // The fallback subtree renders; the scene subtree (and the power button + beam) is absent — there
+    // is no projector control to mis-state and no orphaned beam (AC1/AC5).
+    expect(container.querySelector(".about-stage--mini")).not.toBeNull();
+    expect(container.querySelector(".about-stage--scene")).toBeNull();
+    expect(container.querySelector(".about-beam")).toBeNull();
+    expect(screen.queryByRole("button", { name: POWER_LABEL_ON })).toBeNull();
+    expect(screen.queryByRole("button", { name: POWER_LABEL_OFF })).toBeNull();
+    // The one real control — the title input — is still present in the fallback (§5.1).
+    expect(
+      screen.getAllByRole("textbox", { name: TITLE_INPUT_LABEL }).length
+    ).toBeGreaterThanOrEqual(1);
+  });
+
+  it("the two gates are independent — reduced motion does not change WHICH stage renders (§4.4)", async () => {
+    // Reduced motion ON but wide-AND-tall → still the full scene (motion gates appearance, not layout).
+    setMatchMedia({ reduce: true, fullScene: true });
+    const sceneRender = render(<Centerpiece />);
+    await act(async () => {});
+    expect(sceneRender.container.querySelector(".about-stage--scene")).not.toBeNull();
+    expect(sceneRender.container.querySelector(".about-stage--mini")).toBeNull();
+    sceneRender.unmount();
+
+    // Reduced motion OFF but wide-but-short → still the fallback (height gate decides the stage).
+    setMatchMedia({ reduce: false, fullScene: false });
+    const fallbackRender = render(<Centerpiece />);
+    await act(async () => {});
+    expect(fallbackRender.container.querySelector(".about-stage--mini")).not.toBeNull();
+    expect(fallbackRender.container.querySelector(".about-stage--scene")).toBeNull();
   });
 });
 

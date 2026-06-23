@@ -73,10 +73,20 @@ const TITLE_SWAP_MS = 470;
 const STAGE_W = 1280;
 const STAGE_H = 880;
 
-// The < lg miniature-alone stage box: the miniature renders at its natural height at 560px wide; the
-// stage box gives it headroom so the fixed-ratio scaling never clips it. Scaled as a unit.
+// The miniature-alone stage box: the miniature renders at its natural height at 560px wide; the
+// stage box gives it headroom so the fixed-ratio scaling never clips it. Scaled as a unit. This is
+// the fallback layout — used both when the viewport is too narrow AND when it is wide-but-short.
 const MINI_W = 560;
 const MINI_H = 660;
+
+// The full poster scene renders only when the viewport is BOTH wide enough (≥ lg, 1024px) AND tall
+// enough (≥ 820px). On a wide-but-short viewport (iPad-Mini landscape, a short desktop window) the
+// width-scaled 1280×880 stage renders too tall to fit the vertically-centred content area — its
+// bottom-anchored projector falls out and the beam orphans — so the page falls back to the
+// miniature-alone layout (docs/design/about-height-aware-scene.md §2/§3). The gate is a single
+// media query evaluated as one boolean; the height term is what Tailwind can't express, so the
+// choice is made in JS and selects which of the two stage subtrees renders.
+const FULL_SCENE_QUERY = "(min-width: 1024px) and (min-height: 820px)";
 
 // CSS-var bag for an .about-stage instance: the reference width/height as LENGTHS (px) so the
 // scale calc is a clean length÷length = unitless ratio, plus the matching unitless aspect ratio.
@@ -115,6 +125,15 @@ export function Centerpiece({
   // and pre-mount, so a no-JS / pre-hydration / reduced-motion render is the settled static poster
   // (the CSS defaults) with no `.about-intro` class.
   const [motion, setMotion] = useState(false);
+  // Whether the full poster scene (projector + beam + miniature) renders, vs the miniature-alone
+  // fallback. Defaults to TRUE so SSR / pre-mount / no-JS render the full scene — matching the
+  // current server output and the dominant wide-AND-tall viewport, and keeping the first client
+  // render equal to the SSR markup (no hydration mismatch). The real query is read ONLY in a mount
+  // effect, never during render; on a wide-but-short viewport the effect flips it to false post-
+  // hydration, swapping the scene subtree for the miniature-alone one (docs/design/about-height-
+  // aware-scene.md §4.3). This gate is orthogonal to `motion` — two separate matchMedia queries,
+  // neither gates the other.
+  const [fullScene, setFullScene] = useState(true);
   // The power state: true = on (warm-up / lit), false = off (the AC1 dark state). The on-load
   // auto-intro starts ON; the toggle flips it.
   const [on, setOn] = useState(true);
@@ -177,6 +196,21 @@ export function Centerpiece({
     }, INTRO_SETTLE_MS);
     return clearTimers;
   }, [clearTimers]);
+
+  // The height-aware full-scene gate (docs/design/about-height-aware-scene.md §4). Read the real
+  // viewport ONLY post-mount (never during render, to match the SSR full-scene default and avoid a
+  // hydration mismatch — the same idiom as `motion` above), then keep it live: subscribe to the
+  // MediaQueryList `change` event so resizing a window or rotating a tablet across the threshold
+  // re-routes between the full scene and the miniature-alone fallback without a reload. Guard for an
+  // absent matchMedia (SSR / a jsdom without the stub) exactly like the reduced-motion effect.
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") return;
+    const mql = window.matchMedia(FULL_SCENE_QUERY);
+    setFullScene(mql.matches);
+    const onChange = (e: MediaQueryListEvent) => setFullScene(e.matches);
+    mql.addEventListener("change", onChange);
+    return () => mql.removeEventListener("change", onChange);
+  }, []);
 
   // Toggle the projector power on activation (click / Enter / Space). Only meaningful when the motion
   // machinery is engaged (≥ lg projector present; reduced-motion engages nothing on load but the
@@ -261,62 +295,73 @@ export function Centerpiece({
       <HowItWorks className="mx-auto w-full max-w-[560px] xl:absolute xl:left-[2.5%] xl:top-[3%] xl:z-20 xl:mx-0 xl:w-[510px] xl:max-w-none" />
 
       {/* ── The graphic — the in-flow block that sizes the poster at ≥ xl; below xl it stacks under
-          the card. ── */}
+          the card. The height-aware gate (docs/design/about-height-aware-scene.md) renders EXACTLY
+          ONE of the two stage subtrees: the full poster scene when the viewport is ≥ lg wide AND
+          ≥ 820px tall, the miniature-alone fallback otherwise (too narrow OR too short). It is a
+          render-gate (not CSS visibility), so the fallback truly has no projector/beam/power-button
+          nodes in the DOM — the a11y contract (§4.2/§5.2). The width split that `lg:block`/`lg:hidden`
+          used to encode is now part of the JS query (min-width:1024), so those classes are dropped.
+          The `<main>`'s per-tier layout classes (the xl: overlay vs stacked) are unchanged and only
+          take effect when the full scene is the one rendered. ── */}
       <div className="w-full">
-        {/* ≥ lg — the poster scene (projector lower-left + beam + miniature upper-right) in the scaled
-            1280×880 stage. The stage is TRANSPARENT, so the page theater field shows through it. */}
-        <div
-          className="about-stage about-stage--scene hidden overflow-hidden lg:block"
-          style={stageVars(STAGE_W, STAGE_H)}
-        >
-          {/* Keyed by runKey so a power-ON remounts the scene content → the gated keyframes replay
-              from t=0 (the reliable CSS-animation restart). */}
-          <div className="about-stage-inner" key={runKey}>
-            {/* Layer 1 — the beam cones (z-index:1), behind the projector + miniature. */}
-            <Beams />
-
-            {/* Layer 2 — the angled projector, lower-left (z-index:2), BELOW the card. The projector
-                graphic is decorative (aria-hidden SVG); the wrapping <button> is the real power
-                control (§6) — labeled, focus-visible, keyboard-operable. Only present ≥ lg (this
-                stage is `hidden lg:block`). */}
-            <div style={{ position: "absolute", left: 8, top: 600, width: 420, zIndex: 2 }}>
-              <button
-                type="button"
-                className="about-projector-power"
-                aria-label={powerLabel}
-                onClick={togglePower}
-              >
-                <Projector />
-              </button>
-            </div>
-
-            {/* Layer 3 — the Topic-page miniature, right (z-index:2), DROPPED so its bottom aligns
-                with the projector's bottom (the composition's lower edge) — the page sits down at the
-                projector's level, lit by the beam, rather than floating above it. (560 = its designed
-                width, where the general-strip clips fit exactly.) */}
-            <div style={{ position: "absolute", left: 700, top: 270, width: 560, zIndex: 2 }}>
-              <TopicMiniature
-                seedTitle={displayTitle}
-                titleFlicker={titleFlicker}
-                coolOverlay={motion}
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* < lg — the Topic-page miniature ALONE, centered + scaled, on the field. Its own warm glow
-            + dark-room drop shadow read correctly on the dark field, so it needs no extra wrap. The
-            reduced intro plays here (steps 4+5 only — no on-screen projector/beam/status light, no
-            toggle): the miniature illuminates (its cool overlay lifts) and the ＋plus layer fades onto
-            the present article ground (design §4.3). The title is seeded from the on-load pick (the
-            first power-on — no flicker here, no toggle to restart). */}
-        <div className="mx-auto max-w-[520px] lg:hidden">
-          <div className="about-stage about-stage--mini" style={stageVars(MINI_W, MINI_H)}>
+        {fullScene ? (
+          // ≥ lg AND ≥ 820 tall — the poster scene (projector lower-left + beam + miniature
+          // upper-right) in the scaled 1280×880 stage. The stage is TRANSPARENT, so the page theater
+          // field shows through it.
+          <div
+            className="about-stage about-stage--scene overflow-hidden"
+            style={stageVars(STAGE_W, STAGE_H)}
+          >
+            {/* Keyed by runKey so a power-ON remounts the scene content → the gated keyframes replay
+                from t=0 (the reliable CSS-animation restart). */}
             <div className="about-stage-inner" key={runKey}>
-              <TopicMiniature seedTitle={displayTitle} coolOverlay={motion} />
+              {/* Layer 1 — the beam cones (z-index:1), behind the projector + miniature. */}
+              <Beams />
+
+              {/* Layer 2 — the angled projector, lower-left (z-index:2), BELOW the card. The projector
+                  graphic is decorative (aria-hidden SVG); the wrapping <button> is the real power
+                  control (§6) — labeled, focus-visible, keyboard-operable. Present only in the full
+                  scene (≥ lg wide AND ≥ 820 tall) — the only place the projector is visible. */}
+              <div style={{ position: "absolute", left: 8, top: 600, width: 420, zIndex: 2 }}>
+                <button
+                  type="button"
+                  className="about-projector-power"
+                  aria-label={powerLabel}
+                  onClick={togglePower}
+                >
+                  <Projector />
+                </button>
+              </div>
+
+              {/* Layer 3 — the Topic-page miniature, right (z-index:2), DROPPED so its bottom aligns
+                  with the projector's bottom (the composition's lower edge) — the page sits down at the
+                  projector's level, lit by the beam, rather than floating above it. (560 = its designed
+                  width, where the general-strip clips fit exactly.) */}
+              <div style={{ position: "absolute", left: 700, top: 270, width: 560, zIndex: 2 }}>
+                <TopicMiniature
+                  seedTitle={displayTitle}
+                  titleFlicker={titleFlicker}
+                  coolOverlay={motion}
+                />
+              </div>
             </div>
           </div>
-        </div>
+        ) : (
+          // The fallback (too narrow OR wide-but-short) — the Topic-page miniature ALONE, centered +
+          // scaled, on the field. Its own warm glow + dark-room drop shadow read correctly on the dark
+          // field, so it needs no extra wrap. The reduced intro plays here (steps 4+5 only — no
+          // on-screen projector/beam/status light, no toggle): the miniature illuminates (its cool
+          // overlay lifts) and the ＋plus layer fades onto the present article ground (design §4.3).
+          // The title is seeded from the on-load pick (the first power-on — no flicker here, no toggle
+          // to restart).
+          <div className="mx-auto max-w-[520px]">
+            <div className="about-stage about-stage--mini" style={stageVars(MINI_W, MINI_H)}>
+              <div className="about-stage-inner" key={runKey}>
+                <TopicMiniature seedTitle={displayTitle} coolOverlay={motion} />
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </section>
   );
