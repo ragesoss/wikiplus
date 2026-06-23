@@ -32,6 +32,7 @@
 // runtime re-projection) is NOT implemented — only the API shape.
 
 import { useEffect, useId, useRef, useState } from "react";
+import { computeWordmarkAnchor, DEFAULT_NARROW_BELOW } from "@/lib/header/anchor";
 
 // ── The four tiers (design §5.1 / VISUAL_IDENTITY §6.2). ──────────────────────
 export type HeaderProjectorVariant =
@@ -71,6 +72,13 @@ export interface ProjectorGeometry {
    * search slot (DEFECT-A fix: the lit lockup never overlaps the search at < lg). It has NO effect
    * when `projectionX` is set (≥ lg seam-on-divider) — there the apex is the driven divider x. */
   leftInset?: number;
+  /** narrowBelow(px) — the width below which the lockup is self-contained / LEFT-anchored (and at/
+   * above which it is centered at cw/2). Token default `md` (768) — the landing hero / Home. The #144
+   * scroll-aware Topic host passes `lg` (1024) so the self-contained left-anchored regime covers the
+   * WHOLE `< lg` band (the md–lg chrome row is packed — search · wordmark · cue · auth — so centering
+   * the lockup there overlapped the search/cue; left-anchoring past the inline search clears them).
+   * Home keeps the 768 default (AC4 guardrail). No effect when `projectionX` is set (≥ lg). */
+  narrowBelow?: number;
 }
 
 export interface HeaderProjectorProps {
@@ -136,14 +144,14 @@ const WIKI_W_EST = 95;
 // lockup midpoint) on the beam apex (§4.3) before the measure resolves.
 const APERTURE_X_EST = WIKI_W_EST + 2 + CUT_CX;
 
-// SSR fallbacks + layout breakpoint for the true-scale beam (design §4.7). The beam
-// viewBox width = the REAL band width `cw`; before the client measures it we draw at a sensible
-// desktop fallback so SSR renders a coherent (centered) beam without JS. MD_BREAKPOINT mirrors
-// Tailwind's `md` (768px) — the desktop(centered) vs. narrow(left-anchored) layout switch (§7.5).
-// LANDING_PAD_X is the narrow-layout left inset of the lockup (matches the hero column's px-4),
-// so the left-anchored aperture x = LANDING_PAD_X + apertureX.
+// SSR fallbacks for the true-scale beam (design §4.7). The beam viewBox width = the REAL band width
+// `cw`; before the client measures it we draw at a sensible desktop fallback so SSR renders a
+// coherent (centered) beam without JS. The desktop(centered) ↔ narrow(left-anchored) switch is the
+// `narrowBelow` geometry input (DEFAULT_NARROW_BELOW = Tailwind `md` 768 for Home; the #144 Topic
+// host passes `lg` 1024) — resolved by `computeWordmarkAnchor` (lib/header/anchor.ts). LANDING_PAD_X
+// is the narrow-layout left inset of the lockup (matches the hero column's px-4), so the
+// left-anchored aperture x = LANDING_PAD_X + apertureX.
 const CW_FALLBACK = 960;
-const MD_BREAKPOINT = 768;
 const LANDING_PAD_X = 16;
 // #72 DEFECT-A — the "squeeze" width (design §5.5/§5.6, DQ-2): below this the full lockup +
 // upper-left search + auth cannot coexist on one slim row, so the SCROLL-AWARE Topic host
@@ -570,7 +578,6 @@ export function HeaderProjector({
   const bandRef = useRef<HTMLDivElement>(null);
   const [apertureX, setApertureX] = useState<number>(APERTURE_X_EST);
   const [cw, setCw] = useState<number>(CW_FALLBACK);
-  const [narrow, setNarrow] = useState<boolean>(false);
 
   // Measure "Wiki"'s real advance once (refines the SSR estimate to the real Georgia glyph width).
   // Use `offsetWidth` (the LAYOUT width), NOT getBoundingClientRect().width: at narrow widths the
@@ -587,8 +594,9 @@ export function HeaderProjector({
     }
   }, []);
 
-  // Track the band's real width + the desktop/narrow breakpoint (resize-aware) so the beam stays
-  // true-scale to the actual viewport and the apex tracks the layout-driven aperture.
+  // Track the band's real width (resize-aware) so the beam stays true-scale to the actual viewport
+  // and the apex tracks the layout-driven aperture. The centered ↔ left-anchored decision is made
+  // from `cw` against the `narrowBelow` threshold by `computeWordmarkAnchor` below (#144).
   useEffect(() => {
     const measure = () => {
       const el = bandRef.current;
@@ -598,7 +606,6 @@ export function HeaderProjector({
       // rather than flip to narrow on a bogus zero width.
       if (w > 0) {
         setCw(w);
-        setNarrow(w < MD_BREAKPOINT);
       }
     };
     measure();
@@ -615,19 +622,24 @@ export function HeaderProjector({
     };
   }, []);
 
-  // The live apex x in px (= the aperture x). Layout-driven: centered on desktop, left at narrow.
-  // An explicit projectionX prop (the future Topic-page driver / AC10 dynamic hook) overrides.
-  // SELF-CONTAINED (no projectionX) narrow anchor: the lockup's left edge = `leftInset` (default
-  // LANDING_PAD_X), so apex = leftInset + apertureX. The #72 Topic host passes a larger leftInset
-  // so the self-contained lockup clears the upper-left search (DEFECT-A) — no effect when
-  // projectionX is set (≥ lg seam-on-divider).
+  // The live apex x in px (= the aperture x), via the pure placement helper (lib/header/anchor.ts —
+  // the #144 offline verification gate). Three regimes, in priority order: an explicit projectionX
+  // (≥ lg seam-on-divider) wins; otherwise the lockup is LEFT-anchored below `narrowBelow` (apex =
+  // leftInset + apertureX) and CENTERED at/above it (apex = cw/2). `narrowBelow` is host-driven:
+  // DEFAULT_NARROW_BELOW (md, 768) for the landing hero / Home, `lg` (1024) for the scroll-aware
+  // Topic host so the self-contained left-anchored regime covers the whole `< lg` band (#144). The
+  // #72 Topic host passes a larger leftInset so the self-contained lockup clears the upper-left
+  // search (DEFECT-A); it has no effect when projectionX is set.
   const leftInset = geometry?.leftInset ?? LANDING_PAD_X;
-  const apexX =
-    projectionXFrac != null
-      ? projectionXFrac * cw
-      : narrow
-        ? leftInset + apertureX // left-anchored: inset + aperture-within-lockup
-        : cw / 2; // centered desktop: aperture at the content-column center
+  const narrowBelow = geometry?.narrowBelow ?? DEFAULT_NARROW_BELOW;
+  const { apexX } = computeWordmarkAnchor({
+    cw,
+    viewportWidth: cw,
+    narrowBelow,
+    apertureX,
+    leftInset,
+    projectionX: projectionXFrac,
+  });
 
   // #96: scroll-awareness is driven by the `continuous` flag — the host writes the `p`-derived CSS
   // vars (`--beam-opacity`, `--topic-burn-y`) and CSS/this component consume them, so the glow

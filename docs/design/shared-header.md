@@ -48,8 +48,13 @@ wins** (the prose is corrected inline too).
   **as built the flat slim lockup stays at the same shared origin** (the seam stays on the divider at
   ≥ lg even in the slim bar). This is AC-compliant (AC4 needs a slim sticky bar, not a left-anchored
   one) and is what makes the transition jump-free.
-- **§5.2 "left-anchored" md–lg wording — corrected.** The md–lg lockup is **centered** (apex at
-  `cw/2`), as built (and as AC10 permits); the prose said "left-anchored." Corrected inline.
+- **The md–lg lockup is left-anchored, clearing the inline search.** At `md–lg` (768–1023px) the
+  Topic columns are stacked (no divider), so the scroll-aware host left-anchors the self-contained
+  lockup across the **whole `< lg` band** (the same regime as `< md`), with its left edge at the
+  inline-field-clearing reserve `leftInset = 320px`. The search owns the upper-left, the lockup
+  clears it, and the slim title-cue is gated to ≥ lg — so search · wordmark · auth occupy
+  non-overlapping boxes at tablet. (The seam-on-divider `projectionX` is applied only at ≥ lg.) §5.2
+  and §5.6 agree on this.
 - **§7.4 tab order — verified, prose kept.** The as-built order is **wordmark link → search → auth**
   (the wordmark home link sits in the projector layer, which precedes the chrome row in the DOM), and
   it is identical in both scroll states (the wordmark link persists across the cross-fade — one DOM
@@ -395,10 +400,13 @@ pinned-player dock-in gate.)
   DOM), so a screen-reader user still reaches the real `<h1>`; the cue is a *visual* convenience.
   *(If Dev finds the article `<h1>` is conditionally unmounted while scrolled, drop the `aria-hidden`
   so the cue is announced — but the lead block is always mounted, so `aria-hidden` is correct.)*
-- **Responsive:** present at all breakpoints in the slim state, but it is the **first thing to
-  truncate/drop** under width pressure (after the wordmark and before search/auth): at `< md`, where
-  the search is a disclosure icon and space is tightest, the title cue may be hidden entirely if
-  wordmark + search-icon + auth already fill the row (Dev's call by available width). Search and auth
+- **Responsive:** the cue is **gated to `≥ lg`** (`lg:inline`) — it renders in the slim bar only at
+  ≥ 1024, where the wordmark is far-right on the gutter divider and the cue owns the centre. Below
+  `lg` the cue does **not** render: at md–lg the wordmark is left-anchored left-of-centre, so the cue
+  has no clean home (it would re-collide with the lockup or be squeezed against the auth), and the
+  cue being "the first thing to truncate/drop under width pressure" is exactly that — it drops first
+  here. The cue is `aria-hidden` and the real `<h1>` + the search anchor orientation below lg, so
+  dropping it there has no a11y cost. Search and auth
   reachability (C1) outranks the title cue.
 
 ### 4.5 Home host — no scroll-aware collapse (AC12)
@@ -447,7 +455,7 @@ At `md–lg` the Topic grid is **already single-column** (`grid-cols-1` below `l
 
 | | Tier A (scroll-top) | Slim (scrolled) |
 |---|---|---|
-| **Layout** | Full band (`116px`): search left · wordmark **self-contained split** (no divider to aim at — §5.6) · auth right. Beam still renders (true-scale, asymmetrical arms). *(As built, §0a: the md–lg lockup is **centered** — apex at `cw/2` — not left-anchored; the search reserves the upper-left and the centered lockup clears it. The `leftInset` self-contained anchor only governs the `< md` narrow range.)* | Slim bar (`56px`): search-inline · flat Tier-C wordmark · muted title cue · auth right. |
+| **Layout** | Full band (`116px`): search left · wordmark **left-anchored self-contained split** (no divider to aim at — §5.6) · auth right. Beam still renders (true-scale, asymmetrical arms). The lockup is **left-anchored** at `leftInset = 320px` — the inline-field-clearing reserve (page inset 20 + the `topic-inline` `max-w-[280px]` field + `gap-3` 12 + 8 clearance) — so its left edge ("Wiki" begins) sits past the inline search; it is the **same self-contained regime as `< md`** (which uses `leftInset = 64px` for the magnifier). | Slim bar (`56px`): search-inline · flat Tier-C wordmark · auth right. **No title cue below lg** (the cue is gated ≥ lg — §4.4 / §3.3). |
 | **Logged-out** | "Log in with Wikipedia" button, right. | Same, slim. |
 | **Logged-in** | `SignedIn` avatar + username + menu, right. | Same, slim. |
 
@@ -510,8 +518,14 @@ block as one intact unit. Nothing is stretched across or aimed at an absent divi
 - **Mechanism:** the Topic host applies the seam-on-divider `geometry` (the driven `projectionX`/
   `seamRatio`) **only at `≥ lg`**. Below `lg`, it passes **no** divider-driven position — the lockup
   is laid out as a normal left-anchored unit (its aperture/apex resolved from its own layout, exactly
-  as the landing page does at narrow widths). A test asserts that below `lg` the seam-to-divider
-  positioning is not applied (AC10 verify).
+  as the landing page does at narrow widths). The scroll-aware host drives this with a host-keyed
+  `narrowBelow = lg` threshold (Home keeps `md`), so the left-anchored regime spans the whole `< lg`
+  band. A test asserts that below `lg` the seam-to-divider positioning is not applied (AC10 verify).
+- The self-contained left edge uses **two `leftInset` values**, keyed to which search affordance the
+  slot renders: **`64px` `< md`** (the disclosure magnifier reserve = 44px box + 20px page inset) and
+  **`320px` `md–lg`** (the inline `topic-inline` field reserve = 20 + 280 + 12 gap + 8 clearance), so
+  the lockup clears whichever search is shown. The placement decision is the pure
+  `computeWordmarkAnchor` helper (`lib/header/anchor.ts`).
 - This is the same self-contained read in **both** the Tier-A < lg state (beam present, lockup left-
   anchored) and the slim < lg state (flat Tier C lockup).
 

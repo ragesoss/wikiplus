@@ -597,6 +597,64 @@ describe("A4 — the muted article-title cue shows only in the slim sticky state
   });
 });
 
+// ── #144 — the md–lg overlap fix. jsdom does no layout (so the exact pixel placement is proven by
+// the pure-fn test/header-anchor.test.ts); here we verify the parts the rendered DOM exposes: the
+// title-cue is gated to ≥ lg (`lg:inline`, NOT `md:inline`) so it never renders into the md–lg band
+// where the left-anchored lockup sits (§3.3), and the < lg ⇒ no-projectionX path (already covered by
+// AC10) is the regime the pure helper then left-anchors. ─────────────────────────────────────────
+describe("#144 — md–lg title-cue gating + the < lg self-contained regime", () => {
+  it("the slim title-cue is gated to ≥ lg (lg:inline), not md:inline (so it drops below lg — §3.3)", async () => {
+    const { container } = renderTopicHeader("Jane Austen");
+    const header = container.querySelector("header.header-shared")! as HTMLElement;
+    // Make the bar slim so the cue is in the DOM, then assert its width gate is `lg:inline`.
+    window.scrollY = 200;
+    fireEvent.scroll(window);
+    await vi.waitFor(() =>
+      expect(header.style.getPropertyValue("--p").trim()).toBe("1.0000")
+    );
+    const cue = screen.getByTestId("slim-title-cue");
+    // The cue renders only at ≥ lg (the md–lg band drops it — the second #144 overlap). The class is
+    // the Tailwind gate: `hidden` by default, `lg:inline` to show at ≥ lg. It must NOT be `md:inline`
+    // (which rendered it in the broken md–lg band).
+    expect(cue.className).toMatch(/\bhidden\b/);
+    expect(cue.className).toMatch(/\blg:inline\b/);
+    expect(cue.className).not.toMatch(/\bmd:inline\b/);
+  });
+
+  it("< lg ⇒ the seam-on-divider projectionX is NOT applied (the lockup is self-contained)", async () => {
+    // The pure helper then LEFT-anchors that self-contained lockup past the search across all of
+    // `< lg` (#144). At a md–lg viewport the probe reports no divider, so no projectionX is driven —
+    // exactly the < lg regime AC10 asserts, now extended to cover the md–lg band too. The lit lockup
+    // lays out from its own left inset (decorative lit layers aria-hidden; the flat lockup is the
+    // sole named "wiki+" link).
+    setViewport(834); // md–lg
+    const { container } = renderTopicHeader();
+    const litLockup = container.querySelector(".projector-litlockup") as HTMLElement;
+    expect(litLockup).not.toBeNull();
+    expect(litLockup.getAttribute("aria-hidden")).toBe("true");
+    // The wordmark is still exactly one reachable "wiki+" → / home link (AC5 — no loss).
+    const links = screen.getAllByRole("link", { name: "wiki+" });
+    expect(links).toHaveLength(1);
+    expect(links[0]).toHaveAttribute("href", "/");
+  });
+
+  it("≥ lg ⇒ the title-cue's gate allows it (the ≥ lg composition keeps the centre cue — AC2)", async () => {
+    // At ≥ lg the cue's `lg:inline` gate shows it (Tailwind applies `lg:inline` ≥ 1024). jsdom does
+    // not evaluate the media class, but the structural gate (present in the DOM when slim, class
+    // `lg:inline`) is what drives it; the ≥ lg seam-on-divider path itself is unchanged by #144.
+    const { container } = renderTopicHeader("Jane Austen");
+    const header = container.querySelector("header.header-shared")! as HTMLElement;
+    window.scrollY = 200;
+    fireEvent.scroll(window);
+    await vi.waitFor(() =>
+      expect(header.style.getPropertyValue("--p").trim()).toBe("1.0000")
+    );
+    // The cue IS in the DOM in the slim state (its visibility is the `lg:inline` CSS gate, asserted
+    // above); #144 changed only the breakpoint, not whether the slim state mounts it.
+    expect(screen.getByTestId("slim-title-cue")).toBeInTheDocument();
+  });
+});
+
 // ── DEFECT-B (single-origin transition) — the cross-fade is owned by ONE HeaderProjector instance:
 // the lit lockup + beam and the flat slim lockup share one origin, so only opacity animates and
 // there is never a SECOND wordmark at a second position (no double vision). We assert the structural

@@ -37,12 +37,14 @@ import {
   quantizeProgress,
 } from "@/lib/header/progress";
 import { NarrowSearchProvider } from "@/lib/header/narrowSearchContext";
+import { TOPIC_NARROW_BELOW, topicLeftInset } from "@/lib/header/anchor";
 
 // ── Topic Tier-A geometry. This is the SHARED Tier-A geometry both hosts render (spec Decision 1 /
 // §10.1 no-fork): the beam flares over a 104px band with the wordmark row at cyMid=28 (cone length
 // burnY − cyMid = 76). These values now EQUAL the --projector-* token defaults, so burnY/cyMid in
-// TOPIC_GEOMETRY are no-ops that simply re-assert the shared geometry; the Topic host adds only the
-// scroll-collapse layer + the seam-on-divider projectionX + the leftInset on top. ────────────────
+// TOPIC_GEOMETRY_BASE are no-ops that simply re-assert the shared geometry; the Topic host adds only
+// the scroll-collapse layer + the seam-on-divider projectionX + the width-aware leftInset + the
+// `narrowBelow = lg` self-contained threshold on top. ────────────────────────────────────────────
 export const TOPIC_BURN_Y = 104; // band height / burn boundary — cone length burnY − cyMid = 76
 // Wordmark row centre = the chrome-row / slim-bar centre (SLIM_BAR_HEIGHT/2 = 28), so the lit lockup
 // aligns with the search + auth cards (which sit centred in the 56px chrome row) and the 56px-tall
@@ -68,18 +70,23 @@ const LG_BREAKPOINT = 1024;
 // its skin handoff). The narrow-search collapse (topic-mobile-search §3.1) fires ONLY < md.
 const MD_BREAKPOINT = 768;
 
-// #72 DEFECT-A — the reserved upper-left search box (px). The chrome row reserves this width for
-// the search slot, and the SELF-CONTAINED (< lg) lockup is anchored to START past it (`leftInset`),
-// so the lit lockup can never lay out over the search. Roomy enough for the px-5 (20px) page inset
-// + the disclosure magnifier / the compact inline field, before the lockup begins.
-const SEARCH_RESERVE = 64;
+// #72 DEFECT-A / #144 — the reserved upper-left search box (px), WIDTH-AWARE. The chrome row reserves
+// this width for the search slot, and the SELF-CONTAINED (< lg) lockup is anchored to START past it
+// (`leftInset`), so the lit lockup can never lay out over the search. There are TWO reserves:
+//   • < md  → the `topic-disclosure` MAGNIFIER box (44px field + the 20px px-5 page inset = 64).
+//   • md–lg → the wider `topic-inline` field, so the left-anchored lockup must clear it (#144 §3.2):
+//             page inset (px-5 = 20) + inline field (max-w-[280px]) + chrome gap (gap-3 = 12) + 8
+//             clearance = 320. Centering the lockup at md–lg dropped it into this field — the bug.
+// `topicLeftInset` (lib/header/anchor.ts) picks the reserve from the live viewport width.
+const SEARCH_RESERVE_MAGNIFIER = 64; // < md — the disclosure magnifier reserve (unchanged)
+const SEARCH_RESERVE_INLINE = 320; // md–lg — clears the topic-inline max-w-[280px] field (#144)
 
-const TOPIC_GEOMETRY: ProjectorGeometry = {
+// The base Topic Tier-A geometry shared across widths. `leftInset` + `narrowBelow` are layered on
+// per render from the live width (the left-anchored regime spans the whole `< lg` band — #144). At
+// ≥ lg the seam is driven onto the divider via projectionX, so leftInset has no effect there.
+const TOPIC_GEOMETRY_BASE: ProjectorGeometry = {
   burnY: TOPIC_BURN_Y,
   cyMid: TOPIC_CY_MID,
-  // The self-contained (< lg / narrow) lockup begins past the reserved search slot (DEFECT-A); no
-  // effect at ≥ lg where the seam is driven onto the divider via projectionX.
-  leftInset: SEARCH_RESERVE,
 };
 
 // The Topic search slot — the existing TopicSearch (no new component / variant, A3 / §5.5): an
@@ -478,8 +485,23 @@ function TopicSiteHeader({
   // two positions (§4.2 single-origin transition). Under #96 those opacities (and the projector's
   // internal burn boundary) are driven by the same `p`-derived CSS vars this header writes, in
   // continuous mode.
+  //
+  // #144: the scroll-aware Topic host left-anchors the self-contained lockup across the WHOLE `< lg`
+  // band (`narrowBelow = lg`), clearing the search — so the md–lg lockup no longer centers into the
+  // packed chrome row (the iPad-Mini overlap). The `leftInset` is width-aware: the wider inline-field
+  // reserve (320) at md–lg, the magnifier reserve (64) < md. `isNarrow` already tracks `< md`
+  // (matchMedia-driven), so the reserve switches with the same breakpoint the search slot does. At
+  // ≥ lg the seam is driven onto the divider (projectionX), so leftInset/narrowBelow are inert.
+  const leftInset = topicLeftInset(
+    isNarrow ? MD_BREAKPOINT - 1 : MD_BREAKPOINT,
+    MD_BREAKPOINT,
+    SEARCH_RESERVE_MAGNIFIER,
+    SEARCH_RESERVE_INLINE
+  );
   const tierAGeometry: ProjectorGeometry = {
-    ...TOPIC_GEOMETRY,
+    ...TOPIC_GEOMETRY_BASE,
+    leftInset,
+    narrowBelow: TOPIC_NARROW_BELOW,
     projectionX: seamProjectionX,
   };
 
@@ -625,13 +647,16 @@ function TopicSiteHeader({
 
           {/* A4 — the muted article-title cue, slim state ONLY (§4.4). One muted serif line,
               truncated, NOT a heading (a <span>), aria-hidden (the real <h1> is in the lead block).
-              It sits left-of-centre on the article side (after the reserved search) and is the FIRST
-              to yield under width pressure (min-w-0 + truncate, hidden < md). The auth's ml-auto
-              keeps it pushed right, so the cue takes only the slack between search and auth. */}
+              It is gated to ≥ lg (`lg:inline`) — #144 §3.3: at md–lg the wordmark is left-anchored
+              left-of-centre, so the cue has no clean home (it would re-collide with the lockup or be
+              squeezed against the auth); it is "the first to drop under width pressure" (§4.4). At
+              ≥ lg the wordmark is far-right on the divider and the cue owns the centre. The real <h1>
+              + the search anchor orientation below lg, and the cue is aria-hidden, so dropping it
+              there has no a11y cost. The auth's ml-auto keeps it pushed right at ≥ lg. */}
           {articleTitle && isSlim ? (
             <span
               aria-hidden="true"
-              className="pointer-events-none hidden min-w-0 shrink truncate font-serif text-[0.95rem] text-slate-500 md:inline"
+              className="pointer-events-none hidden min-w-0 shrink truncate font-serif text-[0.95rem] text-slate-500 lg:inline"
               data-testid="slim-title-cue"
             >
               {articleTitle}
