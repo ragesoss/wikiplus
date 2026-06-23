@@ -5,6 +5,7 @@
     "label": "Mobile article — collapsed section stack (default)",
     "viewport": "mobile",
     "auth": "out",
+    "skin": "light",
     "file": "topic-article-mobile-collapsed-mobile-logged-out.png",
     "focus": true
   },
@@ -14,6 +15,7 @@
     "label": "Mobile article — one section expanded",
     "viewport": "mobile",
     "auth": "out",
+    "skin": "light",
     "file": "topic-article-mobile-expanded-mobile-logged-out.png",
     "focus": true
   },
@@ -23,6 +25,7 @@
     "label": "Mobile article — full-width stacked infobox",
     "viewport": "mobile",
     "auth": "out",
+    "skin": "light",
     "file": "topic-article-mobile-infobox-mobile-logged-out.png",
     "focus": true
   },
@@ -32,6 +35,7 @@
     "label": "Mobile article — wide table scrolls in its region",
     "viewport": "mobile",
     "auth": "out",
+    "skin": "light",
     "file": "topic-article-mobile-table-mobile-logged-out.png",
     "focus": true
   },
@@ -41,6 +45,7 @@
     "label": "Home — landing page",
     "viewport": "mobile",
     "auth": "out",
+    "skin": "light",
     "file": "home-mobile-logged-out.png",
     "focus": false
   },
@@ -49,8 +54,29 @@
     "group": "Home",
     "label": "Home — landing page",
     "viewport": "mobile",
+    "auth": "out",
+    "skin": "zine-dark",
+    "file": "home-mobile-logged-out-zine-dark.png",
+    "focus": false
+  },
+  {
+    "id": "home",
+    "group": "Home",
+    "label": "Home — landing page",
+    "viewport": "mobile",
     "auth": "in",
+    "skin": "light",
     "file": "home-mobile-logged-in.png",
+    "focus": false
+  },
+  {
+    "id": "home",
+    "group": "Home",
+    "label": "Home — landing page",
+    "viewport": "mobile",
+    "auth": "in",
+    "skin": "zine-dark",
+    "file": "home-mobile-logged-in-zine-dark.png",
     "focus": false
   },
   {
@@ -59,6 +85,7 @@
     "label": "Home — landing page",
     "viewport": "tablet",
     "auth": "out",
+    "skin": "light",
     "file": "home-tablet-logged-out.png",
     "focus": false
   },
@@ -67,8 +94,29 @@
     "group": "Home",
     "label": "Home — landing page",
     "viewport": "tablet",
+    "auth": "out",
+    "skin": "zine-dark",
+    "file": "home-tablet-logged-out-zine-dark.png",
+    "focus": false
+  },
+  {
+    "id": "home",
+    "group": "Home",
+    "label": "Home — landing page",
+    "viewport": "tablet",
     "auth": "in",
+    "skin": "light",
     "file": "home-tablet-logged-in.png",
+    "focus": false
+  },
+  {
+    "id": "home",
+    "group": "Home",
+    "label": "Home — landing page",
+    "viewport": "tablet",
+    "auth": "in",
+    "skin": "zine-dark",
+    "file": "home-tablet-logged-in-zine-dark.png",
     "focus": false
   },
   {
@@ -77,6 +125,7 @@
     "label": "Home — landing page",
     "viewport": "desktop",
     "auth": "out",
+    "skin": "light",
     "file": "home-desktop-logged-out.png",
     "focus": false
   },
@@ -85,8 +134,29 @@
     "group": "Home",
     "label": "Home — landing page",
     "viewport": "desktop",
+    "auth": "out",
+    "skin": "zine-dark",
+    "file": "home-desktop-logged-out-zine-dark.png",
+    "focus": false
+  },
+  {
+    "id": "home",
+    "group": "Home",
+    "label": "Home — landing page",
+    "viewport": "desktop",
     "auth": "in",
+    "skin": "light",
     "file": "home-desktop-logged-in.png",
+    "focus": false
+  },
+  {
+    "id": "home",
+    "group": "Home",
+    "label": "Home — landing page",
+    "viewport": "desktop",
+    "auth": "in",
+    "skin": "zine-dark",
+    "file": "home-desktop-logged-in-zine-dark.png",
     "focus": false
   },
   {
@@ -95,6 +165,7 @@
     "label": "Home — header (Tier A beam)",
     "viewport": "mobile",
     "auth": "out",
+    "skin": "light",
     "file": "home-header-mobile-logged-out.png",
     "focus": false
   },
@@ -104,6 +175,7 @@
     "label": "Home — header (Tier A beam)",
     "viewport": "mobile",
     "auth": "in",
+    "skin": "light",
     "file": "home-header-mobile-logged-in.png",
     "focus": false
   },
@@ -113,6 +185,7 @@
     "label": "Home — header (Tier A beam)",
     "viewport": "tablet",
     "auth": "out",
+    "skin": "light",
     "file": "home-header-tablet-logged-out.png",
     "focus": false
   },
@@ -122,6 +195,7 @@
     "label": "Home — header (Tier A beam)",
     "viewport": "tablet",
     "auth": "in",
+    "skin": "light",
     "file": "home-header-tablet-logged-in.png",
     "focus": false
   },
@@ -131,6 +205,7 @@
     "label": "Home — header (Tier A beam)",
     "viewport": "desktop",
     "auth": "out",
+    "skin": "light",
     "file": "home-header-desktop-logged-out.png",
     "focus": false
   },
@@ -140,6 +215,7 @@
     "label": "Home — header (Tier A beam)",
     "viewport": "desktop",
     "auth": "in",
+    "skin": "light",
     "file": "home-header-desktop-logged-in.png",
     "focus": false
   },
@@ -149,6 +225,7 @@
     "label": "Topic header — Tier A (scroll-top, full beam)",
     "viewport": "mobile",
     "auth": "out",
+    "skin": "light",
     "file": "topic-header-tierA-mobile-logged-out.png",
     "focus": false
   },
@@ -157,8 +234,29 @@
     "group": "Topic · header",
     "label": "Topic header — Tier A (scroll-top, full beam)",
     "viewport": "mobile",
+    "auth": "out",
+    "skin": "zine-dark",
+    "file": "topic-header-tierA-mobile-logged-out-zine-dark.png",
+    "focus": false
+  },
+  {
+    "id": "topic-header-tierA",
+    "group": "Topic · header",
+    "label": "Topic header — Tier A (scroll-top, full beam)",
+    "viewport": "mobile",
     "auth": "in",
+    "skin": "light",
     "file": "topic-header-tierA-mobile-logged-in.png",
+    "focus": false
+  },
+  {
+    "id": "topic-header-tierA",
+    "group": "Topic · header",
+    "label": "Topic header — Tier A (scroll-top, full beam)",
+    "viewport": "mobile",
+    "auth": "in",
+    "skin": "zine-dark",
+    "file": "topic-header-tierA-mobile-logged-in-zine-dark.png",
     "focus": false
   },
   {
@@ -167,6 +265,7 @@
     "label": "Topic header — Tier A (scroll-top, full beam)",
     "viewport": "tablet",
     "auth": "out",
+    "skin": "light",
     "file": "topic-header-tierA-tablet-logged-out.png",
     "focus": false
   },
@@ -175,8 +274,29 @@
     "group": "Topic · header",
     "label": "Topic header — Tier A (scroll-top, full beam)",
     "viewport": "tablet",
+    "auth": "out",
+    "skin": "zine-dark",
+    "file": "topic-header-tierA-tablet-logged-out-zine-dark.png",
+    "focus": false
+  },
+  {
+    "id": "topic-header-tierA",
+    "group": "Topic · header",
+    "label": "Topic header — Tier A (scroll-top, full beam)",
+    "viewport": "tablet",
     "auth": "in",
+    "skin": "light",
     "file": "topic-header-tierA-tablet-logged-in.png",
+    "focus": false
+  },
+  {
+    "id": "topic-header-tierA",
+    "group": "Topic · header",
+    "label": "Topic header — Tier A (scroll-top, full beam)",
+    "viewport": "tablet",
+    "auth": "in",
+    "skin": "zine-dark",
+    "file": "topic-header-tierA-tablet-logged-in-zine-dark.png",
     "focus": false
   },
   {
@@ -185,6 +305,7 @@
     "label": "Topic header — Tier A (scroll-top, full beam)",
     "viewport": "desktop",
     "auth": "out",
+    "skin": "light",
     "file": "topic-header-tierA-desktop-logged-out.png",
     "focus": false
   },
@@ -193,8 +314,29 @@
     "group": "Topic · header",
     "label": "Topic header — Tier A (scroll-top, full beam)",
     "viewport": "desktop",
+    "auth": "out",
+    "skin": "zine-dark",
+    "file": "topic-header-tierA-desktop-logged-out-zine-dark.png",
+    "focus": false
+  },
+  {
+    "id": "topic-header-tierA",
+    "group": "Topic · header",
+    "label": "Topic header — Tier A (scroll-top, full beam)",
+    "viewport": "desktop",
     "auth": "in",
+    "skin": "light",
     "file": "topic-header-tierA-desktop-logged-in.png",
+    "focus": false
+  },
+  {
+    "id": "topic-header-tierA",
+    "group": "Topic · header",
+    "label": "Topic header — Tier A (scroll-top, full beam)",
+    "viewport": "desktop",
+    "auth": "in",
+    "skin": "zine-dark",
+    "file": "topic-header-tierA-desktop-logged-in-zine-dark.png",
     "focus": false
   },
   {
@@ -203,6 +345,7 @@
     "label": "Topic header — slim sticky (scrolled, beam faded)",
     "viewport": "mobile",
     "auth": "out",
+    "skin": "light",
     "file": "topic-header-slim-mobile-logged-out.png",
     "focus": false
   },
@@ -211,8 +354,29 @@
     "group": "Topic · header",
     "label": "Topic header — slim sticky (scrolled, beam faded)",
     "viewport": "mobile",
+    "auth": "out",
+    "skin": "zine-dark",
+    "file": "topic-header-slim-mobile-logged-out-zine-dark.png",
+    "focus": false
+  },
+  {
+    "id": "topic-header-slim",
+    "group": "Topic · header",
+    "label": "Topic header — slim sticky (scrolled, beam faded)",
+    "viewport": "mobile",
     "auth": "in",
+    "skin": "light",
     "file": "topic-header-slim-mobile-logged-in.png",
+    "focus": false
+  },
+  {
+    "id": "topic-header-slim",
+    "group": "Topic · header",
+    "label": "Topic header — slim sticky (scrolled, beam faded)",
+    "viewport": "mobile",
+    "auth": "in",
+    "skin": "zine-dark",
+    "file": "topic-header-slim-mobile-logged-in-zine-dark.png",
     "focus": false
   },
   {
@@ -221,6 +385,7 @@
     "label": "Topic header — slim sticky (scrolled, beam faded)",
     "viewport": "tablet",
     "auth": "out",
+    "skin": "light",
     "file": "topic-header-slim-tablet-logged-out.png",
     "focus": false
   },
@@ -229,8 +394,29 @@
     "group": "Topic · header",
     "label": "Topic header — slim sticky (scrolled, beam faded)",
     "viewport": "tablet",
+    "auth": "out",
+    "skin": "zine-dark",
+    "file": "topic-header-slim-tablet-logged-out-zine-dark.png",
+    "focus": false
+  },
+  {
+    "id": "topic-header-slim",
+    "group": "Topic · header",
+    "label": "Topic header — slim sticky (scrolled, beam faded)",
+    "viewport": "tablet",
     "auth": "in",
+    "skin": "light",
     "file": "topic-header-slim-tablet-logged-in.png",
+    "focus": false
+  },
+  {
+    "id": "topic-header-slim",
+    "group": "Topic · header",
+    "label": "Topic header — slim sticky (scrolled, beam faded)",
+    "viewport": "tablet",
+    "auth": "in",
+    "skin": "zine-dark",
+    "file": "topic-header-slim-tablet-logged-in-zine-dark.png",
     "focus": false
   },
   {
@@ -239,6 +425,7 @@
     "label": "Topic header — slim sticky (scrolled, beam faded)",
     "viewport": "desktop",
     "auth": "out",
+    "skin": "light",
     "file": "topic-header-slim-desktop-logged-out.png",
     "focus": false
   },
@@ -247,8 +434,29 @@
     "group": "Topic · header",
     "label": "Topic header — slim sticky (scrolled, beam faded)",
     "viewport": "desktop",
+    "auth": "out",
+    "skin": "zine-dark",
+    "file": "topic-header-slim-desktop-logged-out-zine-dark.png",
+    "focus": false
+  },
+  {
+    "id": "topic-header-slim",
+    "group": "Topic · header",
+    "label": "Topic header — slim sticky (scrolled, beam faded)",
+    "viewport": "desktop",
     "auth": "in",
+    "skin": "light",
     "file": "topic-header-slim-desktop-logged-in.png",
+    "focus": false
+  },
+  {
+    "id": "topic-header-slim",
+    "group": "Topic · header",
+    "label": "Topic header — slim sticky (scrolled, beam faded)",
+    "viewport": "desktop",
+    "auth": "in",
+    "skin": "zine-dark",
+    "file": "topic-header-slim-desktop-logged-in-zine-dark.png",
     "focus": false
   },
   {
@@ -257,6 +465,7 @@
     "label": "Topic header — mobile search revealed",
     "viewport": "mobile",
     "auth": "out",
+    "skin": "light",
     "file": "topic-search-mobile-logged-out.png",
     "focus": false
   },
@@ -266,6 +475,7 @@
     "label": "Topic header — mobile search revealed",
     "viewport": "mobile",
     "auth": "in",
+    "skin": "light",
     "file": "topic-search-mobile-logged-in.png",
     "focus": false
   },
@@ -275,6 +485,7 @@
     "label": "Topic — full two-world layout",
     "viewport": "mobile",
     "auth": "out",
+    "skin": "light",
     "file": "topic-body-mobile-logged-out.png",
     "focus": false
   },
@@ -283,8 +494,29 @@
     "group": "Topic · body",
     "label": "Topic — full two-world layout",
     "viewport": "mobile",
+    "auth": "out",
+    "skin": "zine-dark",
+    "file": "topic-body-mobile-logged-out-zine-dark.png",
+    "focus": false
+  },
+  {
+    "id": "topic-body",
+    "group": "Topic · body",
+    "label": "Topic — full two-world layout",
+    "viewport": "mobile",
     "auth": "in",
+    "skin": "light",
     "file": "topic-body-mobile-logged-in.png",
+    "focus": false
+  },
+  {
+    "id": "topic-body",
+    "group": "Topic · body",
+    "label": "Topic — full two-world layout",
+    "viewport": "mobile",
+    "auth": "in",
+    "skin": "zine-dark",
+    "file": "topic-body-mobile-logged-in-zine-dark.png",
     "focus": false
   },
   {
@@ -293,6 +525,7 @@
     "label": "Topic — full two-world layout",
     "viewport": "tablet",
     "auth": "out",
+    "skin": "light",
     "file": "topic-body-tablet-logged-out.png",
     "focus": false
   },
@@ -301,8 +534,29 @@
     "group": "Topic · body",
     "label": "Topic — full two-world layout",
     "viewport": "tablet",
+    "auth": "out",
+    "skin": "zine-dark",
+    "file": "topic-body-tablet-logged-out-zine-dark.png",
+    "focus": false
+  },
+  {
+    "id": "topic-body",
+    "group": "Topic · body",
+    "label": "Topic — full two-world layout",
+    "viewport": "tablet",
     "auth": "in",
+    "skin": "light",
     "file": "topic-body-tablet-logged-in.png",
+    "focus": false
+  },
+  {
+    "id": "topic-body",
+    "group": "Topic · body",
+    "label": "Topic — full two-world layout",
+    "viewport": "tablet",
+    "auth": "in",
+    "skin": "zine-dark",
+    "file": "topic-body-tablet-logged-in-zine-dark.png",
     "focus": false
   },
   {
@@ -311,6 +565,7 @@
     "label": "Topic — full two-world layout",
     "viewport": "desktop",
     "auth": "out",
+    "skin": "light",
     "file": "topic-body-desktop-logged-out.png",
     "focus": false
   },
@@ -319,8 +574,29 @@
     "group": "Topic · body",
     "label": "Topic — full two-world layout",
     "viewport": "desktop",
+    "auth": "out",
+    "skin": "zine-dark",
+    "file": "topic-body-desktop-logged-out-zine-dark.png",
+    "focus": false
+  },
+  {
+    "id": "topic-body",
+    "group": "Topic · body",
+    "label": "Topic — full two-world layout",
+    "viewport": "desktop",
     "auth": "in",
+    "skin": "light",
     "file": "topic-body-desktop-logged-in.png",
+    "focus": false
+  },
+  {
+    "id": "topic-body",
+    "group": "Topic · body",
+    "label": "Topic — full two-world layout",
+    "viewport": "desktop",
+    "auth": "in",
+    "skin": "zine-dark",
+    "file": "topic-body-desktop-logged-in-zine-dark.png",
     "focus": false
   },
   {
@@ -329,6 +605,7 @@
     "label": "Topic — body under the slim sticky header",
     "viewport": "mobile",
     "auth": "out",
+    "skin": "light",
     "file": "topic-body-sticky-mobile-logged-out.png",
     "focus": false
   },
@@ -337,8 +614,29 @@
     "group": "Topic · body",
     "label": "Topic — body under the slim sticky header",
     "viewport": "mobile",
+    "auth": "out",
+    "skin": "zine-dark",
+    "file": "topic-body-sticky-mobile-logged-out-zine-dark.png",
+    "focus": false
+  },
+  {
+    "id": "topic-body-sticky",
+    "group": "Topic · body",
+    "label": "Topic — body under the slim sticky header",
+    "viewport": "mobile",
     "auth": "in",
+    "skin": "light",
     "file": "topic-body-sticky-mobile-logged-in.png",
+    "focus": false
+  },
+  {
+    "id": "topic-body-sticky",
+    "group": "Topic · body",
+    "label": "Topic — body under the slim sticky header",
+    "viewport": "mobile",
+    "auth": "in",
+    "skin": "zine-dark",
+    "file": "topic-body-sticky-mobile-logged-in-zine-dark.png",
     "focus": false
   },
   {
@@ -347,6 +645,7 @@
     "label": "Topic — body under the slim sticky header",
     "viewport": "tablet",
     "auth": "out",
+    "skin": "light",
     "file": "topic-body-sticky-tablet-logged-out.png",
     "focus": false
   },
@@ -355,8 +654,29 @@
     "group": "Topic · body",
     "label": "Topic — body under the slim sticky header",
     "viewport": "tablet",
+    "auth": "out",
+    "skin": "zine-dark",
+    "file": "topic-body-sticky-tablet-logged-out-zine-dark.png",
+    "focus": false
+  },
+  {
+    "id": "topic-body-sticky",
+    "group": "Topic · body",
+    "label": "Topic — body under the slim sticky header",
+    "viewport": "tablet",
     "auth": "in",
+    "skin": "light",
     "file": "topic-body-sticky-tablet-logged-in.png",
+    "focus": false
+  },
+  {
+    "id": "topic-body-sticky",
+    "group": "Topic · body",
+    "label": "Topic — body under the slim sticky header",
+    "viewport": "tablet",
+    "auth": "in",
+    "skin": "zine-dark",
+    "file": "topic-body-sticky-tablet-logged-in-zine-dark.png",
     "focus": false
   },
   {
@@ -365,6 +685,7 @@
     "label": "Topic — body under the slim sticky header",
     "viewport": "desktop",
     "auth": "out",
+    "skin": "light",
     "file": "topic-body-sticky-desktop-logged-out.png",
     "focus": false
   },
@@ -373,8 +694,29 @@
     "group": "Topic · body",
     "label": "Topic — body under the slim sticky header",
     "viewport": "desktop",
+    "auth": "out",
+    "skin": "zine-dark",
+    "file": "topic-body-sticky-desktop-logged-out-zine-dark.png",
+    "focus": false
+  },
+  {
+    "id": "topic-body-sticky",
+    "group": "Topic · body",
+    "label": "Topic — body under the slim sticky header",
+    "viewport": "desktop",
     "auth": "in",
+    "skin": "light",
     "file": "topic-body-sticky-desktop-logged-in.png",
+    "focus": false
+  },
+  {
+    "id": "topic-body-sticky",
+    "group": "Topic · body",
+    "label": "Topic — body under the slim sticky header",
+    "viewport": "desktop",
+    "auth": "in",
+    "skin": "zine-dark",
+    "file": "topic-body-sticky-desktop-logged-in-zine-dark.png",
     "focus": false
   },
   {
@@ -383,6 +725,7 @@
     "label": "Overview card (＋plus Infobox)",
     "viewport": "desktop",
     "auth": "out",
+    "skin": "light",
     "file": "topic-overview-desktop-logged-out.png",
     "focus": false
   },
@@ -391,8 +734,29 @@
     "group": "Topic · overview & TOC",
     "label": "Overview card (＋plus Infobox)",
     "viewport": "desktop",
+    "auth": "out",
+    "skin": "zine-dark",
+    "file": "topic-overview-desktop-logged-out-zine-dark.png",
+    "focus": false
+  },
+  {
+    "id": "topic-overview",
+    "group": "Topic · overview & TOC",
+    "label": "Overview card (＋plus Infobox)",
+    "viewport": "desktop",
     "auth": "in",
+    "skin": "light",
     "file": "topic-overview-desktop-logged-in.png",
+    "focus": false
+  },
+  {
+    "id": "topic-overview",
+    "group": "Topic · overview & TOC",
+    "label": "Overview card (＋plus Infobox)",
+    "viewport": "desktop",
+    "auth": "in",
+    "skin": "zine-dark",
+    "file": "topic-overview-desktop-logged-in-zine-dark.png",
     "focus": false
   },
   {
@@ -401,6 +765,7 @@
     "label": "Overview card (＋plus Infobox)",
     "viewport": "tablet",
     "auth": "out",
+    "skin": "light",
     "file": "topic-overview-tablet-logged-out.png",
     "focus": false
   },
@@ -409,8 +774,29 @@
     "group": "Topic · overview & TOC",
     "label": "Overview card (＋plus Infobox)",
     "viewport": "tablet",
+    "auth": "out",
+    "skin": "zine-dark",
+    "file": "topic-overview-tablet-logged-out-zine-dark.png",
+    "focus": false
+  },
+  {
+    "id": "topic-overview",
+    "group": "Topic · overview & TOC",
+    "label": "Overview card (＋plus Infobox)",
+    "viewport": "tablet",
     "auth": "in",
+    "skin": "light",
     "file": "topic-overview-tablet-logged-in.png",
+    "focus": false
+  },
+  {
+    "id": "topic-overview",
+    "group": "Topic · overview & TOC",
+    "label": "Overview card (＋plus Infobox)",
+    "viewport": "tablet",
+    "auth": "in",
+    "skin": "zine-dark",
+    "file": "topic-overview-tablet-logged-in-zine-dark.png",
     "focus": false
   },
   {
@@ -419,7 +805,18 @@
     "label": "Table of contents (plus card)",
     "viewport": "desktop",
     "auth": "out",
+    "skin": "light",
     "file": "topic-toc-desktop-logged-out.png",
+    "focus": false
+  },
+  {
+    "id": "topic-toc",
+    "group": "Topic · overview & TOC",
+    "label": "Table of contents (plus card)",
+    "viewport": "desktop",
+    "auth": "out",
+    "skin": "zine-dark",
+    "file": "topic-toc-desktop-logged-out-zine-dark.png",
     "focus": false
   },
   {
@@ -428,7 +825,18 @@
     "label": "Table of contents (plus card)",
     "viewport": "tablet",
     "auth": "out",
+    "skin": "light",
     "file": "topic-toc-tablet-logged-out.png",
+    "focus": false
+  },
+  {
+    "id": "topic-toc",
+    "group": "Topic · overview & TOC",
+    "label": "Table of contents (plus card)",
+    "viewport": "tablet",
+    "auth": "out",
+    "skin": "zine-dark",
+    "file": "topic-toc-tablet-logged-out-zine-dark.png",
     "focus": false
   },
   {
@@ -437,6 +845,7 @@
     "label": "General Strip — curated",
     "viewport": "mobile",
     "auth": "out",
+    "skin": "light",
     "file": "general-curated-mobile-logged-out.png",
     "focus": false
   },
@@ -445,8 +854,29 @@
     "group": "General Strip",
     "label": "General Strip — curated",
     "viewport": "mobile",
+    "auth": "out",
+    "skin": "zine-dark",
+    "file": "general-curated-mobile-logged-out-zine-dark.png",
+    "focus": false
+  },
+  {
+    "id": "general-curated",
+    "group": "General Strip",
+    "label": "General Strip — curated",
+    "viewport": "mobile",
     "auth": "in",
+    "skin": "light",
     "file": "general-curated-mobile-logged-in.png",
+    "focus": false
+  },
+  {
+    "id": "general-curated",
+    "group": "General Strip",
+    "label": "General Strip — curated",
+    "viewport": "mobile",
+    "auth": "in",
+    "skin": "zine-dark",
+    "file": "general-curated-mobile-logged-in-zine-dark.png",
     "focus": false
   },
   {
@@ -455,6 +885,7 @@
     "label": "General Strip — curated",
     "viewport": "tablet",
     "auth": "out",
+    "skin": "light",
     "file": "general-curated-tablet-logged-out.png",
     "focus": false
   },
@@ -463,8 +894,29 @@
     "group": "General Strip",
     "label": "General Strip — curated",
     "viewport": "tablet",
+    "auth": "out",
+    "skin": "zine-dark",
+    "file": "general-curated-tablet-logged-out-zine-dark.png",
+    "focus": false
+  },
+  {
+    "id": "general-curated",
+    "group": "General Strip",
+    "label": "General Strip — curated",
+    "viewport": "tablet",
     "auth": "in",
+    "skin": "light",
     "file": "general-curated-tablet-logged-in.png",
+    "focus": false
+  },
+  {
+    "id": "general-curated",
+    "group": "General Strip",
+    "label": "General Strip — curated",
+    "viewport": "tablet",
+    "auth": "in",
+    "skin": "zine-dark",
+    "file": "general-curated-tablet-logged-in-zine-dark.png",
     "focus": false
   },
   {
@@ -473,6 +925,7 @@
     "label": "General Strip — curated",
     "viewport": "desktop",
     "auth": "out",
+    "skin": "light",
     "file": "general-curated-desktop-logged-out.png",
     "focus": false
   },
@@ -481,8 +934,29 @@
     "group": "General Strip",
     "label": "General Strip — curated",
     "viewport": "desktop",
+    "auth": "out",
+    "skin": "zine-dark",
+    "file": "general-curated-desktop-logged-out-zine-dark.png",
+    "focus": false
+  },
+  {
+    "id": "general-curated",
+    "group": "General Strip",
+    "label": "General Strip — curated",
+    "viewport": "desktop",
     "auth": "in",
+    "skin": "light",
     "file": "general-curated-desktop-logged-in.png",
+    "focus": false
+  },
+  {
+    "id": "general-curated",
+    "group": "General Strip",
+    "label": "General Strip — curated",
+    "viewport": "desktop",
+    "auth": "in",
+    "skin": "zine-dark",
+    "file": "general-curated-desktop-logged-in-zine-dark.png",
     "focus": false
   },
   {
@@ -491,6 +965,7 @@
     "label": "General Strip — suggestions (unvetted)",
     "viewport": "mobile",
     "auth": "out",
+    "skin": "light",
     "file": "general-suggestions-mobile-logged-out.png",
     "focus": false
   },
@@ -499,8 +974,29 @@
     "group": "General Strip",
     "label": "General Strip — suggestions (unvetted)",
     "viewport": "mobile",
+    "auth": "out",
+    "skin": "zine-dark",
+    "file": "general-suggestions-mobile-logged-out-zine-dark.png",
+    "focus": false
+  },
+  {
+    "id": "general-suggestions",
+    "group": "General Strip",
+    "label": "General Strip — suggestions (unvetted)",
+    "viewport": "mobile",
     "auth": "in",
+    "skin": "light",
     "file": "general-suggestions-mobile-logged-in.png",
+    "focus": false
+  },
+  {
+    "id": "general-suggestions",
+    "group": "General Strip",
+    "label": "General Strip — suggestions (unvetted)",
+    "viewport": "mobile",
+    "auth": "in",
+    "skin": "zine-dark",
+    "file": "general-suggestions-mobile-logged-in-zine-dark.png",
     "focus": false
   },
   {
@@ -509,6 +1005,7 @@
     "label": "General Strip — suggestions (unvetted)",
     "viewport": "tablet",
     "auth": "out",
+    "skin": "light",
     "file": "general-suggestions-tablet-logged-out.png",
     "focus": false
   },
@@ -517,8 +1014,29 @@
     "group": "General Strip",
     "label": "General Strip — suggestions (unvetted)",
     "viewport": "tablet",
+    "auth": "out",
+    "skin": "zine-dark",
+    "file": "general-suggestions-tablet-logged-out-zine-dark.png",
+    "focus": false
+  },
+  {
+    "id": "general-suggestions",
+    "group": "General Strip",
+    "label": "General Strip — suggestions (unvetted)",
+    "viewport": "tablet",
     "auth": "in",
+    "skin": "light",
     "file": "general-suggestions-tablet-logged-in.png",
+    "focus": false
+  },
+  {
+    "id": "general-suggestions",
+    "group": "General Strip",
+    "label": "General Strip — suggestions (unvetted)",
+    "viewport": "tablet",
+    "auth": "in",
+    "skin": "zine-dark",
+    "file": "general-suggestions-tablet-logged-in-zine-dark.png",
     "focus": false
   },
   {
@@ -527,6 +1045,7 @@
     "label": "General Strip — suggestions (unvetted)",
     "viewport": "desktop",
     "auth": "out",
+    "skin": "light",
     "file": "general-suggestions-desktop-logged-out.png",
     "focus": false
   },
@@ -535,8 +1054,29 @@
     "group": "General Strip",
     "label": "General Strip — suggestions (unvetted)",
     "viewport": "desktop",
+    "auth": "out",
+    "skin": "zine-dark",
+    "file": "general-suggestions-desktop-logged-out-zine-dark.png",
+    "focus": false
+  },
+  {
+    "id": "general-suggestions",
+    "group": "General Strip",
+    "label": "General Strip — suggestions (unvetted)",
+    "viewport": "desktop",
     "auth": "in",
+    "skin": "light",
     "file": "general-suggestions-desktop-logged-in.png",
+    "focus": false
+  },
+  {
+    "id": "general-suggestions",
+    "group": "General Strip",
+    "label": "General Strip — suggestions (unvetted)",
+    "viewport": "desktop",
+    "auth": "in",
+    "skin": "zine-dark",
+    "file": "general-suggestions-desktop-logged-in-zine-dark.png",
     "focus": false
   },
   {
@@ -545,6 +1085,7 @@
     "label": "General Strip — empty",
     "viewport": "mobile",
     "auth": "out",
+    "skin": "light",
     "file": "general-empty-mobile-logged-out.png",
     "focus": false
   },
@@ -553,8 +1094,29 @@
     "group": "General Strip",
     "label": "General Strip — empty",
     "viewport": "mobile",
+    "auth": "out",
+    "skin": "zine-dark",
+    "file": "general-empty-mobile-logged-out-zine-dark.png",
+    "focus": false
+  },
+  {
+    "id": "general-empty",
+    "group": "General Strip",
+    "label": "General Strip — empty",
+    "viewport": "mobile",
     "auth": "in",
+    "skin": "light",
     "file": "general-empty-mobile-logged-in.png",
+    "focus": false
+  },
+  {
+    "id": "general-empty",
+    "group": "General Strip",
+    "label": "General Strip — empty",
+    "viewport": "mobile",
+    "auth": "in",
+    "skin": "zine-dark",
+    "file": "general-empty-mobile-logged-in-zine-dark.png",
     "focus": false
   },
   {
@@ -563,6 +1125,7 @@
     "label": "General Strip — empty",
     "viewport": "tablet",
     "auth": "out",
+    "skin": "light",
     "file": "general-empty-tablet-logged-out.png",
     "focus": false
   },
@@ -571,8 +1134,29 @@
     "group": "General Strip",
     "label": "General Strip — empty",
     "viewport": "tablet",
+    "auth": "out",
+    "skin": "zine-dark",
+    "file": "general-empty-tablet-logged-out-zine-dark.png",
+    "focus": false
+  },
+  {
+    "id": "general-empty",
+    "group": "General Strip",
+    "label": "General Strip — empty",
+    "viewport": "tablet",
     "auth": "in",
+    "skin": "light",
     "file": "general-empty-tablet-logged-in.png",
+    "focus": false
+  },
+  {
+    "id": "general-empty",
+    "group": "General Strip",
+    "label": "General Strip — empty",
+    "viewport": "tablet",
+    "auth": "in",
+    "skin": "zine-dark",
+    "file": "general-empty-tablet-logged-in-zine-dark.png",
     "focus": false
   },
   {
@@ -581,6 +1165,7 @@
     "label": "General Strip — empty",
     "viewport": "desktop",
     "auth": "out",
+    "skin": "light",
     "file": "general-empty-desktop-logged-out.png",
     "focus": false
   },
@@ -589,8 +1174,29 @@
     "group": "General Strip",
     "label": "General Strip — empty",
     "viewport": "desktop",
+    "auth": "out",
+    "skin": "zine-dark",
+    "file": "general-empty-desktop-logged-out-zine-dark.png",
+    "focus": false
+  },
+  {
+    "id": "general-empty",
+    "group": "General Strip",
+    "label": "General Strip — empty",
+    "viewport": "desktop",
     "auth": "in",
+    "skin": "light",
     "file": "general-empty-desktop-logged-in.png",
+    "focus": false
+  },
+  {
+    "id": "general-empty",
+    "group": "General Strip",
+    "label": "General Strip — empty",
+    "viewport": "desktop",
+    "auth": "in",
+    "skin": "zine-dark",
+    "file": "general-empty-desktop-logged-in-zine-dark.png",
     "focus": false
   },
   {
@@ -599,6 +1205,7 @@
     "label": "PlayerModal — curated clip (blocking, desktop)",
     "viewport": "desktop",
     "auth": "out",
+    "skin": "light",
     "file": "player-modal-desktop-logged-out.png",
     "focus": false
   },
@@ -607,8 +1214,29 @@
     "group": "Players",
     "label": "PlayerModal — curated clip (blocking, desktop)",
     "viewport": "desktop",
+    "auth": "out",
+    "skin": "zine-dark",
+    "file": "player-modal-desktop-logged-out-zine-dark.png",
+    "focus": false
+  },
+  {
+    "id": "player-modal",
+    "group": "Players",
+    "label": "PlayerModal — curated clip (blocking, desktop)",
+    "viewport": "desktop",
     "auth": "in",
+    "skin": "light",
     "file": "player-modal-desktop-logged-in.png",
+    "focus": false
+  },
+  {
+    "id": "player-modal",
+    "group": "Players",
+    "label": "PlayerModal — curated clip (blocking, desktop)",
+    "viewport": "desktop",
+    "auth": "in",
+    "skin": "zine-dark",
+    "file": "player-modal-desktop-logged-in-zine-dark.png",
     "focus": false
   },
   {
@@ -617,6 +1245,7 @@
     "label": "PinnedPlayer — candidate dock (non-modal, desktop)",
     "viewport": "desktop",
     "auth": "out",
+    "skin": "light",
     "file": "pinned-player-desktop-logged-out.png",
     "focus": false
   },
@@ -625,8 +1254,29 @@
     "group": "Players",
     "label": "PinnedPlayer — candidate dock (non-modal, desktop)",
     "viewport": "desktop",
+    "auth": "out",
+    "skin": "zine-dark",
+    "file": "pinned-player-desktop-logged-out-zine-dark.png",
+    "focus": false
+  },
+  {
+    "id": "pinned-player",
+    "group": "Players",
+    "label": "PinnedPlayer — candidate dock (non-modal, desktop)",
+    "viewport": "desktop",
     "auth": "in",
+    "skin": "light",
     "file": "pinned-player-desktop-logged-in.png",
+    "focus": false
+  },
+  {
+    "id": "pinned-player",
+    "group": "Players",
+    "label": "PinnedPlayer — candidate dock (non-modal, desktop)",
+    "viewport": "desktop",
+    "auth": "in",
+    "skin": "zine-dark",
+    "file": "pinned-player-desktop-logged-in-zine-dark.png",
     "focus": false
   },
   {
@@ -635,6 +1285,7 @@
     "label": "Mobile dock — curated, collapsed curation",
     "viewport": "mobile",
     "auth": "out",
+    "skin": "light",
     "file": "mobile-player-curated-mobile-logged-out.png",
     "focus": false
   },
@@ -643,8 +1294,29 @@
     "group": "Players · mobile unified",
     "label": "Mobile dock — curated, collapsed curation",
     "viewport": "mobile",
+    "auth": "out",
+    "skin": "zine-dark",
+    "file": "mobile-player-curated-mobile-logged-out-zine-dark.png",
+    "focus": false
+  },
+  {
+    "id": "mobile-player-curated",
+    "group": "Players · mobile unified",
+    "label": "Mobile dock — curated, collapsed curation",
+    "viewport": "mobile",
     "auth": "in",
+    "skin": "light",
     "file": "mobile-player-curated-mobile-logged-in.png",
+    "focus": false
+  },
+  {
+    "id": "mobile-player-curated",
+    "group": "Players · mobile unified",
+    "label": "Mobile dock — curated, collapsed curation",
+    "viewport": "mobile",
+    "auth": "in",
+    "skin": "zine-dark",
+    "file": "mobile-player-curated-mobile-logged-in-zine-dark.png",
     "focus": false
   },
   {
@@ -653,6 +1325,7 @@
     "label": "Mobile dock — curated, expanded note",
     "viewport": "mobile",
     "auth": "out",
+    "skin": "light",
     "file": "mobile-player-curated-expanded-mobile-logged-out.png",
     "focus": false
   },
@@ -662,6 +1335,7 @@
     "label": "Mobile dock — curated, expanded note",
     "viewport": "mobile",
     "auth": "in",
+    "skin": "light",
     "file": "mobile-player-curated-expanded-mobile-logged-in.png",
     "focus": false
   },
@@ -671,6 +1345,7 @@
     "label": "Mobile dock — candidate, match reason",
     "viewport": "mobile",
     "auth": "out",
+    "skin": "light",
     "file": "mobile-player-candidate-mobile-logged-out.png",
     "focus": false
   },
@@ -680,6 +1355,7 @@
     "label": "Mobile dock — candidate, match reason",
     "viewport": "mobile",
     "auth": "in",
+    "skin": "light",
     "file": "mobile-player-candidate-mobile-logged-in.png",
     "focus": false
   },
@@ -689,6 +1365,7 @@
     "label": "Mobile dock — vertical 9:16 clip",
     "viewport": "mobile",
     "auth": "out",
+    "skin": "light",
     "file": "mobile-player-vertical-mobile-logged-out.png",
     "focus": false
   },
@@ -698,6 +1375,7 @@
     "label": "Mobile dock — vertical 9:16, expanded note",
     "viewport": "mobile",
     "auth": "out",
+    "skin": "light",
     "file": "mobile-player-vertical-expanded-mobile-logged-out.png",
     "focus": false
   },
@@ -707,6 +1385,7 @@
     "label": "Mobile dock — parked at the top edge",
     "viewport": "mobile",
     "auth": "out",
+    "skin": "light",
     "file": "mobile-player-top-parked-mobile-logged-out.png",
     "focus": false
   },
@@ -716,6 +1395,7 @@
     "label": "Mobile dock — maximized 16:9 (landscape)",
     "viewport": "mobile",
     "auth": "out",
+    "skin": "light",
     "file": "mobile-player-maximized-horizontal-mobile-logged-out.png",
     "focus": false
   },
@@ -725,6 +1405,7 @@
     "label": "Mobile dock — maximized 9:16 (full height upright)",
     "viewport": "mobile",
     "auth": "out",
+    "skin": "light",
     "file": "mobile-player-maximized-vertical-mobile-logged-out.png",
     "focus": false
   },
@@ -734,6 +1415,7 @@
     "label": "Article not found (nonexistent title)",
     "viewport": "desktop",
     "auth": "out",
+    "skin": "light",
     "file": "topic-notfound-desktop-logged-out.png",
     "focus": false
   },
@@ -742,8 +1424,29 @@
     "group": "Topic · not found",
     "label": "Article not found (nonexistent title)",
     "viewport": "desktop",
+    "auth": "out",
+    "skin": "zine-dark",
+    "file": "topic-notfound-desktop-logged-out-zine-dark.png",
+    "focus": false
+  },
+  {
+    "id": "topic-notfound",
+    "group": "Topic · not found",
+    "label": "Article not found (nonexistent title)",
+    "viewport": "desktop",
     "auth": "in",
+    "skin": "light",
     "file": "topic-notfound-desktop-logged-in.png",
+    "focus": false
+  },
+  {
+    "id": "topic-notfound",
+    "group": "Topic · not found",
+    "label": "Article not found (nonexistent title)",
+    "viewport": "desktop",
+    "auth": "in",
+    "skin": "zine-dark",
+    "file": "topic-notfound-desktop-logged-in-zine-dark.png",
     "focus": false
   },
   {
@@ -752,6 +1455,7 @@
     "label": "Article not found (nonexistent title)",
     "viewport": "mobile",
     "auth": "out",
+    "skin": "light",
     "file": "topic-notfound-mobile-logged-out.png",
     "focus": false
   },
@@ -760,8 +1464,29 @@
     "group": "Topic · not found",
     "label": "Article not found (nonexistent title)",
     "viewport": "mobile",
+    "auth": "out",
+    "skin": "zine-dark",
+    "file": "topic-notfound-mobile-logged-out-zine-dark.png",
+    "focus": false
+  },
+  {
+    "id": "topic-notfound",
+    "group": "Topic · not found",
+    "label": "Article not found (nonexistent title)",
+    "viewport": "mobile",
     "auth": "in",
+    "skin": "light",
     "file": "topic-notfound-mobile-logged-in.png",
+    "focus": false
+  },
+  {
+    "id": "topic-notfound",
+    "group": "Topic · not found",
+    "label": "Article not found (nonexistent title)",
+    "viewport": "mobile",
+    "auth": "in",
+    "skin": "zine-dark",
+    "file": "topic-notfound-mobile-logged-in-zine-dark.png",
     "focus": false
   },
   {
@@ -770,6 +1495,7 @@
     "label": "About — centerpiece + how it works",
     "viewport": "mobile",
     "auth": "out",
+    "skin": "light",
     "file": "about-mobile-logged-out.png",
     "focus": false
   },
@@ -778,8 +1504,29 @@
     "group": "Other pages",
     "label": "About — centerpiece + how it works",
     "viewport": "mobile",
+    "auth": "out",
+    "skin": "zine-dark",
+    "file": "about-mobile-logged-out-zine-dark.png",
+    "focus": false
+  },
+  {
+    "id": "about",
+    "group": "Other pages",
+    "label": "About — centerpiece + how it works",
+    "viewport": "mobile",
     "auth": "in",
+    "skin": "light",
     "file": "about-mobile-logged-in.png",
+    "focus": false
+  },
+  {
+    "id": "about",
+    "group": "Other pages",
+    "label": "About — centerpiece + how it works",
+    "viewport": "mobile",
+    "auth": "in",
+    "skin": "zine-dark",
+    "file": "about-mobile-logged-in-zine-dark.png",
     "focus": false
   },
   {
@@ -788,6 +1535,7 @@
     "label": "About — centerpiece + how it works",
     "viewport": "tablet",
     "auth": "out",
+    "skin": "light",
     "file": "about-tablet-logged-out.png",
     "focus": false
   },
@@ -796,8 +1544,29 @@
     "group": "Other pages",
     "label": "About — centerpiece + how it works",
     "viewport": "tablet",
+    "auth": "out",
+    "skin": "zine-dark",
+    "file": "about-tablet-logged-out-zine-dark.png",
+    "focus": false
+  },
+  {
+    "id": "about",
+    "group": "Other pages",
+    "label": "About — centerpiece + how it works",
+    "viewport": "tablet",
     "auth": "in",
+    "skin": "light",
     "file": "about-tablet-logged-in.png",
+    "focus": false
+  },
+  {
+    "id": "about",
+    "group": "Other pages",
+    "label": "About — centerpiece + how it works",
+    "viewport": "tablet",
+    "auth": "in",
+    "skin": "zine-dark",
+    "file": "about-tablet-logged-in-zine-dark.png",
     "focus": false
   },
   {
@@ -806,6 +1575,7 @@
     "label": "About — centerpiece + how it works",
     "viewport": "desktop",
     "auth": "out",
+    "skin": "light",
     "file": "about-desktop-logged-out.png",
     "focus": false
   },
@@ -814,8 +1584,29 @@
     "group": "Other pages",
     "label": "About — centerpiece + how it works",
     "viewport": "desktop",
+    "auth": "out",
+    "skin": "zine-dark",
+    "file": "about-desktop-logged-out-zine-dark.png",
+    "focus": false
+  },
+  {
+    "id": "about",
+    "group": "Other pages",
+    "label": "About — centerpiece + how it works",
+    "viewport": "desktop",
     "auth": "in",
+    "skin": "light",
     "file": "about-desktop-logged-in.png",
+    "focus": false
+  },
+  {
+    "id": "about",
+    "group": "Other pages",
+    "label": "About — centerpiece + how it works",
+    "viewport": "desktop",
+    "auth": "in",
+    "skin": "zine-dark",
+    "file": "about-desktop-logged-in-zine-dark.png",
     "focus": false
   },
   {
@@ -824,7 +1615,18 @@
     "label": "About your data",
     "viewport": "mobile",
     "auth": "out",
+    "skin": "light",
     "file": "about-data-mobile-logged-out.png",
+    "focus": false
+  },
+  {
+    "id": "about-data",
+    "group": "Other pages",
+    "label": "About your data",
+    "viewport": "mobile",
+    "auth": "out",
+    "skin": "zine-dark",
+    "file": "about-data-mobile-logged-out-zine-dark.png",
     "focus": false
   },
   {
@@ -833,7 +1635,18 @@
     "label": "About your data",
     "viewport": "tablet",
     "auth": "out",
+    "skin": "light",
     "file": "about-data-tablet-logged-out.png",
+    "focus": false
+  },
+  {
+    "id": "about-data",
+    "group": "Other pages",
+    "label": "About your data",
+    "viewport": "tablet",
+    "auth": "out",
+    "skin": "zine-dark",
+    "file": "about-data-tablet-logged-out-zine-dark.png",
     "focus": false
   },
   {
@@ -842,7 +1655,18 @@
     "label": "About your data",
     "viewport": "desktop",
     "auth": "out",
+    "skin": "light",
     "file": "about-data-desktop-logged-out.png",
+    "focus": false
+  },
+  {
+    "id": "about-data",
+    "group": "Other pages",
+    "label": "About your data",
+    "viewport": "desktop",
+    "auth": "out",
+    "skin": "zine-dark",
+    "file": "about-data-desktop-logged-out-zine-dark.png",
     "focus": false
   },
   {
@@ -851,6 +1675,7 @@
     "label": "Contribute (Add a clip)",
     "viewport": "mobile",
     "auth": "out",
+    "skin": "light",
     "file": "contribute-mobile-logged-out.png",
     "focus": false
   },
@@ -859,8 +1684,29 @@
     "group": "Other pages",
     "label": "Contribute (Add a clip)",
     "viewport": "mobile",
+    "auth": "out",
+    "skin": "zine-dark",
+    "file": "contribute-mobile-logged-out-zine-dark.png",
+    "focus": false
+  },
+  {
+    "id": "contribute",
+    "group": "Other pages",
+    "label": "Contribute (Add a clip)",
+    "viewport": "mobile",
     "auth": "in",
+    "skin": "light",
     "file": "contribute-mobile-logged-in.png",
+    "focus": false
+  },
+  {
+    "id": "contribute",
+    "group": "Other pages",
+    "label": "Contribute (Add a clip)",
+    "viewport": "mobile",
+    "auth": "in",
+    "skin": "zine-dark",
+    "file": "contribute-mobile-logged-in-zine-dark.png",
     "focus": false
   },
   {
@@ -869,6 +1715,7 @@
     "label": "Contribute (Add a clip)",
     "viewport": "tablet",
     "auth": "out",
+    "skin": "light",
     "file": "contribute-tablet-logged-out.png",
     "focus": false
   },
@@ -877,8 +1724,29 @@
     "group": "Other pages",
     "label": "Contribute (Add a clip)",
     "viewport": "tablet",
+    "auth": "out",
+    "skin": "zine-dark",
+    "file": "contribute-tablet-logged-out-zine-dark.png",
+    "focus": false
+  },
+  {
+    "id": "contribute",
+    "group": "Other pages",
+    "label": "Contribute (Add a clip)",
+    "viewport": "tablet",
     "auth": "in",
+    "skin": "light",
     "file": "contribute-tablet-logged-in.png",
+    "focus": false
+  },
+  {
+    "id": "contribute",
+    "group": "Other pages",
+    "label": "Contribute (Add a clip)",
+    "viewport": "tablet",
+    "auth": "in",
+    "skin": "zine-dark",
+    "file": "contribute-tablet-logged-in-zine-dark.png",
     "focus": false
   },
   {
@@ -887,6 +1755,7 @@
     "label": "Contribute (Add a clip)",
     "viewport": "desktop",
     "auth": "out",
+    "skin": "light",
     "file": "contribute-desktop-logged-out.png",
     "focus": false
   },
@@ -895,8 +1764,29 @@
     "group": "Other pages",
     "label": "Contribute (Add a clip)",
     "viewport": "desktop",
+    "auth": "out",
+    "skin": "zine-dark",
+    "file": "contribute-desktop-logged-out-zine-dark.png",
+    "focus": false
+  },
+  {
+    "id": "contribute",
+    "group": "Other pages",
+    "label": "Contribute (Add a clip)",
+    "viewport": "desktop",
     "auth": "in",
+    "skin": "light",
     "file": "contribute-desktop-logged-in.png",
+    "focus": false
+  },
+  {
+    "id": "contribute",
+    "group": "Other pages",
+    "label": "Contribute (Add a clip)",
+    "viewport": "desktop",
+    "auth": "in",
+    "skin": "zine-dark",
+    "file": "contribute-desktop-logged-in-zine-dark.png",
     "focus": false
   },
   {
@@ -905,6 +1795,7 @@
     "label": "Contributor profile",
     "viewport": "mobile",
     "auth": "out",
+    "skin": "light",
     "file": "contributor-profile-mobile-logged-out.png",
     "focus": false
   },
@@ -913,8 +1804,29 @@
     "group": "Other pages",
     "label": "Contributor profile",
     "viewport": "mobile",
+    "auth": "out",
+    "skin": "zine-dark",
+    "file": "contributor-profile-mobile-logged-out-zine-dark.png",
+    "focus": false
+  },
+  {
+    "id": "contributor-profile",
+    "group": "Other pages",
+    "label": "Contributor profile",
+    "viewport": "mobile",
     "auth": "in",
+    "skin": "light",
     "file": "contributor-profile-mobile-logged-in.png",
+    "focus": false
+  },
+  {
+    "id": "contributor-profile",
+    "group": "Other pages",
+    "label": "Contributor profile",
+    "viewport": "mobile",
+    "auth": "in",
+    "skin": "zine-dark",
+    "file": "contributor-profile-mobile-logged-in-zine-dark.png",
     "focus": false
   },
   {
@@ -923,6 +1835,7 @@
     "label": "Contributor profile",
     "viewport": "tablet",
     "auth": "out",
+    "skin": "light",
     "file": "contributor-profile-tablet-logged-out.png",
     "focus": false
   },
@@ -931,8 +1844,29 @@
     "group": "Other pages",
     "label": "Contributor profile",
     "viewport": "tablet",
+    "auth": "out",
+    "skin": "zine-dark",
+    "file": "contributor-profile-tablet-logged-out-zine-dark.png",
+    "focus": false
+  },
+  {
+    "id": "contributor-profile",
+    "group": "Other pages",
+    "label": "Contributor profile",
+    "viewport": "tablet",
     "auth": "in",
+    "skin": "light",
     "file": "contributor-profile-tablet-logged-in.png",
+    "focus": false
+  },
+  {
+    "id": "contributor-profile",
+    "group": "Other pages",
+    "label": "Contributor profile",
+    "viewport": "tablet",
+    "auth": "in",
+    "skin": "zine-dark",
+    "file": "contributor-profile-tablet-logged-in-zine-dark.png",
     "focus": false
   },
   {
@@ -941,6 +1875,7 @@
     "label": "Contributor profile",
     "viewport": "desktop",
     "auth": "out",
+    "skin": "light",
     "file": "contributor-profile-desktop-logged-out.png",
     "focus": false
   },
@@ -949,8 +1884,29 @@
     "group": "Other pages",
     "label": "Contributor profile",
     "viewport": "desktop",
+    "auth": "out",
+    "skin": "zine-dark",
+    "file": "contributor-profile-desktop-logged-out-zine-dark.png",
+    "focus": false
+  },
+  {
+    "id": "contributor-profile",
+    "group": "Other pages",
+    "label": "Contributor profile",
+    "viewport": "desktop",
     "auth": "in",
+    "skin": "light",
     "file": "contributor-profile-desktop-logged-in.png",
+    "focus": false
+  },
+  {
+    "id": "contributor-profile",
+    "group": "Other pages",
+    "label": "Contributor profile",
+    "viewport": "desktop",
+    "auth": "in",
+    "skin": "zine-dark",
+    "file": "contributor-profile-desktop-logged-in-zine-dark.png",
     "focus": false
   }
 ]
