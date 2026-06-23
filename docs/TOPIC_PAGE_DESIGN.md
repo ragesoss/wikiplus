@@ -379,62 +379,62 @@ viewing experience share a single surface on the small screen. The desktop split
 
 On **mobile (`< lg`)**, **every** video — curated or candidate — plays in **one** non-modal, movable,
 viewport-fit player, `MobilePlayerDock`. It generalizes the candidate dock above into a single
-component: the frame, the creator credit (CC BY-SA), Close, the park toggle, and the maximize
-behavior are **identical for every clip**; only the supplemental info + action buttons differ by
-`(kind: curated | candidate) × (signedIn)`. (Full spec: `docs/design/unified-player-mobile.md`; the
-launch/docked layout is `docs/design/mobile-player-launch.md`; issues #120, #135.) The viewport is
-read **at play time**: a play click on a narrow viewport opens this dock; on a wide viewport it opens
-the desktop modal/pinned dock above. An open dock stays in its surface across a breakpoint crossing —
-only the next play re-evaluates — so a rehost never interrupts playback.
+component: the frame, Close, the park toggle, and the maximize behavior are **identical for every
+clip**; only what the two inline reveals show differs by `(kind: curated | candidate) × (signedIn)`.
+(Full spec: `docs/design/mobile-player-slim.md`; the preserved invariants are
+`docs/design/unified-player-mobile.md` + `docs/design/mobile-player-launch.md`; issues #120, #135,
+#123.) The viewport is read **at play time**: a play click on a narrow viewport opens this dock; on a
+wide viewport it opens the desktop modal/pinned dock above. An open dock stays in its surface across a
+breakpoint crossing — only the next play re-evaluates — so a rehost never interrupts playback.
 
-- **Video-first launch.** The dock is a frame-first flex column — a slim title bar (the eyebrow +
-  caption, the creator credit, and one compact row of Maximize · Move · Close), then the **video
-  frame as the hero**, then everything secondary below it. Tapping a clip lands the reader on the
-  picture: the **whole frame is fully visible on open**, with no scroll inside the dock to reach it.
-  The dock is **bounded** (capped at `88dvh − insets`, never the full screen; a 9:16 Short's frame
-  caps at `min(46vh,380px)`, centered + letterboxed), so a meaningful slice of the article stays
-  visible and scrollable. The frame and title bar never shrink or scroll; the secondary region below
-  the frame is the dock's sole scroll area. The page reserves space at the parked edge equal to the
-  dock's **measured actual height** so the article can be scrolled fully clear.
-
+- **The slim default.** A playing mobile video is the **video frame plus ONE 46px row of four equal
+  glyph-above-word cells — Close · Move · Curate · See context — and nothing else** in the default
+  chrome. No caption, creator credit, chips, description, or match reason appear in the default; the
+  reader keeps reading the article beside the picture. The dock is a frame-first flex column (frame →
+  control bar → reveal region) and is **bounded** (capped at `88dvh − insets`, never the full screen;
+  a 9:16 Short's frame caps at `min(46vh,380px)`, centered + letterboxed), so a generous slice of the
+  article stays visible (≈69% for a 16:9 clip). The frame and bar never shrink or scroll; an open
+  reveal's body is the dock's sole scroll area. The page reserves space at the parked edge equal to
+  the dock's **measured actual height** so the article can be scrolled fully clear.
+- **Two inline reveals (one open at a time).** **Curate** and **See context** are inline expander
+  reveals anchored to the bar (`aria-expanded` / `aria-controls`) — never bottom-sheets, so the
+  non-modal contract holds. Opening one grows the dock (the frame stays pinned above) and closes the
+  other. **See context** is where **all** metadata lives — caption, **creator credit** (`handle ·
+  platformLabel`), and the why/note/chips: a candidate shows the **"Why suggested"** match reason; a
+  curated clip shows the held marking (if held) + stance/accuracy chips + the full **Context note** on
+  a light card + **"Context by @curator."** The creator credit appears **only** here. **Curate** is
+  the "act": a candidate signed in shows **✦ Curate** + **✕ Not relevant** (the same vocabulary and
+  handlers as the desktop player); a candidate logged out shows a single **✦ Curate this video** CTA
+  and no dismiss; a curated clip's slot holds the vote/manage affordance (or the logged-out join
+  nudge). After a Not-relevant the candidate is optimistically hidden (rollback on write failure), the
+  dock closes, and focus moves to the General band heading.
 - **One dock at a time.** Curated and candidate mobile playback share the single-instance guarantee:
   a second play (either kind) **swaps in place** (one `<section>`, one iframe, payload changed); there
   is never a curated dock *and* a candidate dock open at once. A curated⇄candidate swap re-renders the
   same dock with the new `kind`.
-- **Secondary region, parameterized (below the frame).** Below the hero frame, a **candidate** shows
-  its one-line match reason; a **curated** clip shows the **collapsed curation block** — held marking
-  (if held) + a one-line stance/accuracy chips strip + a **"Context ▸" tap-to-expand** that reveals
-  the full note + "context by" on a light surface, scrolling inside a bounded region so it never
-  crowds the article off the screen and never moves the frame. The creator credit lives in the slim
-  title bar, so the CC BY-SA attribution is present in every state. Logged out, a candidate carries
-  **"Curate this video"** and a curated clip carries the softer **"Log in to curate videos for this
-  topic"** nudge, both below the frame; signed in, neither.
-- **Movable, keep-reading (the park toggle).** A **labeled toggle button** ("Move to top" / "Move to
-  bottom", keyboard-operable, never drag — drag fights touch scroll and is hard for AT) parks the
-  full-width dock at the top or bottom edge while the article stays scrollable. The page reserves space
-  at the parked edge (an additive, edge-aware spacer sized to the dock's measured height, removed on
-  dismiss) so the article never hides permanently behind the bar.
-- **Orientation-aware maximize is CSS-only, never the native Fullscreen API.** Turning the phone
-  landscape (or the explicit **⤢ Maximize/Exit** button) grows the **same `<section>` and the same
-  iframe** to fill the viewport via CSS (`fixed inset-0`) — a 16:9 clip fills the landscape width, a
-  9:16 clip fills the full height upright. This is a deliberate per-platform decision: we embed
-  third-party iframes and control only the container, not the inner `<video>`. **iPhone Safari has no
-  Fullscreen API for an arbitrary element/iframe**, so a native path cannot work on the device most
-  readers use; and programmatic native fullscreen requires a **user gesture**, which an
-  `orientationchange` event is not — so even Android Chrome would reject `iframe.requestFullscreen()`
-  fired from a rotate handler. A CSS maximize is fully controlled, identical cross-platform, and
-  testable. The embed's **own** native-fullscreen button is left intact (`allowFullScreen` stays) for
-  any reader who taps it inside the iframe. The explicit Maximize/Exit button makes the behavior
-  reachable without a rotation gesture — essential for AT users, for rotation-locked phones, and for a
-  vertical Short (whose best frame is portrait-tall regardless of device orientation).
+- **Movable, keep-reading (the Move toggle).** The **Move** cell is a labeled park toggle whose word
+  names the destination ("Move to top" / "Move to bottom", keyboard-operable, never drag — drag fights
+  touch scroll and is hard for AT); it parks the full-width dock at the top or bottom edge while the
+  article stays scrollable. The page reserves space at the parked edge (an additive, edge-aware spacer
+  sized to the dock's measured height, removed on dismiss) so the article never hides permanently
+  behind the bar.
+- **Maximize is the embed's native button + automatic rotate-to-fill, never a custom control.** There
+  is **no custom Maximize control** in the bar. Fullscreen is the embed's **own** native button inside
+  the iframe (`allowFullScreen` stays). Rotate-to-maximize is **automatic CSS**: turning the phone
+  landscape grows the **same `<section>` and the same iframe** to fill the viewport (`fixed inset-0`) —
+  a 16:9 clip fills the landscape width, a 9:16 clip fills the full height upright; rotating back
+  restores the slim dock. This is deliberate: we embed third-party iframes and control only the
+  container, not the inner `<video>`; **iPhone Safari has no Fullscreen API for an arbitrary
+  element/iframe**, and programmatic native fullscreen requires a user gesture an `orientationchange`
+  is not — so a CSS maximize is fully controlled, identical cross-platform, and testable.
 - **Accessibility model (non-modal).** Like the candidate dock, the unified dock is a **labeled
   landmark** (`<section aria-label="Video player">`), **not** a dialog — no `aria-modal`, **no focus
-  trap**, no backdrop, no focus steal on open — **even maximized** (a layout, not a modality; exited by
-  rotation / Exit / Close, never Esc). Close, the park toggle, the Maximize/Exit toggle, the "Context"
-  expander, and the logged-out CTA are all real keyboard-operable `<button>`s with the visible focus
-  ring; on keyboard Close, focus returns to the General band heading. All signals are carried by a
-  **word**, never color or position alone; chrome is white-on-`ink` (AA, no gold), the expanded note on
-  a light surface (`text-ink2`). Motion (dock-in, park, maximize) is gated by `prefers-reduced-motion`.
+  trap**, no backdrop, no focus steal on open (including when a reveal opens). The four bar cells, both
+  reveals' triggers, and every action inside the reveals are real keyboard-operable `<button>`s (each
+  cell ≥46px) with the visible focus ring; on keyboard Close, focus returns to the General band
+  heading. All signals are carried by a **word** (the glyph is decorative `aria-hidden`), never color
+  or position alone; chrome is white-on-`ink` (AA, no gold), the context note on a light surface
+  (`text-ink2`). Motion (dock-in, park, maximize, reveal expand) is gated by `prefers-reduced-motion`.
 
 ## Data implications (already reflected in the clip model)
 

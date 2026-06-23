@@ -16,45 +16,49 @@ import {
 } from "./CurationBlock";
 import { HELD_ACCESSIBLE_NAME, HELD_EYEBROW } from "./HeldMarking";
 
-// The unified MOBILE video player (issue #120, launch correction issue #135).
-// Design: docs/design/unified-player-mobile.md (the #120 contract) + docs/design/mobile-player-launch.md
-// (the #135 launch correction — frame-first, fully visible on open, genuinely bounded).
+// The unified, SLIM MOBILE video player (issue #120 / #135 lineage; slim default #123 coherence).
+// Design: docs/design/mobile-player-slim.md (THE contract — the locked one-row slim model) +
+// docs/design/unified-player-mobile.md (#120) + docs/design/mobile-player-launch.md (#135) for the
+// preserved invariants.
 //
 // ONE non-modal, movable, viewport-fit player used on mobile (< lg) for ANY video — curated or
-// candidate. It generalizes the candidate `PinnedPlayer` into a single component whose supplemental
-// info + action buttons parameterize by (kind: curated | candidate) × (signedIn). Everything else —
-// frame, credit, Close, the park toggle, the maximize-on-rotate behavior, the non-modal contract —
-// is shared and identical for every clip.
+// candidate. THE SLIM MODEL (spec §1): a playing mobile video is the video frame PLUS ONE thin 46px
+// control row of four equal glyph-above-word cells — Close · Move · Curate · See context — and
+// nothing else in the default chrome. No caption, creator, description, or chips appear in the
+// default: all metadata lives behind the See context expander, all curation behind the Curate
+// expander. The reader keeps reading the article beside the picture while the clip plays.
 //
-// FRAME-FIRST LAUNCH (#135, design §1.1). On open the video frame is the hero: the dock is a fixed
-// flex column `[slim title bar: shrink-0] → [frame: shrink-0] → [secondary region: flex-1 min-h-0
-// overflow-y-auto]`. The frame and title bar NEVER shrink or scroll; the secondary region (chips ·
-// "Context ▸" · CTA · the expanded note) is the SOLE scroll area. The order is identical top- and
-// bottom-parked (only which viewport edge the whole bar hugs changes). The dock is bounded at
-// `88dvh − insets` (design §2.6), so it can never fill the viewport — a meaningful article slice
-// always remains. The frame being `shrink-0` + the secondary region being the only scroll area is
-// the corrected fit invariant: the cap protects the article slice AND the frame at once.
+// FRAME-FIRST (spec §0.1, carried from #135). The dock is a fixed flex column
+// `[frame: shrink-0] → [control bar: shrink-0] → [expander region: flex-1 min-h-0 overflow-y-auto]`.
+// The frame and bar NEVER shrink or scroll; the expander region (an open Curate or See context body)
+// is the SOLE scroll area. The order is identical top- and bottom-parked (only which viewport edge
+// the whole dock hugs changes). The dock is bounded at `88dvh − insets` (spec §6.2) — with the slim
+// default this is NON-BINDING (the default dock is far below it, ~69% article visible for a 16:9
+// clip); the cap only ever engages when an open expander's body exceeds the budget, and then the
+// expander body scrolls while the frame + bar stay pinned.
 //
-// NON-MODAL contract (§9, carried from PinnedPlayer): a labeled `<section aria-label="Video
+// NON-MODAL contract (spec §0.1, carried from PinnedPlayer): a labeled `<section aria-label="Video
 // player">` landmark — NOT role=dialog, NO aria-modal, NO focus trap, NO backdrop, NO autofocus /
-// focus-steal on open, NOT routed through ModalShell — even in maximized mode (a layout, not a
-// modality). The iframe is created on mount (= an explicit play click in TopicView) and torn down
+// focus-steal on open, NOT routed through ModalShell. The two reveals (Curate, See context) are
+// INLINE EXPANDERS inside this section — never bottom-sheets — so they introduce no modal layer
+// (spec §3.1). The iframe is created on mount (= an explicit play click in TopicView) and torn down
 // on unmount (= on dismiss / state → null), preserving the embed-never-host facade. A second play
 // SWAPS in place (TopicView re-sets the single `mobileDock` state), so React updates `src` rather
 // than remounting — playback is never interrupted.
 //
-// MAXIMIZE is CSS-only (§6.5/§6.6): the SAME `<section>` and SAME iframe flip to `fixed inset-0`
-// — never `requestFullscreen` (iPhone Safari has no Fullscreen API for our iframe; an
-// orientationchange is not a qualifying user gesture, so even Android would reject it). The embed's
-// own native-fullscreen button stays intact (`allowFullScreen`). Trigger = orientationchange to
-// landscape (listener added only while open, removed on dismiss) + an explicit ⤢ Maximize/Exit
-// button so it is keyboard/AT-reachable and works for vertical Shorts (no landscape trigger).
+// MAXIMIZE is CSS-only + AUTOMATIC (spec §5): there is NO custom Maximize/fullscreen control. The
+// embed's own native-fullscreen button inside the iframe owns the explicit path (`allowFullScreen`).
+// Rotate-to-maximize stays automatic: while the dock is open an orientationchange to landscape flips
+// the SAME `<section>` + SAME iframe to `fixed inset-0` via CSS (never `requestFullscreen`); rotating
+// back to portrait restores the slim dock. In landscape the four-cell bar is hidden while the video
+// fills the screen, and a thin Close remains reachable.
 
 export type DockKind = "curated" | "candidate";
 
 /** What the dock reports up so TopicView can reserve the right amount of page scroll space at the
- *  parked edge (design §3). `height` is the dock's measured rendered height in CSS pixels;
- *  `docked` is false while maximized (which fills the viewport and needs no spacer). */
+ *  parked edge (spec §0.1 / §6.4). `height` is the dock's measured rendered height in CSS pixels;
+ *  `docked` is false while maximized (which fills the viewport and needs no spacer). The collapsed
+ *  slim default reports a small height (frame + 46px bar); opening a reveal grows it. */
 export interface DockMetrics {
   edge: "top" | "bottom";
   height: number;
@@ -63,8 +67,8 @@ export interface DockMetrics {
 
 /**
  * The playable + supplemental payload the dock renders. It carries everything for BOTH kinds; the
- * supplemental row reads only the fields its `kind` needs. `Clip` and `Candidate` both already
- * carry these, so TopicView assembles this directly (no data-model change — #120).
+ * reveals read only the fields their `kind` needs. `Clip` and `Candidate` both already carry these,
+ * so TopicView assembles this directly (no data-model change — #120).
  */
 export interface MobileDockClip {
   /** YouTube embed URL. Required for a candidate (it never opens the dock without one); a curated
@@ -72,10 +76,11 @@ export interface MobileDockClip {
   embedUrl?: string;
   caption: string;
   orientation: "vertical" | "horizontal";
-  /** Creator credit (CC BY-SA) — `handle · platformLabel`, present on every clip surface. */
+  /** Creator credit — `handle · platformLabel`, shown only inside the See context reveal (spec §4).
+   *  A reference norm on a nonfree third-party embed; not a CC BY-SA obligation (CURATION §5/§5.2). */
   creator: { handle: string };
   platformLabel: string;
-  /** Candidate only: the one-line match reason shown in place of the curation block. */
+  /** Candidate only: the one-line match reason shown under "Why suggested" in See context. */
   matchReason?: string;
   /** Curated only: the full clip, for the shared curation block (chips / note / "context by"). */
   curated?: Clip;
@@ -88,6 +93,7 @@ export function MobilePlayerDock({
   prefersReduced = false,
   onClose,
   onCurate,
+  onDismiss,
   onJoin,
   onEdgeChange,
   onDockMetrics,
@@ -95,26 +101,36 @@ export function MobilePlayerDock({
   kind: DockKind;
   clip: MobileDockClip;
   signedIn?: boolean;
-  /** Reuse TopicView's existing reduced-motion signal — gates the dock-in + maximize (§9). */
+  /** Reuse TopicView's existing reduced-motion signal — gates the dock-in + maximize (spec §8). */
   prefersReduced?: boolean;
   onClose: () => void;
-  /** Candidate, logged out: routes the playing candidate into the gated curate flow. Absent → no CTA. */
+  /** The Curate action for the playing clip (spec §3). Signed-in candidate → routes to the curate
+   *  flow (CurateModal / `curate` gate); logged-out candidate → the gated login flow. Bound by
+   *  TopicView to `promote(candidate)`. Absent → no Curate action rendered. */
   onCurate?: () => void;
+  /** Signed-in candidate only (spec §3.2): the Not-relevant action → the existing optimistic-hide +
+   *  rollback dismiss; TopicView then closes the dock + focuses the band heading (desktop #123 State
+   *  L). Bound to `dismiss(candidate)`. Rendered only when `signedIn && onCurate && onDismiss`. */
+  onDismiss?: () => void;
   /** Curated, logged out: the topic-level join nudge through the `curate` gate. Absent → no CTA. */
   onJoin?: () => void;
-  /** Reports the current parked edge up so TopicView can move the edge-aware page spacer (§6.6). */
+  /** Reports the current parked edge up so TopicView can move the edge-aware page spacer (spec §2.2). */
   onEdgeChange?: (edge: "top" | "bottom") => void;
   /** Reports the dock's measured rendered height (+ edge) up so TopicView reserves EXACTLY that
-   *  much scroll space at the parked edge (design §3 — the spacer is the dock's actual height, not
-   *  a fixed guess). Fires on mount and whenever the dock resizes (expand/collapse, swap, park). */
+   *  much scroll space at the parked edge (spec §0.1 / §6.4 — the spacer is the dock's actual
+   *  height, not a fixed guess). Fires on mount and whenever the dock resizes (reveal open/close,
+   *  swap, park). */
   onDockMetrics?: (m: DockMetrics) => void;
 }) {
-  // ── Internal layout state the dock owns (§12). Reset per open (a swap re-keys via the mount in
+  // ── Internal layout state the dock owns. Reset per open (a swap re-keys via the mount in
   //    TopicView keyed on the clip identity, so a fresh open / swap starts collapsed + bottom). ──
   const [edge, setEdge] = useState<"top" | "bottom">("bottom");
   const [maximized, setMaximized] = useState(false);
-  const [expanded, setExpanded] = useState(false);
-  const noteId = useId();
+  // The two inline reveals (spec §3/§4). At most ONE is open at a time (spec §8): opening one closes
+  // the other. `null` = the slim default (no reveal); otherwise which expander body is shown.
+  const [reveal, setReveal] = useState<null | "curate" | "context">(null);
+  const curateId = useId();
+  const contextId = useId();
   const rootRef = useRef<HTMLElement | null>(null);
 
   const vertical = clip.orientation === "vertical";
@@ -123,32 +139,36 @@ export function MobilePlayerDock({
     ? clip.embedUrl! + (clip.embedUrl!.includes("?") ? "&" : "?") + "autoplay=1"
     : undefined;
 
-  // Curated note is expandable only when there is a note to expand to (§5.3 empty-note guard);
-  // candidates are never expandable (A2 — only a one-line match reason).
-  const hasNote = kind === "curated" && Boolean(clip.curated?.contextNote);
+  const curatedClip = kind === "curated" ? clip.curated : undefined;
+  const hasNote = Boolean(curatedClip?.contextNote);
 
-  // ── Maximize-on-rotate (§6.5). Listen for landscape ONLY while the dock is open; toggle the
+  // Toggle a reveal: re-activating the open one closes it; opening one closes the other (spec §8 —
+  // only one open at a time). No focus-steal (spec §8): toggling never autofocuses into the body.
+  function toggleReveal(which: "curate" | "context") {
+    setReveal((prev) => (prev === which ? null : which));
+  }
+
+  // ── Maximize-on-rotate (spec §5). Listen for landscape ONLY while the dock is open; toggle the
   //    `maximized` layout state (never requestFullscreen). Rotating back to portrait un-maximizes.
-  //    The explicit ⤢ button below is the keyboard/AT/Short path. The listener is removed on
-  //    unmount (= dismiss) so nothing fires when nothing is playing (§9 listener hygiene).
-  //    AC-7 (open-seed sanity): the mount-time seed reads the CURRENT orientation, so a clip
-  //    opened in PORTRAIT opens DOCKED (mq.matches is false in portrait) — only an already-landscape
-  //    open maximizes, and a real rotation maximizes thereafter (unchanged from #120). ──
+  //    There is no custom maximize button — this is the only maximize trigger besides the embed's
+  //    own native-fullscreen button. The listener is removed on unmount (= dismiss) so nothing fires
+  //    when nothing is playing (listener hygiene). Open-seed sanity: the mount-time seed reads the
+  //    CURRENT orientation, so a clip opened in PORTRAIT opens DOCKED (mq.matches is false in
+  //    portrait); only an already-landscape open maximizes, and a real rotation maximizes thereafter. ──
   useEffect(() => {
     if (typeof window === "undefined" || !window.matchMedia) return;
     const mq = window.matchMedia("(orientation: landscape)");
     const apply = (landscape: boolean) => setMaximized(landscape);
-    // Seed from the current orientation (a clip opened already-landscape maximizes; portrait docks).
     apply(mq.matches);
     const onChange = (e: MediaQueryListEvent) => apply(e.matches);
     mq.addEventListener("change", onChange);
     return () => mq.removeEventListener("change", onChange);
   }, []);
 
-  // ── Measured-height report (design §3). The dock observes its own rendered height and reports it
+  // ── Measured-height report (spec §6.4). The dock observes its own rendered height and reports it
   //    (with the current edge) up to TopicView, which reserves EXACTLY that much scroll space at the
-  //    parked edge. A ResizeObserver fires on mount + on every height change (expand/collapse the
-  //    note, swap to a different-aspect clip, park to the other edge), so the spacer tracks the dock
+  //    parked edge. A ResizeObserver fires on mount + on every height change (a reveal open/close, a
+  //    swap to a different-aspect clip, a park to the other edge), so the spacer tracks the dock
   //    live; on dismiss the dock unmounts and TopicView clears the spacer. Maximized is inset-0 and
   //    needs no spacer, so we report 0 while maximized (TopicView drops the spacer then). ──
   useLayoutEffect(() => {
@@ -169,7 +189,7 @@ export function MobilePlayerDock({
     const ro = new ResizeObserver(report);
     ro.observe(el);
     return () => ro.disconnect();
-  }, [onDockMetrics, edge, maximized, expanded, kind, clip, signedIn]);
+  }, [onDockMetrics, edge, maximized, reveal, kind, clip, signedIn]);
 
   function toggleEdge() {
     setEdge((prev) => {
@@ -179,14 +199,11 @@ export function MobilePlayerDock({
     });
   }
 
-  // ── Frame sizing (design §2.2/§2.3, #120 §6.3/§6.4). ──
+  // ── Frame sizing (spec §6.2, #120 §6.3/§6.4). ──
   // Docked: 16:9 fills the full width (aspect-video, ~0.56·VW); 9:16 is height-capped at
-  // min(46vh,380px) so a Short can't tower, centered + letterboxed on black. The 46vh cap (with the
-  // slim title bar + a one-line secondary strip) keeps the whole dock clear of the in-scope 780px
-  // stress viewport with a meaningful article slice (design §2.3/§2.5). The frame is `shrink-0` in
-  // the docked column (the secondary region is the sole scroll area — §2.4), so the frame is never
-  // compressed or clipped.
-  // Maximized: 16:9 fills the full landscape rectangle; 9:16 fills the full height upright,
+  // min(46vh,380px) so a Short can't tower, centered + letterboxed on black. The frame is `shrink-0`
+  // in the docked column (the reveal region is the sole scroll area), so it is never compressed or
+  // clipped. Maximized: 16:9 fills the full landscape rectangle; 9:16 fills the full height upright,
   // centered/letterboxed — both via flex centering inside the inset-0 section.
   const frameClass = maximized
     ? vertical
@@ -198,10 +215,9 @@ export function MobilePlayerDock({
       : "w-full bg-black aspect-video";
 
   const rootStyle: CSSProperties = {
-    // Reserve the safe-area insets so chrome never hides under a notch / home indicator (§6.1).
-    // Docked: pad the parked edge. Maximized (§6.3/§6.4): the condensed Close/Exit bar sits at the
-    // very top/right edge, so pad top + right (and bottom) so it always clears a notch / curved
-    // corner / home indicator in landscape — the safe area applies in BOTH layout modes.
+    // Reserve the safe-area insets so chrome never hides under a notch / home indicator.
+    // Docked: pad the parked edge. Maximized: the condensed Close bar sits at the top/right edge, so
+    // pad top + right (and bottom) so it always clears a notch / curved corner / home indicator.
     paddingTop: maximized
       ? "env(safe-area-inset-top)"
       : edge === "top"
@@ -214,138 +230,39 @@ export function MobilePlayerDock({
       : edge === "bottom"
         ? "env(safe-area-inset-bottom)"
         : undefined,
-    // Docked dock-height CEILING (design §2.6, the corrected bound): the WHOLE dock can never exceed
-    // 88dvh minus the safe-area insets — NOT 100dvh. This guarantees ≥ 12dvh of article always
-    // visible at the un-parked edge, so the dock can never fill the viewport (AC-2). It is a
-    // ceiling, not the normal height: at every in-scope width the content height is far below it, so
-    // the dock sizes to its content; the cap only engages on a pathologically short viewport or a
-    // very long expanded note, and even then the SECONDARY REGION scrolls inside it (the frame +
-    // title bar are `shrink-0` and stay pinned/visible — AC-1). `dvh` tracks the visual viewport as
-    // mobile browser chrome shows/hides, so the dock is never clipped by a retracting URL bar.
-    // Maximized is inset-0, so no cap there.
+    // Docked dock-height CEILING (spec §6.2): the WHOLE dock can never exceed 88dvh minus the
+    // safe-area insets — NOT 100dvh. This guarantees ≥ 12dvh of article always visible at the
+    // un-parked edge. With the slim default it is NON-BINDING (the default dock is far below it); it
+    // only engages when an open reveal's body would exceed the budget, and then the REVEAL REGION
+    // scrolls inside it (the frame + bar are `shrink-0` and stay pinned). `dvh` tracks the visual
+    // viewport as mobile browser chrome shows/hides. Maximized is inset-0, so no cap there.
     maxHeight: maximized
       ? undefined
       : "calc(88dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom))",
   };
 
   const rootClass =
-    // Shared: a fixed layer below modals (z-40 < ModalShell z-50, §9), ink box, 2px ink border,
+    // Shared: a fixed layer below modals (z-40 < ModalShell z-50, spec §8), ink box, 2px ink border,
     // white-on-ink chrome. No backdrop, occupies only its own box (docked) or the whole viewport
-    // (maximized). No offset shadow on mobile (it would clip at the viewport edge). A flex column in
-    // BOTH modes so the title bar + frame stay pinned (shrink-0) and the secondary region scrolls
-    // within the height cap.
+    // (maximized). A flex column in BOTH modes so the frame + bar stay pinned (shrink-0) and the
+    // reveal region scrolls within the height cap.
     "fixed z-40 flex flex-col border-2 border-ink bg-ink text-white" +
     (maximized
-      ? // Maximized: the SAME section grows to fill the viewport (CSS, not native fullscreen).
-        " inset-0"
-      : // Docked: full-width bar pinned to the parked edge.
-        " inset-x-0" + (edge === "top" ? " top-0" : " bottom-0")) +
-    // Reduced-motion-gated dock-in (§9): class only when motion is allowed and not maximized
-    // (a maximize fill has its own short ease; under reduce both are no-ops via globals.css).
+      ? " inset-0"
+      : " inset-x-0" + (edge === "top" ? " top-0" : " bottom-0")) +
     (prefersReduced || maximized ? "" : " pinned-dock-in");
 
-  // ── The slim title bar (shared, design §1.3/§1.4). Frame-first launch: this is the ONLY chrome
-  //    ABOVE the frame — ~56–64px, two clamped text lines (eyebrow+caption / creator credit) on the
-  //    left, and ONE compact horizontal controls row (Maximize · Move · Close), right-aligned, on
-  //    the right. Each control stays a separate focusable <button> with a 44px touch target (the
-  //    inline padding); collapsing them into a row does NOT merge them. PINNED (`shrink-0`) so the
-  //    height cap never scrolls or clips the credit / Move / Maximize / Close off-screen. The
-  //    creator credit lives here, present in EVERY state (collapsed, expanded, top-parked, candidate,
-  //    no-embed) — AC-4. In maximized mode the chrome condenses to a thin Close bar (credit caption;
-  //    park hidden — §6.3/§6.4).
-  //
-  //    NARROW-WIDTH TEXT BUDGET (AC-3/AC-4). Three full-word `shrink-0` controls would consume ~270px
-  //    and starve the `flex-1` text column at 360/390px (the caption truncating to just "＋…", the
-  //    credit dropping "· platform"). So below `sm` (640px — i.e. every in-scope phone width) the
-  //    control WORD is `sr-only`: the glyph shows, the word stays in the accessible name (the
-  //    `aria-label` + the `sr-only` span), so each control is still text-labeled for AT and ≥44px,
-  //    while the caption + the full credit stay legible. At `sm`+ (the < lg tablet, ~834px) and in
-  //    MAXIMIZED mode (the bar has only Exit + Close and full width) the words are restored visibly. ──
-  const showWords = maximized; // visible words at sm+ via `sm:not-sr-only`; always when maximized.
-  const wordClass = showWords
-    ? "ml-1"
-    : "sr-only sm:not-sr-only sm:ml-1";
-  const controlClass =
-    "inline-flex min-h-[44px] min-w-[44px] items-center justify-center px-2 py-1 text-sm font-semibold text-white hover:underline";
-  const titleBar = (
-    <div className="flex shrink-0 items-center gap-2 px-3 py-2">
-      <div className="min-w-0 flex-1">
-        {/* Eyebrow + caption share ONE clamped line to save vertical space (design §1.3.2). */}
-        <p className="line-clamp-1 text-[13px] font-bold leading-snug text-white">
-          <span className="plus-disp mr-1.5 text-[11px] font-bold uppercase tracking-wide text-white/70">
-            ＋plus
-          </span>
-          {clip.caption}
-        </p>
-        {/* CC BY-SA creator credit — present in EVERY state (AC-4). CURATION §5.2. */}
-        <p className="truncate text-[11px] text-white/70">
-          {clip.creator.handle} · {clip.platformLabel}
-        </p>
-      </div>
-      {/* The ONE compact horizontal controls row (design §1.3.1) — right-aligned, vertically
-          centered against the two text lines. Maximize · (Move) · Close, each a separate
-          focusable <button> with a 44px min target. The visible word collapses to the glyph below
-          `sm` so the text column keeps room (the accessible name still carries the word). */}
-      <div className="flex shrink-0 flex-row items-center gap-0.5">
-        {/* Maximize / Exit toggle (§6.5): glyph + accessible WORD, so it is keyboard/AT-reachable and
-            works for a vertical Short with no landscape trigger. Never calls requestFullscreen. */}
-        <button
-          type="button"
-          onClick={() => setMaximized((m) => !m)}
-          aria-label={
-            maximized ? "Exit full-screen video" : "Maximize video to fill the screen"
-          }
-          className={controlClass}
-        >
-          <span aria-hidden>⤢</span>
-          <span className={wordClass}>{maximized ? "Exit" : "Maximize"}</span>
-        </button>
-        {/* Park toggle (§7): names the DESTINATION; glyph + WORD (never glyph/color alone).
-            Hidden in maximized mode (parking is meaningless when the dock is the screen). */}
-        {!maximized && (
-          <button
-            type="button"
-            onClick={toggleEdge}
-            aria-label={
-              edge === "bottom"
-                ? "Move player to top of screen"
-                : "Move player to bottom of screen"
-            }
-            className={controlClass}
-          >
-            <span aria-hidden>{edge === "bottom" ? "⤒" : "⤓"}</span>
-            <span className={wordClass}>
-              {edge === "bottom" ? "Move to top" : "Move to bottom"}
-            </span>
-          </button>
-        )}
-        {/* Close (shared, §5.1): glyph + WORD; tearing it down removes the dock + iframe. */}
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Close video player"
-          className={controlClass}
-        >
-          <span aria-hidden>✕</span>
-          <span className={wordClass}>Close</span>
-        </button>
-      </div>
-    </div>
-  );
-
-  // ── The video frame (shared, design §1.1 the hero / #120 §5.1): black backing; the iframe
-  //    (autoplay) at the orientation-correct size, OR — for a curated clip with no embedUrl — the
-  //    "can't be embedded" message (the secondary region below still renders). iframe attrs reused
-  //    VERBATIM from PlayerModal / PinnedPlayer. `shrink-0` in the docked column so the frame is
-  //    NEVER compressed or scrolled (AC-1). A `data-dock-frame` hook lets the fit e2e measure this
-  //    exact box (AC-9). In maximized mode the frame flexes to fill. ──
+  // ── The video frame (shared, the hero — spec §1/§2): black backing; the iframe (autoplay) at the
+  //    orientation-correct size, OR — for a curated clip with no embedUrl — the "can't be embedded"
+  //    message (the reveals below still work). iframe attrs reused VERBATIM from PlayerModal /
+  //    PinnedPlayer; `allowFullScreen` keeps the embed's OWN native-fullscreen button (spec §5).
+  //    `shrink-0` so the frame is NEVER compressed or scrolled. A `data-dock-frame` hook lets the
+  //    fit e2e measure this exact box. In maximized mode the frame flexes to fill. ──
   const frame = (
     <div
       data-dock-frame
       className={
-        maximized
-          ? "flex flex-1 items-center justify-center bg-black"
-          : "shrink-0"
+        maximized ? "flex flex-1 items-center justify-center bg-black" : "shrink-0"
       }
     >
       <div className={frameClass}>
@@ -366,98 +283,205 @@ export function MobilePlayerDock({
     </div>
   );
 
-  // ── The secondary region (parameterized, design §1.3/§2.4). Frame-first launch: everything that
-  //    is NOT the frame or the title bar lives BELOW the frame here — chips + "Context ▸" (curated)
-  //    or the match reason (candidate), plus the logged-out CTA, plus the expanded note. This is the
-  //    SOLE `overflow-y-auto` area (`flex-1 min-h-0`): when the dock's height ceiling engages, THIS
-  //    is what scrolls — never the frame, never the title bar. At launch its content is short and
-  //    shows in full without scrolling at every in-scope width. Hidden in maximized mode (the reader
-  //    is watching, not reading — §6.3/§6.4); it returns on exit. ──
-  const secondary = !maximized && (
-    <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-2 pt-2">
+  // ── The four-cell control bar (spec §2.1/§2.6) — the WHOLE default chrome. ONE 46px row of four
+  //    equal-width cells, each a real ≥46px `<button>` laid out glyph-above-word: a small plain
+  //    `aria-hidden` glyph stacked over a full WORD (the affordance + accessible name; never
+  //    glyph/color-alone). Order: Close · Move · Curate · See context. `flex-wrap` is the long-locale
+  //    2×2 overflow fallback only (spec §2.5) — at every in-scope English width this is one row. The
+  //    bar is `shrink-0` and the edge-most-after-frame row. Curate / See context are the inline
+  //    expander triggers (aria-expanded / aria-controls). In maximized mode the bar is hidden (the
+  //    video fills the screen); only a thin Close remains reachable. AA: white-on-ink (≈15:1); the
+  //    global :focus-visible ring applies; no gold. ──
+  const cellClass =
+    "flex min-h-[46px] min-w-[46px] flex-1 basis-[46px] flex-col items-center justify-center gap-0.5 px-1 py-1 text-center text-[11px] font-semibold leading-tight text-white hover:bg-white/10";
+  const controlBar = !maximized && (
+    <div className="flex shrink-0 flex-row flex-wrap border-t border-white/15">
+      {/* Close — tears down the dock + iframe (playback stops). */}
+      <button
+        type="button"
+        onClick={onClose}
+        aria-label="Close video player"
+        className={cellClass}
+      >
+        <span aria-hidden className="text-base leading-none">✕</span>
+        <span>Close</span>
+      </button>
+      {/* Move — the park toggle; the WORD names the DESTINATION (spec §2.3). */}
+      <button
+        type="button"
+        onClick={toggleEdge}
+        aria-label={
+          edge === "bottom"
+            ? "Move player to top of screen"
+            : "Move player to bottom of screen"
+        }
+        className={cellClass}
+      >
+        <span aria-hidden className="text-base leading-none">⇅</span>
+        <span>{edge === "bottom" ? "Move to top" : "Move to bottom"}</span>
+      </button>
+      {/* Curate — inline expander revealing the curation directions (spec §3). */}
+      <button
+        type="button"
+        onClick={() => toggleReveal("curate")}
+        aria-expanded={reveal === "curate"}
+        aria-controls={curateId}
+        aria-label="Curate"
+        className={cellClass}
+      >
+        <span aria-hidden className="text-base leading-none">✦</span>
+        <span>Curate</span>
+      </button>
+      {/* See context — inline expander revealing all metadata (spec §4). */}
+      <button
+        type="button"
+        onClick={() => toggleReveal("context")}
+        aria-expanded={reveal === "context"}
+        aria-controls={contextId}
+        aria-label="See context"
+        className={cellClass}
+      >
+        <span aria-hidden className="text-base leading-none">ⓘ</span>
+        <span>See context</span>
+      </button>
+    </div>
+  );
+
+  // ── The Curate reveal (spec §3) — the "act". Reuses the desktop #123 treatment, microcopy, and
+  //    aria-labels verbatim so mobile + desktop read as one family. Candidate signed-in → ✦ Curate
+  //    (brand-primary, leads) + ✕ Not relevant (quiet secondary); candidate logged-out → a single
+  //    ✦ Curate this video CTA, NO dismiss (a logged-out dismiss can't honestly optimistic-hide —
+  //    spec §3.3, desktop #123 State J); curated → the #65 vote/manage slot (placement only — this
+  //    pass renders the existing curated affordance or, absent one, an empty-state line; it does NOT
+  //    build voting). ──
+  const curateBody = (
+    <div className="border-t border-white/15 px-3 pb-3 pt-2">
       {kind === "candidate" ? (
-        <>
-          {/* Candidate: the one-line match reason in place of a note (CURATION §6). */}
-          {clip.matchReason && (
-            <p className="line-clamp-2 text-[12px] leading-snug text-white/80">
-              {clip.matchReason}
-            </p>
-          )}
-          {/* Logged-out: "✦ Curate this video" — solid brand fill, white bold, 2px ink border,
-              44px min target. Routes the playing candidate into the gated curate flow. */}
-          {!signedIn && onCurate && (
+        signedIn && onCurate && onDismiss ? (
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={onCurate}
+              aria-haspopup="dialog"
+              aria-label={`Curate this clip: ${clip.caption}`}
+              className="inline-flex min-h-[44px] flex-1 items-center justify-center border-2 border-ink bg-brand px-3 py-1 text-[13px] font-bold text-white hover:shadow-[2px_2px_0_#2C2C2C]"
+            >
+              <span aria-hidden>✦</span>&nbsp;Curate
+            </button>
+            <button
+              type="button"
+              onClick={onDismiss}
+              aria-label={`Dismiss as not relevant: ${clip.caption}`}
+              className="inline-flex min-h-[44px] items-center justify-center border-2 border-ink bg-white px-3 py-1 text-[13px] font-bold text-ink hover:shadow-[2px_2px_0_#2C2C2C]"
+            >
+              <span aria-hidden>✕</span>&nbsp;Not relevant
+            </button>
+          </div>
+        ) : (
+          // Candidate, logged out: a single gated CTA, no dismiss (spec §3.3).
+          onCurate && (
             <button
               type="button"
               onClick={onCurate}
               aria-haspopup="dialog"
               aria-label="Curate this video — log in to write a context note and vouch for it"
-              className="mt-2 inline-flex min-h-[44px] w-full items-center justify-center border-2 border-ink bg-brand px-3 py-1 text-[13px] font-bold text-white hover:shadow-[2px_2px_0_#2C2C2C]"
+              className="inline-flex min-h-[44px] w-full items-center justify-center border-2 border-ink bg-brand px-3 py-1 text-[13px] font-bold text-white hover:shadow-[2px_2px_0_#2C2C2C]"
             >
               <span aria-hidden>✦</span>&nbsp;Curate this video
             </button>
-          )}
-        </>
+          )
+        )
       ) : (
+        // Curated: the #65 vote/manage "act" slot (placement only — spec §3.4). Voting mechanics are
+        // owned by #65 and out of scope here; render the logged-out join nudge in this slot when
+        // logged out, else an empty-state line so the slot is never blank.
         <>
-          {/* Curated collapsed curation block (§5.3): held marking (if held) → chips →
-              "Context ▸" expander, now BELOW the frame. The credit lives in the title bar (the
-              canonical mobile credit), so the curation block's own credit/avatar is not duplicated. */}
-          {clip.curated?.held && (
-            <p className="mb-2 flex items-center gap-1.5 border-l-[3px] border-white/50 pl-2 text-[10px] font-bold uppercase tracking-wide text-white/80">
-              <span className="sr-only">{HELD_ACCESSIBLE_NAME}</span>
-              <span aria-hidden className="h-1.5 w-1.5 shrink-0 rounded-full bg-white/60" />
-              <span aria-hidden>{HELD_EYEBROW}</span>
-            </p>
-          )}
-          {/* Chips as a compact one-line strip (design §1.3.3): `flex-nowrap` on one line, may
-              scroll horizontally if a held marking + two chips overflow a narrow width (rare); they
-              never stack into multiple rows at launch. */}
-          {clip.curated && (
-            <CurationChips
-              clip={clip.curated}
-              className="flex flex-nowrap gap-1.5 overflow-x-auto"
-            />
-          )}
-          {/* "Context ▸" expander — a real <button>; the WORD "Context" + a rotating caret
-              (shape, never color-alone); aria-expanded/aria-controls carry the state to AT.
-              Rendered only when there is a note to expand to (§5.3 empty-note guard). */}
-          {hasNote && (
-            <button
-              type="button"
-              onClick={() => setExpanded((e) => !e)}
-              aria-expanded={expanded}
-              aria-controls={noteId}
-              className="mt-2 inline-flex items-center text-[12px] font-bold text-white hover:underline"
-            >
-              Context <span aria-hidden className="ml-1">{expanded ? "▾" : "▸"}</span>
-            </button>
-          )}
-          {/* Expanded: the full note panel (light surface) + "context by", scrolling inside its own
-              bounded region so even a long note never grows the dock past its cap. The note panel
-              scrolls within the (already-scrollable) secondary region; the FRAME stays its size and
-              stays fully visible above (it is `shrink-0`), and the title bar stays pinned. */}
-          {hasNote && expanded && clip.curated && (
-            <div
-              id={noteId}
-              className="mt-2 max-h-[min(40vh,320px)] overflow-y-auto border-2 border-ink bg-white p-3 text-left"
-            >
-              <CuratorNote clip={clip.curated} />
-              <CurationContextBy clip={clip.curated} />
-            </div>
-          )}
-          {/* Logged-out curated: the softer topic-level join nudge, now BELOW the frame — white
-              fill, 2px ink border, bold ink text, 44px min target. Routes through the `curate` gate. */}
-          {!signedIn && onJoin && (
+          {!signedIn && onJoin ? (
             <button
               type="button"
               onClick={onJoin}
               aria-haspopup="dialog"
-              className="mt-2 inline-flex min-h-[44px] w-full items-center justify-center border-2 border-ink bg-white px-3 py-1 text-[13px] font-bold text-ink hover:shadow-[2px_2px_0_#2C2C2C]"
+              className="inline-flex min-h-[44px] w-full items-center justify-center border-2 border-ink bg-white px-3 py-1 text-[13px] font-bold text-ink hover:shadow-[2px_2px_0_#2C2C2C]"
             >
               Log in to curate videos for this topic
             </button>
+          ) : (
+            <p className="text-[12px] leading-snug text-white/70">
+              Voting and manage controls appear here.
+            </p>
           )}
         </>
+      )}
+    </div>
+  );
+
+  // ── The See context reveal (spec §4) — ALL metadata. Caption, creator credit (the ONLY place the
+  //    creator appears — spec §4/§9), and the why/note/chips. Candidate → caption · creator · "Why
+  //    suggested" match reason. Curated → caption · creator · held marking (if held) · chips ·
+  //    "Context note" · "Context by @curator". The note panel is bounded so a long note scrolls
+  //    inside the reveal body. The creator credit is a plain reference norm — no "(CC BY-SA)" framing
+  //    (CURATION §5/§5.2). ──
+  const contextBody = (
+    <div className="border-t border-white/15 px-3 pb-3 pt-2 text-left">
+      <p className="text-[13px] font-bold leading-snug text-white">
+        {clip.caption}
+      </p>
+      <p className="mt-0.5 truncate text-[11px] text-white/70">
+        {clip.creator.handle} · {clip.platformLabel}
+      </p>
+      {kind === "candidate" ? (
+        clip.matchReason && (
+          <div className="mt-3">
+            <p className="text-[10px] font-bold uppercase tracking-wide text-white/70">
+              Why suggested
+            </p>
+            <p className="mt-0.5 text-[12px] leading-snug text-white/80">
+              {clip.matchReason}
+            </p>
+          </div>
+        )
+      ) : (
+        curatedClip && (
+          <>
+            {curatedClip.held && (
+              <p className="mt-3 flex items-center gap-1.5 border-l-[3px] border-white/50 pl-2 text-[10px] font-bold uppercase tracking-wide text-white/80">
+                <span className="sr-only">{HELD_ACCESSIBLE_NAME}</span>
+                <span
+                  aria-hidden
+                  className="h-1.5 w-1.5 shrink-0 rounded-full bg-white/60"
+                />
+                <span aria-hidden>{HELD_EYEBROW}</span>
+              </p>
+            )}
+            <CurationChips
+              clip={curatedClip}
+              className="mt-3 flex flex-nowrap gap-1.5 overflow-x-auto"
+            />
+            {hasNote && (
+              <div className="mt-3 max-h-[min(40vh,320px)] overflow-y-auto border-2 border-ink bg-white p-3">
+                <CuratorNote clip={curatedClip} />
+                <CurationContextBy clip={curatedClip} />
+              </div>
+            )}
+          </>
+        )
+      )}
+    </div>
+  );
+
+  // ── The reveal region (spec §0.1) — the SOLE `overflow-y-auto` scroll area (`flex-1 min-h-0`):
+  //    when the dock's height ceiling engages, THIS is what scrolls — never the frame, never the
+  //    bar. It holds the open reveal's body (Curate or See context); the collapsed default has no
+  //    body, so the slim default is frame + bar only. DOM order places each body adjacent to its
+  //    trigger's grammar (Curate before See context) so visual + tab order agree (spec §8). Hidden
+  //    in maximized mode (the reader is watching, not reading); it returns on exit. ──
+  const revealRegion = !maximized && reveal && (
+    <div className="min-h-0 flex-1 overflow-y-auto">
+      {reveal === "curate" && (
+        <div id={curateId}>{curateBody}</div>
+      )}
+      {reveal === "context" && (
+        <div id={contextId}>{contextBody}</div>
       )}
     </div>
   );
@@ -469,13 +493,13 @@ export function MobilePlayerDock({
       style={rootStyle}
       className={rootClass}
     >
-      {/* Fixed flex column. DOCKED order (identical top- and bottom-parked — design §1.1): slim
-          title bar (shrink-0) → frame (shrink-0, the hero) → secondary region (flex-1 min-h-0
-          overflow-y-auto, the sole scroll area). MAXIMIZED: the title bar condenses + the frame
-          flexes to fill; the secondary region is hidden. */}
-      {titleBar}
+      {/* Fixed flex column. DOCKED order (identical top- and bottom-parked — spec §2.2): frame
+          (shrink-0, the hero) → the four-cell control bar (shrink-0) → the reveal region (flex-1
+          min-h-0 overflow-y-auto, the sole scroll area, present only when a reveal is open).
+          MAXIMIZED: the frame flexes to fill; the bar + reveals are hidden. */}
       {frame}
-      {secondary}
+      {controlBar}
+      {revealRegion}
     </section>
   );
 }
