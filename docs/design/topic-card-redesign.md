@@ -8,9 +8,21 @@ Topic card in the homepage's "recently-curated" section · **Phase:** prototype
 - [`docs/design/homepage-recently-curated.md`](homepage-recently-curated.md) (issue #125 / PR #137) —
   the section this card lives **inside**. That spec set the heading/eyebrow/spacing framing **around**
   the grid and explicitly **deferred the card-body redesign to this issue** (its §5.4 / §7). This spec
-  picks up exactly there: it redesigns the **card body**; it does **not** touch the section heading,
-  eyebrow, supporting line, data states' *strings*, recency ordering, or the grid's column behavior —
-  all of which #125 owns and ships.
+  picks up there: it redesigns the **card body** — and, per the mid-build owner feedback folded into
+  this revision (see below), it now **also simplifies the section chrome above the grid** (removing the
+  eyebrow + supporting line, §6.1.1) and **changes the data path to hide zero-curation topics** (§4.1,
+  §6.2). It does **not** touch the `Recently curated` `<h2>`, the section spacing/rule, recency
+  ordering, the loading/empty/read-error state *strings*, or the grid's column behavior — all of which
+  #125 owns and ships.
+
+> **Mid-build owner revision (2026-06-23).** This spec was committed at 33d0b25, then revised to
+> incorporate owner feedback that arrived during the build:
+> 1. **Zero-curation topics are hidden, not labeled** — only topics with **≥1 curated video** appear in
+>    "Recently curated." The card's `videos === 0` handling is demoted from a featured "Not yet curated"
+>    state to a **defensive fallback** (§4.1, §6.2). The data path filters the list.
+> 2. **The section chrome above the cards is stripped** — the `FRESH FROM THE COMMUNITY` eyebrow **and**
+>    the supporting/disclaimer line are removed; only the `Recently curated` `<h2>` remains above the
+>    grid (§6.1.1). This **supersedes `docs/design/homepage-recently-curated.md` §5.1 and §5.2.**
 - [`components/topic/Infobox.tsx`](../../components/topic/Infobox.tsx) — the existing **3-up
   Videos / Creators / Curators** `Stat` grid. **Prior art to reuse / adapt, never fork.**
 - [`docs/VISUAL_IDENTITY.md`](../VISUAL_IDENTITY.md) §2 — the `Wiki | +plus` split: the article/"Wiki"
@@ -22,19 +34,23 @@ Topic card in the homepage's "recently-curated" section · **Phase:** prototype
 **Hands off to:** Development — build the redesigned card in `app/page.tsx` (extract a `TopicCard`
 component if it earns reuse), wired to a per-card `stats`. The **data-delivery decision is Dev's
 discovery** (issue #126 data note) and is recorded in `docs/ARCHITECTURE.md` by Dev — this spec
-designs *as if* `stats` is available per card and specifies **exactly which counts** the card shows
-and **how a zero-curation topic renders** (§4, §6.2). After build, UX evaluates the running cards
-against this spec + the stories (§9).
+designs *as if* `stats` is available per card and specifies **exactly which counts** the card shows.
+Per the owner revision, the **same cheap one-read aggregate that delivers per-card stats also drives
+the list filter** — a topic appears iff it has ≥1 counted clip (§4.1) — so a zero-curation card is
+only ever a defensive fallback, not a designed state (§6.2). After build, UX evaluates the running
+cards against this spec + the stories (§9).
 
 ---
 
 > **What this spec is.** The buildable contract for the **card body** inside the recently-curated
-> grid. It specifies: the persona/story; the card anatomy top-to-bottom (the article-side serif title
-> treatment + the "Wikipedia article" mark decision + the plus-side stat block); **exact microcopy**
-> (stat labels, the singular/plural rule, the zero-curation label string); **every state** (curated /
-> zero-curation / long title / no description / loading / empty / read-error); the article-vs-plus
-> visual coexistence; responsive behavior; accessibility; and **exactly which counts come from where**.
-> It makes a firm recommendation on the two open product calls (§10).
+> grid (plus, per the owner revision, the stripping of the section chrome above the grid — §6.1.1). It
+> specifies: the persona/story; the card anatomy top-to-bottom (the article-side serif title treatment
+> + the "Wikipedia article" mark decision + the plus-side stat block); **exact microcopy** (stat
+> labels, the singular/plural rule); **every state** (curated / long title / no description / loading /
+> empty / read-error, plus the defensive zero-curation fallback); the article-vs-plus visual
+> coexistence; responsive behavior; accessibility; and **exactly which counts come from where** — the
+> aggregate that both populates the stats and **filters out zero-curation topics** (§4.1). It makes a
+> firm recommendation on the one remaining open product call (§10).
 
 ---
 
@@ -56,9 +72,10 @@ about *what kind of thing* a topic is or *how much* curation it carries. She can
 - **TC2 — "how curated is it?"** *As a reader, I want to see **how much plus** a topic carries —
   curated videos, from how many creators, vouched by how many curators — so I can choose the richest
   topic to open without opening each one.* → §3.4 the plus stat block; §4 the counts.
-- **TC3 — "is this one worth my time, or empty?"** *As a reader, I want a **not-yet-curated** topic to
-  say so honestly rather than show a dead row of zeros, so I'm not misled into opening an empty
-  topic — and so the grid still looks alive.* → §6.2 the zero-curation state.
+- **TC3 — "every card here is worth my time."** *As a reader, I want the "recently curated" grid to
+  show **only topics that actually have curation** — never empty ones — so I'm never misled into
+  opening a dead topic and the grid always looks alive.* → §4.1 the data-path filter (zero-curation
+  topics are hidden); §6.2 the defensive fallback if a `videos === 0` item ever reaches the card.
 - **TC4 — "I can open it."** *As a reader, I want the **whole card to be one click/tap/Enter** to the
   topic, with a clear focus ring, so opening a topic is effortless on mouse, touch, and keyboard.* →
   §3.1 (the card is one link), §8 accessibility.
@@ -71,8 +88,9 @@ heavily curated** topics at a glance — the payoff of the recency-ordered grid 
 **Story → AC trace** (feeds Product's criteria; reconcile, don't duplicate): TC1 → "card reads as a
 Wikipedia article (serif title; mark only if it improves clarity)"; TC2 → "card shows curated videos ·
 creators · curators, matching the overview card's derivation, correct at the singular boundary"; TC3 →
-"a zero-curation topic renders sensibly, never broken/empty-looking"; TC4 → "the whole card is a
-keyboard-activable link to the topic; AA contrast + focus + text-labeled stats."
+"the recently-curated grid shows only topics with ≥1 curated video — zero-curation topics never
+appear; if one ever reaches the card it degrades safely, never a 0/0/0 grid"; TC4 → "the whole card is
+a keyboard-activable link to the topic; AA contrast + focus + text-labeled stats."
 
 ---
 
@@ -254,9 +272,26 @@ make the card feel like two stacked boxes). The seam says "article above, its pl
   per-topic stats**; deriving them per card naively = N clip reads. Dev must choose **one cheap read
   for the whole list** (the issue's likely answer: extend the `listTopics()` payload to include the
   derived `stats` per topic, computed DB-side in a single query — e.g. a grouped count join — rather
-  than N round-trips) and record the decision. **This spec designs as if each list item carries a
-  `stats: { videos; creators; curators }`.** If a topic has no clips, the cheap read should yield
-  zeros (or omit `stats`) — see §6.2 for how the card renders that.
+  than N round-trips) and record the decision. **This spec designs as if each surviving list item
+  carries a `stats: { videos; creators; curators }`** (see §4.1 for "surviving").
+
+### 4.1 The list filter — only topics with ≥1 curated video appear (owner decision)
+
+**Topics with zero curated videos do NOT appear in the "Recently curated" section at all.** A topic
+with no curations isn't "recently curated" — so the section shows **only topics where `videos ≥ 1`.**
+
+- **The same cheap one-read aggregate that delivers per-card stats also drives the filter.** Because
+  the aggregate already computes the per-topic curated-clip count (the `videos` stat), the filter is
+  free: a topic is included **iff its counted clip count is ≥ 1.** No second query, no extra read — the
+  `videos === 0` rows are simply excluded from the result (e.g. an `INNER` join / `HAVING count(*) ≥ 1`
+  on the same grouped query, or filtering the materialized result). Dev records the chosen approach in
+  `docs/ARCHITECTURE.md` alongside the delivery decision (§4).
+- **Recency ordering still applies — to the surviving curated topics.** The `updated_at desc, title`
+  ordering (#125 §4) is applied to the filtered set; ordering and filtering compose (filter first, then
+  order, or both in one query). The section still surfaces the freshest *curated* topics first.
+- **The card therefore renders the curated state (§6.5) for every list item it receives.** The
+  `videos === 0` path is no longer a state the section produces — it is only a **defensive fallback**
+  inside the card component (§6.2), so a future data-path regression can never paint a `0/0/0` grid.
 
 ---
 
@@ -266,7 +301,12 @@ make the card feel like two stacked boxes). The seam says "article above, its pl
 |---|---|---|
 | **Article eyebrow (§3.3)** | `WIKIPEDIA ARTICLE` | Displayed all-caps (via CSS `uppercase`); singular always ("article", it labels the card's one article). |
 | **Stat labels (§3.4)** | `Videos` · `Creators` · `Curators` | Authored in title-case, **displayed uppercase** via CSS (matches the Infobox `Stat` labels). The label string is **constant** (it does not switch singular/plural — the label names the *category*; the *number* above it carries count). This matches the Infobox, whose labels are likewise constant `Videos`/`Creators`/`Curators`. |
-| **Zero-curation label (§6.2)** | `Not yet curated` | Sentence case. Replaces the stat grid entirely when the topic has 0 curated videos. See §6.2 for treatment. |
+
+> **No zero-curation label string.** The earlier revision specified a `Not yet curated` label string
+> for `videos === 0`. Per the owner decision, zero-curation topics are **filtered out of the section**
+> (§4.1), so there is no designed empty-stat state and no user-facing string for it. The card's
+> defensive `videos === 0` fallback (§6.2) shows nothing in the stat slot — it is a no-op guard, not a
+> labeled state — so it needs no microcopy.
 
 ### 5.1 The singular boundary — where it applies
 
@@ -279,7 +319,7 @@ accessible name and any prose summary**, where a number and noun are joined into
 
 - **The card's accessible name (§8)** joins counts into a sentence — *there* the rule applies:
   `"Photosynthesis — Wikipedia article. 1 video, 7 creators, 3 curators."` (`1 video`, not `1 videos`;
-  `0 videos` would not occur because a zero-curation card uses the §6.2 label, not "0 videos").
+  `0 videos` does not occur because zero-curation topics are filtered out of the section, §4.1).
 - **Rule for any count+noun phrase:** `n === 1 ? "1 " + singular : n + " " + plural` — `video/videos`,
   `creator/creators`, `curator/curators`. Apply it in the accessible-name builder.
 
@@ -287,54 +327,72 @@ accessible name and any prose summary**, where a number and noun are joined into
 
 ## 6. Every state — exact treatment
 
-The **section-level** states (loading / empty / read-error) are owned and shipped by #125 and render
-**in place of the whole grid** (the section heading is always present). This card redesign changes
-**none of their strings or behavior** — it inherits them verbatim. The **per-card** states (curated /
-zero-curation / long title / no description) are this spec's new work.
+The **section-level** states (loading / empty / read-error) are owned by #125 and render **in place of
+the whole grid** (the `Recently curated` heading is always present). This card redesign changes **none
+of their strings or behavior** — it inherits them verbatim — but it **does strip the section chrome
+above the grid** per the owner revision (§6.1.1). The **per-card** states (curated / long title / no
+description, plus the defensive zero-curation fallback) are this spec's new work.
 
 ### 6.1 Section states — INHERITED from #125, unchanged (do not regress)
 
 | Section state | Condition | Treatment (verbatim from #125 §3.2) |
 |---|---|---|
 | **Loading** | `topics === null` & not `loadError` | `Loading recently curated topics…` — muted helper text (`text-sm text-ink/50`). **No skeleton cards this build** (out of scope; the one-line helper is the shipped behavior). |
-| **Empty** | `topics.length === 0` | `No topics curated yet — be the first by searching for one above.` — muted helper text. |
+| **Empty** | `topics.length === 0` | `No topics curated yet — be the first by searching for one above.` — muted helper text. **With the §4.1 filter, "empty" now legitimately means "no curated topics exist"** (the list returned no topics with `videos ≥ 1`) — the existing #125 string fits this exactly and is **kept verbatim**: it points the reader at the search as the way to curate the first one. |
 | **Read-error** | `loadError` (server read failed) | `Couldn't load topics — please refresh.` — muted helper text. **Verbatim, preserved.** |
 
 Visual harmonization note: these three are single muted lines that sit under the (always-present)
-section heading. They render **before/instead of** any card, so the card redesign cannot regress them.
-No change. (If Dev later wants loading **skeleton cards**, that is a separate enhancement, **not** in
-scope here — keep the one-line helper.)
+`Recently curated` heading. They render **before/instead of** any card, so the card redesign cannot
+regress them. No change to loading or read-error. (If Dev later wants loading **skeleton cards**, that
+is a separate enhancement, **not** in scope here — keep the one-line helper.)
 
-### 6.2 Per-card: ZERO-CURATION topic — DECISION
+### 6.1.1 Section chrome — STRIP the eyebrow + supporting line (owner directive)
 
-A topic can appear in the list with **0 curated clips** (`stats.videos === 0`). The issue flags the
-open call: show a dead row of zeros, or a label?
+**Remove the section eyebrow AND the supporting/disclaimer line; keep ONLY the `Recently curated`
+`<h2>` above the card grid.** Per the owner directive folded into this revision, the section header is
+simplified to the heading alone.
 
-**Decision: replace the stat grid with a single quiet `Not yet curated` label. Do NOT render an
-all-zeros 3-up grid.** Rationale and exact treatment:
+- **Remove the eyebrow device** — the indigo `bg-brand` accent rule + the `FRESH FROM THE COMMUNITY`
+  uppercase tracked text (shipped in `app/page.tsx`, #125 §5.1).
+- **Remove the supporting line** — `The topics most recently curated on wiki+. (Prototype: curations
+  are shared, so everyone sees the same topics and clips.)` (the recency framing + the shared-data
+  disclaimer parenthetical, #125 §3.1 / §5.2).
+- **Keep** the `<h2>Recently curated</h2>` exactly as shipped (`mt-3 text-xl font-bold text-ink
+  sm:text-2xl`), now sitting **alone** above the card grid. The `<section>` spacing/padding, the
+  top rule (`border-t border-ink/15`), and the loading/empty/read-error states are **otherwise
+  unchanged** from #125. The grid simply follows the heading directly (the `mt-6` spacer that preceded
+  the grid stays).
+- **This supersedes `docs/design/homepage-recently-curated.md` §5.1 (the eyebrow) and §5.2 (the
+  supporting line).** Those two sub-sections of the #125 spec no longer describe the shipped UI; this
+  spec is the current authority for the section header. *(The `docs/specs/landing-page.md`
+  reconciliation — its AC7 / heading prose — is a later doc step; flagged here, not done in this
+  spec.)*
+- **Accessibility note:** removing the eyebrow removes a decorative `aria-hidden` rule and one line of
+  text; it changes **no** landmark or heading semantics — the `<h2>` remains the section's labeled
+  heading in the document outline. No a11y regression.
 
-- **Why not zeros:** a `0 / 0 / 0` indigo grid reads as **broken or dead** (TC3) — three big indigo
-  zeros shout "empty" and undercut the "the product is alive" job of the section. It also wastes the
-  card's most valuable real estate on no information.
-- **Why a label:** `Not yet curated` is **honest, scannable, and inviting** — it tells Rosa this topic
-  is an article waiting for curation (a candidate for *her* to curate), turning a dead card into a
-  gentle prompt, while keeping the card visibly a real, openable topic.
-- **Treatment:** in the stat block's place, a single line: `Not yet curated` in
-  `text-xs font-bold uppercase tracking-wide text-ink2`, left-aligned (or centered to match the grid's
-  alignment — Dev's call; left-aligned reads as a status, which is preferred). It sits in the **same
-  vertical slot** the grid would occupy, below the seam (§3.5), so card heights stay consistent across
-  the grid. **No dashed box, no indigo, no zeros.** (This is deliberately quieter than the Infobox's
-  empty "uncurated videos" dashed panel — that panel belongs to the Topic page where curation is the
-  call to action; on a *browse* card the label is enough and a dashed box would add weight.)
-- **The article half is unchanged** in this state — the serif title, the `WIKIPEDIA ARTICLE` eyebrow,
-  and the description all render normally. A zero-curation card is a **fully legitimate article card**;
-  only its plus half says "not yet."
+### 6.2 Per-card: ZERO-CURATION topic — DEFENSIVE FALLBACK (not a designed state)
 
-> **For Product (OQ-B):** UX recommends `Not yet curated` (label) for `videos === 0`, and the 3-up
-> stat grid for `videos ≥ 1`. This matches the issue's own recommendation. The exact string
-> `Not yet curated` is **proposed** — Product/Curation own final voice; an acceptable alternative is
-> `Awaiting curation` or `No videos yet`. The *behavior* (label, never a zero grid) is the firm
-> recommendation regardless of the final string.
+**Owner decision: zero-curation topics are hidden, not labeled.** A topic with `videos === 0` is
+**filtered out of the section** (§4.1) and never reaches the card, so "zero-curation card" is **not a
+state the section produces.** There is no `Not yet curated` label and no all-zeros grid — the section
+simply doesn't include the topic. (This is a deliberate reversal of the earlier revision, which showed
+a `Not yet curated` label; per the owner, a topic with no curations isn't "recently curated.")
+
+This leaves only a **defensive guard in the card component**, demoted to a one-line fallback:
+
+- **The card component must DEFENSIVELY tolerate `videos === 0`** — if a list item with no counted
+  clips ever reaches the card (a data-path bug, a race, a future caller that doesn't filter), the card
+  **must not crash and must not paint a `0/0/0` indigo grid.** Render the article half normally (serif
+  title + `WIKIPEDIA ARTICLE` eyebrow + description + frame) and, in the stat slot, **render nothing**
+  (omit the grid; the seam (§3.5) and stat block collapse, as in the missing-description case §6.4).
+- **It is a no-op guard, not a featured/designed state** — no label string, no dashed box, no zeros,
+  no special copy (§5). It exists only so a filter regression degrades safely rather than shipping a
+  dead-looking grid. In normal operation it never fires, because the data path filters `videos ≥ 1`.
+- **Why not keep a visible label as a backstop?** Because the section's contract is now "only curated
+  topics here" (TC3) — a visible "Not yet curated" card inside "Recently curated" would contradict
+  that contract and confuse the reader. If the guard ever fires, showing the article card *without* a
+  stat block is the least-wrong degradation: still a real, openable topic, no misleading zeros.
 
 ### 6.3 Per-card: LONG TITLE
 
@@ -399,10 +457,12 @@ The two voices are kept legible and unconfused by **separation, not contrast esc
   scanning the grid should hear a complete, useful phrase, not "Photosynthesis, link" followed by
   three bare numbers and three labels. Give the `<Link>` an `aria-label` built from the title + the
   article mark + the counts, applying the §5.1 singular rule:
-  - **Curated:** `"{title} — Wikipedia article. {v} {video|videos}, {c} {creator|creators}, {k}
-    {curator|curators}."` e.g. `"Photosynthesis — Wikipedia article. 12 videos, 7 creators, 3
-    curators."`
-  - **Zero-curation:** `"{title} — Wikipedia article. Not yet curated."`
+  - **Curated (the only state the section produces):** `"{title} — Wikipedia article. {v}
+    {video|videos}, {c} {creator|creators}, {k} {curator|curators}."` e.g. `"Photosynthesis —
+    Wikipedia article. 12 videos, 7 creators, 3 curators."`
+  - **Defensive `videos === 0` fallback (§6.2):** the stat clause is omitted — the accessible name is
+    just `"{title} — Wikipedia article."` (no "0 videos" phrase, consistent with rendering no stat
+    block). This path does not occur in normal operation (zero-curation topics are filtered out, §4.1).
   - With the `aria-label` set on the link, mark the **decorative numerals and labels inside** so AT
     doesn't double-read them — either set `aria-hidden` on the visual stat grid (the `aria-label`
     already conveys the counts), or omit the `aria-label` and instead ensure each stat cell reads as
@@ -411,16 +471,16 @@ The two voices are kept legible and unconfused by **separation, not contrast esc
     the singular boundary is correct in speech. (The visible labels remain on screen for sighted
     users; only their *redundant* AT reading is suppressed.)
 - **Text-labeled signals, never number/color alone (issue "Done when").** Every numeral has its word
-  label on screen (`Videos`/`Creators`/`Curators`); the zero state is the **word** `Not yet curated`,
-  not a color or an empty grid. Indigo is decorative emphasis on the numerals, never the sole carrier
-  of meaning.
+  label on screen (`Videos`/`Creators`/`Curators`). There is no color-coded zero state — zero-curation
+  topics are filtered out (§4.1); the defensive fallback (§6.2) shows no stat block at all. Indigo is
+  decorative emphasis on the numerals, never the sole carrier of meaning.
 - **Contrast (AA).** Title `text-ink` (`#2C2C2C`) on white ≈ 13:1 — passes. Article eyebrow + stat
   labels `text-ink2` (`#595959`) on white ≈ 7:1 at small bold — passes. **Description must use
   `text-ink2` (`#595959`), not the current `text-ink/60`** — `ink` at 60% opacity on white drops to
   ≈ 4.0:1, **below** AA for normal text; `text-ink2` at `text-sm` clears AA. The stat numerals are
-  `text-brand` (`#676EB4`) on white ≈ 4.6:1 — passes AA for the large/bold `text-xl`+ bignum. The
-  `Not yet curated` label is `text-ink2` (passes). **No essential text on the card uses a faint
-  opacity tint.**
+  `text-brand` (`#676EB4`) on white ≈ 4.6:1 — passes AA for the large/bold `text-xl`+ bignum. (The
+  defensive `videos === 0` fallback shows no stat block, so there is no zero-state text to contrast.)
+  **No essential text on the card uses a faint opacity tint.**
 - **Touch target.** The whole card is the tap target (comfortably ≥ 44px tall on every breakpoint —
   the title + stat block guarantee height), so the link meets the touch-target minimum without a
   dedicated button.
@@ -448,7 +508,10 @@ unchanged). The card's internals scale across breakpoints:
 
 ---
 
-## 10. Recommendations on the two open product calls (summary)
+## 10. Recommendations on the open product calls (summary)
+
+*OQ-A remains open (UX recommends; Product confirms). OQ-B is now **resolved by the owner** — recorded
+below for the trace.*
 
 - **OQ-A — the "Wikipedia article" mark (§3.3).** **Recommend: a tiny `WIKIPEDIA ARTICLE` text
   eyebrow; no icon/logo.** The serif title leads; the two-word eyebrow makes the article identity
@@ -456,28 +519,34 @@ unchanged). The card's internals scale across breakpoints:
   word-labeled plus half). A Wikipedia logo is rejected (trademark, clutter, off the project's
   text-labeled-signals discipline). If Product wants the absolute cleanest card, the eyebrow is the
   single most droppable element (the serif still carries TC1 ambiently) — but UX recommends keeping it.
-- **OQ-B — the zero-curation display (§6.2).** **Recommend: a quiet `Not yet curated` label in place
-  of the stat grid when `videos === 0`; never an all-zeros 3-up grid.** The article half renders
-  normally. This matches the issue's own recommendation and protects TC3 (no dead-looking cards). The
-  exact string is Product/Curation's to finalize; the behavior is the firm call.
+- **OQ-B — the zero-curation display (§6.2) — RESOLVED by the owner.** The open call (label vs. zeros)
+  is **closed**: zero-curation topics are **hidden from the section entirely** (§4.1), not labeled.
+  Only topics with `videos ≥ 1` appear. The card retains a defensive `videos === 0` guard (render the
+  article half, no stat block) but it is not a user-facing state. This is the owner's decision, folded
+  into this revision; no further Product call is needed here.
 
 ---
 
 ## 11. Assumptions flagged for Product
 
-- **A1 — `stats` is delivered per card by one cheap read (Dev's discovery, recorded in
-  `docs/ARCHITECTURE.md`).** This spec designs as if every list item carries
-  `stats: { videos; creators; curators }` derived identically to the overview card. If Dev's discovery
-  finds the cheap one-read path is genuinely infeasible for the prototype, the **fallback that still
-  ships the article-identity redesign** is: render the serif title + `WIKIPEDIA ARTICLE` eyebrow +
-  description + frame (TC1, the article half) and **omit the stat block** (treat every card as the §6.2
-  no-stats state) rather than do N reads. UX's strong preference is the cheap-read path so TC2 ships;
-  the fallback exists only so a data dead-end doesn't block the article-identity win. Flagged for
-  Product to confirm the cheap read is in scope for this build (the issue says it is).
+- **A1 — `stats` is delivered per card by one cheap read that ALSO filters the list (Dev's discovery,
+  recorded in `docs/ARCHITECTURE.md`).** This spec designs as if every list item carries
+  `stats: { videos; creators; curators }` derived identically to the overview card, and as if the same
+  aggregate excludes `videos === 0` topics (§4.1). The filter is part of the cheap read, not a separate
+  pass. If Dev's discovery finds the cheap one-read path is genuinely infeasible for the prototype, the
+  **fallback that still ships the article-identity redesign** is: render the serif title + `WIKIPEDIA
+  ARTICLE` eyebrow + description + frame (TC1, the article half) and **omit the stat block** rather
+  than do N reads — but note that the no-stats fallback **cannot also implement the §4.1 filter** (no
+  counts → no filter), so under that fallback the section would show all topics without stats; this is
+  a degraded path only, flagged for Product. UX's strong preference is the cheap-read path so TC2 ships
+  *and* the filter applies. Flagged for Product to confirm the cheap read is in scope (the issue says
+  it is).
 - **A2 — seed-data stats may be uniform/low.** As with #125's recency note, seeded topics may carry
   small or similar clip counts, so the stat grid won't dramatically vary across seed cards until real
-  curation accrues. Expected and acceptable; flagged so a post-build screenshot of seed data (small
-  numbers, possibly several `Not yet curated` cards) isn't mistaken for a bug.
+  curation accrues. Additionally, **with the §4.1 filter, any seed topics with zero curated clips will
+  not appear at all** — the visible grid may be shorter than the total seeded topic count. Expected and
+  acceptable; flagged so a post-build screenshot showing fewer cards than total topics (small numbers,
+  zero-curation topics absent) isn't mistaken for a bug.
 - **A3 — QID removal from the card (§3.6).** The redesign **stops displaying the raw `t.qid`** on the
   card (it was developer-facing and mis-colored). The QID remains the canonical key in data and the
   URL. Flagged because #125 explicitly *preserved* the QID span; this spec deliberately changes it as
@@ -510,11 +579,18 @@ component if it earns reuse):**
    tracking-wide text-ink2`, order **Videos · Creators · Curators**, wired to `stats.videos /
    .creators / .curators`. **Reuse the Infobox `Stat` primitive at a smaller size — one stat primitive,
    two sizes; do NOT fork its visual tokens** (§3.4).
-8. **Zero-curation (`videos === 0`):** render `Not yet curated` (`text-xs font-bold uppercase
-   tracking-wide text-ink2`) in the stat block's slot instead of the grid (§6.2). Article half
-   unchanged.
+8. **Zero-curation (`videos === 0`) — defensive fallback only (§6.2):** the data path filters these
+   topics out (item 10b), so this never fires in normal operation. The card component must still guard
+   it: if a `videos === 0` item reaches the card, render the article half normally and **omit the stat
+   block** (no grid, no label, no zeros) — collapse the seam as in the missing-description case. **Do
+   NOT render a `Not yet curated` label or a `0/0/0` grid.**
 9. **Accessible name:** compose the link's `aria-label` per §8 (singular rule from §5.1) and
-   `aria-hidden` the visual stat grid so counts aren't double-read.
+   `aria-hidden` the visual stat grid so counts aren't double-read. The defensive `videos === 0` path
+   omits the stat clause (just `"{title} — Wikipedia article."`).
+9a. **Strip the section chrome (§6.1.1):** remove the `FRESH FROM THE COMMUNITY` eyebrow device (the
+   indigo `bg-brand` rule + its text) **and** the supporting/disclaimer line, leaving the
+   `<h2>Recently curated</h2>` alone above the grid. Keep the heading's classes, the `<section>`
+   spacing/`border-t`, the `mt-6` grid spacer, and the loading/empty/read-error states unchanged.
 
 **Wire (Dev's discovery — record in `docs/ARCHITECTURE.md`):**
 
@@ -522,11 +598,18 @@ component if it earns reuse):**
     list (likely: extend `listTopics()` with DB-side derived counts in a single grouped query),
     matching `deriveStats`' derivation. **Reuse `deriveStats`' derivation semantics; do not change
     them.** Record the chosen path in ARCHITECTURE (§4, A1).
+10b. **Filter the list to `videos ≥ 1` using that same aggregate (§4.1):** the cheap read that computes
+    the per-topic `videos` count **also excludes zero-curation topics** (e.g. `INNER` join /
+    `HAVING count ≥ 1`), so the section shows only curated topics. No second query. Apply the recency
+    ordering (#125 §4) to the filtered set. Record this filter alongside the delivery decision in
+    ARCHITECTURE.
 
 **Leave untouched (boundaries):**
 
-11. **The section heading / eyebrow / supporting line / recency ordering / the three section-level
-    state strings** — all owned and shipped by #125; do not edit (§6.1).
+11. **The `<h2>Recently curated</h2>` heading, the section spacing/`border-t`, recency ordering, and
+    the three section-level state strings** — owned and shipped by #125; do not edit (§6.1). **Note:
+    the eyebrow + supporting line ARE removed this build (§6.1.1 / item 9a)** — that is the one piece
+    of #125's section chrome this revision changes; everything else in #125's section framing stays.
 12. **The Topic page's own Infobox / overview card** — *reuse* its `Stat` language; do not redesign it.
 13. **`deriveStats` logic, the search, the hero, the projector header** — unchanged / out of scope.
 14. **No** upvotes, freshness badges, thumbnails, per-card "curated N ago", or skeleton cards (all out
@@ -536,13 +619,18 @@ component if it earns reuse):**
 UI screenshot baseline (`docs/design/ui-screenshots/`) in the same PR. The relevant catalog scene is
 **`home`** (group "Home", `fullPage`) — captured at mobile/tablet/desktop, logged-out and logged-in.
 Use `scripts/dev/shots.sh --scene home --commit ui` for the partial refresh (or `--group "Home"` if
-`home-header` framing shifts). Verify the populated (curated) cards, a `Not yet curated` card, a long
-title, and a no-description card all appear in the captured grid (seed data permitting — A2); if the
-seed lacks a zero-curation topic, note it for the UX evaluation rather than forcing one.
+`home-header` framing shifts). Verify the captured grid shows the **stripped section header**
+(`Recently curated` heading alone — no eyebrow, no supporting line, §6.1.1), the populated (curated)
+cards, a long title, and a no-description card (seed data permitting — A2). **There should be NO
+zero-curation cards in the grid** — they are filtered out (§4.1); confirm the count of visible cards
+matches the count of seeded topics that have ≥1 curated clip, and note any discrepancy for the UX
+evaluation rather than treating a shorter grid as a bug.
 
 ---
 
 *This spec is the input to Development for issue #126. After build, UX evaluates the running cards
 against §1's stories and this spec (serif article identity reads at a glance; the 3-up stats match the
-overview card and the singular boundary; the zero-curation label; the a11y model — composed accessible
-name, focus ring, AA contrast), distinct from QA's correctness/security pass.*
+overview card and the singular boundary; **only curated topics appear** — no zero-curation cards, §4.1;
+**the section header is the `Recently curated` heading alone** — no eyebrow, no supporting line,
+§6.1.1; the a11y model — composed accessible name, focus ring, AA contrast), distinct from QA's
+correctness/security pass.*
