@@ -18,7 +18,7 @@ export const dynamicParams = true;
 
 export default function ContributorPage() {
   return (
-    <Suspense fallback={<p className="px-5 py-10 text-sm text-ink/50">Loading…</p>}>
+    <Suspense fallback={<p className="px-5 py-10 text-sm text-ink-plus/50">Loading…</p>}>
       <ProfileView />
     </Suspense>
   );

@@ -197,9 +197,9 @@ function ZineBlock({ lit, uid }: { lit: boolean; uid: string }) {
           <feGaussianBlur stdDeviation="0.85" />
         </filter>
       </defs>
-      {/* Hard offset shadow arms (the .plus-card hard black drop shadow). */}
-      <rect x={6} y={BH} width={bw} height={6} fill="#2C2C2C" />
-      <rect x={bw} y={6} width={6} height={BH} fill="#2C2C2C" />
+      {/* Hard offset shadow arms (the .plus-card hard offset drop shadow). */}
+      <rect x={6} y={BH} width={bw} height={6} fill="var(--color-hardbox-offset)" />
+      <rect x={bw} y={6} width={6} height={BH} fill="var(--color-hardbox-offset)" />
       {lit ? (
         <>
           {/* Even-odd knockout: indigo block with the "+" cut OUT. The cut is left TRANSPARENT —
@@ -235,7 +235,7 @@ function ZineBlock({ lit, uid }: { lit: boolean; uid: string }) {
         </>
       )}
       {/* 2px ink border (matches .plus-card exactly). */}
-      <rect x={1} y={1} width={bw - 2} height={BH - 2} fill="none" stroke="#2C2C2C" strokeWidth={2} />
+      <rect x={1} y={1} width={bw - 2} height={BH - 2} fill="none" stroke="var(--color-hardbox)" strokeWidth={2} />
       <text
         x={cutCx + ARM_B + 13}
         y={cy + 1}
@@ -444,7 +444,10 @@ function Lockup({
         ref={wikiRef}
         aria-hidden="true"
         className="projector-serif relative whitespace-nowrap"
-        style={{ fontWeight: 600, fontSize: FS, color: "#1b1b1b" }}
+        // The serif "Wiki" ink is the faithful Wikipedia black on the light skin; a skin re-points it
+        // via --wordmark-wiki-ink (zine-dark → a light ink on the dark band, spec §6.1). The literal
+        // fallback keeps the light render byte-identical when no skin is set.
+        style={{ fontWeight: 600, fontSize: FS, color: "var(--wordmark-wiki-ink, #1b1b1b)" }}
       >
         Wiki
       </span>
@@ -901,7 +904,7 @@ export function GlyphTile() {
   const plus = plusPath(s / 2, s / 2, 4, 9);
   return (
     <svg width={s} height={s} viewBox={`0 0 ${s} ${s}`} aria-hidden="true" style={{ display: "block" }}>
-      <rect x={1} y={1} width={s - 2} height={s - 2} fill="#676EB4" stroke="#2C2C2C" strokeWidth={2} />
+      <rect x={1} y={1} width={s - 2} height={s - 2} fill="#676EB4" stroke="var(--color-hardbox)" strokeWidth={2} />
       <path d={plus} fill="#ffffff" />
     </svg>
   );

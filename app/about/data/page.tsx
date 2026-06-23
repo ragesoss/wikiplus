@@ -28,69 +28,69 @@ export default function AboutDataPage() {
     <>
       <SiteHeader host="page" auth={<AuthControl variant="home" />} />
       <main className="mx-auto max-w-[640px] px-4 py-8">
-        <h1 className="text-2xl font-semibold text-ink sm:text-3xl">About your data</h1>
+        <h1 className="text-2xl font-semibold text-ink-plus sm:text-3xl">About your data</h1>
 
         <p className="mt-4 text-[0.95rem] leading-relaxed text-ink2">
           wiki+ is a prototype — a curation layer that sits alongside Wikipedia. This page
           plainly describes what the prototype stores about you and what it doesn&apos;t. It is{" "}
-          <strong className="font-semibold text-ink">not</strong> a legal privacy policy or terms
+          <strong className="font-semibold text-ink-plus">not</strong> a legal privacy policy or terms
           of service, and it doesn&apos;t offer data-export or account-deletion requests; if wiki+
           grows into a full service, a proper privacy policy will come with it.
         </p>
 
-        <h2 className="mt-8 text-lg font-semibold text-ink sm:text-xl">Reading is anonymous</h2>
+        <h2 className="mt-8 text-lg font-semibold text-ink-plus sm:text-xl">Reading is anonymous</h2>
         <p className="mt-3 text-[0.95rem] leading-relaxed text-ink2">
           You can browse topics, read the Wikipedia articles, search, and watch the curated videos{" "}
-          <strong className="font-semibold text-ink">without logging in</strong>. Reading stores no
+          <strong className="font-semibold text-ink-plus">without logging in</strong>. Reading stores no
           identity about you and sets no login cookie. The article text is fetched straight from
           Wikipedia as you read it.
         </p>
 
-        <h2 className="mt-8 text-lg font-semibold text-ink sm:text-xl">
+        <h2 className="mt-8 text-lg font-semibold text-ink-plus sm:text-xl">
           What logging in and contributing stores
         </h2>
         <p className="mt-3 text-[0.95rem] leading-relaxed text-ink2">
           You only log in when you want to{" "}
-          <strong className="font-semibold text-ink">contribute</strong> — add a clip, write a
+          <strong className="font-semibold text-ink-plus">contribute</strong> — add a clip, write a
           context note, upvote, or rule a suggestion out. Logging in uses your{" "}
-          <strong className="font-semibold text-ink">Wikimedia account</strong> (the same one you
+          <strong className="font-semibold text-ink-plus">Wikimedia account</strong> (the same one you
           use to edit Wikipedia); wiki+ never sees or stores a password. When you log in and
           contribute, wiki+ stores:
         </p>
         <ul className="mt-3 list-disc space-y-3 pl-6 text-[0.95rem] leading-relaxed text-ink2">
           <li>
-            <strong className="font-semibold text-ink">A link to your Wikimedia account</strong> — a
+            <strong className="font-semibold text-ink-plus">A link to your Wikimedia account</strong> — a
             stable account identifier and the profile details Wikimedia shares (your username, and
             your name, email, and avatar if you&apos;ve made them available), so we can recognize you
             on your next visit and credit your work.
           </li>
           <li>
-            <strong className="font-semibold text-ink">A session cookie</strong> — a signed cookie
+            <strong className="font-semibold text-ink-plus">A session cookie</strong> — a signed cookie
             in your browser that keeps you logged in. There is no server-side session record;
             signing out clears it.
           </li>
           <li>
-            <strong className="font-semibold text-ink">Your curation contributions</strong> — the
+            <strong className="font-semibold text-ink-plus">Your curation contributions</strong> — the
             clips and context notes you publish, the curation actions you take (such as upvotes and
             ruled-out suggestions), and any reviewer role you may be granted. Your published clips
             and notes are credited to your username.
           </li>
         </ul>
 
-        <h2 className="mt-8 text-lg font-semibold text-ink sm:text-xl">
+        <h2 className="mt-8 text-lg font-semibold text-ink-plus sm:text-xl">
           What&apos;s public, and what&apos;s never shown
         </h2>
         <p className="mt-3 text-[0.95rem] leading-relaxed text-ink2">
-          <strong className="font-semibold text-ink">Public:</strong> your Wikimedia{" "}
-          <strong className="font-semibold text-ink">username</strong>, your{" "}
-          <strong className="font-semibold text-ink">avatar</strong> (if Wikimedia shares one), and
-          the <strong className="font-semibold text-ink">clips and context notes</strong> you
+          <strong className="font-semibold text-ink-plus">Public:</strong> your Wikimedia{" "}
+          <strong className="font-semibold text-ink-plus">username</strong>, your{" "}
+          <strong className="font-semibold text-ink-plus">avatar</strong> (if Wikimedia shares one), and
+          the <strong className="font-semibold text-ink-plus">clips and context notes</strong> you
           publish — these appear on your contributor page and on the topics you curate, credited to
           you.
         </p>
         <p className="mt-3 text-[0.95rem] leading-relaxed text-ink2">
-          <strong className="font-semibold text-ink">Never shown publicly:</strong> your{" "}
-          <strong className="font-semibold text-ink">
+          <strong className="font-semibold text-ink-plus">Never shown publicly:</strong> your{" "}
+          <strong className="font-semibold text-ink-plus">
             email is never displayed anywhere on wiki+
           </strong>
           , and neither are the other private details from your account. Which videos you upvoted or

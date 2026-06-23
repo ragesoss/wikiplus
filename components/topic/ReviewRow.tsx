@@ -57,7 +57,7 @@ export function ReviewRow({
   const pad = rail ? "px-2.5 py-1" : "px-2 py-1";
   const gap = rail ? "gap-2" : "gap-1.5";
   const wrap = rail
-    ? "mt-2 flex flex-wrap gap-2 border-t border-ink/15 pt-2"
+    ? "mt-2 flex flex-wrap gap-2 border-t border-hardbox/15 pt-2"
     : "mt-1.5 flex flex-wrap gap-1.5";
 
   return (
@@ -68,7 +68,7 @@ export function ReviewRow({
           disabled={inFlight}
           onClick={() => onHold?.(clip)}
           aria-label={`Hold for review: ${clip.caption}`}
-          className={`border-2 border-ink bg-white ${pad} ${text} font-bold text-ink hover:shadow-[2px_2px_0_#2C2C2C] disabled:opacity-60`}
+          className={`border-2 border-hardbox bg-surface-raised ${pad} ${text} font-bold text-ink-plus hover:shadow-[2px_2px_0_var(--color-hardbox-offset)] disabled:opacity-60`}
         >
           {inFlight ? "Holding…" : "Hold for review"}
         </button>
@@ -79,7 +79,7 @@ export function ReviewRow({
           disabled={inFlight}
           onClick={() => onApprove?.(clip)}
           aria-label={`Approve this clip: ${clip.caption}`}
-          className={`border-2 border-action bg-action ${pad} ${text} font-bold text-white hover:shadow-[2px_2px_0_#2C2C2C] disabled:opacity-60`}
+          className={`border-2 border-action bg-action ${pad} ${text} font-bold text-white hover:shadow-[2px_2px_0_var(--color-hardbox-offset)] disabled:opacity-60`}
         >
           {inFlight ? "Approving…" : "Approve"}
         </button>
@@ -89,7 +89,7 @@ export function ReviewRow({
           type="button"
           onClick={() => onRemove?.(clip)}
           aria-label={`Remove this clip (moderator action): ${clip.caption}`}
-          className={`border-2 border-accred bg-white ${pad} ${text} font-bold text-accred hover:bg-accred hover:text-white`}
+          className={`border-2 border-accred bg-surface-raised ${pad} ${text} font-bold text-accred hover:bg-accred hover:text-white`}
         >
           Remove (moderator)
         </button>

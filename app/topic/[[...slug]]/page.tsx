@@ -35,7 +35,7 @@ export const dynamicParams = true;
 
 export default function TopicPage() {
   return (
-    <Suspense fallback={<p className="text-sm text-ink/50">Loading…</p>}>
+    <Suspense fallback={<p className="text-sm text-ink-plus/50">Loading…</p>}>
       <TopicView />
     </Suspense>
   );

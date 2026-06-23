@@ -63,7 +63,7 @@ export function EditModal({
           );
         }}
       >
-        <div className="flex items-center justify-between border-b-2 border-ink bg-brand px-3 py-2 text-white">
+        <div className="flex items-center justify-between border-b-2 border-hardbox bg-brand px-3 py-2 text-white">
           <h2 id={titleId} className="plus-disp text-lg font-bold">
             Edit curation
           </h2>
@@ -80,8 +80,8 @@ export function EditModal({
           {/* Read-only clip summary (§6.1): the curated clip's caption + creator/platform —
               NO "auto-suggested" line (this is a curated clip). The media/creator identity is
               NOT editable (Decision 2). */}
-          <div className="border-l-4 border-brand bg-bg2 px-3 py-2">
-            <p className="text-[13px] font-bold text-ink">{clip.caption}</p>
+          <div className="border-l-4 border-brand bg-surface-2 px-3 py-2">
+            <p className="text-[13px] font-bold text-ink-plus">{clip.caption}</p>
             <p className="text-[11px] text-ink2">
               Your curation · {clip.creator.name} · {clip.platformLabel}
             </p>

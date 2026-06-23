@@ -18,6 +18,61 @@
   --color-wikirule: #a2a9b1;
   --color-wikilink: #3366cc;
 
+  /* ── Skin role tokens (docs/design/skin-system-zine-dark.md). ──────────────────────────────────
+     The seam between the default LIGHT zine and an alternate skin (zine-dark). A skin re-points
+     these role tokens (and the `--article-*` group below) under its `[data-skin]` scope; the LIGHT
+     values here are byte-identical to the literals they replace, so the default render is unchanged
+     (spec §9). Geometry/layout/copy/behavior are NOT skinnable (spec §2.2) — only these colours.
+
+     Two ink roles split the formerly-overloaded `--color-ink` (spec §3): `--ink-plus*` is the plus
+     (Indigo Press) chrome ink AND the structural hardbox ink; `--ink-article` is the faithful
+     Wikipedia body ink, governed by the `--article-*` group so the article side stays faithful on
+     either skin. Utilities `text-ink-plus` / `border-hardbox` / `bg-surface*` etc. are generated
+     from these. */
+  --color-ink-plus: #2c2c2c; /* plus body/heading ink (light = --color-ink) */
+  --color-ink-plus-2: #595959; /* secondary plus ink (light = --color-ink2) */
+  --color-ink-plus-muted: #717171; /* muted plus ink — timestamps, lead-ins (light = --color-muted) */
+  --color-surface: #f7f7f7; /* plus page field (the body background; light = --color-body-grey) */
+  --color-surface-2: #f0f1f3; /* recessed panel / secondary fill (light = --color-bg2) */
+  --color-surface-raised: #ffffff; /* the hardbox card fill (.plus-card, modals, chip backdrop) */
+  --color-hardbox: #2c2c2c; /* the 2px hardbox BORDER (light = --color-ink) */
+  --color-hardbox-offset: #2c2c2c; /* the solid OFFSET shadow (light = --color-ink; spec §4.2 splits
+     this from the border on dark — a light border + a near-black offset on the dark field) */
+  --color-emptyrule: #d9d9d9; /* the soft dashed rule on the empty-state overview panel */
+
+  /* Accent ROLES (spec §4.3). Light = the existing brand hues; the dark skin lifts them so they
+     stay AA as text/glyph on a dark field. `--color-accent-brand-fill` is the indigo FILL used by
+     active-glow / the stance chip / the wordmark "+plus" block — it keeps the brand hex on BOTH
+     skins (the committed AA-large white-on-indigo exemption, VI §7.2 / spec §4.3). */
+  --color-accent-brand: #676eb4; /* indigo as text/glyph (light = --color-brand) */
+  --color-accent-brand-fill: #676eb4; /* indigo FILL (active-glow, stance chip, +plus block) */
+  --color-accent-sprout: #2a8270; /* teal accent as text/glyph (light = --color-sprout) */
+  --color-accent-action: #1f6f95; /* action blue as text/glyph (light = --color-action) */
+  --color-accent-violet: #5248af; /* deep-violet (light = --color-violet) */
+  --color-accent-red: #b0353b; /* AA-safe red as text/glyph (light = --color-accred) */
+  --color-focus-ring: #676eb4; /* the global :focus-visible ring (light = --color-brand) */
+
+  /* Hatch stripe colour for the candidate thumbnail overlay (.candthumb) — a translucent INK so the
+     hatch reads on the candidate image on either skin (spec §7.1: light-ink stripe on dark). */
+  --candthumb-stripe: rgba(44, 44, 44, 0.1);
+
+  /* ── Faithful Wikipedia article palette (spec §5). Its OWN role group so the article side is
+     governed independently of the plus palette (article ink ≠ plus ink, spec §3). LIGHT values
+     equal the literals the `.wiki-*` rules use today; the dark skin re-points them to MediaWiki's
+     own faithful dark-mode palette (spec §5) so the column reads as Wikipedia dark mode. */
+  --color-ink-article: #2c2c2c; /* article body ink (light = --color-ink) */
+  --article-bg: #ffffff; /* article page field / unstyled-table fill */
+  --article-ink-strong: #1b1b1b; /* serif headings + wiki-title */
+  --article-ink-muted: #54595d; /* figure captions, infobox sub-rows */
+  --article-ink-credit: #72777d; /* the smaller figure credit line */
+  --article-link: #3366cc; /* wikilink blue (light = --color-wikilink) */
+  --article-rule: #a2a9b1; /* heading hairline + table/cell + popover border (light = --color-wikirule) */
+  --article-th-bg: #eaecf0; /* table-header + infobox banner grey */
+  --article-box-bg: #f8f9fa; /* infobox / figure / citation-popover frame fill */
+  --article-target-flash: #fdf3d8; /* citation target flash */
+  --article-popover-shadow: rgba(0, 0, 0, 0.16); /* the citation popover drop shadow */
+  --article-active-wash: #eef0fb; /* the active-section heading wash (left-edge gradient) */
+
   /* ── Daylight Projector wordmark tokens (#15; VISUAL_IDENTITY §4.2, design §5.3). ──
      Gold here is the LIGHTER, DESATURATED daylight gold — NOT the forbidden brand gold
      #E5AB28, and never a functional/state color (it lives only in the wordmark). */
@@ -98,7 +153,7 @@
 }
 
 body {
-  @apply bg-[#F7F7F7] text-ink antialiased;
+  @apply bg-surface text-ink-plus antialiased;
   font-family: "Open Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI",
     Roboto, Helvetica, Arial, sans-serif;
 }
@@ -282,7 +337,10 @@ html:has(header.header-shared) {
     var(--color-body-grey) calc(var(--p, 0) * 50%)
   );
   background-color: var(--beam-seam-surface);
-  border-bottom: 2px solid rgb(44 44 44 / var(--border-opacity, 0));
+  /* The 2px chrome rule uses the hardbox ink so it is a dark line on the light band and a LIGHT line
+     on the dark band (spec §6.1), fading in on scroll via --border-opacity exactly as today. */
+  border-bottom: 2px solid
+    color-mix(in srgb, var(--color-hardbox) calc(var(--border-opacity, 0) * 100%), transparent);
 }
 
 /* #96 fix round — kill the header/page temperature hairline at the band bottom. The Topic header
@@ -372,31 +430,31 @@ html:has(header.header-shared) {
 
 /* ── Hardbox language (design §5): white fill, 2px ink border, solid offset. ── */
 .plus-card {
-  background: #fff;
-  border: 2px solid var(--color-ink);
-  box-shadow: 4px 4px 0 var(--color-ink);
+  background: var(--color-surface-raised);
+  border: 2px solid var(--color-hardbox);
+  box-shadow: 4px 4px 0 var(--color-hardbox-offset);
 }
 .hardbox-sm {
-  border: 2px solid var(--color-ink);
-  box-shadow: 2px 2px 0 var(--color-ink);
+  border: 2px solid var(--color-hardbox);
+  box-shadow: 2px 2px 0 var(--color-hardbox-offset);
 }
 .hardbox-lg {
-  box-shadow: 6px 6px 0 var(--color-ink);
+  box-shadow: 6px 6px 0 var(--color-hardbox-offset);
 }
 
 /* Active-pairing glow on the rail card (design §5.9). */
 .active-glow {
-  box-shadow: 6px 6px 0 var(--color-brand);
+  box-shadow: 6px 6px 0 var(--color-accent-brand-fill);
 }
 
 /* ── Unvetted candidate language (design §6.5; binding per CURATION §6). ── */
 .candcard {
-  background: #fff;
-  border: 2px dashed var(--color-ink);
+  background: var(--color-surface-raised);
+  border: 2px dashed var(--color-hardbox);
   box-shadow: none;
 }
 .candcard.active {
-  border-color: var(--color-brand);
+  border-color: var(--color-accent-brand-fill);
   box-shadow: 3px 3px 0 rgba(103, 110, 180, 0.45);
 }
 /* Candidate hatch overlay (paired with a saturate/contrast filter on the image). */
@@ -404,8 +462,8 @@ html:has(header.header-shared) {
   pointer-events: none;
   background: repeating-linear-gradient(
     45deg,
-    rgba(44, 44, 44, 0.1) 0,
-    rgba(44, 44, 44, 0.1) 2px,
+    var(--candthumb-stripe) 0,
+    var(--candthumb-stripe) 2px,
     transparent 2px,
     transparent 7px
   );
@@ -421,13 +479,13 @@ html:has(header.header-shared) {
    shadow, so it reads as part of the unvetted set. Carries the once-per-context
    framing — a single header rather than a per-card "No context yet…" note. */
 .candsethead {
-  background: #fff;
-  border: 2px dashed var(--color-ink);
+  background: var(--color-surface-raised);
+  border: 2px dashed var(--color-hardbox);
 }
 
 /* ── Wikipedia article side: faithful look (design §5.2/§5.6). ── */
 .wiki-body {
-  color: var(--color-ink);
+  color: var(--color-ink-article);
   font-size: 0.95rem;
   line-height: 1.65;
 }
@@ -448,13 +506,13 @@ html:has(header.header-shared) {
 .sec h4,
 .wiki-title {
   font-family: Georgia, "Times New Roman", serif;
-  color: #1b1b1b;
+  color: var(--article-ink-strong);
 }
 .wiki-body h2,
 .sec h2 {
   font-size: 1.5rem;
   margin: 1.4em 0 0.5em;
-  border-bottom: 1px solid var(--color-wikirule);
+  border-bottom: 1px solid var(--article-rule);
   padding-bottom: 0.2em;
 }
 .wiki-body h3,
@@ -478,7 +536,7 @@ html:has(header.header-shared) {
 }
 .wiki-body a.wikilink,
 .wiki-body a {
-  color: var(--color-wikilink);
+  color: var(--article-link);
   text-decoration: none;
 }
 .wiki-body a:hover {
@@ -491,8 +549,8 @@ figure.wikifig {
   width: 300px;
   max-width: 42%;
   margin: 0.2em 0 0.8em 1em;
-  border: 1px solid var(--color-wikirule);
-  background: #f8f9fa;
+  border: 1px solid var(--article-rule);
+  background: var(--article-box-bg);
   padding: 4px;
 }
 figure.wikifig img {
@@ -502,7 +560,7 @@ figure.wikifig img {
 }
 figure.wikifig figcaption {
   font-size: 0.78rem;
-  color: #54595d;
+  color: var(--article-ink-muted);
   padding: 4px 2px 0;
   line-height: 1.4;
 }
@@ -510,7 +568,7 @@ figure.wikifig figcaption .credit,
 figure.wikifig .credit {
   display: block;
   font-size: 0.7rem;
-  color: #72777d;
+  color: var(--article-ink-credit);
 }
 /* ── Article fidelity (#24–#27): faithful Wikipedia chrome on the article side.
    GOVERNING PRINCIPLE (design spec): NO Indigo Press bleed into the article column.
@@ -529,7 +587,7 @@ figure.wikifig .credit {
 }
 .wiki-body sup.reference a,
 .wiki-body sup.mw-ref a {
-  color: var(--color-wikilink);
+  color: var(--article-link);
   text-decoration: none;
   cursor: pointer;
 }
@@ -544,7 +602,7 @@ figure.wikifig .credit {
 .wiki-body ol.mw-references {
   font-size: 0.82rem;
   line-height: 1.5;
-  color: var(--color-ink);
+  color: var(--color-ink-article);
 }
 .wiki-body .mw-references-columns {
   column-width: 30em;
@@ -554,7 +612,7 @@ figure.wikifig .credit {
   font-size: 0.9em;
 }
 .wiki-body .mw-cite-backlink a {
-  color: var(--color-wikilink);
+  color: var(--article-link);
 }
 /* Marker → reference scroll target: clear the sticky header (matches .sec offset). */
 .wiki-body li[id^="cite_note"],
@@ -563,7 +621,7 @@ figure.wikifig .credit {
 }
 .wiki-body li[id^="cite_note"]:target {
   /* Faint Wikipedia-style target flash — neutral, not indigo. */
-  background: #fdf3d8;
+  background: var(--article-target-flash);
 }
 
 /* Group A — citation popover (design §3.3). OUR control surface: styled minimally
@@ -572,9 +630,9 @@ figure.wikifig .credit {
 .wiki-cite-popover {
   z-index: 60;
   max-width: min(360px, calc(100vw - 2rem));
-  background: #fff;
-  border: 1px solid var(--color-wikirule);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.16);
+  background: var(--article-bg);
+  border: 1px solid var(--article-rule);
+  box-shadow: 0 4px 16px var(--article-popover-shadow);
   border-radius: 2px;
   padding: 0;
 }
@@ -589,11 +647,11 @@ figure.wikifig .credit {
   margin: 0 0 0.5em;
 }
 .wiki-cite-popover-foot {
-  border-top: 1px solid #eaecf0;
+  border-top: 1px solid var(--article-th-bg);
   padding: 0.4rem 0.85rem;
 }
 .wiki-cite-viewrefs {
-  color: var(--color-wikilink);
+  color: var(--article-link);
   font-size: 0.78rem;
   font-weight: 600;
   background: none;
@@ -630,17 +688,17 @@ figure.wikifig .credit {
   border-collapse: collapse;
   font-size: 0.85rem;
   margin: 0 0 0.9em;
-  background: #fff;
+  background: var(--article-bg);
 }
 .wiki-body table:not(.clade):not(.wiki-clade-carrier) th,
 .wiki-body table:not(.clade):not(.wiki-clade-carrier) td {
-  border: 1px solid var(--color-wikirule);
+  border: 1px solid var(--article-rule);
   padding: 4px 8px;
   text-align: left;
   vertical-align: top;
 }
 .wiki-body table:not(.clade):not(.wiki-clade-carrier) th {
-  background: #eaecf0; /* Wikipedia table-header grey — NOT indigo. */
+  background: var(--article-th-bg); /* Wikipedia table-header grey — NOT indigo. */
   font-weight: 700;
 }
 /* Guard the fallback grid off cladogram cells: a clade `td`/`th` is a DESCENDANT of any
@@ -776,8 +834,8 @@ figure.wikifig .credit {
   max-width: 42%;
   margin: 0.2em 0 0.8em 1em;
   clear: right;
-  border: 1px solid var(--color-wikirule);
-  background: #f8f9fa;
+  border: 1px solid var(--article-rule);
+  background: var(--article-box-bg);
   font-size: 0.82rem;
   text-align: left;
 }
@@ -803,10 +861,10 @@ figure.wikifig .credit {
 .wiki-body table.infobox .infobox-header {
   text-align: center;
   font-weight: 700;
-  background: #eaecf0;
-  border-bottom: 1px solid var(--color-wikirule);
+  background: var(--article-th-bg);
+  border-bottom: 1px solid var(--article-rule);
   padding: 4px 6px;
-  color: var(--color-ink);
+  color: var(--color-ink-article);
 }
 /* The box title (`.infobox-above`) is the largest band; section dividers (`.infobox-header`,
    taxobox section `<th colspan>`) match the title's band minus the size. */
@@ -946,8 +1004,8 @@ figure.wikifig .credit {
 }
 /* Active section pairing highlight (design §5.6 / AC12). */
 .sec.active > :is(h2, h3, h4) {
-  box-shadow: -10px 0 0 var(--color-brand);
-  background: linear-gradient(90deg, #eef0fb, transparent 60%);
+  box-shadow: -10px 0 0 var(--color-accent-brand);
+  background: linear-gradient(90deg, var(--article-active-wash), transparent 60%);
   transition: background 0.25s, box-shadow 0.25s;
 }
 
@@ -1017,7 +1075,7 @@ figure.wikifig .credit {
 
 /* ── Accessibility: visible focus everywhere (design §11.2 / AC21). ── */
 :focus-visible {
-  outline: 3px solid var(--color-brand);
+  outline: 3px solid var(--color-focus-ring);
   outline-offset: 2px;
 }
 
@@ -1033,8 +1091,8 @@ figure.wikifig .credit {
   transition: border-color 0.18s ease, box-shadow 0.18s ease;
 }
 .search-field:has(input:focus-visible) {
-  border-color: var(--color-brand);
-  box-shadow: inset 0 0 0 1px var(--color-brand);
+  border-color: var(--color-focus-ring);
+  box-shadow: inset 0 0 0 1px var(--color-focus-ring);
   outline: none;
 }
 .search-field input:focus,
@@ -1073,7 +1131,7 @@ figure.wikifig .credit {
   }
 }
 .skeleton-bar {
-  background: var(--color-bg2);
+  background: var(--color-surface-2);
   border-radius: 3px;
   animation: wikiplus-shimmer 1.4s ease-in-out infinite;
 }
@@ -1225,12 +1283,12 @@ figure.wikifig .credit {
 /* Form fields (modals). */
 .input,
 .field {
-  @apply w-full border-2 border-ink px-3 py-2 text-sm;
-  background: #fff;
+  @apply w-full border-2 border-hardbox px-3 py-2 text-sm;
+  background: var(--color-surface-raised);
 }
 .input:focus,
 .field:focus {
-  outline: 3px solid var(--color-brand);
+  outline: 3px solid var(--color-focus-ring);
   outline-offset: 2px;
 }
 
@@ -1515,3 +1573,174 @@ figure.wikifig .credit {
     animation: about-room-brighten-mini 700ms cubic-bezier(0.33, 0, 0.67, 1) 0ms 1 both;
   }
 }
+
+/* ── The zine-dark skin (docs/design/skin-system-zine-dark.md). ────────────────────────────────────
+   The proof that a skin is a SELF-CONTAINED layer: this block re-points the role tokens (and the
+   article token group) under the `[data-skin="zine-dark"]` scope and nothing else — no geometry, no
+   layout, no copy, no behaviour. Adding/changing a skin lives entirely here + the seam in layout.tsx
+   (spec §2.2 isolation property). The default (no `data-skin`) render is byte-unchanged — these
+   overrides only apply under the scope.
+
+   Character (spec §4): a printed zine under low light — an indigo-tinted charcoal field (never the
+   neon mockup's #0b0b14, never pure black), the hardbox drawn in a LIGHT "ink," brand hues lifted
+   just enough to sing on dark while staying Indigo Press. The article column reads as WIKIPEDIA'S
+   OWN dark mode (faithful, not an inverted zine; media left untouched — spec §5/§5.1). All
+   foreground/background pairings are AA-checked; ratios are in the spec. */
+[data-skin="zine-dark"] {
+  /* Plus surfaces (spec §4.1) + the light-ink hardbox (spec §4.2). */
+  --color-surface: #16161d; /* plus page field */
+  --color-surface-2: #1e1e27; /* recessed panels / secondary fills */
+  --color-surface-raised: #22222c; /* hardbox card fill (.plus-card, modals, chip backdrop) */
+  --color-ink-plus: #eceaf1; /* plus body/heading ink (≈15:1 on --surface, AAA) */
+  --color-ink-plus-2: #c5c3ce; /* secondary plus ink (≈9:1 on --surface-raised, AAA) */
+  --color-ink-plus-muted: #9a98a6; /* muted plus ink (≈5.6:1 on --surface-raised, AA) */
+  --color-hardbox: #eceaf1; /* the 2px box BORDER, now a LIGHT drawn line on the dark field */
+  --color-hardbox-offset: #0b0b10; /* the OFFSET shadow — a near-black, a touch darker than the
+     #16161D page, so the hardbox still reads as a lifted drawn block (a light offset would glow). */
+  --color-emptyrule: #4a4a55; /* the soft dashed rule, a dim light line on the dark panel */
+
+  /* The two existing plus-ink aliases the article-chrome rules read (.wiki-cite-close, infobox
+     sub-rows, hatnotes, the "Scroll table →" hint) are kept byte-stable on the light skin by leaving
+     their literals as --color-ink2 / --color-muted; on dark we re-point those two globals so that
+     plus chrome dims correctly. The article column re-points them again, tighter, below. */
+  --color-ink2: #c5c3ce;
+  --color-muted: #9a98a6;
+
+  /* Accents — lifted Indigo Press hues (spec §4.3). The FILL keeps the brand hex (the committed
+     AA-large white-on-indigo exemption holds exactly as the light skin); the text/glyph accents
+     are lifted so they clear AA on the dark field. */
+  --color-accent-brand: #9097d8; /* indigo as text/glyph (≈6.0:1 on --surface, AA) */
+  --color-accent-brand-fill: #676eb4; /* indigo FILL — unchanged (active-glow, stance chip, +plus) */
+  --color-accent-sprout: #3fb39a; /* teal as text/glyph (≈6.6:1 on --surface, AA) */
+  --color-accent-action: #4fa6ce; /* action blue as text/glyph (≈6.9:1 on --surface, AA) */
+  --color-accent-violet: #7e76c9; /* lifted deep-violet */
+  --color-accent-red: #e0696e; /* AA-safe red as text/glyph (≈5.5:1 on --surface, AA) */
+  --color-focus-ring: #9097d8; /* the lifted brand indigo — a clear keyboard cue on dark (≈6.0:1) */
+
+  /* The in-chrome interactive link-green affordance (search reveal, footer/text links) becomes the
+     lifted teal so it clears AA on the dark chrome (spec §6.1). */
+  --color-link: #3fb39a;
+
+  /* The candidate hatch stripe flips to a LIGHT ink so the hatch reads on a dark field (spec §7.1). */
+  --candthumb-stripe: rgba(236, 234, 241, 0.1);
+
+  /* The illumination falloff + the header seam surface resolve to FLAT dark on this skin: the white
+     beam / burn-to-white treatment is a light-skin idea (the flat Tier-C header has nothing to burn
+     — spec §6). Re-pointing --color-body-grey and --color-content-white makes .topic-illum /
+     .beam-page-illum / --beam-seam-surface resolve to a flat --surface field (the page top is simply
+     --surface, no white→grey gradient) with no per-rule change. */
+  --color-body-grey: #16161d;
+  --color-content-white: #16161d;
+  --color-header-field: #1e1e27; /* the flat header band (no cool fluorescent field) */
+
+  /* Faithful Wikipedia DARK-mode article palette (spec §5). Tracks MediaWiki Vector dark mode. */
+  --color-ink-article: #e8e6e3; /* body ink (≈14.6:1 on --article-bg, AAA) */
+  --article-bg: #101418; /* faithful dark article page field */
+  --article-ink-strong: #f8f9fa; /* serif headings (≈17:1 on --article-bg) */
+  --article-ink-muted: #a2a9b1; /* captions / infobox sub-rows (AA on the box fills) */
+  --article-ink-credit: #a2a9b1; /* the figure credit line — dimmed grey, still AA */
+  --article-link: #6ea8ff; /* faithful dark-mode wikilink blue (≈7.0:1 on --article-bg, AA) */
+  --article-rule: #54595d; /* heading hairline + table/cell + popover border (faithful grey) */
+  --article-th-bg: #27292d; /* table-header + infobox banner grey (NOT indigo) */
+  --article-box-bg: #1b1f23; /* infobox / figure frame fill (the #f8f9fa analog) */
+  --article-target-flash: #3a3320; /* dim warm citation flash (the dark #fdf3d8 analog) */
+  --article-popover-shadow: rgba(0, 0, 0, 0.55); /* heavier dark popover shadow */
+  --article-active-wash: #232744; /* the active-section heading wash (dark indigo tint) */
+}
+
+/* Accent TEXT / glyphs lift on dark so they clear AA on the dark plus surfaces (spec §4.3), while the
+   solid FILLS stay at the committed brand hue. The brand hues read as `text-*` utilities for accent
+   TEXT/glyphs (eyebrows, link glyphs, the "Suggested · uncurated" label, stats) and as `bg-*` /
+   border utilities for the solid CTA / modal-header / band FILLS. Re-pointing ONLY the `.text-*`
+   utilities here lifts the text without touching any fill: `bg-brand` indigo surfaces (modal headers,
+   the General band, CTAs, the home "+plus" block) keep `#676EB4` with bold white text — the committed
+   AA-large white-on-indigo exemption, identical to the light skin (§4.3) — and the stance/accuracy
+   chip fills (JS literals, already AA-darkened with white text per §4.4 pattern B) are untouched. */
+[data-skin="zine-dark"] .text-brand {
+  color: var(--color-accent-brand);
+}
+[data-skin="zine-dark"] .text-violet {
+  color: var(--color-accent-violet);
+}
+[data-skin="zine-dark"] .text-sprout {
+  color: var(--color-accent-sprout);
+}
+[data-skin="zine-dark"] .text-action {
+  color: var(--color-accent-action);
+}
+[data-skin="zine-dark"] .text-accred {
+  color: var(--color-accent-red);
+}
+/* The text-link green affordance lifts via the re-pointed --color-link token (above) for free —
+   `text-link` resolves to it. */
+
+/* The /about projector-theater centerpiece is EXEMPT (spec §7.1): it is fixed warm-theater art on a
+   light warm card, not chrome. Re-assert the committed brand hues for accent text WITHIN the theater
+   field so the dark-skin text lifts above do not wash out the warm-card copy. (The theater's surface
+   tokens — --color-theater-* / --color-card-warm — are never re-pointed by this skin, so the field
+   and card keep their committed colours; this only undoes the accent-TEXT lift inside it.) */
+[data-skin="zine-dark"] .about-theater-field .text-brand {
+  color: var(--color-brand);
+}
+[data-skin="zine-dark"] .about-theater-field .text-violet {
+  color: var(--color-violet);
+}
+[data-skin="zine-dark"] .about-theater-field .text-sprout {
+  color: var(--color-sprout);
+}
+[data-skin="zine-dark"] .about-theater-field .text-action {
+  color: var(--color-action);
+}
+[data-skin="zine-dark"] .about-theater-field .text-accred {
+  color: var(--color-accred);
+}
+
+/* The citation popover reads as a FRAMED part of the page on dark (a hair above the field), so it
+   takes the box fill rather than the page field (spec §5). The light skin's popover stays #fff via
+   --article-bg; only the dark skin lifts it to --article-box-bg. */
+[data-skin="zine-dark"] .wiki-cite-popover {
+  background: var(--article-box-bg);
+}
+/* The unstyled-table cell sits a hair above the page so the grid reads on dark (spec §5
+   --article-td-bg). Light keeps the #fff (--article-bg) fill; only the dark skin lifts it. */
+[data-skin="zine-dark"] .wiki-body table:not(.clade):not(.wiki-clade-carrier) {
+  background: #16191d;
+}
+/* The recovered per-taxon inline infobox band colours (#106) glare/clash on dark; suppress them so
+   the band falls back to the faithful grey default (--article-th-bg) and relies on its STRUCTURAL
+   signal (centered/bold/hairline), which carries the band in greyscale regardless (spec §5). Faithful
+   to MediaWiki dark mode (which likewise neutralizes biota band colours). Light is untouched. */
+[data-skin="zine-dark"] .wiki-body table.infobox th[colspan][style],
+[data-skin="zine-dark"] .wiki-body table.infobox .infobox-above[style],
+[data-skin="zine-dark"] .wiki-body table.infobox .infobox-header[style] {
+  background: var(--article-th-bg) !important;
+}
+
+/* ── The dark header treatment (spec §6) — the FLAT Tier-C lockup at every scroll state. ────────────
+   §6.4 resolution: the burn-to-white Daylight Projector does NOT translate to a dark field, so the
+   zine-dark skin uses the flat lockup and hides the lit aperture + descending beam — the SAME code
+   path the forced-colors fallback already uses. This is a colour + layer-VISIBILITY change only: no
+   change to the scroll-transition behaviour, the `p` progress var, focus order, or geometry (the
+   §2.2 invariants hold). The flat card is always opacity-1, so the beam glow simply has nothing to
+   fade. */
+[data-skin="zine-dark"] .header-shared .projector-beamfade,
+[data-skin="zine-dark"] .header-shared .projector-litlockup {
+  display: none;
+}
+[data-skin="zine-dark"] .header-shared .projector-flatlockup {
+  opacity: 1;
+}
+/* The wordmark's serif "Wiki" ink flips to the light plus ink on the dark band; the "+plus" block
+   keeps the brand-fill indigo with white "+" (AA-large, spec §6.1). The flat lockup paints its
+   structural ink from the --wordmark-* vars (set on the HeaderProjector below). */
+[data-skin="zine-dark"] {
+  --wordmark-wiki-ink: #eceaf1; /* "Wiki" serif on the dark band (light = #1b1b1b) */
+}
+
+/* ── The /about projector-theater centerpiece is EXEMPT (spec §7.1): it is fixed warm-theater art
+   (its own committed --color-theater-* palette), not chrome — only the surrounding page chrome /
+   header follows the skin. /about uses host="flat" (no .header-shared), so the header treatment
+   above never touches it; the theater field + how-it-works card keep their committed colours because
+   they read the --color-theater-* / --color-card-warm tokens, which this skin does not re-point. No
+   extra rule is needed — this comment records the deliberate non-action so a future skin author does
+   not "fix" the warm scene. */

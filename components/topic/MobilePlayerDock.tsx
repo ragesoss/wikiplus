@@ -234,7 +234,7 @@ export function MobilePlayerDock({
     // (maximized). No offset shadow on mobile (it would clip at the viewport edge). A flex column in
     // BOTH modes so the title bar + frame stay pinned (shrink-0) and the secondary region scrolls
     // within the height cap.
-    "fixed z-40 flex flex-col border-2 border-ink bg-ink text-white" +
+    "fixed z-40 flex flex-col border-2 border-hardbox bg-ink text-white" +
     (maximized
       ? // Maximized: the SAME section grows to fill the viewport (CSS, not native fullscreen).
         " inset-0"
@@ -391,7 +391,7 @@ export function MobilePlayerDock({
               onClick={onCurate}
               aria-haspopup="dialog"
               aria-label="Curate this video — log in to write a context note and vouch for it"
-              className="mt-2 inline-flex min-h-[44px] w-full items-center justify-center border-2 border-ink bg-brand px-3 py-1 text-[13px] font-bold text-white hover:shadow-[2px_2px_0_#2C2C2C]"
+              className="mt-2 inline-flex min-h-[44px] w-full items-center justify-center border-2 border-hardbox bg-brand px-3 py-1 text-[13px] font-bold text-white hover:shadow-[2px_2px_0_var(--color-hardbox-offset)]"
             >
               <span aria-hidden>✦</span>&nbsp;Curate this video
             </button>
@@ -405,7 +405,7 @@ export function MobilePlayerDock({
           {clip.curated?.held && (
             <p className="mb-2 flex items-center gap-1.5 border-l-[3px] border-white/50 pl-2 text-[10px] font-bold uppercase tracking-wide text-white/80">
               <span className="sr-only">{HELD_ACCESSIBLE_NAME}</span>
-              <span aria-hidden className="h-1.5 w-1.5 shrink-0 rounded-full bg-white/60" />
+              <span aria-hidden className="h-1.5 w-1.5 shrink-0 rounded-full bg-surface-raised/60" />
               <span aria-hidden>{HELD_EYEBROW}</span>
             </p>
           )}
@@ -439,7 +439,7 @@ export function MobilePlayerDock({
           {hasNote && expanded && clip.curated && (
             <div
               id={noteId}
-              className="mt-2 max-h-[min(40vh,320px)] overflow-y-auto border-2 border-ink bg-white p-3 text-left"
+              className="mt-2 max-h-[min(40vh,320px)] overflow-y-auto border-2 border-hardbox bg-surface-raised p-3 text-left"
             >
               <CuratorNote clip={clip.curated} />
               <CurationContextBy clip={clip.curated} />
@@ -452,7 +452,7 @@ export function MobilePlayerDock({
               type="button"
               onClick={onJoin}
               aria-haspopup="dialog"
-              className="mt-2 inline-flex min-h-[44px] w-full items-center justify-center border-2 border-ink bg-white px-3 py-1 text-[13px] font-bold text-ink hover:shadow-[2px_2px_0_#2C2C2C]"
+              className="mt-2 inline-flex min-h-[44px] w-full items-center justify-center border-2 border-hardbox bg-surface-raised px-3 py-1 text-[13px] font-bold text-ink-plus hover:shadow-[2px_2px_0_var(--color-hardbox-offset)]"
             >
               Log in to curate videos for this topic
             </button>

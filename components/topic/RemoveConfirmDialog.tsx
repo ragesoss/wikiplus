@@ -121,7 +121,7 @@ export function RemoveConfirmDialog({
       initialFocusSelector="button[data-remove-cancel]"
     >
       <div className="plus-card">
-        <div className="flex items-center justify-between border-b-2 border-ink bg-brand px-3 py-2 text-white">
+        <div className="flex items-center justify-between border-b-2 border-hardbox bg-brand px-3 py-2 text-white">
           <h2 id={titleId} className="plus-disp text-lg font-bold">
             Remove this clip?
           </h2>
@@ -135,7 +135,7 @@ export function RemoveConfirmDialog({
           </button>
         </div>
         <div className="space-y-4 p-4">
-          <p className="text-[12px] font-bold text-ink">{clip.caption}</p>
+          <p className="text-[12px] font-bold text-ink-plus">{clip.caption}</p>
           {/* The SOFT/REVERSIBLE framing (§5.1, verbatim) — the deliberate contrast with D2's
               "permanently … can't be undone." A moderator removal is a tombstone, not an erase. */}
           <p className="text-[13px] leading-snug text-ink2">
@@ -146,7 +146,7 @@ export function RemoveConfirmDialog({
 
           {/* The OPTIONAL, AUDIT-ONLY reason capture (§5.2). The eyebrow makes the C9 "audit-only,
               never reader-facing" rule + the optionality legible at the point of capture. */}
-          <div className="space-y-2 border-t border-ink/15 pt-3">
+          <div className="space-y-2 border-t border-hardbox/15 pt-3">
             <p
               id={eyebrowId}
               className="text-[10px] font-bold uppercase tracking-wide text-violet"
@@ -166,7 +166,7 @@ export function RemoveConfirmDialog({
                 onChange={(e) =>
                   setCategory(e.target.value as RemovalReasonCategory | "")
                 }
-                className="mt-0.5 w-full border-2 border-ink bg-white px-2 py-1.5 text-[12px] text-ink"
+                className="mt-0.5 w-full border-2 border-hardbox bg-surface-raised px-2 py-1.5 text-[12px] text-ink-plus"
               >
                 <option value="">{REMOVAL_REASON_NONE_LABEL}</option>
                 {REMOVAL_REASON_ORDER.map((value) => (
@@ -190,7 +190,7 @@ export function RemoveConfirmDialog({
                 maxLength={REMOVAL_NOTE_MAXLENGTH}
                 rows={2}
                 placeholder="Specifics for the audit trail — e.g. affiliate links in the note to vendor X."
-                className="mt-0.5 w-full resize-none border-2 border-ink bg-white px-2 py-1.5 text-[12px] text-ink placeholder:text-muted"
+                className="mt-0.5 w-full resize-none border-2 border-hardbox bg-surface-raised px-2 py-1.5 text-[12px] text-ink-plus placeholder:text-muted"
               />
             </div>
           </div>
@@ -211,7 +211,7 @@ export function RemoveConfirmDialog({
             <div
               role="status"
               aria-live="polite"
-              className="border-2 border-brand bg-bg2 px-3 py-2 text-[12px] font-semibold text-ink"
+              className="border-2 border-brand bg-surface-2 px-3 py-2 text-[12px] font-semibold text-ink-plus"
             >
               {AUTH_COPY.rateLimit.notice}
             </div>
@@ -222,7 +222,7 @@ export function RemoveConfirmDialog({
               data-remove-cancel
               data-testid="remove-cancel"
               onClick={onClose}
-              className="border-2 border-ink bg-white px-3 py-2 text-sm font-bold text-ink"
+              className="border-2 border-hardbox bg-surface-raised px-3 py-2 text-sm font-bold text-ink-plus"
             >
               Cancel
             </button>
@@ -231,7 +231,7 @@ export function RemoveConfirmDialog({
               onClick={() => void confirm()}
               disabled={pending}
               style={{ backgroundColor: DESTRUCTIVE_RED }}
-              className="border-2 border-ink px-3 py-2 text-sm font-bold text-white hover:shadow-[2px_2px_0_#2C2C2C] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:shadow-none"
+              className="border-2 border-hardbox px-3 py-2 text-sm font-bold text-white hover:shadow-[2px_2px_0_var(--color-hardbox-offset)] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:shadow-none"
             >
               {pending ? "Removing…" : "Remove clip"}
             </button>

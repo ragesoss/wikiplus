@@ -167,7 +167,7 @@ export function GeneralStrip({
       ref={bandRef}
       id="general-band"
       aria-label={hasCurated ? "General overview videos" : "Suggested videos"}
-      className="my-7 border-y-2 border-ink bg-brand text-white"
+      className="my-7 border-y-2 border-hardbox bg-brand text-white"
     >
       <div className="mx-auto max-w-[1200px] px-5 py-4">
         <div className="flex flex-wrap items-center gap-3">
@@ -190,7 +190,7 @@ export function GeneralStrip({
               "Finding videos…" loading tag. The empty band states the KIND once and
               defers the volume to the ＋plus panel (#14 AC6). */}
           {(hasCurated || showLoading) && (
-            <span className="border-2 border-ink bg-white px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-brand">
+            <span className="border-2 border-hardbox bg-surface-raised px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-brand">
               {showLoading && !hasCurated
                 ? "Finding videos…"
                 : pluralize(generalClips.length, "video")}
@@ -215,7 +215,7 @@ export function GeneralStrip({
               href={tiktok}
               target="_blank"
               rel="noopener"
-              className="inline-flex min-h-[44px] items-center border-2 border-ink bg-white px-2.5 py-1 text-[12px] font-bold text-ink hover:bg-[#C03060] hover:text-white"
+              className="inline-flex min-h-[44px] items-center border-2 border-hardbox bg-surface-raised px-2.5 py-1 text-[12px] font-bold text-ink-plus hover:bg-[#C03060] hover:text-white"
             >
               Search TikTok ↗
             </a>
@@ -223,7 +223,7 @@ export function GeneralStrip({
               href={youtube}
               target="_blank"
               rel="noopener"
-              className="inline-flex min-h-[44px] items-center border-2 border-ink bg-white px-2.5 py-1 text-[12px] font-bold text-ink hover:bg-brand hover:text-white"
+              className="inline-flex min-h-[44px] items-center border-2 border-hardbox bg-surface-raised px-2.5 py-1 text-[12px] font-bold text-ink-plus hover:bg-brand hover:text-white"
             >
               Search YouTube ↗
             </a>
@@ -231,7 +231,7 @@ export function GeneralStrip({
               type="button"
               onClick={onAdd}
               aria-haspopup="dialog"
-              className="inline-flex min-h-[44px] items-center border-2 border-ink bg-brand px-2.5 py-1 text-[12px] font-bold text-white hover:shadow-[2px_2px_0_#2C2C2C]"
+              className="inline-flex min-h-[44px] items-center border-2 border-hardbox bg-brand px-2.5 py-1 text-[12px] font-bold text-white hover:shadow-[2px_2px_0_var(--color-hardbox-offset)]"
             >
               ＋ Add video
             </button>
@@ -243,7 +243,7 @@ export function GeneralStrip({
               type="button"
               onClick={onAdd}
               aria-haspopup="dialog"
-              className="inline-flex min-h-[44px] items-center border-2 border-ink bg-brand px-2.5 py-1 text-[12px] font-bold text-white hover:shadow-[2px_2px_0_#2C2C2C]"
+              className="inline-flex min-h-[44px] items-center border-2 border-hardbox bg-brand px-2.5 py-1 text-[12px] font-bold text-white hover:shadow-[2px_2px_0_var(--color-hardbox-offset)]"
             >
               ＋ Add video
             </button>
@@ -297,7 +297,7 @@ export function GeneralStrip({
                       Omitted defensively on an empty note — render nothing rather than an empty panel
                       (§6 empty-note guard; chips above still render). */}
                   {clip.contextNote ? (
-                    <div className="mt-1.5 border-2 border-ink bg-white px-2 py-1.5">
+                    <div className="mt-1.5 border-2 border-hardbox bg-surface-raised px-2 py-1.5">
                       <p className="text-[10px] font-bold uppercase tracking-wide text-violet">
                         Curator note
                       </p>
@@ -331,7 +331,7 @@ export function GeneralStrip({
                         type="button"
                         onClick={() => onEdit?.(clip)}
                         aria-label={`Edit your curation: ${clip.caption}`}
-                        className="border-2 border-ink bg-white px-2 py-1 text-[11px] font-bold text-ink hover:shadow-[2px_2px_0_#2C2C2C]"
+                        className="border-2 border-hardbox bg-surface-raised px-2 py-1 text-[11px] font-bold text-ink-plus hover:shadow-[2px_2px_0_var(--color-hardbox-offset)]"
                       >
                         Edit
                       </button>
@@ -339,7 +339,7 @@ export function GeneralStrip({
                         type="button"
                         onClick={() => onDelete?.(clip)}
                         aria-label={`Delete your curation: ${clip.caption}`}
-                        className="border-2 border-accred bg-white px-2 py-1 text-[11px] font-bold text-accred hover:bg-accred hover:text-white"
+                        className="border-2 border-accred bg-surface-raised px-2 py-1 text-[11px] font-bold text-accred hover:bg-accred hover:text-white"
                       >
                         Delete
                       </button>
@@ -403,7 +403,7 @@ export function GeneralStrip({
                           : undefined
                       }
                     />
-                    <p className="mt-1.5 line-clamp-2 text-[12px] font-bold leading-snug text-ink">
+                    <p className="mt-1.5 line-clamp-2 text-[12px] font-bold leading-snug text-ink-plus">
                       {c.caption}
                     </p>
                     <p className="truncate text-[11px] text-muted">
@@ -450,17 +450,17 @@ export function GeneralStrip({
                   {[0, 1, 2].map((i) => (
                     <li key={i} role="listitem" className="w-44 shrink-0">
                       <div
-                        className={`aspect-video w-full border-2 border-white/40 bg-white/15${
+                        className={`aspect-video w-full border-2 border-white/40 bg-surface-raised/15${
                           prefersReduced ? "" : " animate-pulse"
                         }`}
                       />
                       <div
-                        className={`mt-2 h-3 w-5/6 bg-white/25${
+                        className={`mt-2 h-3 w-5/6 bg-surface-raised/25${
                           prefersReduced ? "" : " animate-pulse"
                         }`}
                       />
                       <div
-                        className={`mt-1 h-2.5 w-1/2 bg-white/15${
+                        className={`mt-1 h-2.5 w-1/2 bg-surface-raised/15${
                           prefersReduced ? "" : " animate-pulse"
                         }`}
                       />

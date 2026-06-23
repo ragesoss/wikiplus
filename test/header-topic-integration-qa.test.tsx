@@ -291,7 +291,12 @@ describe("AC11/AC15 (#96) — coupled collapse driven by ONE progress p, no twee
     // always fully opaque (it does not cross-fade — only the glow on top does).
     expect(css).toMatch(/opacity:\s*var\(--beam-opacity/);
     expect(css).toMatch(/\.header-shared \.projector-flatlockup\s*\{\s*opacity:\s*1/);
-    expect(css).toMatch(/border-bottom:\s*2px solid rgb\([^)]*var\(--border-opacity/);
+    // The 2px chrome rule fades in via --border-opacity. After #119 it is drawn in the skin hardbox
+    // ink (a dark line on light, a light line on the dark skin) via a color-mix toward transparent,
+    // so the alpha still tracks --border-opacity (byte-identical on the default skin).
+    expect(css).toMatch(
+      /border-bottom:\s*2px solid\s*color-mix\(in srgb,\s*var\(--color-hardbox\)[^;]*var\(--border-opacity/
+    );
     // No per-property transition in the .header-shared cross-fade block (the scroll is the
     // animation). The old 180ms height/opacity tweens are gone.
     const start = css.indexOf("\n.header-shared .projector-beamfade");

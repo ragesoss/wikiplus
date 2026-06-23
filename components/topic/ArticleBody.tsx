@@ -256,7 +256,7 @@ export function ArticleError({
 }) {
   return (
     <div role="alert" className="plus-card min-w-0 p-4">
-      <h2 className="text-lg font-bold text-ink">Couldn&apos;t load the article</h2>
+      <h2 className="text-lg font-bold text-ink-plus">Couldn&apos;t load the article</h2>
       <p className="mt-1 text-sm text-ink2">
         We couldn&apos;t reach Wikipedia just now. The curated videos are still here
         on the right.
@@ -265,7 +265,7 @@ export function ArticleError({
         <button
           type="button"
           onClick={onRetry}
-          className="border-2 border-ink bg-brand px-3 py-2 text-sm font-bold text-white hover:shadow-[2px_2px_0_#2C2C2C]"
+          className="border-2 border-hardbox bg-brand px-3 py-2 text-sm font-bold text-white hover:shadow-[2px_2px_0_var(--color-hardbox-offset)]"
         >
           Try again
         </button>
@@ -273,7 +273,7 @@ export function ArticleError({
           href={url}
           target="_blank"
           rel="noopener"
-          className="border-2 border-ink bg-white px-3 py-2 text-sm font-bold text-ink"
+          className="border-2 border-hardbox bg-surface-raised px-3 py-2 text-sm font-bold text-ink-plus"
         >
           Open on Wikipedia ↗
         </a>

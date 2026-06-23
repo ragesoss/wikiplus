@@ -97,7 +97,7 @@ export function DeleteConfirmDialog({
       initialFocusSelector="button[data-delete-cancel]"
     >
       <div className="plus-card">
-        <div className="flex items-center justify-between border-b-2 border-ink bg-brand px-3 py-2 text-white">
+        <div className="flex items-center justify-between border-b-2 border-hardbox bg-brand px-3 py-2 text-white">
           <h2 id={titleId} className="plus-disp text-lg font-bold">
             Delete this curation?
           </h2>
@@ -111,7 +111,7 @@ export function DeleteConfirmDialog({
           </button>
         </div>
         <div className="space-y-4 p-4">
-          <p className="text-[12px] font-bold text-ink">{clip.caption}</p>
+          <p className="text-[12px] font-bold text-ink-plus">{clip.caption}</p>
           <p className="text-[13px] leading-snug text-ink2">
             This permanently removes your context note, the stance and accuracy
             assessment, and this clip from the topic. This can&apos;t be undone.
@@ -132,7 +132,7 @@ export function DeleteConfirmDialog({
             <div
               role="status"
               aria-live="polite"
-              className="border-2 border-brand bg-bg2 px-3 py-2 text-[12px] font-semibold text-ink"
+              className="border-2 border-brand bg-surface-2 px-3 py-2 text-[12px] font-semibold text-ink-plus"
             >
               {AUTH_COPY.rateLimit.notice}
             </div>
@@ -143,7 +143,7 @@ export function DeleteConfirmDialog({
               data-delete-cancel
               data-testid="delete-cancel"
               onClick={onClose}
-              className="border-2 border-ink bg-white px-3 py-2 text-sm font-bold text-ink"
+              className="border-2 border-hardbox bg-surface-raised px-3 py-2 text-sm font-bold text-ink-plus"
             >
               Cancel
             </button>
@@ -152,7 +152,7 @@ export function DeleteConfirmDialog({
               onClick={() => void confirm()}
               disabled={pending}
               style={{ backgroundColor: DESTRUCTIVE_RED }}
-              className="border-2 border-ink px-3 py-2 text-sm font-bold text-white hover:shadow-[2px_2px_0_#2C2C2C] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:shadow-none"
+              className="border-2 border-hardbox px-3 py-2 text-sm font-bold text-white hover:shadow-[2px_2px_0_var(--color-hardbox-offset)] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:shadow-none"
             >
               {pending ? "Deleting…" : "Delete clip"}
             </button>

@@ -56,9 +56,9 @@ export function ArticleNotFound({
   // (#1F6F95) navigational action; secondaries = ink-on-white, the same treatment
   // ArticleError's "Open on Wikipedia" uses. No gold (gold stays the wordmark-only accent).
   const primaryClass =
-    "border-2 border-ink bg-action px-4 py-2 text-sm font-bold text-white hover:shadow-[2px_2px_0_#2C2C2C]";
+    "border-2 border-hardbox bg-action px-4 py-2 text-sm font-bold text-white hover:shadow-[2px_2px_0_var(--color-hardbox-offset)]";
   const secondaryClass =
-    "border-2 border-ink bg-white px-4 py-2 text-sm font-bold text-ink hover:shadow-[2px_2px_0_#2C2C2C]";
+    "border-2 border-hardbox bg-surface-raised px-4 py-2 text-sm font-bold text-ink-plus hover:shadow-[2px_2px_0_var(--color-hardbox-offset)]";
 
   return (
     <div className="mx-auto max-w-[34rem] px-5 py-16 sm:py-24">
@@ -71,7 +71,7 @@ export function ArticleNotFound({
         <h1
           ref={headingRef}
           tabIndex={-1}
-          className="mt-2 text-2xl font-bold leading-tight text-ink outline-none"
+          className="mt-2 text-2xl font-bold leading-tight text-ink-plus outline-none"
         >
           {headline}
         </h1>

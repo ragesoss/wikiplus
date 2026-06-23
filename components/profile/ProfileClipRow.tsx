@@ -68,12 +68,12 @@ export function ProfileClipRow({
       >
         <span
           aria-hidden
-          className={`h-7 w-7 shrink-0 rounded-full border-2 border-ink bg-gradient-to-br ${
+          className={`h-7 w-7 shrink-0 rounded-full border-2 border-hardbox bg-gradient-to-br ${
             clip.creator.avatarGrad ?? "from-brand to-violet"
           }`}
         />
         <span className="min-w-0">
-          <span className="block truncate text-[12px] font-bold text-ink">
+          <span className="block truncate text-[12px] font-bold text-ink-plus">
             {clip.creator.name}
           </span>
           <span className="block truncate text-[11px] text-muted">
@@ -87,7 +87,7 @@ export function ProfileClipRow({
         <StanceChip stance={clip.stance} modifier={clip.stanceModifier} />
         <AccuracyChip flag={clip.accuracyFlag} modifier={clip.accuracyModifier} />
       </div>
-      <div className="mt-2 border-l-4 border-brand bg-bg2 py-2 pl-3 pr-2">
+      <div className="mt-2 border-l-4 border-brand bg-surface-2 py-2 pl-3 pr-2">
         <p className="text-[10px] font-bold uppercase tracking-wide text-violet">
           Curator note
         </p>
@@ -104,13 +104,13 @@ export function ProfileClipRow({
         <div
           role="group"
           aria-label="Manage your curated clip"
-          className="mt-2 flex flex-wrap gap-2 border-t border-ink/15 pt-2"
+          className="mt-2 flex flex-wrap gap-2 border-t border-hardbox/15 pt-2"
         >
           <button
             type="button"
             onClick={() => onEdit?.(clip)}
             aria-label={`Edit your curation: ${clip.caption}`}
-            className="border-2 border-ink bg-white px-3 py-1.5 text-[12px] font-bold text-ink hover:shadow-[2px_2px_0_#2C2C2C]"
+            className="border-2 border-hardbox bg-surface-raised px-3 py-1.5 text-[12px] font-bold text-ink-plus hover:shadow-[2px_2px_0_var(--color-hardbox-offset)]"
           >
             Edit
           </button>
@@ -118,7 +118,7 @@ export function ProfileClipRow({
             type="button"
             onClick={() => onDelete?.(clip)}
             aria-label={`Delete your curation: ${clip.caption}`}
-            className="border-2 border-accred bg-white px-3 py-1.5 text-[12px] font-bold text-accred hover:bg-accred hover:text-white"
+            className="border-2 border-accred bg-surface-raised px-3 py-1.5 text-[12px] font-bold text-accred hover:bg-accred hover:text-white"
           >
             Delete
           </button>

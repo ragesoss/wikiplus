@@ -87,10 +87,12 @@ describe("AC2/AC1 — curated General tile surfaces both chips + a note preview"
     renderStrip([makeGeneralClip()]);
     const note = screen.getByText(/Solid whole-topic overview/);
     expect(note.className).toMatch(/line-clamp-2/);
-    // The note body sits on a WHITE panel (the AA treatment §3.1), NOT directly on the indigo band.
+    // The note body sits on a raised panel (the AA treatment §3.1), NOT directly on the indigo band.
+    // The fill/border are the skin surface/hardbox tokens (#119): `bg-surface-raised` is white on the
+    // default skin (byte-identical to the old `bg-white`), the dark card on the zine-dark skin.
     const panel = note.closest("div");
-    expect(panel?.className).toMatch(/bg-white/);
-    expect(panel?.className).toMatch(/border-2 border-ink/);
+    expect(panel?.className).toMatch(/bg-surface-raised/);
+    expect(panel?.className).toMatch(/border-2 border-hardbox/);
   });
 });
 

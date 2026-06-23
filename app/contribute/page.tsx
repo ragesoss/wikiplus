@@ -161,7 +161,7 @@ export default function ContributePage() {
       <>
         <ContributeHeader />
         <div className="mx-auto max-w-xl space-y-3 px-4 py-8">
-          <p className="text-sm text-ink">Clip added.</p>
+          <p className="text-sm text-ink-plus">Clip added.</p>
           {/* Back-compat entry: this lightweight form only knows the QID, so it links via
               the ?qid= path; TopicView resolves QID→title and canonicalizes the URL. */}
           <Link
@@ -185,13 +185,13 @@ export default function ContributePage() {
       <>
         <ContributeHeader />
         <main className="mx-auto max-w-xl space-y-5 px-4 py-8">
-          <h1 className="text-2xl font-semibold text-ink">
+          <h1 className="text-2xl font-semibold text-ink-plus">
             {AUTH_COPY.contributeGateHeading}
           </h1>
           {status === "loading" ? (
             <div
               aria-hidden
-              className="h-40 w-full animate-pulse rounded-xl border-2 border-ink/10 bg-ink/5"
+              className="h-40 w-full animate-pulse rounded-xl border-2 border-hardbox/10 bg-hardbox/5"
             />
           ) : (
             <LoginPromptPanel
@@ -213,7 +213,7 @@ export default function ContributePage() {
     <>
       <ContributeHeader />
       <form onSubmit={onSubmit} className="mx-auto max-w-xl space-y-5 px-4 py-8">
-      <h1 className="text-2xl font-semibold text-ink">Add a clip</h1>
+      <h1 className="text-2xl font-semibold text-ink-plus">Add a clip</h1>
 
       <Field label="Topic Wikidata QID">
         <input
@@ -313,7 +313,7 @@ function Field({
 }) {
   return (
     <label className="block space-y-1">
-      <span className="block text-sm font-medium text-ink">{label}</span>
+      <span className="block text-sm font-medium text-ink-plus">{label}</span>
       {children}
     </label>
   );

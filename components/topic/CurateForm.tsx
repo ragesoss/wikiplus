@@ -190,11 +190,11 @@ export function CurateFields({
           creator credit (CURATION §5.2 / design §3.1). */}
       <div aria-live="polite" className={showAgreement ? "" : "sr-only"}>
         {showAgreement && (
-          <div className="space-y-1 border-t border-ink/15 pt-3">
+          <div className="space-y-1 border-t border-hardbox/15 pt-3">
             <p id={licenseStatementId} className="text-[11px] text-muted">
               {NOTE_LICENSE_STATEMENT}
             </p>
-            <label className="flex cursor-pointer items-start gap-2 text-[12px] text-ink">
+            <label className="flex cursor-pointer items-start gap-2 text-[12px] text-ink-plus">
               <input
                 id={agreementId}
                 name="noteLicenseAgreed"

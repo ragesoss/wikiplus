@@ -10,7 +10,7 @@ const PLATFORM_FILL: Record<Platform, string> = {
   youtube: "#C4302B",
   tiktok: "#C03060", // AA-safe TikTok-ish pink (white text ≈4.7:1)
   instagram: "#A1306B",
-  other: "#2C2C2C",
+  other: "var(--color-hardbox)",
 };
 
 export interface ThumbVideo {
@@ -65,7 +65,7 @@ export function VideoThumb({
       type="button"
       onClick={activate}
       aria-label={action}
-      className={`group relative block overflow-hidden border-2 border-ink ${aspect} ${
+      className={`group relative block overflow-hidden border-2 border-hardbox ${aspect} ${
         variant === "strip" ? "w-full" : ""
       }`}
     >
@@ -105,12 +105,12 @@ export function VideoThumb({
       {/* play affordance */}
       <span
         aria-hidden
-        className="absolute left-1/2 top-1/2 flex h-12 w-12 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 border-ink bg-brand text-white shadow-[3px_3px_0_#2C2C2C] transition-transform motion-safe:group-hover:scale-110"
+        className="absolute left-1/2 top-1/2 flex h-12 w-12 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 border-hardbox bg-brand text-white shadow-[3px_3px_0_var(--color-hardbox-offset)] transition-transform motion-safe:group-hover:scale-110"
       >
         <span className="ml-0.5 border-y-[7px] border-l-[11px] border-y-transparent border-l-white" />
       </span>
       {!isYouTube && (
-        <span className="absolute bottom-1.5 right-1.5 bg-ink/80 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white">
+        <span className="absolute bottom-1.5 right-1.5 bg-hardbox/80 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white">
           opens ↗
         </span>
       )}

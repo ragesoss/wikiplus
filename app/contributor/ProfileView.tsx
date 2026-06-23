@@ -212,7 +212,7 @@ export function ProfileView() {
             <IdentityHeader profile={profile} isOwner={isOwner} />
             <h2
               id="profile-list-heading"
-              className="plus-disp mt-7 text-xl font-bold text-ink"
+              className="plus-disp mt-7 text-xl font-bold text-ink-plus"
             >
               {isOwner ? "My curations" : "Curated clips"}
               <span className="ml-2 align-middle text-sm font-normal text-muted">
@@ -302,14 +302,14 @@ function IdentityHeader({
         <img
           src={profile.avatarUrl}
           alt=""
-          className="h-14 w-14 shrink-0 rounded-full border-2 border-ink object-cover"
+          className="h-14 w-14 shrink-0 rounded-full border-2 border-hardbox object-cover"
         />
       ) : (
         // No granted avatar → the same gradient-initial fallback the app uses, aria-hidden
         // (decorative; the username is the name). Graceful, no broken image, no layout shift.
         <span
           aria-hidden
-          className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full border-2 border-ink bg-gradient-to-br from-brand to-violet text-2xl font-bold text-white"
+          className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full border-2 border-hardbox bg-gradient-to-br from-brand to-violet text-2xl font-bold text-white"
         >
           {initial}
         </span>
@@ -322,7 +322,7 @@ function IdentityHeader({
             Your public profile
           </p>
         )}
-        <h1 className="plus-disp truncate text-3xl font-bold text-ink">
+        <h1 className="plus-disp truncate text-3xl font-bold text-ink-plus">
           {profile.username}
         </h1>
         <p className="text-sm text-muted">Curator on wiki+</p>
@@ -336,7 +336,7 @@ function IdentityHeader({
 function NotFoundBody({ readError }: { readError: boolean }) {
   return (
     <div className="py-10">
-      <h1 className="plus-disp text-2xl font-bold text-ink">No such contributor</h1>
+      <h1 className="plus-disp text-2xl font-bold text-ink-plus">No such contributor</h1>
       <p className="mt-2 text-sm text-ink2">
         {readError
           ? "Couldn't load that contributor right now — please try again."
@@ -361,15 +361,15 @@ function ProfileSkeleton() {
         Loading profile…
       </p>
       <div className="flex items-center gap-4">
-        <span aria-hidden className="h-14 w-14 shrink-0 rounded-full bg-ink/10" />
-        <span aria-hidden className="h-7 w-40 rounded bg-ink/10" />
+        <span aria-hidden className="h-14 w-14 shrink-0 rounded-full bg-hardbox/10" />
+        <span aria-hidden className="h-7 w-40 rounded bg-hardbox/10" />
       </div>
       <div className="mt-7 space-y-4">
         {[0, 1].map((i) => (
           <div key={i} aria-hidden className="plus-card p-3">
-            <div className="aspect-video w-full bg-ink/10" />
-            <div className="mt-2 h-3 w-2/3 rounded bg-ink/10" />
-            <div className="mt-2 h-3 w-1/2 rounded bg-ink/10" />
+            <div className="aspect-video w-full bg-hardbox/10" />
+            <div className="mt-2 h-3 w-2/3 rounded bg-hardbox/10" />
+            <div className="mt-2 h-3 w-1/2 rounded bg-hardbox/10" />
           </div>
         ))}
       </div>
