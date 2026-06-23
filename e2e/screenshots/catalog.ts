@@ -206,7 +206,17 @@ export async function applyStub(page: Page, profile: StubProfile): Promise<void>
         qid: "Q189603",
         title: "Cellular respiration",
         article: SUGGESTION_ARTICLE_HTML,
-        youtube: () => RESP_YT_ITEMS,
+        // Append one PORTRAIT (9:16) candidate so the PinnedPlayer's narrowed vertical dock + its
+        // action row can be captured at the stressing width (issue #123 §6).
+        youtube: () => [
+          ...RESP_YT_ITEMS,
+          {
+            videoId: "resp006",
+            title: PINNED_VERTICAL_CAPTION,
+            channelTitle: "ShortBio",
+            vertical: true,
+          },
+        ],
       });
     case "empty":
       return stubTopic(page, {
@@ -347,6 +357,38 @@ async function openPinnedPlayer(page: Page): Promise<void> {
   await page.locator("#general-band").waitFor();
   await page.getByRole("button", { name: /^Play:/ }).first().click();
   await page.locator('section[aria-label="Video preview"]').waitFor();
+  await page.waitForTimeout(200);
+}
+
+/** The caption of the portrait (9:16) candidate appended to the `suggestions` YouTube stub (above)
+ *  so the PinnedPlayer's narrowed VERTICAL dock + its action row can be captured (issue #123 §6). */
+const PINNED_VERTICAL_CAPTION = "Cellular respiration in 60 seconds";
+
+/** Open the PinnedPlayer on a VERTICAL (9:16) candidate so the narrowed dock + its action row are
+ *  captured at the stressing width (issue #123 §6 — the two buttons still fit). */
+async function openPinnedPlayerVertical(page: Page): Promise<void> {
+  await page.locator("#general-band").waitFor();
+  await page
+    .getByRole("button", { name: `Play: ${PINNED_VERTICAL_CAPTION}` })
+    .first()
+    .click();
+  await page.locator('section[aria-label="Video preview"]').waitFor();
+  await page.waitForTimeout(200);
+}
+
+/** Open the dock, then activate the signed-in "Not relevant" action: the dock closes (the playing
+ *  candidate is dismissed) and focus lands on the General band heading (issue #123 State L). This
+ *  scene is the POST-DISMISS resting state — evidence the dock tears down and the loop returns to
+ *  the band. Run signed-in only (the Not-relevant button is gated, not shown, logged out). */
+async function dismissFromPinnedPlayer(page: Page): Promise<void> {
+  await openPinnedPlayer(page);
+  await page
+    .getByRole("button", { name: /^Dismiss as not relevant:/ })
+    .first()
+    .click();
+  await page
+    .locator('section[aria-label="Video preview"]')
+    .waitFor({ state: "detached" });
   await page.waitForTimeout(200);
 }
 
@@ -677,13 +719,38 @@ export const SCENES: Scene[] = [
   {
     id: "pinned-player",
     group: "Players",
-    label: "PinnedPlayer — candidate dock (non-modal, desktop)",
-    note: "The corner dock, opened from a suggested candidate. Desktop-only: on mobile/tablet (< lg) candidate playback uses the unified mobile dock (issue #120).",
+    label: "PinnedPlayer — candidate dock (watch + act, desktop)",
+    note: "The corner dock, opened from a suggested candidate (issue #123): title bar → frame → action row below the frame. Signed-in shows ✦ Curate (primary) + ✕ Not relevant (secondary); logged-out shows the single ✦ Curate this video CTA (no Not-relevant button). Desktop-only: on mobile/tablet (< lg) candidate playback uses the unified mobile dock (issue #120).",
     route: "/topic/Cellular_respiration/",
     stub: "suggestions",
     viewports: ["desktop"],
     ready: topicReady,
     prepare: openPinnedPlayer,
+    clip: "fullPage",
+  },
+  {
+    id: "pinned-player-vertical",
+    group: "Players",
+    label: "PinnedPlayer — vertical 9:16 dock, action row (desktop)",
+    note: "The stressing width (issue #123 §6): the narrowed 9:16 dock with the action row still a single horizontal row beneath the frame — signed-in ✦ Curate (flex-1) + ✕ Not relevant fit; logged-out shows the single CTA.",
+    route: "/topic/Cellular_respiration/",
+    stub: "suggestions",
+    viewports: ["desktop"],
+    ready: topicReady,
+    prepare: openPinnedPlayerVertical,
+    clip: "fullPage",
+  },
+  {
+    id: "pinned-player-post-dismiss",
+    group: "Players",
+    label: "PinnedPlayer — post-dismiss (dock closed, focus to band)",
+    note: "After ✦ Not relevant from the dock (issue #123 State L): the playing candidate is optimistically hidden, the dock + iframe tear down, and focus returns to the General band heading — the watch→decide→back-to-the-list loop, no autoplay of an unrequested clip. Signed-in only (the Not-relevant button is gated, not shown, logged out).",
+    route: "/topic/Cellular_respiration/",
+    stub: "suggestions",
+    viewports: ["desktop"],
+    auth: ["in"],
+    ready: topicReady,
+    prepare: dismissFromPinnedPlayer,
     clip: "fullPage",
   },
 

@@ -90,14 +90,17 @@ player); that is acceptable and the modal's focus trap correctly governs while i
 
 ## 5. Anatomy of the PinnedPlayer
 
-A single dock containing, top to bottom:
+A single dock containing, top to bottom (**watch + act**):
 
 1. **A title bar** (the dock chrome): a left **"＋plus" eyebrow + caption** (the metadata, §7) and a
    right **Dismiss** control (§6). Solid `ink` (`#2C2C2C`) bar so white text/glyph clears AA.
-2. **The logged-out "Curate this video" CTA** (§7.1) — a full-width brand-fill button row, present
-   **only for a logged-out viewer**, between the title bar and the frame. Absent when signed in.
-3. **The video frame**: the YouTube `<iframe>` (autoplay), or the **no-embed message** (§9, state F),
+2. **The video frame**: the YouTube `<iframe>` (autoplay), or the **no-embed message** (§9, state F),
    on a black backing. Aspect handled per orientation (§6 sizing).
+3. **The action row** (§7.1) — the dock's bottom region, **below the frame**, so the dock reads
+   top-to-bottom as watch → decide. One slot, two renderings: **signed in**, the candidate's two
+   actions — **✦ Curate** (primary, brand fill, grows to dominate) + **✕ Not relevant** (secondary,
+   white fill, intrinsic width); **logged out**, a single full-width **✦ Curate this video** CTA (no
+   Not-relevant button — a logged-out dismiss is gated, not shown here).
 
 Visual language = Indigo Press hardbox: **2px `ink` border**, a **solid offset shadow**
 (`6px 6px 0 #2C2C2C` desktop), white/ink chrome, **no gold**. The dock reads as a deliberate plus-side
@@ -115,12 +118,13 @@ footprint within the caps below. This mirrors how `PlayerModal` already branches
 ### 6.1 Desktop / wide (`lg` ≥ 1024px) — fixed bottom-**left** corner
 
 - **Position:** `position: fixed`, anchored to the **bottom-left** corner — `bottom: 1rem;
-  left: 1rem`. Bottom-left, **not** bottom-right, is deliberate: the sticky **plus rail** (the
-  360px right column) and every candidate's **Promote / Not relevant** buttons live on the **right**.
-  Docking left keeps the player clear of those controls so they stay visible and clickable while it
-  plays (AC3) — no overlap, no layout shift, no safe-area hack needed. The article column is the
-  left ~1fr; the dock overlaps the article's lower-left, which is acceptable (the reader is watching,
-  not reading that exact corner) and never covers plus controls.
+  left: 1rem`. The dock self-contains its own actions (§7.1), so a reader can fully act on the clip
+  without reaching anything underneath it. Bottom-left is still the right home: it keeps the sticky
+  **plus rail** (the 360px right column) and the candidate cards' **Curate / Not relevant** controls
+  (the redundant card path) visible and operable while the player plays, and moving the dock over the
+  rail would gain nothing while re-introducing that overlap. The article column is the left ~1fr; the
+  dock overlaps the article's lower-left, which is acceptable (the reader is watching, not reading
+  that exact corner) and never covers the plus rail or its controls.
 - **Dock width cap:** `min(380px, calc(100vw - 2rem))`. Frame within:
   - **16:9:** frame is the full dock width → ~`380 × 214`.
   - **9:16 vertical:** frame is **height-capped** at `min(60vh, 460px)` and the dock narrows to that
@@ -162,8 +166,9 @@ crowd the content. Instead the player is a **full-width docked bar pinned to the
 
 ## 7. Metadata shown alongside (minimal; reuse existing patterns)
 
-Keep it to what credits the creator and identifies the clip — mirror the strip/card footer, not the
-full candidate card (no match reason, no Promote/Dismiss inside the dock; those stay on the card):
+Keep the title bar to what credits the creator and identifies the clip — mirror the strip/card footer,
+not the full candidate card (no match reason inside the dock). The candidate's two actions live in the
+**action row** below the frame (§7.1), not in the title bar:
 
 - **Caption** — one line, `line-clamp-1`, bold. (`clip.caption`.)
 - **Creator credit (CC BY-SA)** — `handle · platformLabel` on a second line, muted. This is the
@@ -175,19 +180,28 @@ full candidate card (no match reason, no Promote/Dismiss inside the dock; those 
 No avatar, no follower count, no link-out inside the dock (the card already links the creator). Keep
 the chrome small so the video dominates.
 
-### 7.1 Logged-out curate CTA — the one action inside the dock (issue #71)
+### 7.1 The action row — the dock's bottom region (watch + act)
 
-For a **logged-out** viewer only, the dock carries a single action: a full-width **"Curate this
-video"** button between the title bar and the frame (metadata→action→video reading order). It routes
-through the existing `curate` login gate into the curate flow for the candidate that is playing.
-This is the **intentional, logged-out-only reversal** of the "no Promote/Dismiss inside the dock"
-rule above: a logged-out reader has no Promote/Not-relevant controls on the candidate card (those
-are signed-in only), so the post-watch invitation to curate lands here, at the strongest "ready to
-curate" moment. For a **signed-in** viewer the dock is unchanged (metadata-only) and Promote /
-Not-relevant stay on the card. Visual: solid `brand` (`#676EB4`) fill, white bold text, 2px `ink`
-border, 44px target, decorative `✦`, no gold. It is a real tabbable `<button>` that honors the
-non-modal / no-autofocus / no-focus-steal contract (§8) — present and reachable by Tab, never
-focused on dock open, never trapped.
+The action row sits **below the frame** so the dock reads top-to-bottom as see-it (metadata) →
+watch-it (frame) → act-on-it (buttons). It is **one slot with two renderings**, driven by `signedIn`:
+
+- **Signed in** — two horizontal buttons, `gap: 8px`, pinned to the dock's bottom: **✦ Curate**
+  first (left) and **✕ Not relevant** second (right), matching the on-card order and labels.
+  - **Curate** — solid `brand` (`#676EB4`) fill, white bold text, 2px `ink` border, `flex: 1` so it
+    grows to dominate the row. `aria-label="Curate this clip: {caption}"`, `aria-haspopup="dialog"`.
+    It routes through the existing `curate` gate into the curate flow for the playing candidate.
+  - **Not relevant** — `white` fill, `ink` text, 2px `ink` border, intrinsic width (the quieter,
+    triage action; not red — the label + border carry it, never color). `aria-label="Dismiss as not
+    relevant: {caption}"`. It runs the existing optimistic-dismiss-with-rollback.
+- **Logged out** — a single full-width **✦ Curate this video** CTA (`flex: 1`, brand fill), routing
+  through the `curate` login gate into the curate flow for the playing candidate. **No Not-relevant
+  button** is shown logged out: a logged-out dismiss has no honest optimistic hide, so it is gated on
+  the candidate card rather than offered inside the watch surface.
+
+Both renderings: 44px touch target, decorative `✦` / `✕` (`aria-hidden`), no gold, the 2px `ink`
+border carrying each button's boundary on the ink bar. They are real tabbable `<button>`s that honor
+the non-modal / no-autofocus / no-focus-steal contract (§8) — present and reachable by Tab, never
+focused on dock open or swap, never trapped.
 
 ---
 

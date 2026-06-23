@@ -321,7 +321,10 @@ iteration, kept for history).
     candidates" label; the topic-wide count lives once, in the wiki+ panel.*
 - **Curation entry points.** For a **signed-in** curator every candidate carries **Curate** (opens
   "Curate this clip" — write the context note, set stance + accuracy, confirm the section; publishing
-  turns it into a vetted curated clip) and **Not relevant** (rules it out). Browsing is anonymous;
+  turns it into a vetted curated clip) and **Not relevant** (rules it out). These on-card controls are
+  a secondary path for triaging without opening the player (judging by caption + match reason +
+  thumbnail, or batch-dismissing obvious mismatches); the **in-player action row** carries the same two
+  actions as the primary path once a clip is open (see §"The pinned candidate player"). Browsing is anonymous;
   **curating or adding a video requires login**. A **logged-out** reader sees watch-only candidate
   tiles (no Curate / Not relevant) and meets the curate invitation in the player instead — see
   §"Curated player anatomy" → *Logged-out reader model*.
@@ -357,12 +360,13 @@ viewing experience share a single surface on the small screen. The desktop split
   autoplay only because the user clicked).
 - **Dismiss affordance.** A real, keyboard-operable **"✕ Close"** button (glyph **and** word) in the
   title bar; activating it removes the dock and its iframe from the DOM (playback stops).
-- **Metadata alongside.** Minimal — the **caption** plus **creator credit** (`handle · platformLabel`,
-  the CC BY-SA attribution), reusing the strip/card footer pattern. No match reason, no Promote/Dismiss
-  inside the dock (those stay on the candidate card). The **one exception** is the logged-out
-  **"Curate this video"** CTA (issue #71): a logged-out reader has no Promote/Not-relevant on the
-  card, so the dock carries that single curate invitation between the title bar and the frame —
-  signed-in, the dock stays metadata-only.
+- **Metadata + actions (watch + act).** The title bar carries the clip's **caption** plus **creator
+  credit** (`handle · platformLabel`, the CC BY-SA attribution), reusing the strip/card footer pattern;
+  no match reason inside the dock. Below the frame is the **action row**, so a reader can decide on the
+  clip where they watched it: signed in, the candidate's two actions — **Curate** (primary, brand fill)
+  and **Not relevant** (secondary) — using the same labels and weight as the on-card controls. Logged
+  out, the action row is a single full-width **"Curate this video"** CTA (issue #71); a logged-out
+  dismiss is gated, not shown in the dock.
 - **Accessibility model (non-modal).** The dock is a **labeled landmark** (`<section
   aria-label="Video preview">`), **not** a dialog: no `aria-modal`, **no focus trap**, no backdrop. It
   **does not steal focus on open** (no autofocus) and does not block the page. Dismiss is keyboard
