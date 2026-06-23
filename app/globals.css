@@ -1134,22 +1134,70 @@ figure.wikifig .credit {
   outline: none;
 }
 
-/* Shimmer skeleton for the loading state (design §7.1). */
-@keyframes wikiplus-shimmer {
-  0% {
-    opacity: 0.55;
-  }
-  50% {
-    opacity: 1;
-  }
-  100% {
-    opacity: 0.55;
-  }
-}
+/* Loading skeleton geometry (topic-loading-states §3.2). The bars are STATIC neutral
+   structure; the projector scan (below) is the one animated layer per region. */
 .skeleton-bar {
   background: var(--color-surface-2);
   border-radius: 3px;
-  animation: wikiplus-shimmer 1.4s ease-in-out infinite;
+}
+
+/* ── The projector scan (topic-loading-states §3.1/§3.2). ──
+   "The lamp is warming up": a single warm daylight beam sweeps left→right across a
+   neutral skeleton, brightening (overexposing toward white) each bar as it passes —
+   the §2.5/§2.9 "burn to white" principle in motion. It is layered as an absolutely
+   positioned overlay inside a `position: relative` skeleton container; `mix-blend-mode:
+   screen` means it only ever BRIGHTENS the surface (a near no-op off the bars) and never
+   darkens. Decorative only: the meaning of "loading" is carried by the container's
+   `aria-busy` + the `role="status"` text, never by this warm sweep (§5.2, AC7). The
+   golds are the DAYLIGHT tokens (`--gold-rim`, `--bleed-warm-white`, VISUAL_IDENTITY
+   §4.2) — no new gold, never the functional brand gold #E5AB28. */
+@keyframes wikiplus-projector-scan {
+  0% {
+    transform: translateX(-30%);
+  }
+  100% {
+    transform: translateX(130%);
+  }
+}
+.projector-scan {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+.projector-scan::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  /* ~28% of the container width, a fraction so it scales naturally at 390 vs 1280 (§7). */
+  width: 28%;
+  background: linear-gradient(
+    100deg,
+    transparent 0%,
+    rgb(238 206 135 / 0.42) 28%,
+    rgb(255 252 246 / 0.65) 50%,
+    rgb(238 206 135 / 0.42) 72%,
+    transparent 100%
+  );
+  filter: blur(8px);
+  mix-blend-mode: screen;
+  /* One direction only — a sweep, never a bounce (a bounce reads as a generic shimmer,
+     not a projection). Slower + softer than any header animation (§3.2). */
+  animation: wikiplus-projector-scan 1.8s ease-in-out infinite;
+  will-change: transform;
+}
+/* The plus variant's scan is a touch stronger — this is the plus side's own surface (§3.2). */
+.projector-scan-plus::before {
+  background: linear-gradient(
+    100deg,
+    transparent 0%,
+    rgb(238 206 135 / 0.5) 28%,
+    rgb(255 252 246 / 0.78) 50%,
+    rgb(238 206 135 / 0.5) 72%,
+    transparent 100%
+  );
 }
 
 /* Pinned candidate player dock-in (design §8 / AC12): a short, subtle appear
@@ -1272,8 +1320,16 @@ figure.wikifig .credit {
   .sec-chevron {
     transition: none;
   }
-  .skeleton-bar {
+  /* The projector scan does not animate (topic-loading-states §3.5). The fallback is a
+     STATIC overexposure: the warm daylight band rendered once, CENTERED over the skeleton
+     (a soft static glow across the middle), so the still treatment keeps the projector
+     character without motion. The `aria-busy` + `role="status"` announcement is unaffected
+     by motion preference — a reduced-motion user is told it's loading exactly the same way. */
+  .projector-scan::before {
     animation: none;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 46%;
   }
   .candcard.dismissing {
     transition: none;

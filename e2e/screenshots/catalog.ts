@@ -87,6 +87,11 @@ export interface Scene {
    *  automatically with a `-zine-dark` filename suffix. The light baseline is always captured so the
    *  byte-stable-light acceptance holds across a full refresh. */
   skins?: Skin[];
+  /** Register extra route overrides BEFORE navigation (after the stub profile, before `goto`).
+   *  Used by the loading/error scenes to STALL or FAIL a flow so the capture lands during load
+   *  or on the error face (the `prepare`/`ready` hooks run post-`goto`, too late to block the
+   *  initial fetch). A no-op for ordinary scenes. */
+  setup?: (page: Page) => Promise<void>;
   /** Drive the page to the state worth capturing (scroll, open a player, reveal search, …). */
   prepare?: (page: Page) => Promise<void>;
   /** Wait signal before capture (default: the header is present). */
@@ -327,6 +332,55 @@ export async function collapseHeader(page: Page): Promise<void> {
 async function topicReady(page: Page): Promise<void> {
   await page.locator("header.header-shared").waitFor();
   await page.locator("h1").first().waitFor();
+  await page.waitForTimeout(300);
+}
+
+// ── Loading / error setups (topic-loading-states §8). ───────────────────────────────────────────
+// These STALL or FAIL a flow before navigation so the capture lands on the pending/error face. The
+// route overrides are registered LAST (after applyStub), so Playwright's last-registered handler
+// wins for the matched URLs.
+
+/**
+ * Scene (a) — hold BOTH regions pending (§4 row 1): stall the article HTML fetch (so
+ * `fetchState` stays "loading" → the article scan skeleton) AND stall the store-read Server
+ * Action POST to the topic route (so `!storeReady` → the plus scan skeleton). A stalled
+ * handler that never fulfills keeps the request pending for the capture window — no empty or
+ * error copy can render because neither region has settled.
+ */
+async function stallTopicLoading(page: Page): Promise<void> {
+  // Stall the Parsoid article HTML — fetchState stays "loading".
+  await page.route("**/api/rest_v1/page/html/**", () => {
+    /* never fulfilled — the request hangs, holding the article skeleton */
+  });
+  // Stall the store-read Server Action: App-Router Server Actions POST to the page route itself
+  // (the GET that delivers the document must still pass through). Hold only the POSTs.
+  await page.route("**/topic/**", (route) => {
+    if (route.request().method() === "POST") return; // hang the store-read action(s)
+    return route.continue();
+  });
+}
+
+/** Ready for the loading scene: wait for the article scan skeleton (the loading face), not an
+ *  `h1` (which never appears while the fetch is stalled), then a short settle for the scan. */
+async function topicLoadingReady(page: Page): Promise<void> {
+  await page.locator("header.header-shared").waitFor();
+  await page.locator('[aria-busy="true"] .projector-scan').first().waitFor({ timeout: 8000 });
+  await page.waitForTimeout(400);
+}
+
+/**
+ * Scene (c) — fail the article fetch (§4 row 11): abort the Parsoid HTML route so
+ * `fetchFullArticle` throws → `fetchState === "error"` (the `ArticleError` card). Paired with the
+ * `curated` stub so the rail still lists clips (AC9) and the shot shows NO contradictory empty copy.
+ */
+async function failTopicArticle(page: Page): Promise<void> {
+  await page.route("**/api/rest_v1/page/html/**", (route) => route.abort());
+}
+
+/** Ready for the article-error scene: wait for the error alert card to settle. */
+async function topicErrorReady(page: Page): Promise<void> {
+  await page.locator("header.header-shared").waitFor();
+  await page.getByRole("alert").first().waitFor({ timeout: 8000 });
   await page.waitForTimeout(300);
 }
 
@@ -692,6 +746,45 @@ export const SCENES: Scene[] = [
     stub: "empty",
     ready: topicReady,
     clip: SEL_GENERAL,
+  },
+
+  // ── Topic · loading & states (topic-loading-states §8, AC3 evidence) ──
+  // The three honest conditions, side by side, are visibly distinct: (a) neutral skeletons under a
+  // warm projector scan; (b) a fully-formed empty plus side with weigh-in copy; (c) a bordered error
+  // alert with a populated rail. Row 8/10 (error + loading / error + settled-empty) are covered by
+  // unit tests on the derived-state gate per AC2; the (c) shot uses the populated-plus case so the
+  // "no contradictory empty copy" point is visible alongside the preserved plus side.
+  {
+    id: "topic-loading",
+    group: "Topic · loading & states",
+    label: "Topic — loading (projector scan, both regions)",
+    note: "Both regions pending: the projector scan over the article + plus skeletons. No empty or error copy.",
+    route: "/topic/Photosynthesis/",
+    stub: "curated",
+    setup: stallTopicLoading,
+    ready: topicLoadingReady,
+    clip: "fullPage",
+  },
+  {
+    id: "topic-settled-empty",
+    group: "Topic · loading & states",
+    label: "Topic — settled, genuinely empty (legitimate bootstrap)",
+    note: "A real topic that settled with 0 curated and 0 suggestions: the legitimate empty/weigh-in copy. Distinct from loading and from error.",
+    route: "/topic/Cat/",
+    stub: "empty",
+    ready: topicReady,
+    clip: "fullPage",
+  },
+  {
+    id: "topic-article-error",
+    group: "Topic · loading & states",
+    label: "Topic — article load failed (error card, no contradictory empty copy)",
+    note: "The reported bug, fixed: the article error card with NO \"no suggestions\" message. The plus side reflects its own state independently (curated clips still listed — AC9).",
+    route: "/topic/Photosynthesis/",
+    stub: "curated",
+    setup: failTopicArticle,
+    ready: topicErrorReady,
+    clip: "fullPage",
   },
 
   // ── Players ──

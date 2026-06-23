@@ -10,6 +10,7 @@ import {
   ownerH2SlugMap,
 } from "@/components/topic/ArticleBody";
 import { useIsPhone } from "@/components/topic/useIsPhone";
+import { shouldShowEmptySuggestions } from "./loading-state";
 import { AddModal } from "@/components/topic/AddModal";
 import {
   ArticleNotFound,
@@ -26,6 +27,7 @@ import type { ClipEditFormPatch } from "@/components/topic/curate-clip";
 import type { SubmitOutcome } from "@/components/topic/useCurateSubmit";
 import { GeneralStrip } from "@/components/topic/GeneralStrip";
 import { Infobox } from "@/components/topic/Infobox";
+import { PlusAsideSkeleton, PlusBandSkeleton } from "@/components/topic/PlusSkeleton";
 import { PinnedPlayer, type PinnedClip } from "@/components/topic/PinnedPlayer";
 import {
   MobilePlayerDock,
@@ -1697,6 +1699,12 @@ export function TopicView() {
               )}
             </div>
 
+            {/* Plus-side store loading (topic-loading-states §3.3 / §4 row 1,3,8): the
+                projector plus-skeleton stands in for the panel + TOC while `!storeReady`,
+                in the same box so nothing shifts when content resolves. It is INDEPENDENT
+                of the article column (AC9): the article may be ready, loading, or errored
+                while this shows — each region is honest about its own state. */}
+            {!storeReady && <PlusAsideSkeleton />}
             {storeReady && (
               <aside className="space-y-4 lg:sticky lg:top-20 lg:self-start">
                 <Infobox
@@ -1704,6 +1712,7 @@ export function TopicView() {
                   stats={stats}
                   suggestionCount={liveCandidates.length}
                   storeError={storeError}
+                  candidatesLoading={candidatesLoading}
                   onBrowse={browseVideos}
                 />
                 <Toc
@@ -1716,6 +1725,11 @@ export function TopicView() {
           </div>
         </div>
       </div>
+
+      {/* General band store-loading placeholder (topic-loading-states §3.3): a full-bleed
+          row of 16:9 blocks under the projector scan, sized so the band height does not jump
+          when it resolves. Shows while `!storeReady`, matching the plus-aside skeleton above. */}
+      {!storeReady && <PlusBandSkeleton />}
 
       {/* General / Suggested band — full bleed (the one crossover). */}
       {storeReady && (
@@ -1956,18 +1970,32 @@ export function TopicView() {
                 Looking for suggestions…
               </p>
             )}
-            {/* The honest "no suggestions" line shows only when there is NO curated content
-                either (the empty-with-no-results case). With curated clips present a zero
-                suggestion count simply reads as fully-curated — no suggestion chrome (§7.5). */}
-            {!hasCurated &&
-              !candidatesLoading &&
-              sectionCandidates.length === 0 &&
-              generalCandidates.length === 0 && (
-                <p className="text-sm text-muted">
-                  No suggestions for this topic yet — use &lsquo;Find more&rsquo;
-                  above to add the first video.
-                </p>
-              )}
+            {/* The honest "no suggestions" line — the legitimate settled-empty (b) copy
+                (topic-loading-states §4, §6). The SINGLE load-bearing gate: it renders ONLY
+                when the plus side has GENUINELY settled empty — the five-condition rule. This
+                is a PLUS-SIDE condition: it is blind to `fetchState` as a positive enabler (it
+                never depends on the article succeeding) and is NEVER triggered by an article
+                error (AC1, AC2). Per §4 row 10, when the article errors and the plus side
+                settled empty, this (b) copy still belongs HERE on the plus side (its own honest
+                state) — `ArticleError` itself carries no suggestion copy.
+                  - `storeReady` + `!storeError`: the store has settled and did NOT error.
+                  - `!candidatesLoading`: the candidate search has settled.
+                  - `!hasCurated` + zero in both candidate pools: genuinely empty.
+                With curated clips present a zero suggestion count reads as fully-curated — no
+                suggestion chrome (§7.5). */}
+            {shouldShowEmptySuggestions({
+              storeReady,
+              storeError,
+              candidatesLoading,
+              hasCurated,
+              sectionCandidatesCount: sectionCandidates.length,
+              generalCandidatesCount: generalCandidates.length,
+            }) && (
+              <p className="text-sm text-muted">
+                No suggestions for this topic yet — use &lsquo;Find more&rsquo;
+                above to add the first video.
+              </p>
+            )}
           </aside>
         </div>
       </div>

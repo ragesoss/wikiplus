@@ -229,10 +229,18 @@ export function ArticleSections({
   );
 }
 
-/** Skeleton while the article fetch is in flight (design §7.1). */
+/**
+ * Skeleton while the article fetch is in flight (topic-loading-states §3.2, article variant).
+ * Static neutral bars under the projector scan — "the lamp warming up over the source side."
+ * The scan is the FAINT (non-plus) variant: this is the Wikipedia-flavored source column, so
+ * the warm sweep is quiet. The container is `relative` so the absolutely-positioned
+ * `.projector-scan` overlay can sweep across the bars. The existing `aria-busy="true"` +
+ * `role="status"` "Loading article…" pattern is preserved (§5.1, AC6); the scan is decorative
+ * and carries no meaning on its own (§5.2, AC7).
+ */
 export function ArticleSkeleton() {
   return (
-    <div aria-busy="true" className="min-w-0">
+    <div aria-busy="true" className="relative min-w-0">
       <span className="sr-only" role="status">
         Loading article…
       </span>
@@ -242,6 +250,7 @@ export function ArticleSkeleton() {
           <div className="skeleton-bar mt-3 h-3.5" style={{ width: `${w}%` }} />
         </Fragment>
       ))}
+      <span className="projector-scan" aria-hidden="true" />
     </div>
   );
 }

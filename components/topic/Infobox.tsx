@@ -26,6 +26,7 @@ export function Infobox({
   stats,
   suggestionCount,
   storeError = false,
+  candidatesLoading = false,
   onBrowse,
 }: {
   /** ≥1 curated clip — selects the numeral grid vs. the empty volume panel. */
@@ -35,11 +36,18 @@ export function Infobox({
   suggestionCount: number;
   /** Store-read failure floor (§6.5): render header + an honest line, no counts/buttons. */
   storeError?: boolean;
+  /** The live candidate search is still in flight (topic-loading-states §4 row 4). While it is —
+   *  on an uncurated topic whose suggestion count has not settled — the empty volume block shows a
+   *  projector-scan loading treatment instead of a (misleading) "0 uncurated videos" numeral. */
+  candidatesLoading?: boolean;
   /** Browse/Jump — ALWAYS scrolls to the General band / first video (never opens curate). */
   onBrowse: () => void;
 }) {
   const isEmpty = !hasCurated;
   const isMixed = hasCurated && suggestionCount > 0;
+  // An uncurated topic whose candidate search has not settled: the suggestion numeral is not yet
+  // trustworthy, so show the volume block as loading rather than asserting a count (AC1).
+  const isEmptyLoading = isEmpty && candidatesLoading && suggestionCount === 0;
 
   return (
     <div className="plus-card overflow-hidden">
@@ -63,7 +71,21 @@ export function Infobox({
         <>
           {/* Counts / volume block — the single state-variant region (§6.1–§6.3). */}
           <div className="px-4 pt-3">
-            {isEmpty ? (
+            {isEmptyLoading ? (
+              // Empty + candidates still loading (topic-loading-states §4 row 4): hold the volume
+              // block in the projector-scan loading treatment rather than asserting "0 uncurated
+              // videos". Two static neutral bars stand in for the numeral + label; the scan sweeps
+              // across them. Announced via the candidate polite live region (TopicView), so the
+              // skeleton itself needs no text (§5.2/§5.3).
+              <div
+                aria-busy="true"
+                className="relative flex items-center gap-3 border-2 border-dashed border-[var(--color-emptyrule)] bg-surface-2 px-3 py-2.5"
+              >
+                <div className="skeleton-bar h-8 w-8" />
+                <div className="skeleton-bar h-3.5 w-24" />
+                <span className="projector-scan projector-scan-plus" aria-hidden="true" />
+              </div>
+            ) : isEmpty ? (
               // Empty: a dashed, light (bg2) panel — visually "provisional", matching the
               // unvetted candidate language. The word "uncurated" carries the unvetted
               // meaning in TEXT (§6.1 / §9), not the dashed border/fill alone.

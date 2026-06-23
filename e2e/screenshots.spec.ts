@@ -73,6 +73,10 @@ for (const scene of SCENES) {
           const title = `${viewport} ${auth === "in" ? "logged-in" : "logged-out"}${skinSuffix}`;
           test(title, async ({ page, baseURL }) => {
             await applyStub(page, scene.stub ?? "plain");
+            // Loading/error scenes stall or fail a flow BEFORE navigation so the capture lands on
+            // the pending/error face (the `prepare`/`ready` hooks run post-goto, too late to block
+            // the initial fetch).
+            if (scene.setup) await scene.setup(page);
             if (auth === "in") await signInPage(page, baseURL);
             // Select the skin via its cookie (mirrors the pre-paint bootstrap in app/layout.tsx)
             // BEFORE navigation, so the page renders the skin from first paint with no flash.
