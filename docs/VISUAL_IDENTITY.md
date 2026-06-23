@@ -460,12 +460,22 @@ source/curation-layer story. The projector beam, the bleed, the rim, and the "pe
 ### 6.4 Dark mode
 
 The whole mark is built on a **light/overexposure metaphor** — "daylight," "burn to white,"
-"fluorescent header." **It does not translate literally to a dark UI.** wiki+ ships **no dark mode
-today**, so this is an **open question (§10)**, but the recommended direction is: dark mode keeps the
-**flat lockup (Tier C)** — indigo block + a serif "Wiki" in a light ink — and **does not attempt** the
-burn-to-white projector (you cannot "overexpose to white" on a dark field without inverting the entire
-concept). Re-deriving a true dark-mode treatment (e.g. a *spotlight in a dark theater* inversion) is a
-**future design task, explicitly out of scope here.**
+"fluorescent header." **It does not translate literally to a dark UI.** You cannot "overexpose to
+white" on a dark field without inverting the entire concept.
+
+wiki+ now ships the **zine-dark** skin (issue #119; design contract
+`docs/design/skin-system-zine-dark.md`, ARCHITECTURE "Skin system"). Its header resolution is the
+**flat Tier-C lockup at every scroll state** — the indigo "+plus" block (keeping the brand-fill
+`#676EB4` with a white "+", the committed AA-large exemption §7.2) + a serif "Wiki" in a light ink
+`#ECEAF1` on the flat dark band. It hides the lit aperture + descending beam (the same code path the
+`forced-colors` fallback uses) and does **not** attempt the burn-to-white projector. The header band
+is flat `--surface-2`, the page-top illumination falloff resolves to flat `--surface`, and the 2px
+chrome rule is a light line — a color + layer-visibility change only, with the scroll-transition
+behavior, geometry, and focus order unchanged.
+
+A true dark-theater inversion (e.g. a *spotlight in a dark room* re-derivation of the projector) is a
+**separate future design task, explicitly out of scope** — zine-dark deliberately uses the flat
+lockup rather than re-deriving the projector.
 
 ### 6.5 Static, not animated
 
@@ -653,9 +663,10 @@ stands unchanged. **What is new is strictly the header treatment** — and with 
    the App Router metadata-file convention (which prefixes the emitted icon `<link href>` with
    `basePath` automatically). Geometry mapping, the 16px legibility decisions, and the wiring details
    are in `docs/design/favicon.md`.
-5. **Dark mode (§6.4).** Confirm "no dark-mode projector; flat lockup only" for now, and whether a
-   true dark inversion is a future task. *(Still open — the current behavior is the `forced-colors`
-   → flat-lockup fallback; no dark inversion.)*
+5. **Dark mode (§6.4) — RESOLVED for the zine-dark skin.** "No dark-mode projector; flat lockup only"
+   is now the **committed behavior** for the **zine-dark** skin (issue #119): it uses the flat Tier-C
+   lockup at every scroll state and hides the lit aperture + beam (§6.4). A true dark-theater
+   *spotlight* inversion remains a separate future design task (explicitly not built in #119).
 6. **Responsive breakpoints + seam-to-column mapping — RESOLVED.** The side-by-side ↔ stacked
    handoff is the existing **`lg` (1024px)** Topic-grid breakpoint (`lg:grid-cols-[1fr_360px]`). At
    `≥ lg` the seam aligns to the **gutter centre** — the midpoint of the `gap-7` (28px) channel
