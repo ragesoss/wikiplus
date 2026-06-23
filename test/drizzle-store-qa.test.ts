@@ -26,7 +26,7 @@ import {
 } from "@/lib/db/drizzle-store";
 import { seedDatabase } from "@/lib/db/seed";
 import { seedClips } from "@/lib/data/seed";
-import { clip, contributor } from "@/lib/db/schema";
+import { clip, contributor, topic } from "@/lib/db/schema";
 import { deriveStats } from "@/lib/data";
 import type { Clip } from "@/lib/data/types";
 import { makeTestDb, type TestDb } from "./helpers/pglite-db";
@@ -72,6 +72,36 @@ describe("AC11 — shared persistence across store instances (one DB = two sessi
     const sessionB = new DrizzleDataStore(h.db);
     const qids = (await sessionB.listTopics()).map((t) => t.qid);
     expect(qids).toContain("Q42");
+  });
+
+  // ── #125 recency ordering (homepage-recently-curated.md §4) — listTopics() returns
+  //    most-recently-updated first, with a stable `title` tie-breaker. The author's diff changed
+  //    `.orderBy(topic.title)` → `.orderBy(desc(topic.updatedAt), topic.title)`; nothing in the
+  //    existing suite asserted the ORDER (only set membership / round-trip). This closes that gap.
+  it("listTopics orders most-recently-updated first (recency ordering, #125 §4)", async () => {
+    // Insert directly with explicit, distinct updated_at values so the order is deterministic and
+    // independent of insertion order — middle/oldest/newest deliberately out of recency order.
+    await h.db.insert(topic).values([
+      { wikidataQid: "Q-mid", title: "Beta", updatedAt: new Date("2026-02-01T00:00:00Z") },
+      { wikidataQid: "Q-old", title: "Alpha", updatedAt: new Date("2026-01-01T00:00:00Z") },
+      { wikidataQid: "Q-new", title: "Gamma", updatedAt: new Date("2026-03-01T00:00:00Z") },
+    ]);
+    const order = (await store.listTopics()).map((t) => t.qid);
+    // Newest updated_at first, oldest last — NOT alphabetical-by-title (which would be Alpha/Beta/Gamma).
+    expect(order).toEqual(["Q-new", "Q-mid", "Q-old"]);
+  });
+
+  it("ties on updated_at break by title ascending (stable order across loads, #125 §4)", async () => {
+    // Equal timestamps (a single seed batch) must fall back to a deterministic title sort so the
+    // grid never reshuffles between renders.
+    const sameTs = new Date("2026-04-01T00:00:00Z");
+    await h.db.insert(topic).values([
+      { wikidataQid: "Q-c", title: "Cherry", updatedAt: sameTs },
+      { wikidataQid: "Q-a", title: "Apple", updatedAt: sameTs },
+      { wikidataQid: "Q-b", title: "Banana", updatedAt: sameTs },
+    ]);
+    const titles = (await store.listTopics()).map((t) => t.title);
+    expect(titles).toEqual(["Apple", "Banana", "Cherry"]);
   });
 
   it("infobox counts (deriveStats) reflect the SHARED clip set, not a per-session view", async () => {
