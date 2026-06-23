@@ -161,6 +161,104 @@ test.describe("#72 DEFECT-A — narrow-width search is visible + hittable (Tier 
   }
 });
 
+// #144 — the md–lg (768–1023px) overlap fix. WRITTEN here, RUN deferred to a chromium-capable
+// session (this build session has no chromium). The band the < md DEFECT-A widths above never
+// covered: at tablet widths the Topic wordmark used to center INTO the packed slim chrome row,
+// overlapping the inline search (left), the title-cue (middle), and the auth (right). The fix
+// left-anchors the self-contained lockup past the wider inline-field reserve (320px) across all of
+// `< lg` and gates the title-cue to ≥ lg. These cases assert the AC1 non-overlap gate at the three
+// representative widths, in BOTH scroll states, for the GOVERNING logged-out session (the wider
+// "Log in with Wikipedia" auth — §3.2 proves logged-in is roomier).
+const MDLG_WIDTHS = [768, 834, 1023];
+
+test.describe("#144 — md–lg search · wordmark · cue · auth are non-overlapping (AC1)", () => {
+  test.beforeEach(async ({ page }) => {
+    await stubWikipedia(page);
+  });
+
+  for (const width of MDLG_WIDTHS) {
+    test(`width ${width}px: no overlap among search / wordmark / auth at Tier A and slim`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width, height: 800 });
+      await page.goto("/topic/Photosynthesis/");
+      const header = page.locator("header.header-shared");
+      await expect(header).toBeVisible();
+      await expect(page.locator("h1")).toBeVisible();
+
+      // The four header regions' boxes. At md–lg the search slot is the INLINE field (a combobox,
+      // not the < md magnifier button); the wordmark is the left-anchored flat lockup home link; the
+      // auth is the single right-anchored "Log in with Wikipedia" button (logged-out, the governing
+      // wider case). The title-cue is gated ≥ lg, so at md–lg it must be absent (its presence would
+      // be the second overlap) — we assert it is not rendered below lg.
+      const boxes = async () =>
+        page.evaluate(() => {
+          const r = (el: Element | null) => {
+            if (!el) return null;
+            const b = (el as HTMLElement).getBoundingClientRect();
+            return { left: b.left, right: b.right, top: b.top, bottom: b.bottom };
+          };
+          return {
+            search: r(
+              document.querySelector(
+                'header.header-shared [role="combobox"][aria-label*="Search Wikipedia topics" i]'
+              ) ?? document.querySelector('header.header-shared [role="combobox"]')
+            ),
+            mark: r(document.querySelector('a[aria-label="wiki+"]')),
+            auth: r(
+              document.querySelector(
+                'header.header-shared [aria-label="Log in with Wikipedia"]'
+              )
+            ),
+            cue: r(document.querySelector('[data-testid="slim-title-cue"]')),
+          };
+        });
+      const overlaps = (
+        a: { left: number; right: number; top: number; bottom: number } | null,
+        b: { left: number; right: number; top: number; bottom: number } | null
+      ) =>
+        !!a &&
+        !!b &&
+        a.left < b.right - 1 &&
+        a.right > b.left + 1 &&
+        a.top < b.bottom - 1 &&
+        a.bottom > b.top + 1;
+
+      const assertNoOverlap = async () => {
+        const bx = await boxes();
+        expect(bx.search, "the inline search field is present").not.toBeNull();
+        expect(bx.mark, "the wordmark home link is present").not.toBeNull();
+        expect(bx.auth, "the logged-out auth button is present").not.toBeNull();
+        // The three real regions are pairwise non-overlapping (AC1).
+        expect(overlaps(bx.search, bx.mark)).toBe(false);
+        expect(overlaps(bx.search, bx.auth)).toBe(false);
+        expect(overlaps(bx.mark, bx.auth)).toBe(false);
+        // The title-cue is gated ≥ lg, so below 1024 it must NOT render (the second overlap is gone).
+        if (width < 1024) {
+          expect(bx.cue, "the title-cue is dropped below lg (§3.3)").toBeNull();
+        }
+      };
+
+      // ── Tier A (scroll-top) ──────────────────────────────────────────────────────────────────
+      await page.evaluate(() => window.scrollTo(0, 0));
+      await assertNoOverlap();
+
+      // ── Slim (scrolled past the collapse threshold) ──────────────────────────────────────────
+      await expect(async () => {
+        await page.evaluate(() => window.scrollTo(0, 700));
+        const p = await header.evaluate((el) =>
+          (el as HTMLElement).style.getPropertyValue("--p").trim()
+        );
+        expect(Number(p)).toBeGreaterThan(0.99);
+      }).toPass({ timeout: 8000 });
+      await assertNoOverlap();
+
+      // Exactly one accessible "wiki+" home link (AC5 — no loss of the home affordance).
+      await expect(page.getByRole("link", { name: "wiki+" })).toHaveCount(1);
+    });
+  }
+});
+
 test.describe("#72 DEFECT-B — single-origin cross-fade (no double wordmark)", () => {
   test.beforeEach(async ({ page }) => {
     await stubWikipedia(page);
