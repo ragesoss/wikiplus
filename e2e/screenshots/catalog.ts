@@ -510,7 +510,9 @@ async function openMobileDock(page: Page): Promise<void> {
 /** Open the mobile dock, then open the Curate inline expander reveal (mobile-player-slim.md §3). */
 async function openMobileDockCurate(page: Page): Promise<void> {
   await openMobileDock(page);
-  await page.getByRole("button", { name: "Curate" }).click();
+  // `exact: true` targets the dock's "Curate" tab specifically — when signed in the article also
+  // renders per-candidate "Curate this clip: …" buttons, which a substring match would collide with.
+  await page.getByRole("button", { name: "Curate", exact: true }).click();
   await page.waitForTimeout(150);
 }
 

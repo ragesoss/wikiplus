@@ -40,6 +40,26 @@
     "focus": true
   },
   {
+    "id": "about-landscape-tablet",
+    "group": "Other pages",
+    "label": "About — wide-but-short (landscape tablet, miniature-alone fallback)",
+    "viewport": "landscape-tablet",
+    "auth": "out",
+    "skin": "light",
+    "file": "about-landscape-tablet-landscape-tablet-logged-out.png",
+    "focus": true
+  },
+  {
+    "id": "about-landscape-tablet",
+    "group": "Other pages",
+    "label": "About — wide-but-short (landscape tablet, miniature-alone fallback)",
+    "viewport": "landscape-tablet",
+    "auth": "in",
+    "skin": "light",
+    "file": "about-landscape-tablet-landscape-tablet-logged-in.png",
+    "focus": true
+  },
+  {
     "id": "home",
     "group": "Home",
     "label": "Home — landing page",
@@ -1457,6 +1477,136 @@
     "auth": "in",
     "skin": "zine-dark",
     "file": "pinned-player-desktop-logged-in-zine-dark.png",
+    "focus": false
+  },
+  {
+    "id": "pinned-player-vertical",
+    "group": "Players",
+    "label": "PinnedPlayer — vertical 9:16 dock, action row (desktop)",
+    "viewport": "desktop",
+    "auth": "out",
+    "skin": "light",
+    "file": "pinned-player-vertical-desktop-logged-out.png",
+    "focus": false
+  },
+  {
+    "id": "pinned-player-vertical",
+    "group": "Players",
+    "label": "PinnedPlayer — vertical 9:16 dock, action row (desktop)",
+    "viewport": "desktop",
+    "auth": "in",
+    "skin": "light",
+    "file": "pinned-player-vertical-desktop-logged-in.png",
+    "focus": false
+  },
+  {
+    "id": "mobile-player-slim-default",
+    "group": "Players · mobile unified",
+    "label": "Mobile dock — slim default (bottom-parked)",
+    "viewport": "mobile",
+    "auth": "out",
+    "skin": "light",
+    "file": "mobile-player-slim-default-mobile-logged-out.png",
+    "focus": false
+  },
+  {
+    "id": "mobile-player-slim-default",
+    "group": "Players · mobile unified",
+    "label": "Mobile dock — slim default (bottom-parked)",
+    "viewport": "mobile",
+    "auth": "out",
+    "skin": "zine-dark",
+    "file": "mobile-player-slim-default-mobile-logged-out-zine-dark.png",
+    "focus": false
+  },
+  {
+    "id": "mobile-player-slim-default",
+    "group": "Players · mobile unified",
+    "label": "Mobile dock — slim default (bottom-parked)",
+    "viewport": "mobile",
+    "auth": "in",
+    "skin": "light",
+    "file": "mobile-player-slim-default-mobile-logged-in.png",
+    "focus": false
+  },
+  {
+    "id": "mobile-player-slim-default",
+    "group": "Players · mobile unified",
+    "label": "Mobile dock — slim default (bottom-parked)",
+    "viewport": "mobile",
+    "auth": "in",
+    "skin": "zine-dark",
+    "file": "mobile-player-slim-default-mobile-logged-in-zine-dark.png",
+    "focus": false
+  },
+  {
+    "id": "mobile-player-slim-top-parked",
+    "group": "Players · mobile unified",
+    "label": "Mobile dock — slim default, parked at the top edge",
+    "viewport": "mobile",
+    "auth": "out",
+    "skin": "light",
+    "file": "mobile-player-slim-top-parked-mobile-logged-out.png",
+    "focus": false
+  },
+  {
+    "id": "mobile-player-curate-expanded",
+    "group": "Players · mobile unified",
+    "label": "Mobile dock — Curate reveal (signed in)",
+    "viewport": "mobile",
+    "auth": "in",
+    "skin": "light",
+    "file": "mobile-player-curate-expanded-mobile-logged-in.png",
+    "focus": false
+  },
+  {
+    "id": "mobile-player-curate-loggedout",
+    "group": "Players · mobile unified",
+    "label": "Mobile dock — Curate reveal (logged out)",
+    "viewport": "mobile",
+    "auth": "out",
+    "skin": "light",
+    "file": "mobile-player-curate-loggedout-mobile-logged-out.png",
+    "focus": false
+  },
+  {
+    "id": "mobile-player-seecontext-candidate",
+    "group": "Players · mobile unified",
+    "label": "Mobile dock — See context reveal (candidate)",
+    "viewport": "mobile",
+    "auth": "out",
+    "skin": "light",
+    "file": "mobile-player-seecontext-candidate-mobile-logged-out.png",
+    "focus": false
+  },
+  {
+    "id": "mobile-player-seecontext-candidate",
+    "group": "Players · mobile unified",
+    "label": "Mobile dock — See context reveal (candidate)",
+    "viewport": "mobile",
+    "auth": "in",
+    "skin": "light",
+    "file": "mobile-player-seecontext-candidate-mobile-logged-in.png",
+    "focus": false
+  },
+  {
+    "id": "mobile-player-seecontext-curated",
+    "group": "Players · mobile unified",
+    "label": "Mobile dock — See context reveal (curated)",
+    "viewport": "mobile",
+    "auth": "out",
+    "skin": "light",
+    "file": "mobile-player-seecontext-curated-mobile-logged-out.png",
+    "focus": false
+  },
+  {
+    "id": "mobile-player-seecontext-curated",
+    "group": "Players · mobile unified",
+    "label": "Mobile dock — See context reveal (curated)",
+    "viewport": "mobile",
+    "auth": "in",
+    "skin": "light",
+    "file": "mobile-player-seecontext-curated-mobile-logged-in.png",
     "focus": false
   },
   {
