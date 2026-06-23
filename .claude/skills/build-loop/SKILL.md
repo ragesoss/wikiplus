@@ -88,7 +88,12 @@ Library — unit/integration, config in `vitest.config.ts`, specs under `test/`)
 (Playwright against `next build` + `next start`, specs under `e2e/`). There is **no `lint` script**
 (eslint is ignored during builds). The harness is already committed; deps install with `yarn install
 --frozen-lockfile` (as CI does). New work adds `test/*.test.ts` to the existing suite — do **not**
-re-scaffold a runner.
+re-scaffold a runner. **`yarn typecheck` / `yarn test` / `yarn build` run fully offline** — the suite
+mocks the Wikipedia fetch + stubs YouTube and uses in-process pglite, so a cloud session with **no /
+limited egress** can still run the whole unit gate (and `pr-ci.yml` now runs typecheck + tests on every
+PR, so the merge gate doesn't depend on the cloud session's own environment). Only **live** verification
+(`scripts/ops/verify-live.sh`, manual `yarn dev` browsing) and the **screenshot/e2e** harness (chromium)
+need more — see *Worktrees & tool hygiene* and Phase 4 for the no-chromium fallback.
 
 **Helper scripts (use them — they're allowlisted, so they don't prompt; prefer them over raw
 `ssh`/`curl`/`docker`).** `scripts/ops/verify-live.sh` — post-deploy live health check (read path
@@ -96,7 +101,9 @@ re-scaffold a runner.
 `box-logs.sh` / `box-secrets-check.sh` — read-only box inspection (local sessions with the SSH key
 only). `scripts/dev/test-db.sh up|down` — a local Postgres for integration tests (the normal suite
 uses in-process pglite). `scripts/dev/qa-gate.sh` — the pre-PR `typecheck + test + build` gate in one
-command (Dev's Phase-3 self-check; `--no-build` for a faster inner loop). `scripts/dev/shoot.sh
+command (Dev's Phase-3 self-check; `--no-build` for a faster inner loop). `scripts/dev/worktree.sh
+new <name>|rm <name>|list` — make/tear down a build worktree in the standard in-repo location (see
+*Worktrees & tool hygiene* below). `scripts/dev/shoot.sh
 <file.html|/route> [--montage] [--crop WxH+X+Y]` — render mockups or live routes to PNG for UX design
 + Phase-4 evaluation evidence, replacing the chrome-screenshot + ImageMagick ritual. `scripts/dev/shots.sh
 [--all|--home|--topic] [--pr N]` — the **standard PR screenshot matrix** (home + Topic × logged-out/logged-in
@@ -109,8 +116,30 @@ wait-deploy.sh [sha]` — poll the `main` deploy run to completion, then chain `
 `scripts/ops/verify-live.sh`), **never** wrapped in `bash` — the allowlist keys them by their literal
 path, so `bash <script>` makes `bash` the matched command, defeats the allowlist, and prompts on every
 call. The committed `.claude/settings.json` allowlists the
-common `yarn`/`npx`/`git`/`gh` loop commands so **cloud sessions don't re-prompt** — see
-`scripts/ops/README.md`.
+common `yarn`/`npx`/`git`/`gh` loop commands + the safe read-only inspection verbs so **cloud sessions
+don't re-prompt** — see `scripts/ops/README.md`.
+
+## Worktrees & tool hygiene
+
+**Every build runs in its own worktree, in ONE standard place.** Create it with
+`scripts/dev/worktree.sh new issue-<N>-<slug>` — it makes `.claude/worktrees/issue-<N>-<slug>` on a
+fresh branch, symlinks `node_modules` from the main checkout, and **prints the worktree's absolute
+path**. Because the worktree lives **under the repo root**, every Read/Write/Grep into it inherits the
+trusted-directory grant — **no per-worktree permission prompt** (a sibling `../wikiplus-issue-N` is
+outside the root and prompts on every access). It is gitignored and parallel-safe (one subdir +
+branch per build). Tear down with `scripts/dev/worktree.sh rm <name>`.
+
+Pass each subagent **that printed absolute path** as its working location, and require:
+- **Work *in* the worktree — never prefix commands with `cd <worktree> && …`.** The worktree is the
+  cwd; a compound `cd` to a non-cwd absolute path defeats the allowlist and prompts on **every** call
+  (this was the single biggest prompt source in past runs).
+- **Give tools worktree-absolute paths** for any **new** file — a subagent's Write has otherwise
+  resolved a new path to the *main* repo root, landing the file in the wrong tree.
+- **Prefer the Read / Grep / Glob tools over `cat` / `grep` / `ls` / `head` via Bash** for inspection
+  (the read-only Bash verbs are allowlisted as a fallback, but the dedicated tools never prompt and
+  are cheaper).
+- **Commit incrementally** during a long run, so an API/spend-limit death leaves recoverable work in
+  the worktree rather than an uncommitted tree with no report.
 
 **Known gap — the e2e gate is not green on `main`.** `yarn test:e2e` has **pre-existing failures** on
 `main` (fixture/locator debt — tracked by the e2e-fixture-repair issue). Until that's fixed, an e2e run

@@ -30,6 +30,33 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # The unit/integration gate: typecheck + Vitest. Fully offline — the suite mocks the Wikipedia
+  # fetch and stubs YouTube (see e2e/screenshots/catalog.ts and the test setup), and uses in-process
+  # pglite — so it needs no secrets and no network egress. This is the authoritative green a cloud
+  # build-loop session (no chromium, limited egress) can lean on before it opens a PR. Fast, so it is
+  # safe to mark a required status check on `main`. (e2e/Playwright is NOT run here — it isn't green
+  # on `main` yet; wire it in once the fixture debt is cleared.)
+  test:
+    name: Typecheck + unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: yarn
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Typecheck
+        run: yarn typecheck
+
+      - name: Unit tests
+        run: yarn test
+
   docker-build:
     name: Docker build stage (trimmed context)
     runs-on: ubuntu-latest

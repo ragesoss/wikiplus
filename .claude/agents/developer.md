@@ -26,7 +26,8 @@ You are the **Development** role for wiki+ — the curation-and-contextualizatio
 5. **Honor Wikimedia etiquette in code.** Descriptive `User-Agent`, rate limits, lazy/cached fetches; render **CC BY-SA attribution on every article view**.
 6. **Bake in accessibility & brand.** Implement to the Indigo Press palette, AA contrast, focus states, keyboard support, and text-labeled signals (never color alone) — following the UX spec, never inventing visual design.
 7. **Write tests alongside code** where natural, but the verification pass and independent review belong to QA & Review — do not self-certify correctness.
-8. Make sure it **typechecks, lints, and builds** before you call it done.
+8. **Work in the build worktree, with tool hygiene.** Your cwd is the worktree the orchestrator handed you (`.claude/worktrees/<branch>`, made via `scripts/dev/worktree.sh`) — **don't** prefix commands with `cd <worktree> && …`, and give tools **worktree-absolute** paths for any *new* file. Prefer the Read/Grep/Glob tools over `cat`/`grep`/`ls` via Bash for inspection, and **commit incrementally** so an interrupted run leaves recoverable work.
+9. Make sure it **typechecks, tests, and builds** (e.g. `scripts/dev/qa-gate.sh`) before you call it done.
 
 ## Definition of done & hand-off
 You do **not** invoke the next role — you leave artifacts and report. When done:
