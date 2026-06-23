@@ -135,3 +135,22 @@ export async function findOrCreateContributor(
     handle: username,
   };
 }
+
+/**
+ * Read a contributor's stored skin preference (issue #143 — `'zine'` | `'zine-dark'`, or `null` for
+ * none). Read ONCE at sign-in (alongside the one find-or-create write) by the Auth.js `jwt` callback,
+ * stamped on the JWT, and mirrored into the `wikiplus-skin` cookie at login (DB→cookie — spec §6.1).
+ * Keeping it to the sign-in pass keeps ORDINARY reads JWT-only (no per-read DB hit) and OFF the
+ * render path, so the cache-agnostic guarantee holds. Returns null for an unknown contributor.
+ */
+export async function getSkinPreference(
+  contributorId: number,
+  db: Db = getDb()
+): Promise<string | null> {
+  const rows = await db
+    .select({ skinPreference: contributor.skinPreference })
+    .from(contributor)
+    .where(eq(contributor.id, contributorId))
+    .limit(1);
+  return rows[0]?.skinPreference ?? null;
+}

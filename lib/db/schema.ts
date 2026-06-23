@@ -199,6 +199,20 @@ export const contributor = pgTable("contributor", {
   //       into the `isModerator` session claim at login + re-checked at the write boundary.
   // The role-gate's AUTHORITY is always SERVER-SIDE — never a client-supplied flag (Decision 2).
   isModerator: boolean("is_moderator").notNull().default(false),
+  // ── Per-user skin preference (issue #143). ────────────────────────────────────────────────────
+  // The contributor's chosen app skin, the DURABLE per-user backstop behind the `wikiplus-skin`
+  // cookie. Values are the closed skin set `'zine'` (the light Indigo Press zine) / `'zine-dark'`
+  // (the dark skin); `NULL` ≙ NO stored preference (fall through to the cookie / the OS
+  // `prefers-color-scheme` default). NULLABLE + additive + non-destructive (the `is_moderator`
+  // precedent), so every existing/new contributor lands with no preference until they pick one.
+  //
+  // This column is NEVER on the read/render path (the cache-agnostic guarantee — spec §6.1): the
+  // server never reads it to render `data-skin`. It is the per-user durable store the auth/session
+  // layer MIRRORS INTO THE COOKIE at login (DB→cookie), so the next paint's pre-paint bootstrap
+  // reads the cookie alone (no per-read DB hit). A logged-in toggle writes both (cookie immediately
+  // for the live switch + this column, fire-and-forget). The cookie is authoritative for rendering;
+  // this column seeds it for cross-device continuity — they converge on the latest explicit toggle.
+  skinPreference: text("skin_preference"),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),

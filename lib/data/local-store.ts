@@ -17,6 +17,7 @@ const CLIPS_KEY = "wikiplus.clips";
 const CANDIDATES_KEY = "wikiplus.candidates";
 const DISMISSED_KEY = "wikiplus.dismissed_candidates";
 const VOTES_KEY = "wikiplus.clip_votes";
+const SKIN_PREF_KEY = "wikiplus.skin_preference";
 
 function read<T>(key: string): T[] {
   if (typeof window === "undefined") return [];
@@ -196,6 +197,18 @@ export class LocalStorageDataStore implements DataStore {
     clips[i] = marked;
     write(CLIPS_KEY, clips);
     return marked;
+  }
+
+  // ── Per-user skin preference (issue #143 — reference impl). ─────────────────────────
+  // The localStorage store has no `contributor` table (clips carry only the `curatedBy` handle), so
+  // the reference impl persists the chosen skin to a single per-browser key. This keeps the seam
+  // contract satisfiable in non-DB tests; the production per-user round-trip is exercised against the
+  // real DrizzleDataStore (pglite). The cookie is the real client source of truth for rendering
+  // (spec §6.1) — this is only the durable-backstop stand-in.
+  async setSkinPreference(skin: string | null): Promise<void> {
+    if (typeof window === "undefined") return;
+    if (skin === null) window.localStorage.removeItem(SKIN_PREF_KEY);
+    else window.localStorage.setItem(SKIN_PREF_KEY, skin);
   }
 
   // ── Public contributor profile reads (issue #54 / D3 — reference impl over `curatedBy`). ──

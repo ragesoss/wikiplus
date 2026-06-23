@@ -379,13 +379,52 @@ literals they replaced, so the default render is byte-unchanged; the dark skin i
 concern, so the SSR'd HTML shell stays **skin-agnostic**: the same cached page serves every skin. The
 `data-skin` attribute is therefore **not** baked into the server-rendered markup from a per-request
 cookie (that would fragment the cache by skin, multiplying every cached entry). Instead a tiny
-**pre-paint inline script** in the `<head>` sets `data-skin` from a `wikiplus-skin` cookie (the
-operator/spike override), falling back to the build-time `WIKIPLUS_SKIN` default — before first paint,
-so there is no flash and the cached shell is identical across skins. Consequence: the (future)
-ISR/Redis read path needs **no skin variance** — no skin cache key, no per-skin revalidation — exactly
-like the device-class branch above (one cached shell, a presentational branch in the browser). A
-polished in-app toggle + a per-user persisted preference are deliberately out of scope for #119; the
-seam makes them a small additive change.
+**pre-paint inline script** in the `<head>` (`app/layout.tsx`'s `SKIN_BOOTSTRAP`) sets `data-skin`
+entirely in the browser, before first paint, so there is no flash and the cached shell is identical
+across skins. Consequence: the (future) ISR/Redis read path needs **no skin variance** — no skin cache
+key, no per-skin revalidation — exactly like the device-class branch above (one cached shell, a
+presentational branch in the browser).
+
+**Selection mechanism.** The skin is driven from the UI by an in-app **skin toggle**
+(`components/header/SkinToggle.tsx`), a binary `light ↔ zine-dark` control on the persistent chrome row
+of every `SiteHeader` host (left of the auth slot), with a mirrored item in the logged-in account menu
+— one action, one resolved-skin state, shared via `lib/skin/client.ts`'s `useSkin`. On activation it
+flips `data-skin` on `<html>` **in place** (no reload, no remount) and writes the `wikiplus-skin`
+cookie — the whole-page re-skin through the existing `[data-skin]` CSS cascade. (An operator-level
+build default still exists: `WIKIPLUS_SKIN` seeds the bootstrap when there is no cookie.)
+
+**Persistence model + the cache-agnostic guarantee.** The **`wikiplus-skin` cookie is the single
+client source of truth** the pre-paint bootstrap reads — it works logged-out and is what makes first
+paint correct with no flash. It is first-party, non-`HttpOnly` (the bootstrap reads it), `SameSite=Lax`,
+`Path=/`, ≈1-year `Max-Age` (and `Secure` on HTTPS); it carries no PII and is **never read server-side**
+to render — so it is **not** a cache key and the edge must not strip it or vary on it. For **logged-in**
+users the preference is *additionally* persisted on the contributor row (`contributor.skin_preference`,
+nullable: `'zine'` / `'zine-dark'` / `null` = none) as a **durable cross-device backstop**, and
+**mirrored into the cookie at login** (DB→cookie): the Auth.js `jwt` callback reads `skin_preference`
+in the same sign-in pass that does the find-or-create write and stamps it on the JWT; a thin client
+step (`components/header/SkinSync.tsx`) reads it off the session and sets the cookie + flips `data-skin`
+on a freshly-established session whose cookie does not already carry it. The DB therefore **never enters
+the read/render path** — ordinary reads stay JWT-only (no per-read DB hit), the SSR shell is
+byte-identical across skin cookies, and no skin cache key / `Vary` / per-skin ISR variant is introduced.
+On a logged-in toggle the control writes the cookie + flips live **first** and persists to the DB
+**fire-and-forget** (a low-frequency presentational write, gated by `requireContributor`, not
+rate-limited) — the visual switch never waits on the write.
+
+**Cookie ↔ DB tie-break.** The cookie is authoritative for *rendering*. At login the DB **seeds** the
+cookie (DB→cookie), once per established session, so a fresh device picks up the user's stored skin. A
+subsequent same-device toggle updates **both** (cookie immediately + DB), and the login mirror does not
+re-run for that session — so the **latest explicit user action wins** and the two converge with no
+server-side per-read reconciliation.
+
+**OS default (`prefers-color-scheme`).** With **no** stored preference (no `wikiplus-skin` cookie and,
+for a logged-in user, a `null` DB value), the default **honors the OS dark preference**: the bootstrap
+resolves `window.matchMedia('(prefers-color-scheme: dark)')` → render zine-dark, otherwise the light
+zine. The full resolution order in the bootstrap is **explicit cookie → (logged-in: the mirrored DB
+value, already in the cookie) → OS `prefers-color-scheme` → light**. An explicit choice (a `'zine'` or
+`'zine-dark'` cookie) always **overrides** the OS signal, so an OS-dark reader who picks light is not
+trapped. This resolution happens **only** in the browser pre-paint script — **never** in server markup
+— so the cache-agnostic guarantee holds (the server cannot and must not know the client's color scheme
+for rendering).
 
 ## Topic discovery & search
 

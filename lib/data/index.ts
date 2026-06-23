@@ -15,6 +15,7 @@ import {
   recordDismissalAction,
   removeClipAction,
   reviewClipAction,
+  setSkinPreferenceAction,
   toggleUpvoteAction,
   updateClipAction,
   upsertTopicAction,
@@ -90,6 +91,11 @@ const clientStore: DataStore = {
   votedClipIds: (clipIds) => votedClipIdsAction(clipIds),
   recordDismissal: (input) => recordDismissalAction(input),
   dismissedKeys: (topicQid) => dismissedKeysAction(topicQid),
+  // Issue #143: the per-user skin preference write. The client forwards only the chosen skin value —
+  // the boundary resolves the contributor (the seam's `contributorId` param is server-internal,
+  // unused here). FIRE-AND-FORGET from the toggle (spec §6.1): the cookie + the live `data-skin` flip
+  // happen first and never await this.
+  setSkinPreference: (skin) => setSkinPreferenceAction(skin),
 };
 
 export const store: DataStore = clientStore;

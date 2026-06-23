@@ -57,6 +57,13 @@
       "when": 1781805176306,
       "tag": "0007_regular_scorpion",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1782252420394,
+      "tag": "0008_chilly_felicia_hardy",
+      "breakpoints": true
     }
   ]
 }

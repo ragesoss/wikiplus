@@ -389,6 +389,24 @@ export class DrizzleDataStore implements DataStore {
     return rows[0] ?? null;
   }
 
+  // ── Per-user skin preference (issue #143) ──────────────────────────────────────────
+  async setSkinPreference(
+    skin: string | null,
+    contributorId?: number
+  ): Promise<void> {
+    // The boundary (`setSkinPreferenceAction`) always passes the authenticated contributor; the
+    // optional shape only keeps the store-level tests callable. With no contributor there is nothing
+    // to persist (a logged-out toggle is cookie-only — spec §6.1), so this is a no-op.
+    if (contributorId === undefined) return;
+    // Write ONLY the preference column (+ no other field). NULL clears it (back to "no stored
+    // preference" → cookie/OS default). This row is NEVER read on the render path; the login
+    // mirrors it into the cookie (DB→cookie), so the bootstrap reads the cookie alone.
+    await this.db
+      .update(contributor)
+      .set({ skinPreference: skin })
+      .where(eq(contributor.id, contributorId));
+  }
+
   // ── Public contributor profile reads (issue #54 / D3 — anonymous; AC1–AC4) ──────────
   async getContributorByUsername(
     username: string

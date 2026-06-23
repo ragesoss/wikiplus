@@ -172,6 +172,19 @@ export interface DataStore {
    */
   removeClip(id: string, removedBy?: number, reason?: string | null): Promise<Clip>;
 
+  // ── Per-user skin preference (issue #143 — the durable backstop behind the cookie). ──
+  /**
+   * Persist a logged-in contributor's chosen skin (`'zine'` | `'zine-dark'`, or `null` to clear).
+   * The auth-gated `setSkinPreferenceAction` resolves the session via `requireContributor()` and
+   * passes the contributor id; the client facade passes only the skin value. This is FIRE-AND-FORGET
+   * from the control's perspective — the cookie + the live `data-skin` flip happen first and never
+   * wait on this write (spec §6.1 / design §4.6). It is the DURABLE backstop the login mirrors into
+   * the `wikiplus-skin` cookie (DB→cookie), so it NEVER enters the read/render path. `contributorId`
+   * is server-internal (the boundary resolves it); it is optional only so the store-level tests +
+   * the reference impl can call it without a session.
+   */
+  setSkinPreference(skin: string | null, contributorId?: number): Promise<void>;
+
   // ── Public contributor profile reads (issue #54 / D3 — anonymous, no auth gate). ────
   // Both are READS, reached through read-only Server Actions with NO `requireContributor`
   // gate (like `listClips`): a public profile is browsable logged-out (AC1). They run ONLY
