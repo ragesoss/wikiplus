@@ -27,9 +27,11 @@ vi.mock("@/lib/wiki/suggest", () => ({
   fetchTopicSuggestions: (...a: unknown[]) => fetchTopicSuggestions(...a),
 }));
 
-const listTopics = vi.fn();
+// The homepage reads `listCuratedTopics()` (issue #126) — curated topics + at-a-glance stats,
+// filtered to videos ≥ 1 and recency-ordered server-side.
+const listCuratedTopics = vi.fn();
 vi.mock("@/lib/data", () => ({
-  store: { listTopics: () => listTopics() },
+  store: { listCuratedTopics: () => listCuratedTopics() },
 }));
 
 import HomePage from "@/app/page";
@@ -39,9 +41,14 @@ beforeEach(() => {
   routerPush.mockReset();
   fetchTopicSuggestions.mockReset();
   fetchTopicSuggestions.mockResolvedValue([]);
-  listTopics.mockReset();
-  listTopics.mockResolvedValue([
-    { qid: "Q11173", title: "Photosynthesis", description: "Process used by plants" },
+  listCuratedTopics.mockReset();
+  listCuratedTopics.mockResolvedValue([
+    {
+      qid: "Q11173",
+      title: "Photosynthesis",
+      description: "Process used by plants",
+      stats: { videos: 12, creators: 7, curators: 3 },
+    },
   ]);
 });
 afterEach(() => {
@@ -227,35 +234,34 @@ describe("AC11 — accessible-name leaf semantics + keyboard reach", () => {
   });
 });
 
-// ── #125 — the "Recently curated" section: heading reframe + all four data-state strings. ──
-// homepage-recently-curated.md §3.1 (eyebrow/title/supporting line), §3.2 (the four states, the
-// read-error line VERBATIM). The author suite asserts the heading text + the read-error line, but
-// not the eyebrow, the supporting line, or the loading/empty/populated state copy. This closes
-// those gaps so each acceptance-criterion string is independently pinned.
-describe("#125 — Recently curated heading + supporting microcopy (§3.1)", () => {
-  it("renders the eyebrow, the <h2> title, and the supporting line with the shared-data disclaimer", async () => {
+// ── #126 §6.1.1 — the "Recently curated" section chrome is STRIPPED to the heading alone. ──
+// Per the owner revision folded into topic-card-redesign.md §6.1.1 (superseding
+// homepage-recently-curated.md §5.1/§5.2): the `FRESH FROM THE COMMUNITY` eyebrow device AND the
+// supporting/disclaimer line are removed; ONLY the `Recently curated` <h2> remains above the grid.
+describe("#126 §6.1.1 — Recently curated section chrome stripped to the heading alone", () => {
+  it("keeps the <h2> title but removes the eyebrow + the supporting/disclaimer line", async () => {
     render(<HomePage />);
     await screen.findByRole("combobox", { name: /find a topic/i });
-    // Eyebrow kicker (authored in normal case, displayed uppercase via CSS).
-    expect(screen.getByText(/fresh from the community/i)).toBeInTheDocument();
-    // Title is an <h2> (peer section heading — keeps the screen-reader outline logical).
+    // The <h2> heading remains, unchanged (the one piece of #125 section chrome that stays).
     expect(
       screen.getByRole("heading", { level: 2, name: /^recently curated$/i })
     ).toBeInTheDocument();
-    // Supporting line: recency framing + the prototype shared-data disclaimer (RC3, functionally required).
+    // The eyebrow device is gone.
+    expect(screen.queryByText(/fresh from the community/i)).toBeNull();
+    // The supporting line + shared-data disclaimer are gone.
     expect(
-      screen.getByText(/The topics most recently curated on wiki\+\./i)
-    ).toBeInTheDocument();
+      screen.queryByText(/The topics most recently curated on wiki\+\./i)
+    ).toBeNull();
     expect(
-      screen.getByText(/curations are shared, so everyone sees the same topics and clips/i)
-    ).toBeInTheDocument();
+      screen.queryByText(/curations are shared, so everyone sees the same topics and clips/i)
+    ).toBeNull();
   });
 });
 
 describe("#125 — all four data states render verbatim microcopy (§3.2)", () => {
   it("LOADING: shows the descriptive loading line while the read is pending", async () => {
     // A never-resolving read holds the loading state (topics === null, no loadError).
-    listTopics.mockReturnValue(new Promise(() => {}));
+    listCuratedTopics.mockReturnValue(new Promise(() => {}));
     render(<HomePage />);
     expect(
       await screen.findByText("Loading recently curated topics…")
@@ -263,7 +269,7 @@ describe("#125 — all four data states render verbatim microcopy (§3.2)", () =
   });
 
   it("EMPTY: an empty list points the visitor back at the search above", async () => {
-    listTopics.mockResolvedValue([]);
+    listCuratedTopics.mockResolvedValue([]);
     render(<HomePage />);
     expect(
       await screen.findByText(
@@ -273,7 +279,7 @@ describe("#125 — all four data states render verbatim microcopy (§3.2)", () =
   });
 
   it("READ-ERROR: shows the verbatim floor line (AC7 verify line — must not drift)", async () => {
-    listTopics.mockRejectedValue(new Error("DB down"));
+    listCuratedTopics.mockRejectedValue(new Error("DB down"));
     render(<HomePage />);
     // Byte-for-byte the §3.2 string (apostrophe is rendered from `&apos;`).
     expect(

@@ -54,6 +54,68 @@ describe("LocalStorageDataStore (AC20 seam)", () => {
     expect(await store.listClips("Q-empty")).toEqual([]);
   });
 
+  // ── #126 listCuratedTopics: filter to videos ≥ 1 + count parity with deriveStats. ──
+  describe("listCuratedTopics (#126 — homepage cards)", () => {
+    it("hides zero-curation topics and carries deriveStats-parity counts for curated ones", async () => {
+      await store.upsertTopic({ qid: "Q-curated", title: "Curated", description: "d" });
+      await store.upsertTopic({ qid: "Q-bare", title: "Bare" }); // zero clips → hidden (§4.1)
+      // Two clips, two creators, two curators on the curated topic.
+      await store.addClip({
+        ...(seedClips[0] as Omit<Clip, "id" | "createdAt">),
+        topicQid: "Q-curated",
+        creator: { handle: "@one", name: "One", platform: "youtube" },
+        curatedBy: "@alice",
+      });
+      await store.addClip({
+        ...(seedClips[0] as Omit<Clip, "id" | "createdAt">),
+        topicQid: "Q-curated",
+        creator: { handle: "@two", name: "Two", platform: "youtube" },
+        curatedBy: "@bob",
+      });
+
+      const curated = await store.listCuratedTopics();
+      // The bare topic is filtered out; only the curated one appears (§4.1).
+      expect(curated.map((t) => t.qid)).toEqual(["Q-curated"]);
+      // The card counts equal deriveStats over the same (non-removed) clip set — CARD PARITY.
+      const clips = await store.listClips("Q-curated");
+      const overview = deriveStats(clips);
+      expect(curated[0].stats).toEqual({
+        videos: overview.videos,
+        creators: overview.creators,
+        curators: overview.curators,
+      });
+      expect(curated[0].stats).toEqual({ videos: 2, creators: 2, curators: 2 });
+    });
+
+    it("counts a HELD clip (vetted=false) but EXCLUDES a removed clip (parity with listClips)", async () => {
+      await store.upsertTopic({ qid: "Q-mix", title: "Mix" });
+      const held = await store.addClip({
+        ...(seedClips[0] as Omit<Clip, "id" | "createdAt">),
+        topicQid: "Q-mix",
+        creator: { handle: "@c", name: "C", platform: "youtube" },
+        curatedBy: "@alice",
+      });
+      const removed = await store.addClip({
+        ...(seedClips[0] as Omit<Clip, "id" | "createdAt">),
+        topicQid: "Q-mix",
+        creator: { handle: "@d", name: "D", platform: "youtube" },
+        curatedBy: "@bob",
+      });
+      await store.setClipVetted(held.id, false); // held — still counts
+      await store.removeClip(removed.id, 1, null); // removed — excluded
+
+      const curated = await store.listCuratedTopics();
+      const overview = deriveStats(await store.listClips("Q-mix"));
+      // videos = 1 (the held clip; the removed one is gone), matching listClips/deriveStats.
+      expect(curated[0].stats.videos).toBe(1);
+      expect(curated[0].stats).toEqual({
+        videos: overview.videos,
+        creators: overview.creators,
+        curators: overview.curators,
+      });
+    });
+  });
+
   it("resolves a title → topic for the canonical route, normalizing _/space/case (AC5/AC23)", async () => {
     await store.upsertTopic({ qid: "Q11982", title: "Photosynthesis" });
     // exact, underscore form (as a wikilink path arrives), and case-insensitive all hit.

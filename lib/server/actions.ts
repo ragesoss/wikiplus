@@ -7,6 +7,7 @@ import type {
   Platform,
   PublicContributor,
   Topic,
+  TopicWithStats,
   UpvoteToggle,
 } from "@/lib/data/types";
 import { ACCURACY_ORDER, STANCE_ORDER } from "@/lib/curation/labels";
@@ -126,6 +127,16 @@ function validateTopicInput(input: Topic): Topic {
 // ── Topics ───────────────────────────────────────────────────────────────────────────
 export async function listTopicsAction(): Promise<Topic[]> {
   return store().listTopics();
+}
+
+/**
+ * The homepage "Recently curated" read (issue #126): curated topics + their at-a-glance counts,
+ * filtered to `videos ≥ 1` and recency-ordered by the store's single grouped aggregate (no
+ * N-per-topic reads). Anonymous like the other reads (no `requireContributor` — the cached read
+ * path adds no per-user work).
+ */
+export async function listCuratedTopicsAction(): Promise<TopicWithStats[]> {
+  return store().listCuratedTopics();
 }
 
 export async function getTopicAction(qid: string): Promise<Topic | null> {

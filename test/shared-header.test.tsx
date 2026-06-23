@@ -35,9 +35,10 @@ vi.mock("@/lib/wiki/suggest", () => ({
   fetchTopicSuggestions: (...a: unknown[]) => fetchTopicSuggestions(...a),
 }));
 
-const listTopics = vi.fn();
+const listCuratedTopics = vi.fn();
 vi.mock("@/lib/data", () => ({
-  store: { listTopics: () => listTopics() },
+  // The homepage reads the curated list (issue #126); this header test renders HomePage.
+  store: { listCuratedTopics: () => listCuratedTopics() },
 }));
 
 import HomePage from "@/app/page";
@@ -57,8 +58,8 @@ beforeEach(() => {
   routerPush.mockReset();
   fetchTopicSuggestions.mockReset();
   fetchTopicSuggestions.mockResolvedValue([]);
-  listTopics.mockReset();
-  listTopics.mockResolvedValue([]);
+  listCuratedTopics.mockReset();
+  listCuratedTopics.mockResolvedValue([]);
   window.scrollY = 0;
   // Reset to the width-agnostic default stub (no reduced-motion, no compact) before each test; the
   // tests that need a width install a width-aware matchMedia via setViewport().
