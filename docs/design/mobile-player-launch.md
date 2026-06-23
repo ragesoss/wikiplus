@@ -29,6 +29,17 @@ bounded** (no `100dvh`), and a meaningful slice of the article stays visible.
 > parameterization (§5.2 of #120), the microcopy strings (§10 of #120), and **desktop** (untouched).
 > Where this spec is silent on a behavior, **#120 governs.**
 
+> **Current default chrome — the slim model.** The dock's default chrome is now the **slim model** of
+> `docs/design/mobile-player-slim.md`: the video frame plus **ONE 46px row of four glyph-above-word
+> cells (Close · Move · Curate · See context) and nothing else** — no slim title bar, no always-visible
+> caption/credit/chips/match-reason, and **no custom Maximize control** (fullscreen is the embed's
+> native button; rotate-to-maximize is automatic CSS). All metadata (caption, creator credit, chips,
+> note, match reason) lives behind **See context** and all curation behind **Curate**, two inline
+> expander reveals (one open at a time). The **fit math, the `88dvh` content-bounded cap, the
+> frame-first order, and the measured edge-aware spacer in this doc still govern** — the slim default
+> makes the article slice even more generous (≈69% for a 16:9 clip). `mobile-player-slim.md` is the
+> current contract for the default chrome and the reveals.
+
 ---
 
 ## 0. Personas & stories (reconciled, not re-authored)
@@ -95,12 +106,12 @@ internal order and keeps the credit + controls always at the bar's leading edge.
   occupies roughly **40–55% of the viewport height** at launch (§2 budget), leaving the rest of the
   viewport showing the article at the un-parked edge. The `TopicView` spacer reserves exactly the
   dock's **actual** height at the parked edge so the article can also be scrolled fully clear (§3).
-- **AC-3 (minimal, video-first chrome).** Launch chrome above the frame is **only** the slim title
-  bar (one compact controls row, not three stacked buttons). The chips are a **one-line strip below
-  the frame**; the full note stays behind the collapsed **"Context ▸"**; the CTA is **below the
-  frame** in the secondary region. The eye lands on the picture.
-- **AC-4 (creator credit at launch).** The credit lives in the **slim title bar** (`handle ·
-  platformLabel`), present in every state including collapsed launch — see §1.4.
+- **AC-3 (minimal, video-first chrome).** The default chrome is the frame + **one 46px row of four
+  glyph-above-word cells** (Close · Move · Curate · See context) and nothing else (the slim model,
+  mobile-player-slim.md). Caption, chips, the context note, the match reason, and curation all live
+  behind the **See context** / **Curate** inline expanders. The eye lands on the picture.
+- **AC-4 (creator credit).** The credit (`handle · platformLabel`) is a plain reference norm shown
+  inside the **See context** reveal — see §1.4.
 - **AC-5 (candidate parity).** Identical column; the candidate's secondary strip is its one-line
   match reason + (logged-out) the "✦ Curate this video" CTA, both below the frame.
 
@@ -127,17 +138,16 @@ The #120 launch chrome is too heavy. The corrected launch chrome:
 5. **The logged-out CTA moves below the frame** — reading-order *after* the frame and after the
    chips/Context affordance, in the secondary region. It is never above the frame at launch.
 
-### 1.4 Where the creator credit lives (AC-4)
+### 1.4 Where the creator credit lives
 
-The **creator credit `handle · platformLabel`** stays in the **slim title bar**, on the second text
-line (muted white `text-white/70`, `truncate`). It is therefore present in **every** state —
-collapsed launch, expanded note, top-parked, candidate, no-embed, and (as a caption) both maximized
-states. This satisfies the CC BY-SA non-negotiable that creator attribution rides every clip surface
-(CURATION §5.2). The curator **"context by"** attribution remains one tap away inside the expanded
-note (curated) — it is distinct from the creator credit per the CURATION §"load-bearing rule"
-(creator credit points *out* to the platform; "context by" points *in* to the curator's wiki+
-profile), and the collapsed state correctly carries the **creator** credit because *that* is the
-CC BY-SA attribution that must be ever-present.
+The **creator credit `handle · platformLabel`** is a plain reference norm shown inside the **See
+context** inline expander reveal (mobile-player-slim.md §4), the natural home for the clip's metadata.
+It is a reference norm on a nonfree third-party embed — **not** a CC BY-SA obligation — so it need not
+appear on every surface, and the slim default legitimately omits it (CURATION §5/§5.2). The curator
+**"context by"** attribution also lives inside See context — it is distinct from the creator credit
+per the CURATION §"load-bearing rule" (creator credit points *out* to the platform; "context by"
+points *in* to the curator's wiki+ profile). CC BY-SA attaches to the Wikipedia article and to the
+curator's context note, not to the video creator credit.
 
 ---
 
@@ -464,7 +474,7 @@ screenshot gallery").
 | **AC-1** Whole frame fully visible on open, no internal scroll, both kinds × both aspects × 360/390/414/430 | §1.1 frame-first order + §1.2 + §2.2–§2.5 budget (frame `T`-offset…`T+F` within `[0,VH]`, frame `shrink-0`) + §2.6 cap-with-shrink-0-frame |
 | **AC-2** Dock bounded; meaningful article slice on open; spacer = actual height; removed on dismiss | §2.5 budget (slice 47–52% / ~32%) + §2.6 `88dvh` ceiling (never `100dvh`) + §3 measured edge-aware spacer |
 | **AC-3** Minimal, video-first launch chrome (chips compact, note collapsed, CTA below) | §1.3 the concrete reductions (one-row controls, slim title bar, chips one-line strip below frame, Context collapsed, CTA below frame) |
-| **AC-4** Creator credit present at launch (and every state) | §1.4 credit in the slim title bar (every state) + §4 per-state confirmation + §6 (maximized = thin-bar caption) |
+| **AC-4** Creator credit shown where the metadata lives (a reference norm, not a CC obligation on every surface) | §1.4 plain `handle · platformLabel` credit inside the See context reveal (mobile-player-slim.md §4) |
 | **AC-5** Candidate parity (frame visible, bounded, match-reason + CTA secondary) | §1.2 + §4 candidate state + §2.5 (candidate `D` < curated) |
 | **AC-6** #120 invariants preserved (non-modal, swap, maximize, park, facade, AA) | §6 (non-modal contract restated) + §4 (swap, maximize, top-parked kept) + the "What this does NOT change" note up top |
 | **AC-7** Maximize open-seed sanity (portrait opens docked) | §4 Maximized state (AC-7 verification clause) |

@@ -15,6 +15,19 @@ parameterize by `(kind: curated | candidate) × (signedIn: true | false)`. Every
 credit, Close, the park toggle, the maximize-on-rotate behavior, the non-modal contract — is shared
 and identical for every clip.
 
+> **Current default chrome — the slim model.** The `MobilePlayerDock` default chrome is the **slim
+> model** of `docs/design/mobile-player-slim.md`: a playing mobile video is the **video frame plus ONE
+> 46px row of four glyph-above-word cells — Close · Move · Curate · See context — and nothing else**.
+> The caption, creator credit, chips, match reason, context note, and all curation actions live behind
+> the **Curate** and **See context** inline expander reveals (one open at a time). There is **no custom
+> Maximize control** — fullscreen is the embed's own native button and rotate-to-maximize is automatic
+> CSS. The **invariants** in this doc still govern (the non-modal `<section aria-label="Video player">`
+> contract, the `88dvh` bound + ≥12dvh article slice, frame-first order, safe-area insets, the
+> expander region as the sole scroll area, `onDockMetrics` + the measured spacer, swap-in-place, the
+> embed facade); `mobile-player-slim.md` is the current contract for the default chrome and the two
+> reveals, and the per-state title-bar/secondary-strip layout it describes is the input that model was
+> built from.
+
 > **What this is NOT.** Not a desktop change (desktop curated stays the blocking `PlayerModal`;
 > desktop candidate stays the bottom-left dock — see §4). Not a change to the embed facade
 > (`lib/embed/facade.ts` is untouched). Not a change to the curation-block *content* (chips / note /
@@ -149,7 +162,7 @@ regions differ only by `kind` and `signedIn`:
 ┌──────────────────────────────────────────────────────────┐  ← dock root: <section aria-label="Video player">
 │ SLIM TITLE BAR (shared)               [⤢ Max · ⤓ Move · ✕]│     ink #2C2C2C, white (AA); shrink-0; ~56–64px
 │   ＋plus · caption (clamp-1)  ·  one compact controls row  │   ← Maximize · park toggle · Close, one row (§5.1)
-│   creator credit  handle · platformLabel                   │   ← CC BY-SA credit, present in every state (AC-4)
+│   creator credit  handle · platformLabel                   │   ← plain creator credit (shown under See context)
 ├──────────────────────────────────────────────────────────┤
 │ VIDEO FRAME — THE HERO (shared)                            │     black backing; iframe (autoplay) or, for a
 │   <iframe …> at the orientation-correct size (§6)          │       curated clip with no embedUrl, the
@@ -188,11 +201,12 @@ first and treats the CTA as secondary-but-reachable.
    "＋…" and the credit drop its platform). At `sm`+ (the `< lg` tablet) and in **maximized** mode
    (the thin bar has room) the words are restored **visibly**. Text-labeled-for-AT holds throughout —
    the word is never carried by glyph or colour alone.
-   - **CC BY-SA creator credit is in the shared title bar and therefore present in EVERY state,
-     including the collapsed curated state and both maximized states** (§6). This satisfies the
-     non-negotiable that creator attribution rides every clip surface (CURATION §5.2). The credit
-     uses the `handle · platformLabel` pattern verbatim from the existing dock; it does **not** need
-     the avatar or the link-out (those live on the originating card / the curated curation block).
+   - **Creator credit** is a plain `handle · platformLabel` reference norm — shown inside the **See
+     context** reveal (mobile-player-slim.md §4), the natural place for the clip's metadata. It is a
+     reference norm on a nonfree third-party embed, **not** a CC BY-SA obligation, so it need not
+     appear on every surface; the slim default legitimately omits it (CURATION §5/§5.2). The credit
+     uses the `handle · platformLabel` pattern verbatim; it does **not** need the avatar or the
+     link-out (those live on the originating card / the curated curation block).
 2. **Park toggle** — labeled button, "Move to top" / "Move to bottom" (§7). Shared.
 3. **Close** — `✕ Close` (glyph **and** word), `aria-label="Close video player"`. Shared. Tearing it
    down removes the dock + iframe (§8 state "dismissed").
@@ -222,10 +236,10 @@ treatments and routing the two existing players already ship (`PinnedPlayer` §6
 
 > **Decision (tension 1 — curation-block compaction). Resolved: chips-always-visible + a
 > "Context ▸" tap-to-expand; the full note is one tap away and never crowds the article.** The
-> rationale + exact collapsed/expanded layouts are §5.3. The CC BY-SA **creator credit is in the
-> shared title bar**, so it is visible **in the collapsed state** as required — the curation block's
-> *own* credit/avatar (the `PlayerCreatorCredit` from `PlayerModal`) is **not** duplicated into the
-> dock; the title-bar credit is the canonical mobile credit, keeping the dock compact.
+> rationale + exact collapsed/expanded layouts are §5.3. The **creator credit** is a plain
+> `handle · platformLabel` reference norm shown inside the **See context** reveal — the curation
+> block's *own* credit/avatar (the `PlayerCreatorCredit` from `PlayerModal`) is **not** duplicated
+> into the dock; the See-context credit is the canonical mobile credit, keeping the dock compact.
 
 ### 5.3 Curated curation block — collapsed vs. expanded (tension 1, in full)
 
@@ -255,10 +269,10 @@ overlaying it; the frame keeps its size and stays fully visible above):
   text. (This is the one light surface inside the otherwise-ink dock; it visually matches the
   modal's curation block.)
 - The **"context by `<curator>`"** attribution (`ContextByLink`, `surface="light"`), the closing
-  element — the CURATION §5.4 "context by" attribution, which must remain present (it is present in
-  the expanded state; the collapsed state still carries the *creator* credit in the title bar, so no
-  attribution rule is violated when collapsed — the creator credit is the CC BY-SA attribution; the
-  "context by" is the curator attribution and is one tap away).
+  element — the CURATION §5.4 "context by" attribution. It is the curator attribution (links IN to
+  the wiki+ profile), distinct from the creator credit (links OUT to the platform); both live inside
+  the **See context** reveal, one tap away. CC BY-SA attaches to the Wikipedia article and to the
+  curator's context note, not to the video creator credit (CURATION §5/§5.2).
 - The note panel is **omitted defensively when the note is empty** (the existing empty-note guard) —
   then the expander does not render at all (nothing to expand to); chips + held still show.
 
@@ -739,7 +753,7 @@ subset to the PR with `--scene … --pr <N>`.
 | Accessibility: non-fullscreen player doesn't trap or steal focus, keyboard-operable + labeled, AA, signals text-labeled (never color-alone) | §9 in full (no trap/steal, real buttons, focus return, AA tokens, word-carried signals) |
 | Both curated **and** candidate clips use this player on mobile (the unification) | §3 routing + §4 coexistence + §5.2 parameterization + §8 curated⇄candidate swap |
 | Logged-out CTA per kind; signed-in adds none | §5.2 table + §10 microcopy (candidate "Curate this video" / curated join nudge; signed-in: none) |
-| CC BY-SA creator credit present on every clip surface (existing rule honored) | §5.1 (credit in the shared title bar → present in collapsed, expanded, and both maximized states) |
+| Creator credit shown where the clip's metadata lives (a reference norm, not a CC obligation on every surface) | §5.1 (plain `handle · platformLabel` credit inside the See context reveal — mobile-player-slim.md §4) |
 | Design-doc decision recorded; screenshot baseline refreshed | §6.5 (the per-platform fullscreen reasoning Dev reflects into `TOPIC_PAGE_DESIGN.md` when code lands) + §11 (catalog scenes + gallery refresh) |
 | Desktop untouched this PR; later flip is a routing change | §3 routing + §4 + §12 (component built `kind`/`signedIn`-parameterized; desktop sizing additive) |
 
@@ -781,6 +795,6 @@ subset to the PR with `--scene … --pr <N>`.
   fit guarantee at 360/390/414/430 in both orientations for 16:9 + 9:16 (no overflow, Close + Move
   reachable); confirm CSS maximize fills correctly per orientation/clip without calling
   `requestFullscreen`; confirm the non-modal contract (§9 — no trap, no focus steal on open, keyboard
-  Close/Move/Maximize/Context, focus return, AA, word-carried signals); confirm desktop is unchanged
-  (curated = `PlayerModal`, candidate = bottom-left `PinnedPlayer`); confirm the CC BY-SA credit
-  shows in the collapsed curated state and both maximized states.
+  Close/Move/Curate/See context, focus return, AA, word-carried signals); confirm desktop is
+  unchanged (curated = `PlayerModal`, candidate = bottom-left `PinnedPlayer`); confirm the plain
+  creator credit shows inside the See context reveal.

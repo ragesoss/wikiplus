@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>wiki+ — slim mobile player: 4 controls (issue #120 / #135 / #123)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Sans+Pro:wght@400;600;700;900&family=Open+Sans:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --indigo:#676EB4; --violet:#5248AF; --teal:#2A8270; --teal-dk:#1F6757;
+    --blue:#1F6F95; --red:#C44949; --gold:#E5AB28;
+    --ink:#2C2C2C; --ink2:#595959; --muted:#717171;
+    --bg:#F7F7F7; --bg2:#F0F1F3; --bd:#D9D9D9;
+  }
+  *{ box-sizing:border-box; }
+  body{ margin:0; background:var(--bg); color:var(--ink);
+        font-family:'Open Sans', system-ui, sans-serif; padding:28px; }
+  .plus-disp{ font-family:'Source Sans Pro', system-ui, sans-serif; font-weight:900; letter-spacing:-.02em; line-height:.95; }
+  h1{ font-family:'Source Sans Pro', sans-serif; font-weight:900; letter-spacing:-.02em; font-size:25px; margin:0 0 4px; }
+  h2{ font-family:'Source Sans Pro', sans-serif; font-weight:900; font-size:17px; margin:38px 0 4px; }
+  .lede{ color:var(--ink2); font-size:13px; max-width:920px; margin:0 0 6px; line-height:1.55; }
+  .lede b{ color:var(--ink); }
+  code{ background:#eceef3; padding:1px 4px; border-radius:3px; font-size:12px; }
+  .row{ display:flex; gap:34px; flex-wrap:wrap; align-items:flex-start; margin-top:16px; }
+  .col{ width:390px; }
+  .cap{ font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:var(--violet); margin:0 0 8px; }
+  .recco{ color:var(--teal-dk); }
+  .subcap{ font-size:11px; color:var(--muted); margin:8px 0 0; line-height:1.45; }
+  .subcap b{ color:var(--ink2); }
+  .tag{ display:inline-block; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.05em;
+        padding:2px 7px; border-radius:3px; margin-left:8px; vertical-align:middle; }
+  .tag-rec{ background:var(--teal); color:#fff; }
+  .tag-alt{ background:#e7e8ec; color:var(--ink2); }
+  hr.sep{ border:0; border-top:2px dashed var(--bd); margin:36px 0 8px; }
+
+  /* ── phone frame, true ~390px ─────────────────────────────── */
+  .phone{ width:390px; background:#cfd2d8; border:1px solid var(--bd); border-radius:18px; padding:10px;
+          box-shadow:0 6px 18px rgba(0,0,0,.12); }
+  .screen{ position:relative; background:#fff; border-radius:8px; overflow:hidden; height:640px; }
+  .article{ padding:14px 14px 0; }
+  .art-h{ font-family:'Source Sans Pro'; font-weight:900; font-size:19px; margin:0 0 6px; color:var(--ink); }
+  .art-sub{ font-family:'Source Sans Pro'; font-weight:900; font-size:15px; margin:14px 0 5px; color:var(--ink); }
+  .art-p{ font-size:12px; line-height:1.65; color:var(--ink2); margin:0 0 9px; }
+  .art-faint{ color:#a3a3a3; }
+  .slice-label{ position:absolute; left:0; right:0; text-align:center; font-size:10px; font-weight:700;
+                text-transform:uppercase; letter-spacing:.06em; color:var(--teal-dk);
+                background:rgba(234,246,242,.92); padding:3px 0; z-index:6; }
+
+  /* ── the dock (shared hardbox; mobile = no offset shadow) ── */
+  .dock{ position:absolute; left:0; right:0; bottom:0; background:var(--ink); color:#fff;
+         border-top:2px solid var(--ink); z-index:5; }
+  .dock.top{ top:0; bottom:auto; border-top:0; border-bottom:2px solid var(--ink); }
+
+  /* frame = the hero. No chrome above it: frame sits at the edge-most position. */
+  .frame{ width:100%; background:#000; aspect-ratio:16/9; display:flex; align-items:center; justify-content:center;
+          position:relative; }
+  .frame.v{ aspect-ratio:9/16; height:300px; width:auto; margin:0 auto; }
+  .play{ width:54px; height:54px; border-radius:50%; background:rgba(255,255,255,.16);
+         display:flex; align-items:center; justify-content:center; }
+  .play::after{ content:""; border-style:solid; border-width:9px 0 9px 15px;
+                border-color:transparent transparent transparent #fff; margin-left:3px; }
+  /* the embed's OWN native fullscreen button lives inside the iframe — shown faintly bottom-right to make the point */
+  .native-fs{ position:absolute; bottom:6px; right:8px; font-size:15px; color:rgba(255,255,255,.55); }
+  .native-fs::before{ content:"⛶"; }
+
+  /* ── THE ONE control row — exactly four controls ──────────── */
+  .bar{ display:flex; align-items:stretch; gap:0; }
+  .ctl{ flex:1; background:none; border:0; color:#fff; font:inherit; cursor:pointer;
+        min-height:46px; display:inline-flex; flex-direction:column; align-items:center; justify-content:center;
+        gap:2px; padding:5px 2px; font-size:11px; font-weight:700; line-height:1.1; text-align:center;
+        border-right:1px solid rgba(255,255,255,.14); }
+  .ctl:last-child{ border-right:0; }
+  .ctl .g{ font-size:16px; line-height:1; }
+  .ctl:hover{ background:rgba(255,255,255,.08); }
+  .ctl.is-open{ background:rgba(255,255,255,.14); }
+  .ctl:focus-visible{ outline:3px solid var(--gold); outline-offset:-3px; } /* demo focus ring */
+  /* single-line variant (when labels fit beside the glyph at >=380) */
+  .bar.inline .ctl{ flex-direction:row; gap:6px; font-size:12px; }
+
+  /* ── expander panel revealed under the bar ────────────────── */
+  .panel{ background:#fff; color:var(--ink); border-top:2px solid var(--ink);
+          max-height:240px; overflow-y:auto; }
+  .panel-pad{ padding:11px 13px 13px; }
+  .panel-h{ font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.07em; color:var(--muted); margin:0 0 7px; }
+
+  /* curate reveal: directions */
+  .dir{ width:100%; font:inherit; font-weight:700; font-size:13px; cursor:pointer; min-height:46px;
+        display:flex; align-items:center; gap:9px; padding:0 13px; border:2px solid var(--ink); margin-bottom:8px; }
+  .dir:last-child{ margin-bottom:0; }
+  .dir .g{ font-size:15px; width:18px; text-align:center; }
+  .dir-curate{ background:var(--indigo); color:#fff; }
+  .dir-dismiss{ background:#fff; color:var(--ink); }
+  .dir-sub{ font-weight:400; font-size:11px; color:rgba(255,255,255,.85); }
+  .dir-dismiss .dir-sub{ color:var(--muted); }
+  .dir-gate{ background:var(--indigo); color:#fff; flex-direction:column; align-items:flex-start; gap:3px; padding:9px 13px; }
+  .dir-gate .top{ display:flex; align-items:center; gap:9px; font-size:13px; }
+  .dir-gate .why{ font-weight:400; font-size:11px; color:rgba(255,255,255,.85); }
+  .vote-note{ font-size:12px; color:var(--ink2); line-height:1.5; }
+  .vote-note b{ color:var(--ink); }
+
+  /* see-context reveal */
+  .clip-cap{ font-family:'Source Sans Pro'; font-weight:900; font-size:15px; color:var(--ink); margin:0 0 3px; line-height:1.25; }
+  .creator{ font-size:12px; color:var(--ink2); margin:0 0 9px; }
+  .creator .at{ font-weight:700; color:var(--ink); }
+  .desc{ font-size:12px; line-height:1.6; color:var(--ink2); margin:0; }
+  .chips{ display:flex; gap:6px; margin:9px 0 0; flex-wrap:wrap; }
+  .chip{ font-size:10px; font-weight:700; padding:3px 8px; border:1px solid var(--bd); border-radius:3px; }
+  .chip.stance{ background:#ecedf7; border-color:#c7c9e6; color:var(--violet); }
+  .chip.acc{ background:#e7f1ee; border-color:#bcd9d0; color:var(--teal-dk); }
+  .ctxby{ font-size:11px; color:var(--muted); margin:9px 0 0; }
+  .ctxby b{ color:var(--ink2); }
+
+  /* landscape / native fullscreen note */
+  .land{ width:660px; }
+  .maxscreen{ position:relative; background:#000; height:330px; border-radius:8px; overflow:hidden;
+              display:flex; align-items:center; justify-content:center; }
+  .maxscreen .play{ background:rgba(255,255,255,.14); }
+  .max-native{ position:absolute; bottom:10px; right:14px; color:rgba(255,255,255,.7); font-size:20px; }
+  .max-native::before{ content:"⛶"; }
+
+  .legend{ margin-top:12px; font-size:11px; color:var(--ink2); max-width:390px; line-height:1.55; }
+  .legend b{ color:var(--ink); }
+  .pill{ display:inline-block; font-size:10px; font-weight:700; padding:2px 7px; border-radius:999px;
+         background:#ecedf7; color:var(--violet); margin:0 4px 4px 0; }
+</style>
+</head>
+<body>
+  <h1>Slim mobile player — exactly four controls</h1>
+  <p class="lede">On mobile, a playing video is <b>the frame + ONE thin control row, and nothing else</b> — no caption,
+     creator, description, or chips by default. The reader keeps reading the article while it plays. The four controls are
+     <b>Close · Move · Curate · See context</b>. <b>Curate</b> and <b>See context</b> are single entry points that
+     <b>expand</b> to reveal their content. There is <b>no custom Maximize button</b> (fullscreen is the embed's own native
+     control; rotate-to-maximize stays automatic). All views are framed at true ~390px phone width; the focus ring is shown in gold for the demo only.</p>
+
+  <!-- ============ 1. DEFAULT SLIM PLAYING ============ -->
+  <h2>1 · Default slim playing — the whole chrome <span class="tag tag-rec">recommended: one row</span></h2>
+  <p class="lede">Above-frame chrome: <b>none</b>. Below-frame chrome: <b>one 46px row of four controls</b>. At 390px the
+     four words fit comfortably stacked under a small glyph; <code>D ≈ frame(219) + bar(46) = 265px</code> — a far slimmer
+     dock than the launch baseline, leaving <b>~59% of the viewport (≈500px @ 850)</b> showing the article.</p>
+  <div class="row">
+
+    <!-- 1a horizontal, bottom-parked, stacked-label row (recommended) -->
+    <div class="col">
+      <p class="cap recco">1a · 16:9, bottom-parked — default</p>
+      <div class="phone"><div class="screen">
+        <div class="slice-label" style="top:0">▲ article keeps reading (≈ 59% of viewport)</div>
+        <div class="article" style="padding-top:26px">
+          <div class="art-h">Mycorrhizal network</div>
+          <p class="art-p">A <span style="color:var(--blue)">mycorrhizal network</span> is an underground network
+            formed by the hyphae of mycorrhizal fungi connecting individual plants together, transferring water, carbon,
+            nitrogen, and other nutrients and minerals between participants.</p>
+          <p class="art-sub">Common mycorrhizal networks</p>
+          <p class="art-p">The formation of these networks is context dependent, and can be influenced by factors such as
+            soil fertility, resource availability, host or <span class="art-faint">mycobiont genotype…</span></p>
+        </div>
+        <div class="dock">
+          <div class="frame"><span class="play"></span><span class="native-fs"></span></div>
+          <div class="bar">
+            <button class="ctl"><span class="g" aria-hidden="true">✕</span>Close</button>
+            <button class="ctl"><span class="g" aria-hidden="true">⌃</span>Move to top</button>
+            <button class="ctl"><span class="g" aria-hidden="true">✦</span>Curate</button>
+            <button class="ctl"><span class="g" aria-hidden="true">ⓘ</span>See context</button>
+          </div>
+        </div>
+      </div></div>
+      <p class="subcap"><b>One row, four equal cells.</b> Each cell is a real <code>&lt;button&gt;</code>, ≥46px tall,
+        full word + a plain glyph (never the obscure ⤢/⤒). The embed's <b>own</b> ⛶ fullscreen sits inside the frame.</p>
+    </div>
+
+    <!-- 1b vertical short -->
+    <div class="col">
+      <p class="cap">1b · 9:16 Short — same one row</p>
+      <div class="phone"><div class="screen">
+        <div class="slice-label" style="top:0">▲ article slice (≈ 32%, still meaningful)</div>
+        <div class="article" style="padding-top:26px">
+          <div class="art-h">Mycorrhizal network</div>
+          <p class="art-p">A mycorrhizal network is an underground network formed by the hyphae of mycorrhizal fungi
+            connecting <span class="art-faint">individual plants together…</span></p>
+        </div>
+        <div class="dock">
+          <div class="frame v" style="height:360px"><span class="play"></span><span class="native-fs"></span></div>
+          <div class="bar">
+            <button class="ctl"><span class="g" aria-hidden="true">✕</span>Close</button>
+            <button class="ctl"><span class="g" aria-hidden="true">⌃</span>Move to top</button>
+            <button class="ctl"><span class="g" aria-hidden="true">✦</span>Curate</button>
+            <button class="ctl"><span class="g" aria-hidden="true">ⓘ</span>See context</button>
+          </div>
+        </div>
+      </div></div>
+      <p class="subcap">The Short is height-capped + letterboxed (<code>min(46vh,380px)</code>); the bar is still the one
+        46px row. Frame stays fully visible (<code>shrink-0</code>); only an expander panel ever scrolls.</p>
+    </div>
+
+    <!-- 1c top-parked -->
+    <div class="col">
+      <p class="cap">1c · top-parked (Move toggled)</p>
+      <div class="phone"><div class="screen">
+        <div class="dock top">
+          <div class="bar">
+            <button class="ctl"><span class="g" aria-hidden="true">✕</span>Close</button>
+            <button class="ctl"><span class="g" aria-hidden="true">⌄</span>Move to bottom</button>
+            <button class="ctl"><span class="g" aria-hidden="true">✦</span>Curate</button>
+            <button class="ctl"><span class="g" aria-hidden="true">ⓘ</span>See context</button>
+          </div>
+          <div class="frame"><span class="play"></span><span class="native-fs"></span></div>
+        </div>
+        <div class="slice-label" style="bottom:0">▼ article reads below the dock</div>
+        <div class="article" style="position:absolute; top:266px; left:0; right:0;">
+          <div class="art-h">Mycorrhizal network</div>
+          <p class="art-p">A mycorrhizal network is an underground network formed by the hyphae of mycorrhizal fungi
+            connecting individual plants together, transferring water, carbon, nitrogen, and other nutrients…</p>
+        </div>
+      </div></div>
+      <p class="subcap"><b>Visual order stays identical.</b> Top-parked, the bar is still the edge-most row (here: under
+        the frame, hugging the top). The Move label always <b>names the destination</b> — now "Move to bottom".</p>
+    </div>
+  </div>
+
+  <p class="lede" style="margin-top:18px"><b>One row vs. two.</b> At 360–390px the four stacked-label cells render
+    legibly in <b>one</b> row (each ~90–97px wide). I recommend one row. If a future locale's words are longer, the
+    same cells <b>wrap</b> to a 2×2 grid (Close/Move on top, Curate/See context below) — no relayout, no merged
+    controls. Shown next as the fallback.</p>
+  <div class="row">
+    <div class="col">
+      <p class="cap">1d · two-row fallback (long-word locales only)</p>
+      <div class="phone"><div class="screen" style="height:300px">
+        <div class="dock">
+          <div class="frame" style="aspect-ratio:auto; height:150px"><span class="play"></span></div>
+          <div class="bar" style="flex-wrap:wrap">
+            <button class="ctl" style="flex:1 1 50%; border-bottom:1px solid rgba(255,255,255,.14)"><span class="g" aria-hidden="true">✕</span>Close</button>
+            <button class="ctl" style="flex:1 1 50%; border-right:0; border-bottom:1px solid rgba(255,255,255,.14)"><span class="g" aria-hidden="true">⌃</span>Move to top</button>
+            <button class="ctl" style="flex:1 1 50%"><span class="g" aria-hidden="true">✦</span>Curate</button>
+            <button class="ctl" style="flex:1 1 50%; border-right:0"><span class="g" aria-hidden="true">ⓘ</span>See context</button>
+          </div>
+        </div>
+      </div></div>
+      <p class="subcap">Only engages if the one-row labels would truncate. Default stays one row.</p>
+    </div>
+  </div>
+
+  <hr class="sep">
+
+  <!-- ============ 2. CURATE EXPANDED ============ -->
+  <h2>2 · Curate — expanded to reveal the directions <span class="tag tag-rec">inline expander</span></h2>
+  <p class="lede"><b>Curate</b> is a single entry point. Tapping it toggles an <b>inline panel directly above/below the
+     bar</b> (<code>aria-expanded</code> / <code>aria-controls</code>; no focus-steal). For a <b>candidate</b> the two
+     directions are <b>✦ Curate</b> (write a context note / vouch → the existing CurateModal gate) and <b>✕ Not
+     relevant</b> (dismiss → optimistic-hide + rollback). Labels match desktop #123 exactly. Recommend an
+     <b>inline expander</b> over a bottom-sheet: it keeps the player non-modal (no backdrop/trap), grows the dock height
+     reported by <code>onDockMetrics</code>, and the frame stays put above.</p>
+  <div class="row">
+
+    <!-- 2a candidate, signed in -->
+    <div class="col">
+      <p class="cap recco">2a · candidate, signed in</p>
+      <div class="phone"><div class="screen">
+        <div class="slice-label" style="top:0">▲ article still visible above</div>
+        <div class="article" style="padding-top:26px">
+          <div class="art-h">Mycorrhizal network</div>
+          <p class="art-p">A mycorrhizal network is an underground network formed by the hyphae of mycorrhizal fungi
+            connecting <span class="art-faint">individual plants together…</span></p>
+        </div>
+        <div class="dock">
+          <div class="frame" style="aspect-ratio:auto; height:170px"><span class="play"></span><span class="native-fs"></span></div>
+          <div class="bar">
+            <button class="ctl"><span class="g" aria-hidden="true">✕</span>Close</button>
+            <button class="ctl"><span class="g" aria-hidden="true">⌃</span>Move to top</button>
+            <button class="ctl is-open" aria-expanded="true"><span class="g" aria-hidden="true">✦</span>Curate</button>
+            <button class="ctl"><span class="g" aria-hidden="true">ⓘ</span>See context</button>
+          </div>
+          <div class="panel"><div class="panel-pad">
+            <p class="panel-h">What would you like to do?</p>
+            <button class="dir dir-curate"><span class="g" aria-hidden="true">✦</span>
+              <span>Curate<br><span class="dir-sub">Write a context note &amp; vouch for it</span></span></button>
+            <button class="dir dir-dismiss"><span class="g" aria-hidden="true">✕</span>
+              <span>Not relevant<br><span class="dir-sub">Hide this suggestion for the topic</span></span></button>
+          </div></div>
+        </div>
+      </div></div>
+      <p class="subcap"><b>One entry, two directions</b> — not two side-by-side buttons in the default bar. Curate leads
+        (brand fill); Not relevant is the quiet secondary (white/ink border). Identical vocabulary to desktop #123.</p>
+    </div>
+
+    <!-- 2b candidate logged out -->
+    <div class="col">
+      <p class="cap">2b · candidate, logged OUT — honest gate</p>
+      <div class="phone"><div class="screen">
+        <div class="slice-label" style="top:0">▲ article still visible above</div>
+        <div class="article" style="padding-top:26px">
+          <div class="art-h">Mycorrhizal network</div>
+          <p class="art-p">A mycorrhizal network is an underground network formed by the hyphae of mycorrhizal fungi
+            connecting <span class="art-faint">individual plants together…</span></p>
+        </div>
+        <div class="dock">
+          <div class="frame" style="aspect-ratio:auto; height:170px"><span class="play"></span><span class="native-fs"></span></div>
+          <div class="bar">
+            <button class="ctl"><span class="g" aria-hidden="true">✕</span>Close</button>
+            <button class="ctl"><span class="g" aria-hidden="true">⌃</span>Move to top</button>
+            <button class="ctl is-open" aria-expanded="true"><span class="g" aria-hidden="true">✦</span>Curate</button>
+            <button class="ctl"><span class="g" aria-hidden="true">ⓘ</span>See context</button>
+          </div>
+          <div class="panel"><div class="panel-pad">
+            <p class="panel-h">Join to curate</p>
+            <button class="dir dir-gate">
+              <span class="top"><span class="g" aria-hidden="true">✦</span>Curate this video</span>
+              <span class="why">Log in to write a context note and vouch for it.</span>
+            </button>
+          </div></div>
+        </div>
+      </div></div>
+      <p class="subcap"><b>No false dismiss.</b> Logged out, the reveal shows the single gated <b>Curate this video</b>
+        CTA only — <b>no "Not relevant"</b> (a logged-out dismiss can't honestly optimistic-hide), matching desktop #123 State J.</p>
+    </div>
+
+    <!-- 2c curated -->
+    <div class="col">
+      <p class="cap">2c · curated clip — vote / manage (#65)</p>
+      <div class="phone"><div class="screen">
+        <div class="slice-label" style="top:0">▲ article still visible above</div>
+        <div class="article" style="padding-top:26px">
+          <div class="art-h">Mycorrhizal network</div>
+          <p class="art-p">A mycorrhizal network is an underground network formed by the hyphae of mycorrhizal fungi
+            connecting <span class="art-faint">individual plants together…</span></p>
+        </div>
+        <div class="dock">
+          <div class="frame" style="aspect-ratio:auto; height:170px"><span class="play"></span><span class="native-fs"></span></div>
+          <div class="bar">
+            <button class="ctl"><span class="g" aria-hidden="true">✕</span>Close</button>
+            <button class="ctl"><span class="g" aria-hidden="true">⌃</span>Move to top</button>
+            <button class="ctl is-open" aria-expanded="true"><span class="g" aria-hidden="true">✦</span>Curate</button>
+            <button class="ctl"><span class="g" aria-hidden="true">ⓘ</span>See context</button>
+          </div>
+          <div class="panel"><div class="panel-pad">
+            <p class="panel-h">This clip is curated</p>
+            <p class="vote-note">Voting &amp; manage controls (<b>issue #65</b>) live here — the curated analog of
+              "act," in the same revealed slot, with the same weight grammar (primary action branded, secondary quiet,
+              text-labeled). <i>Not built in this exploration — shown for placement only.</i></p>
+          </div></div>
+        </div>
+      </div></div>
+      <p class="subcap">Same Curate entry point; for a curated clip the revealed "act" is #65's vote/manage. Keeps one
+        consistent place to act across candidate and curated.</p>
+    </div>
+  </div>
+
+  <hr class="sep">
+
+  <!-- ============ 3. SEE CONTEXT EXPANDED ============ -->
+  <h2>3 · See context — expanded to reveal title, creator &amp; description <span class="tag tag-rec">inline expander, scrolls within the dock</span></h2>
+  <p class="lede"><b>See context</b> reveals the metadata hidden by default: <b>title (caption)</b>, <b>creator info</b>,
+     and the <b>description / match reason</b> (candidate) or <b>context note + stance/accuracy chips + "context by"</b>
+     (curated). The panel is the dock's <b>sole scroll area</b> — bounded (<code>max-height</code>), so even a long note
+     never grows the dock past the 88dvh cap and the frame above stays fully visible.</p>
+  <div class="row">
+
+    <!-- 3a candidate see-context -->
+    <div class="col">
+      <p class="cap">3a · candidate — match reason</p>
+      <div class="phone"><div class="screen">
+        <div class="dock">
+          <div class="frame" style="aspect-ratio:auto; height:160px"><span class="play"></span><span class="native-fs"></span></div>
+          <div class="bar">
+            <button class="ctl"><span class="g" aria-hidden="true">✕</span>Close</button>
+            <button class="ctl"><span class="g" aria-hidden="true">⌃</span>Move to top</button>
+            <button class="ctl"><span class="g" aria-hidden="true">✦</span>Curate</button>
+            <button class="ctl is-open" aria-expanded="true"><span class="g" aria-hidden="true">ⓘ</span>See context</button>
+          </div>
+          <div class="panel"><div class="panel-pad">
+            <p class="clip-cap">How fungal networks move carbon between trees</p>
+            <p class="creator"><span class="at">@forestfloor</span> · YouTube</p>
+            <p class="panel-h">Why suggested</p>
+            <p class="desc">Mentions "common mycorrhizal network" and the carbon-transfer mechanism described in this
+              article's lead — a close match to the topic's core concept.</p>
+          </div></div>
+        </div>
+        <div class="slice-label" style="bottom:0">▼ dock still bounded; article below</div>
+      </div></div>
+      <p class="subcap">For a candidate: title, creator, and the one-line <b>match reason</b>. Creator appears <b>only
+        here</b> (not in the default chrome) — the YouTube embed already credits the creator; nonfree clips carry no CC obligation on our chrome.</p>
+    </div>
+
+    <!-- 3b curated see-context -->
+    <div class="col">
+      <p class="cap recco">3b · curated — context note + chips</p>
+      <div class="phone"><div class="screen">
+        <div class="dock">
+          <div class="frame" style="aspect-ratio:auto; height:150px"><span class="play"></span><span class="native-fs"></span></div>
+          <div class="bar">
+            <button class="ctl"><span class="g" aria-hidden="true">✕</span>Close</button>
+            <button class="ctl"><span class="g" aria-hidden="true">⌃</span>Move to top</button>
+            <button class="ctl"><span class="g" aria-hidden="true">✦</span>Curate</button>
+            <button class="ctl is-open" aria-expanded="true"><span class="g" aria-hidden="true">ⓘ</span>See context</button>
+          </div>
+          <div class="panel" style="max-height:280px"><div class="panel-pad">
+            <p class="clip-cap">How fungal networks move carbon between trees</p>
+            <p class="creator"><span class="at">@forestfloor</span> · YouTube</p>
+            <div class="chips">
+              <span class="chip stance">Stance: explains</span>
+              <span class="chip acc">Accuracy: solid</span>
+            </div>
+            <p class="panel-h" style="margin-top:11px">Context note</p>
+            <p class="desc">The clip's account of carbon transfer is well-supported. The presenter's framing of the
+              "wood-wide web" as cooperative is <b>their interpretation</b> — the science on whether transfer benefits
+              recipients is still debated, so treat that part as opinion, not settled fact.</p>
+            <p class="ctxby">Context by <b>@m.okafor</b> · curator</p>
+          </div></div>
+        </div>
+        <div class="slice-label" style="bottom:0">▼ panel scrolls; frame stays fixed</div>
+      </div></div>
+      <p class="subcap">For curated: title, creator, the <b>stance/accuracy chips</b>, the <b>context note</b> (fact vs.
+        opinion), and <b>"context by"</b>. Long note → the <b>panel</b> scrolls, not the frame. This generalizes the
+        existing "Context ▸" expander to all metadata.</p>
+    </div>
+  </div>
+
+  <hr class="sep">
+
+  <!-- ============ 4. MAXIMIZED / LANDSCAPE + NOTES ============ -->
+  <h2>4 · Maximized / landscape — no chrome button</h2>
+  <p class="lede">There is <b>no custom Maximize control</b> in the four. Fullscreen = the <b>embed's own native ⛶
+     button</b> inside the iframe (shown faint, bottom-right of every frame above). <b>Rotate-to-maximize</b> stays an
+     <b>automatic CSS behavior</b> (the same <code>&lt;section&gt;</code> + iframe flip to <code>inset-0</code> on
+     orientationchange — never <code>requestFullscreen</code>). In maximized/landscape the four-control bar is hidden
+     while the video fills the screen; rotating back to portrait restores the slim dock.</p>
+  <div class="row">
+    <div class="col land">
+      <p class="cap">4 · landscape (auto) — bar hidden, native ⛶ available</p>
+      <div class="phone land"><div class="screen" style="height:auto">
+        <div class="maxscreen"><span class="play"></span><span class="max-native"></span></div>
+      </div></div>
+      <p class="subcap">No wiki+ chrome over the video in landscape. The embed's native fullscreen (⛶) is the only
+        fullscreen affordance. A thin Close remains reachable (top-left, condensed) so the reader is never stuck.</p>
+    </div>
+  </div>
+
+  <hr class="sep">
+
+  <!-- ============ MICROCOPY + A11Y ============ -->
+  <h2>Resolved microcopy</h2>
+  <p class="lede">
+    <span class="pill">Close</span>
+    <span class="pill">Move to top / Move to bottom</span>
+    <span class="pill">Curate</span>
+    <span class="pill">See context</span>
+    &nbsp;— and inside the Curate reveal:
+    <span class="pill">✦ Curate</span>
+    <span class="pill">✕ Not relevant</span>
+    <span class="pill">✦ Curate this video (logged out)</span>
+  </p>
+  <p class="lede"><b>Move</b> names the destination (recommend <b>"Move to top" / "Move to bottom"</b> over "Dock at…" —
+    plainer, verb-first, matches the existing component's accessible names). The bar control reads <b>"Curate"</b>; the
+    revealed direction reads <b>"✦ Curate"</b> (identical to desktop #123's on-card and in-player label) so the two
+    surfaces share one vocabulary. <b>"See context"</b> (not "Info" / "Details") names the wiki+ value — context, the
+    fact-vs-opinion separation — and generalizes the curated "Context ▸" expander.</p>
+
+  <h2>Accessibility of the reveals</h2>
+  <p class="legend">
+    • Each of the four is a real <b>&lt;button&gt;</b>, ≥46px, full word + plain glyph (never the obscure ⤢/⤒, never
+    glyph/color alone). Visible <code>:focus-visible</code> ring (brand; shown gold here for the demo).<br>
+    • Curate / See context carry <b>aria-expanded</b> + <b>aria-controls</b> pointing at their panel; toggling does
+    <b>not steal focus</b> (no autofocus into the panel) — the player stays the non-modal
+    <code>&lt;section aria-label="Video player"&gt;</code> (no dialog / aria-modal / trap / backdrop).<br>
+    • The revealed panel is the dock's <b>sole scroll area</b>; the frame + bar stay pinned (<code>shrink-0</code>).
+    Opening a panel grows the height reported by <b>onDockMetrics</b> (collapsed default reports a small height); the
+    88dvh cap + ≥12dvh article slice still hold.<br>
+    • Curate reveal directions are real buttons with full <code>aria-label</code>s
+    (<code>"Curate this clip: {caption}"</code> / <code>"Dismiss as not relevant: {caption}"</code>), matching #123.
+  </p>
+</body>
+</html>

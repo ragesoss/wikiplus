@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>wiki+ — candidate player: watch + act (issue #123)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Sans+Pro:wght@400;600;700;900&family=Open+Sans:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --indigo:#676EB4; --violet:#5248AF; --teal:#2A8270; --teal-dk:#1F6757;
+    --blue:#1F6F95; --red:#C44949; --gold:#E5AB28;
+    --ink:#2C2C2C; --ink2:#595959; --muted:#717171;
+    --bg:#F7F7F7; --bg2:#F0F1F3; --bd:#D9D9D9;
+  }
+  *{ box-sizing:border-box; }
+  body{ margin:0; background:var(--bg); color:var(--ink);
+        font-family:'Open Sans', system-ui, sans-serif; padding:32px; }
+  .plus-disp{ font-family:'Source Sans Pro', system-ui, sans-serif; font-weight:900; letter-spacing:-.02em; line-height:.95; }
+  .plus-sans{ font-family:'Source Sans Pro', system-ui, sans-serif; }
+  h1{ font-family:'Source Sans Pro', sans-serif; font-weight:900; letter-spacing:-.02em; font-size:24px; margin:0 0 4px; }
+  .lede{ color:var(--ink2); font-size:13px; max-width:760px; margin:0 0 28px; }
+  .row{ display:flex; gap:40px; flex-wrap:wrap; align-items:flex-start; }
+  .col{ }
+  .cap{ font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:var(--violet); margin:0 0 10px; }
+  .subcap{ font-size:11px; color:var(--muted); margin:6px 0 0; max-width:360px; line-height:1.4; }
+
+  /* ── The dock (shared hardbox language) ───────────────────── */
+  .dock{ width:380px; border:2px solid var(--ink); background:var(--ink); color:#fff;
+         box-shadow:6px 6px 0 var(--ink); }
+  .dock.vert{ width:300px; }
+
+  /* title bar */
+  .tbar{ display:flex; align-items:flex-start; gap:8px; padding:8px 12px; }
+  .tbar .meta{ min-width:0; flex:1; }
+  .eyebrow{ font-size:11px; font-weight:900; text-transform:uppercase; letter-spacing:.04em; color:rgba(255,255,255,.65); }
+  .clip-cap{ font-size:13px; font-weight:700; line-height:1.25; color:#fff;
+             overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .credit{ font-size:11px; color:rgba(255,255,255,.7); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .close{ flex-shrink:0; background:none; border:0; color:#fff; font:inherit; font-size:14px; font-weight:600;
+          padding:4px 6px; cursor:pointer; }
+  .close:hover{ text-decoration:underline; }
+
+  /* frame */
+  .frame{ width:100%; background:#000; aspect-ratio:16/9; display:flex; align-items:center; justify-content:center;
+          color:rgba(255,255,255,.5); font-size:12px; position:relative; }
+  .frame.v{ aspect-ratio:9/16; height:300px; width:auto; margin:0 auto; }
+  .frame .play{ width:54px; height:54px; border-radius:50%; background:rgba(255,255,255,.18);
+                display:flex; align-items:center; justify-content:center; }
+  .frame .play::after{ content:""; border-style:solid; border-width:9px 0 9px 15px; border-color:transparent transparent transparent #fff; margin-left:3px; }
+
+  /* ── ACTION ROW — the centerpiece ─────────────────────────── */
+  .actions{ display:flex; gap:8px; padding:10px 12px; background:var(--ink); }
+  .btn{ font:inherit; font-weight:700; font-size:13px; cursor:pointer; min-height:44px;
+        display:inline-flex; align-items:center; justify-content:center; gap:6px;
+        border:2px solid var(--ink); padding:0 14px; }
+  .btn .glyph{ font-size:13px; }
+  /* Curate = primary, brand fill */
+  .btn-curate{ flex:1; background:var(--indigo); color:#fff; }
+  .btn-curate:hover{ box-shadow:2px 2px 0 #000; }
+  /* Not relevant = secondary, quiet on dark */
+  .btn-dismiss{ background:#fff; color:var(--ink); border-color:var(--ink); }
+  .btn-dismiss:hover{ box-shadow:2px 2px 0 #000; }
+  /* logged-out single full-width CTA */
+  .btn-cta{ flex:1; background:var(--indigo); color:#fff; }
+  .btn-cta:hover{ box-shadow:2px 2px 0 #000; }
+
+  .legend{ margin-top:14px; font-size:11px; color:var(--ink2); max-width:380px; line-height:1.5; }
+  .legend b{ color:var(--ink); }
+  .pill{ display:inline-block; border:1.5px solid var(--ink); background:#fff; color:var(--ink);
+         font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; padding:2px 5px; }
+  .note{ background:#fff; border:2px solid var(--ink); box-shadow:4px 4px 0 var(--ink); padding:12px 14px;
+         font-size:12px; line-height:1.5; max-width:420px; margin-top:8px; }
+  .note h3{ font-family:'Source Sans Pro'; font-size:13px; margin:0 0 4px; }
+  hr.sep{ border:0; border-top:2px dashed var(--bd); margin:36px 0; }
+</style>
+</head>
+<body>
+  <h1>Candidate player — watch + act <span style="color:var(--muted);font-weight:400;font-size:14px">(issue #123)</span></h1>
+  <p class="lede">The pinned candidate dock, pared down to exactly two jobs: <b>watch</b> the clip while you keep reading,
+     and <b>act</b> on it. The two action buttons now live <em>inside</em> the player so the decision the preview exists to
+     inform happens where you just watched — no trip back to the card. Reading order: metadata → video → actions.</p>
+
+  <div class="row">
+    <!-- A. Signed-in, landscape -->
+    <div class="col">
+      <p class="cap">A · Signed in · landscape (desktop dock)</p>
+      <div class="dock">
+        <div class="tbar">
+          <div class="meta">
+            <div class="eyebrow">＋plus · preview</div>
+            <div class="clip-cap">How mycorrhizal networks move carbon</div>
+            <div class="credit">@forestfloor · YouTube</div>
+          </div>
+          <button class="close">✕ Close</button>
+        </div>
+        <div class="frame"><div class="play"></div></div>
+        <div class="actions">
+          <button class="btn btn-curate"><span class="glyph" aria-hidden="true">✦</span> Curate</button>
+          <button class="btn btn-dismiss"><span class="glyph" aria-hidden="true">✕</span> Not relevant</button>
+        </div>
+      </div>
+      <p class="subcap"><b>Curate</b> is primary (brand fill, flex-grow); <b>Not relevant</b> is secondary (white). Both are
+         real tabbable buttons with text labels — never color alone.</p>
+    </div>
+
+    <!-- B. Signed-in, vertical -->
+    <div class="col">
+      <p class="cap">B · Signed in · vertical 9:16 (dock narrows)</p>
+      <div class="dock vert">
+        <div class="tbar">
+          <div class="meta">
+            <div class="eyebrow">＋plus · preview</div>
+            <div class="clip-cap">Tide-pool ecology in 60s</div>
+            <div class="credit">@seashorelab · YouTube</div>
+          </div>
+          <button class="close">✕ Close</button>
+        </div>
+        <div class="frame v"><div class="play"></div></div>
+        <div class="actions">
+          <button class="btn btn-curate"><span class="glyph" aria-hidden="true">✦</span> Curate</button>
+          <button class="btn btn-dismiss"><span class="glyph" aria-hidden="true">✕</span> Not relevant</button>
+        </div>
+      </div>
+      <p class="subcap">Same action row under a height-capped vertical frame; the dock narrows to the frame column.</p>
+    </div>
+
+    <!-- C. Logged out -->
+    <div class="col">
+      <p class="cap">C · Logged out (one CTA, same slot)</p>
+      <div class="dock">
+        <div class="tbar">
+          <div class="meta">
+            <div class="eyebrow">＋plus · preview</div>
+            <div class="clip-cap">How mycorrhizal networks move carbon</div>
+            <div class="credit">@forestfloor · YouTube</div>
+          </div>
+          <button class="close">✕ Close</button>
+        </div>
+        <div class="frame"><div class="play"></div></div>
+        <div class="actions">
+          <button class="btn btn-cta"><span class="glyph" aria-hidden="true">✦</span> Curate this video</button>
+        </div>
+      </div>
+      <p class="subcap">One pattern, two states: logged out collapses the action row to a single full-width
+         <b>Curate this video</b> CTA (gates to login). No Dismiss button shown — a logged-out Dismiss has no honest
+         optimistic hide, so it isn't offered here.</p>
+    </div>
+  </div>
+
+  <hr class="sep">
+
+  <div class="row">
+    <div class="col">
+      <p class="cap">Action-row anatomy</p>
+      <div class="note">
+        <h3>Why this layout</h3>
+        Metadata sits at top (caption + CC BY-SA credit). The <b>video frame is the hero</b>. The
+        <b>action row anchors the bottom</b> — the natural "I've watched, now decide" position, and it never overlays
+        the video. Curate leads (left, brand, grows); Not relevant trails (right, white, intrinsic width).
+      </div>
+    </div>
+    <div class="col">
+      <p class="cap">Post-action behavior</p>
+      <div class="note">
+        <h3>Curate → curate flow</h3>
+        Opens <b>CurateModal</b> over the dock (logged out → login gate first). The modal's focus trap governs; the dock
+        waits behind it.
+        <h3 style="margin-top:10px">Not relevant → optimistic hide + advance</h3>
+        The candidate is hidden instantly (rollback on write failure). The dock then <b>advances to the next suggestion</b>
+        if one exists, else <b>closes</b>. Focus returns to the General band heading.
+      </div>
+    </div>
+  </div>
+</body>
+</html>

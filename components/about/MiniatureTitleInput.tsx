@@ -15,17 +15,40 @@
 // miniature siblings are individually aria-hidden — §4.3), so a screen-reader user meets exactly
 // one meaningful control on the centerpiece.
 
-import { useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { topicHref } from "@/lib/wiki/topicRoute";
 import { DEFAULT_TITLE, TITLE_INPUT_HELP, TITLE_INPUT_LABEL } from "./copy";
 
-export function MiniatureTitleInput() {
+// `seedTitle` is the dynamic miniature title (AC16–AC18): the value chosen for the current power-on
+// (the recently-curated pick, or the fallback). It SEEDS the editable field — it sets the initial /
+// reseeded value but does NOT lock the input. On a fresh power-on the parent passes a new seed and
+// the field reseeds to it; a user's own edit is NEVER clobbered (we reseed only while the field is
+// untouched since the last seed — AC18). Defaults to the fallback so the input renders the same
+// whether or not a pool is wired.
+export function MiniatureTitleInput({
+  seedTitle = DEFAULT_TITLE,
+}: {
+  seedTitle?: string;
+}) {
   const router = useRouter();
   const rawId = useId();
   const inputId = `about-title-${rawId}`;
   const helpId = `about-title-help-${rawId}`;
-  const [value, setValue] = useState(DEFAULT_TITLE);
+  const [value, setValue] = useState(seedTitle);
+  // Has the user edited since the last seed? While false, a new `seedTitle` (a fresh power-on's pick,
+  // incl. the §5.3 old→new swap) reseeds the field; once true we leave the user's text alone until
+  // the next seed change resets it (AC18 — the pick sets the INITIAL value only).
+  const edited = useRef(false);
+  const lastSeed = useRef(seedTitle);
+
+  useEffect(() => {
+    if (seedTitle === lastSeed.current) return;
+    lastSeed.current = seedTitle;
+    // A new power-on seed clears the user-edit guard and reseeds the displayed value.
+    edited.current = false;
+    setValue(seedTitle);
+  }, [seedTitle]);
 
   function navigate() {
     const t = value.trim();
@@ -54,7 +77,10 @@ export function MiniatureTitleInput() {
         // A text input, NOT type="search" (no browser clear-✕ / search affordances — §3.1).
         type="text"
         value={value}
-        onChange={(e) => setValue(e.target.value)}
+        onChange={(e) => {
+          edited.current = true;
+          setValue(e.target.value);
+        }}
         aria-describedby={helpId}
         autoComplete="off"
         spellCheck={false}

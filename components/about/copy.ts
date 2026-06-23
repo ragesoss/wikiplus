@@ -8,9 +8,22 @@
 //   • FUNCTIONAL copy (the input's accessible name + helper, the scene's visually-hidden
 //     description) — part of the a11y contract; it ships AS WRITTEN (§3.7 / §4.3), not placeholder.
 
-/** The miniature's prepopulated article title (the handoff default; AC9). The owner may swap this
- *  cosmetic default later (spec ★). */
+/** The miniature's fallback article title (AC16). Used when the recently-curated pool has no
+ *  title that fits the miniature's single title line — and as the deterministic capture pin (§7.2).
+ *  15 chars, well within the fit-cap. */
 export const DEFAULT_TITLE = "Acer palmatum";
+
+/** The miniature title fit-cap (docs/design/about-projector-warmup.md §5.1, AC16): a recently-curated
+ *  title is admitted to the pick pool only if its length ≤ this cap, so it renders on the miniature's
+ *  single 352px / 28px-Georgia title line without wrapping at any tier. The cap is a FILTER — an
+ *  over-long title is excluded, never truncated/wrapped/shrunk. Derived server-side in /about. */
+export const TITLE_FIT_CAP = 20;
+
+/** The projector power control's state-reflecting accessible name (§6.3, AC13): an action-label that
+ *  names what activating it does, flipped with the power state. The status light's colour is
+ *  decorative — the on/off state reaches assistive tech by this name (AC9). */
+export const POWER_LABEL_ON = "Turn the projector off"; // shown when the projector is ON
+export const POWER_LABEL_OFF = "Turn the projector on"; // shown when the projector is OFF
 
 /** The title input's programmatic accessible name (NOT the visible value — §3.6/§3.7, AC16). */
 export const TITLE_INPUT_LABEL =

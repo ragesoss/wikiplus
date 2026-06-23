@@ -20,13 +20,19 @@ import type { CSSProperties } from "react";
 // The dock exists ONLY when a real video is playing — a YouTube candidate with no
 // embedUrl never reaches here (TopicView falls back to a new tab; design §9 State
 // F). So `embedUrl` is required: no src-less iframe is ever rendered (AC7).
+//
+// The dock is three stacked regions (issue #123, docs/design/in-player-curation.md
+// §3): a title bar (caption + creator credit + Close), the video frame (the hero),
+// and a bottom ACTION ROW so the reader decides where they watched — signed in,
+// Curate (primary) + Not relevant (secondary); logged out, a single Curate-this-
+// video CTA (the dismiss is gated on the card, not shown here).
 
 export interface PinnedClip {
   /** YouTube embed URL (required — the dock only opens for embeddable clips). */
   embedUrl: string;
   caption: string;
   orientation: "vertical" | "horizontal";
-  /** Creator credit (CC BY-SA) — `handle · platformLabel`. */
+  /** Creator credit — `handle · platformLabel`. */
   creator: { handle: string };
   platformLabel: string;
 }
@@ -37,22 +43,30 @@ export function PinnedPlayer({
   prefersReduced = false,
   signedIn = false,
   onCurate,
+  onDismiss,
 }: {
   clip: PinnedClip;
   onClose: () => void;
   /** Reuse TopicView's existing reduced-motion signal — gates the dock-in (AC12). */
   prefersReduced?: boolean;
   /**
-   * #71 §6: is the viewer signed in. The logged-out "Curate this video" CTA renders only when
-   * `!signedIn && onCurate` — signed in the dock stays the unchanged metadata-only dock (AC7).
+   * #123 §3.4: is the viewer signed in. Signed in (`signedIn && onCurate && onDismiss`) the bottom
+   * action row is the two-button Curate / Not relevant row; logged out (`!signedIn && onCurate`)
+   * it is the single "Curate this video" CTA — one slot, two states.
    */
   signedIn?: boolean;
   /**
-   * #71 §6.5: routes the logged-out "Curate this video" CTA into the curate flow for the
-   * candidate that is playing — TopicView binds it to `promote(candidate)`, which gates first
-   * (logged out → the existing `curate` login gate; no new gate kind). Absent → no CTA.
+   * #123 §3.3/§5 (State I/J/K): the Curate action for the playing candidate — TopicView binds it to
+   * `promote(candidate)`, which gates first (signed in → CurateModal; logged out → the `curate`
+   * login gate; no new gate kind). Absent → no action row.
    */
   onCurate?: () => void;
+  /**
+   * #123 §3.3/§5 (State I/L): the Not-relevant action — TopicView binds it to `dismiss(candidate)`
+   * (the existing optimistic-dismiss-with-rollback path). Rendered only when `signedIn && onCurate
+   * && onDismiss`; logged out the dismiss is gated, not shown (State J).
+   */
+  onDismiss?: () => void;
 }) {
   // iframe src/attrs reused VERBATIM from PlayerModal (AC1/AC5; design §9 C).
   const src =
@@ -133,32 +147,6 @@ export function PinnedPlayer({
         </button>
       </div>
 
-      {/* #71 §6: the logged-out "Curate this video" CTA — a new row BELOW the title bar and ABOVE
-          the frame (metadata→action→video order, so the action sits with the metadata it acts on
-          and never overlays the video). Renders ONLY logged out with a bound `onCurate`; signed in
-          the dock is the unchanged metadata-only dock (AC7). This is the intentional, LOGGED-OUT-
-          ONLY reversal of the dock's "no Promote/Dismiss inside the dock" rule (§6.5) — for
-          signed-in users Promote / Not relevant still live on the card. The CTA is a real, tabbable
-          `<button>` in this NON-MODAL `<section>`; it is present but NOT focused (no autofocus / no
-          focus-steal — §6.4); the global `:focus-visible` ring applies, and the WORD "Curate"
-          carries the meaning (never color-alone). Activating it gates first (login → curate flow
-          for this candidate). Primary action on dark: solid `brand` fill, white bold text, 2px ink
-          border (white-on-#676EB4 clears AA at bold), the border carrying the boundary on the ink
-          bar (§6.3). No gold. */}
-      {!signedIn && onCurate && (
-        <div className="px-3 pb-2">
-          <button
-            type="button"
-            onClick={onCurate}
-            aria-haspopup="dialog"
-            aria-label="Curate this video — log in to write a context note and vouch for it"
-            className="inline-flex min-h-[44px] w-full items-center justify-center border-2 border-hardbox bg-brand px-3 py-1 text-[13px] font-bold text-white hover:shadow-[2px_2px_0_var(--color-hardbox-offset)]"
-          >
-            <span aria-hidden>✦</span>&nbsp;Curate this video
-          </button>
-        </div>
-      )}
-
       {/* Video frame: black backing; iframe attrs reused verbatim from PlayerModal. */}
       <div className={frameClass}>
         <iframe
@@ -169,6 +157,58 @@ export function PinnedPlayer({
           allowFullScreen
         />
       </div>
+
+      {/* #123 §3.1/§3.3: the action row — the dock's bottom region, BELOW the frame, so the dock
+          reads top-to-bottom as watch → decide (metadata → frame → act). It is one slot with two
+          renderings (§3.4):
+            - signed in (`signedIn && onCurate && onDismiss`): the two-button row — ✦ Curate
+              (primary, brand fill, flex-1 so it dominates) + ✕ Not relevant (secondary, white fill,
+              intrinsic width). Curate leads (positive intent; matches the card order).
+            - logged out (`!signedIn && onCurate`): the single full-width ✦ Curate this video CTA.
+              No Not relevant button (State J — a logged-out dismiss has no honest optimistic hide,
+              so it is gated on the card, not offered in the watch surface).
+          Both renderings live in this NON-MODAL `<section>`: real tabbable `<button>`s, present but
+          NOT focused on open/swap (§7 no focus-steal), the global `:focus-visible` ring applies, and
+          the WORD carries the meaning (✦/✕ are decorative `aria-hidden`, never color-alone). The
+          buttons reuse the exact treatment of the on-card `CandidateActions` and the #71 CTA — one
+          visual language across all three sites. No gold; the 2px ink border carries each button's
+          boundary on the ink bar (§7). */}
+      {signedIn && onCurate && onDismiss ? (
+        <div className="flex flex-wrap gap-2 px-3 pb-3 pt-2">
+          <button
+            type="button"
+            onClick={onCurate}
+            aria-haspopup="dialog"
+            aria-label={`Curate this clip: ${clip.caption}`}
+            className="inline-flex min-h-[44px] flex-1 items-center justify-center border-2 border-hardbox bg-brand px-3 py-1 text-[13px] font-bold text-white hover:shadow-[2px_2px_0_var(--color-hardbox-offset)]"
+          >
+            <span aria-hidden>✦</span>&nbsp;Curate
+          </button>
+          <button
+            type="button"
+            onClick={onDismiss}
+            aria-label={`Dismiss as not relevant: ${clip.caption}`}
+            className="inline-flex min-h-[44px] items-center justify-center border-2 border-hardbox bg-surface-raised px-3 py-1 text-[13px] font-bold text-ink-plus hover:shadow-[2px_2px_0_var(--color-hardbox-offset)]"
+          >
+            <span aria-hidden>✕</span>&nbsp;Not relevant
+          </button>
+        </div>
+      ) : (
+        !signedIn &&
+        onCurate && (
+          <div className="px-3 pb-3 pt-2">
+            <button
+              type="button"
+              onClick={onCurate}
+              aria-haspopup="dialog"
+              aria-label="Curate this video — log in to write a context note and vouch for it"
+              className="inline-flex min-h-[44px] w-full items-center justify-center border-2 border-hardbox bg-brand px-3 py-1 text-[13px] font-bold text-white hover:shadow-[2px_2px_0_var(--color-hardbox-offset)]"
+            >
+              <span aria-hidden>✦</span>&nbsp;Curate this video
+            </button>
+          </div>
+        )
+      )}
     </section>
   );
 }

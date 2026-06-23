@@ -190,7 +190,7 @@ describe("PinnedPlayer — AA chrome, never color-alone (AC13)", () => {
     expect(region.className).toMatch(/border-hardbox/);
   });
 
-  it("credits the creator alongside (CC BY-SA: handle · platformLabel)", () => {
+  it("credits the creator alongside (handle · platformLabel)", () => {
     render(<PinnedPlayer clip={clipA} onClose={vi.fn()} />);
     expect(
       screen.getByText("@2minuteclassroom · YouTube")
@@ -200,6 +200,146 @@ describe("PinnedPlayer — AA chrome, never color-alone (AC13)", () => {
       "title",
       "Glycolysis in 2 minutes"
     );
+  });
+});
+
+describe("PinnedPlayer — action row (issue #123, in-player-curation §3.3/§3.4/§5)", () => {
+  it("signed in (onCurate + onDismiss) renders BOTH actions with the verbatim labels + aria", () => {
+    render(
+      <PinnedPlayer
+        clip={clipA}
+        onClose={vi.fn()}
+        signedIn
+        onCurate={vi.fn()}
+        onDismiss={vi.fn()}
+      />
+    );
+    // Curate: primary, aria-haspopup=dialog, aria-label matches CandidateActions verbatim (§3.3).
+    const curate = screen.getByRole("button", {
+      name: "Curate this clip: Glycolysis in 2 minutes",
+    });
+    expect(curate).toHaveAttribute("aria-haspopup", "dialog");
+    expect(curate.textContent).toMatch(/Curate/);
+    expect(curate.className).toMatch(/bg-brand/);
+    expect(curate.className).toMatch(/flex-1/); // grows to dominate the row
+    // Not relevant: secondary, the SAME word the card uses, no flex-1 (intrinsic width).
+    const dismiss = screen.getByRole("button", {
+      name: "Dismiss as not relevant: Glycolysis in 2 minutes",
+    });
+    expect(dismiss.textContent).toMatch(/Not relevant/);
+    // Secondary "white fill" is the skin surface token (#119): `bg-surface-raised` resolves to white
+    // on the default skin and the raised charcoal on dark; no flex-1 (intrinsic width).
+    expect(dismiss.className).toMatch(/bg-surface-raised/);
+    expect(dismiss.className).not.toMatch(/flex-1/);
+    // Both are 44px touch targets (§3.3).
+    expect(curate.className).toMatch(/min-h-\[44px\]/);
+    expect(dismiss.className).toMatch(/min-h-\[44px\]/);
+  });
+
+  it("fires onCurate / onDismiss when its button is activated (signed in)", async () => {
+    const onCurate = vi.fn();
+    const onDismiss = vi.fn();
+    render(
+      <PinnedPlayer
+        clip={clipA}
+        onClose={vi.fn()}
+        signedIn
+        onCurate={onCurate}
+        onDismiss={onDismiss}
+      />
+    );
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "Curate this clip: Glycolysis in 2 minutes",
+      })
+    );
+    expect(onCurate).toHaveBeenCalledOnce();
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "Dismiss as not relevant: Glycolysis in 2 minutes",
+      })
+    );
+    expect(onDismiss).toHaveBeenCalledOnce();
+  });
+
+  it("logged out renders the single Curate-this-video CTA and NO Not-relevant button (State J)", () => {
+    render(
+      <PinnedPlayer
+        clip={clipA}
+        onClose={vi.fn()}
+        signedIn={false}
+        onCurate={vi.fn()}
+        onDismiss={vi.fn()}
+      />
+    );
+    expect(
+      screen.getByRole("button", {
+        name: "Curate this video — log in to write a context note and vouch for it",
+      })
+    ).toBeInTheDocument();
+    // No dismiss button is shown logged out (no false optimistic hide — DW4).
+    expect(
+      screen.queryByRole("button", { name: /Dismiss as not relevant/ })
+    ).toBeNull();
+    // The signed-in "Curate" label is also absent (the logged-out CTA is the only action).
+    expect(
+      screen.queryByRole("button", { name: /^Curate this clip:/ })
+    ).toBeNull();
+  });
+
+  it("renders no action row at all when onCurate is absent (e.g. a stale dock)", () => {
+    render(<PinnedPlayer clip={clipA} onClose={vi.fn()} signedIn />);
+    expect(
+      screen.queryByRole("button", { name: /Curate/ })
+    ).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: /Not relevant/ })
+    ).toBeNull();
+  });
+
+  it("the action row is INSIDE the non-modal region and does not auto-focus on open (§7)", () => {
+    render(
+      <PinnedPlayer
+        clip={clipA}
+        onClose={vi.fn()}
+        signedIn
+        onCurate={vi.fn()}
+        onDismiss={vi.fn()}
+      />
+    );
+    const region = dock();
+    const curate = screen.getByRole("button", {
+      name: "Curate this clip: Glycolysis in 2 minutes",
+    });
+    const dismissBtn = screen.getByRole("button", {
+      name: "Dismiss as not relevant: Glycolysis in 2 minutes",
+    });
+    // Tabbable, real buttons within the labeled region — but focus is not stolen on open.
+    expect(region.contains(curate)).toBe(true);
+    expect(region.contains(dismissBtn)).toBe(true);
+    expect(region.contains(document.activeElement)).toBe(false);
+  });
+
+  it("the action row renders AFTER the frame in DOM order (watch → act; §3.1)", () => {
+    render(
+      <PinnedPlayer
+        clip={clipA}
+        onClose={vi.fn()}
+        signedIn
+        onCurate={vi.fn()}
+        onDismiss={vi.fn()}
+      />
+    );
+    const region = dock();
+    const frame = region.querySelector("iframe")!;
+    const curate = screen.getByRole("button", {
+      name: "Curate this clip: Glycolysis in 2 minutes",
+    });
+    // Curate comes after the iframe in document order (the action row sits below the frame).
+    expect(
+      frame.compareDocumentPosition(curate) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
   });
 });
 

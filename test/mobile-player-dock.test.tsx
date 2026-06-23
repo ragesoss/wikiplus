@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import {
@@ -7,10 +7,13 @@ import {
 } from "@/components/topic/MobilePlayerDock";
 import type { Clip } from "@/lib/data/types";
 
-// Component-level verification of the unified mobile dock in isolation (issue #120,
-// docs/design/unified-player-mobile.md §5–§9). The TopicView routing/wiring (the viewport
-// split, swap-in-place across kinds, the edge-aware spacer, focus return) is covered in
-// mobile-player-dock-wiring.test.tsx; here we pin the dock's own contract.
+// Component-level verification of the SLIM unified mobile dock in isolation
+// (docs/design/mobile-player-slim.md). The locked model: a playing mobile video is the frame plus
+// ONE 46px control row of four glyph-above-word cells — Close · Move · Curate · See context — and
+// nothing else in the default chrome; Curate + See context are inline expander reveals (not
+// bottom-sheets), only one open at a time; there is no custom Maximize control. The TopicView
+// routing/wiring (the viewport split, swap-in-place, the spacer, dismiss → close + focus-to-band)
+// is covered in mobile-player-dock-wiring.test.tsx.
 
 const NOCOOKIE = "https://www.youtube-nocookie.com/embed/abc123";
 
@@ -60,7 +63,7 @@ function dock() {
   return screen.getByRole("region", { name: "Video player" });
 }
 
-describe("MobilePlayerDock — labeled, non-modal region (§9)", () => {
+describe("MobilePlayerDock — labeled, non-modal region (spec §0.1)", () => {
   it("is a <section> exposed as a region named 'Video player'", () => {
     render(<MobilePlayerDock kind="candidate" clip={candidatePayload} onClose={vi.fn()} />);
     const region = dock();
@@ -82,12 +85,66 @@ describe("MobilePlayerDock — labeled, non-modal region (§9)", () => {
     outside.focus();
     expect(outside).toHaveFocus();
 
-    render(
-      <MobilePlayerDock kind="curated" clip={curatedPayload()} onClose={vi.fn()} />
-    );
-    // The dock mounted but did NOT pull focus to itself (contrast ModalShell).
+    render(<MobilePlayerDock kind="curated" clip={curatedPayload()} onClose={vi.fn()} />);
     expect(outside).toHaveFocus();
     expect(dock().contains(document.activeElement)).toBe(false);
+  });
+});
+
+describe("MobilePlayerDock — the slim default chrome (spec §1/§2)", () => {
+  it("the default chrome is the frame + exactly ONE row of four glyph-above-word cells, no more", () => {
+    render(<MobilePlayerDock kind="candidate" clip={candidatePayload} onClose={vi.fn()} />);
+    const region = dock();
+    // The four cells, each a real button laid out glyph-above-word (word = the accessible name).
+    expect(screen.getByRole("button", { name: "Close video player" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Move player to top of screen" })
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Curate" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "See context" })).toBeInTheDocument();
+    // Exactly four buttons in the default (no fifth control, no Maximize).
+    expect(region.querySelectorAll("button")).toHaveLength(4);
+  });
+
+  it("renders NO custom Maximize control (fullscreen is the embed's native button — spec §5)", () => {
+    render(<MobilePlayerDock kind="candidate" clip={candidatePayload} onClose={vi.fn()} />);
+    expect(
+      screen.queryByRole("button", { name: /Maximize|Exit full-screen/ })
+    ).toBeNull();
+    // allowFullScreen stays so the embed's OWN native-fullscreen button works.
+    expect(dock().querySelector("iframe")).toHaveAttribute("allowfullscreen");
+  });
+
+  it("shows each cell's WORD visibly (never glyph- or sr-only-word alone)", () => {
+    render(<MobilePlayerDock kind="candidate" clip={candidatePayload} onClose={vi.fn()} />);
+    for (const word of ["Close", "Move to top", "Curate", "See context"]) {
+      const span = Array.from(dock().querySelectorAll("button span")).find(
+        (s) => s.textContent === word
+      )!;
+      expect(span, `${word} visible`).toBeTruthy();
+      expect(span.className).not.toMatch(/sr-only/);
+    }
+  });
+
+  it("the default carries NO caption / creator / chips / description (all behind reveals)", () => {
+    render(<MobilePlayerDock kind="candidate" clip={candidatePayload} onClose={vi.fn()} />);
+    expect(screen.queryByText(/@amoebasisters/)).toBeNull();
+    expect(screen.queryByText("Glycolysis in 2 minutes")).toBeNull();
+    expect(screen.queryByText("Mentions glycolysis")).toBeNull();
+  });
+
+  it("each cell is a ≥46px target and the four sit in one wrap-capable row (2×2 fallback)", () => {
+    render(<MobilePlayerDock kind="curated" clip={curatedPayload()} onClose={vi.fn()} />);
+    const close = screen.getByRole("button", { name: "Close video player" });
+    const see = screen.getByRole("button", { name: "See context" });
+    // Same bar container; flex-wrap is the long-locale 2×2 overflow fallback (spec §2.5).
+    const bar = close.parentElement!;
+    expect(bar).toBe(see.parentElement);
+    expect(bar.className).toMatch(/flex-wrap/);
+    for (const b of [close, see]) {
+      expect(b.className).toMatch(/min-h-\[46px\]/);
+      expect(b.className).toMatch(/min-w-\[46px\]/);
+    }
   });
 });
 
@@ -104,19 +161,13 @@ describe("MobilePlayerDock — embed facade (verbatim attrs)", () => {
     expect(iframe.getAttribute("allow")).toBe(
       "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
     );
-    // allowFullScreen stays so the embed's OWN native-fullscreen button works (§6.5).
     expect(iframe).toHaveAttribute("allowfullscreen");
     expect(iframe).toHaveAttribute("title", "Glycolysis in 2 minutes");
   });
-
-  it("credits the creator in the title bar on EVERY clip (CC BY-SA, §5.1)", () => {
-    render(<MobilePlayerDock kind="candidate" clip={candidatePayload} onClose={vi.fn()} />);
-    expect(screen.getByText("@amoebasisters · YouTube")).toBeInTheDocument();
-  });
 });
 
-describe("MobilePlayerDock — Close tears down (§8 dismissed)", () => {
-  it("clicking Close fires onClose; the control carries the WORD 'Close' (§9 AC-a11y)", async () => {
+describe("MobilePlayerDock — Close tears down (spec §2.4)", () => {
+  it("clicking Close fires onClose; the control carries the WORD 'Close'", async () => {
     const onClose = vi.fn();
     render(<MobilePlayerDock kind="candidate" clip={candidatePayload} onClose={onClose} />);
     const close = screen.getByRole("button", { name: "Close video player" });
@@ -139,13 +190,12 @@ describe("MobilePlayerDock — Close tears down (§8 dismissed)", () => {
   });
 });
 
-describe("MobilePlayerDock — park toggle (§7)", () => {
+describe("MobilePlayerDock — Move names the destination (spec §2.3)", () => {
   it("defaults to bottom: the button names the destination 'Move to top'", () => {
     render(<MobilePlayerDock kind="candidate" clip={candidatePayload} onClose={vi.fn()} />);
     expect(
       screen.getByRole("button", { name: "Move player to top of screen" })
     ).toBeInTheDocument();
-    // Default edge = bottom → the dock root pins to the bottom edge.
     expect(dock().className).toMatch(/bottom-0/);
   });
 
@@ -177,46 +227,82 @@ describe("MobilePlayerDock — park toggle (§7)", () => {
   });
 });
 
-describe("MobilePlayerDock — maximize toggle (§6.5, CSS not native fullscreen)", () => {
-  it("offers an explicit Maximize button (keyboard/AT-reachable), flipping to Exit", async () => {
-    render(<MobilePlayerDock kind="candidate" clip={candidatePayload} onClose={vi.fn()} />);
-    const maximize = screen.getByRole("button", {
-      name: "Maximize video to fill the screen",
-    });
-    await userEvent.click(maximize);
-    // The same node now reads "Exit"; the dock fills the viewport via CSS (inset-0).
-    expect(
-      screen.getByRole("button", { name: "Exit full-screen video" })
-    ).toBeInTheDocument();
-    expect(dock().className).toMatch(/inset-0/);
-  });
-
-  it("hides the park toggle while maximized (parking is meaningless — §7)", async () => {
-    render(<MobilePlayerDock kind="candidate" clip={candidatePayload} onClose={vi.fn()} />);
-    await userEvent.click(
-      screen.getByRole("button", { name: "Maximize video to fill the screen" })
+describe("MobilePlayerDock — Curate reveal (spec §3)", () => {
+  it("is an inline expander (aria-expanded / aria-controls), collapsed by default", () => {
+    render(
+      <MobilePlayerDock
+        kind="candidate"
+        clip={candidatePayload}
+        onClose={vi.fn()}
+        signedIn
+        onCurate={vi.fn()}
+        onDismiss={vi.fn()}
+      />
     );
+    const cell = screen.getByRole("button", { name: "Curate" });
+    expect(cell).toHaveAttribute("aria-expanded", "false");
+    const controls = cell.getAttribute("aria-controls");
+    expect(controls).toBeTruthy();
+    // Collapsed: the body (the ✦ Curate action) is not yet in the DOM.
     expect(
-      screen.queryByRole("button", { name: /Move player to/ })
+      screen.queryByRole("button", { name: /Curate this clip:/ })
     ).toBeNull();
   });
 
-  it("keeps the SAME iframe across maximize/exit (playback never interrupted — §6.6)", async () => {
-    render(<MobilePlayerDock kind="candidate" clip={candidatePayload} onClose={vi.fn()} />);
-    const before = dock().querySelector("iframe");
-    await userEvent.click(
-      screen.getByRole("button", { name: "Maximize video to fill the screen" })
+  it("opening / re-activating toggles the reveal and flips aria-expanded; no focus-steal", async () => {
+    render(
+      <MobilePlayerDock
+        kind="candidate"
+        clip={candidatePayload}
+        onClose={vi.fn()}
+        signedIn
+        onCurate={vi.fn()}
+        onDismiss={vi.fn()}
+      />
     );
-    const during = dock().querySelector("iframe");
-    await userEvent.click(screen.getByRole("button", { name: "Exit full-screen video" }));
-    const after = dock().querySelector("iframe");
-    expect(during).toBe(before);
-    expect(after).toBe(before);
+    const cell = screen.getByRole("button", { name: "Curate" });
+    await userEvent.click(cell);
+    expect(cell).toHaveAttribute("aria-expanded", "true");
+    // Opening does NOT autofocus into the reveal body — focus stays on the toggling cell.
+    expect(cell).toHaveFocus();
+    expect(
+      screen.getByRole("button", { name: "Curate this clip: Glycolysis in 2 minutes" })
+    ).toBeInTheDocument();
+    await userEvent.click(cell);
+    expect(cell).toHaveAttribute("aria-expanded", "false");
+    expect(
+      screen.queryByRole("button", { name: /Curate this clip:/ })
+    ).toBeNull();
   });
-});
 
-describe("MobilePlayerDock — candidate supplemental row (§5.2)", () => {
-  it("shows the match reason and the logged-out 'Curate this video' CTA", () => {
+  it("candidate signed in: shows ✦ Curate + ✕ Not relevant with #123 verbatim aria-labels", async () => {
+    const onCurate = vi.fn();
+    const onDismiss = vi.fn();
+    render(
+      <MobilePlayerDock
+        kind="candidate"
+        clip={candidatePayload}
+        onClose={vi.fn()}
+        signedIn
+        onCurate={onCurate}
+        onDismiss={onDismiss}
+      />
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Curate" }));
+    const curate = screen.getByRole("button", {
+      name: "Curate this clip: Glycolysis in 2 minutes",
+    });
+    const notRel = screen.getByRole("button", {
+      name: "Dismiss as not relevant: Glycolysis in 2 minutes",
+    });
+    expect(curate).toHaveAttribute("aria-haspopup", "dialog");
+    await userEvent.click(curate);
+    expect(onCurate).toHaveBeenCalledOnce();
+    await userEvent.click(notRel);
+    expect(onDismiss).toHaveBeenCalledOnce();
+  });
+
+  it("candidate logged out: a single ✦ Curate this video CTA, NO dismiss (spec §3.3)", async () => {
     render(
       <MobilePlayerDock
         kind="candidate"
@@ -226,73 +312,64 @@ describe("MobilePlayerDock — candidate supplemental row (§5.2)", () => {
         onCurate={vi.fn()}
       />
     );
-    expect(screen.getByText("Mentions glycolysis")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Curate" }));
     expect(
       screen.getByRole("button", {
         name: "Curate this video — log in to write a context note and vouch for it",
       })
     ).toBeInTheDocument();
-    // Candidates are never expandable (A2 — no curation note to expand to).
-    expect(screen.queryByRole("button", { name: /Context/ })).toBeNull();
+    // No Not-relevant offered logged out (a logged-out dismiss can't honestly optimistic-hide).
+    expect(
+      screen.queryByRole("button", { name: /Dismiss as not relevant/ })
+    ).toBeNull();
   });
 
-  it("renders NO CTA when signed in (§5.2)", () => {
+  it("curated logged out: the join nudge occupies the Curate reveal 'act' slot (spec §3.4)", async () => {
     render(
       <MobilePlayerDock
-        kind="candidate"
-        clip={candidatePayload}
+        kind="curated"
+        clip={curatedPayload()}
         onClose={vi.fn()}
-        signedIn
-        onCurate={vi.fn()}
+        signedIn={false}
+        onJoin={vi.fn()}
       />
     );
+    await userEvent.click(screen.getByRole("button", { name: "Curate" }));
     expect(
-      screen.queryByRole("button", { name: /Curate this video/ })
-    ).toBeNull();
+      screen.getByRole("button", { name: "Log in to curate videos for this topic" })
+    ).toBeInTheDocument();
   });
 });
 
-describe("MobilePlayerDock — curated collapsed/expanded curation (§5.3)", () => {
-  it("collapsed: shows chips + a 'Context ▸' expander (aria-expanded=false), note hidden", () => {
-    render(<MobilePlayerDock kind="curated" clip={curatedPayload()} onClose={vi.fn()} />);
-    const expander = screen.getByRole("button", { name: /Context/ });
-    expect(expander).toHaveAttribute("aria-expanded", "false");
-    // The full note is not yet in the DOM (collapsed).
-    expect(
-      screen.queryByText(/Solid explainer; minor caveat/)
-    ).toBeNull();
-    // The "Curator note" eyebrow appears only when expanded.
-    expect(screen.queryByText("Curator note")).toBeNull();
+describe("MobilePlayerDock — See context reveal (spec §4)", () => {
+  it("is an inline expander, collapsed by default; opening shows caption + creator + Why suggested", async () => {
+    render(<MobilePlayerDock kind="candidate" clip={candidatePayload} onClose={vi.fn()} />);
+    const cell = screen.getByRole("button", { name: "See context" });
+    expect(cell).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByText("Why suggested")).toBeNull();
+
+    await userEvent.click(cell);
+    expect(cell).toHaveAttribute("aria-expanded", "true");
+    expect(cell).toHaveFocus(); // no focus-steal into the body
+    expect(screen.getByText("Glycolysis in 2 minutes")).toBeInTheDocument();
+    // Creator credit appears ONLY here (never in the default chrome — spec §4/§9).
+    expect(screen.getByText("@amoebasisters · YouTube")).toBeInTheDocument();
+    expect(screen.getByText("Why suggested")).toBeInTheDocument();
+    expect(screen.getByText("Mentions glycolysis")).toBeInTheDocument();
   });
 
-  it("expanding reveals the full note + 'context by', wires aria-controls, flips aria-expanded", async () => {
+  it("curated: opening shows caption · creator · chips · Context note · Context by", async () => {
     render(<MobilePlayerDock kind="curated" clip={curatedPayload()} onClose={vi.fn()} />);
-    const expander = screen.getByRole("button", { name: /Context/ });
-    const controls = expander.getAttribute("aria-controls");
-    expect(controls).toBeTruthy();
-
-    await userEvent.click(expander);
-    expect(expander).toHaveAttribute("aria-expanded", "true");
+    await userEvent.click(screen.getByRole("button", { name: "See context" }));
+    expect(screen.getByText("Photosynthesis explained")).toBeInTheDocument();
+    expect(screen.getByText("@2minuteclassroom · YouTube")).toBeInTheDocument();
+    expect(screen.getByText("Explainer")).toBeInTheDocument(); // the stance chip
     expect(screen.getByText("Curator note")).toBeInTheDocument();
-    expect(
-      screen.getByText(/Solid explainer; minor caveat/)
-    ).toBeInTheDocument();
-    // aria-controls points at the now-present note panel.
-    expect(document.getElementById(controls!)).not.toBeNull();
-    // "context by <curator>" attribution is present in the expanded state (CURATION §5.4).
+    expect(screen.getByText(/Solid explainer; minor caveat/)).toBeInTheDocument();
     expect(screen.getByText(/context by/i)).toBeInTheDocument();
   });
 
-  it("re-activating collapses the note back (focus stays on the expander)", async () => {
-    render(<MobilePlayerDock kind="curated" clip={curatedPayload()} onClose={vi.fn()} />);
-    const expander = screen.getByRole("button", { name: /Context/ });
-    await userEvent.click(expander);
-    expect(screen.getByText("Curator note")).toBeInTheDocument();
-    await userEvent.click(expander);
-    expect(screen.queryByText("Curator note")).toBeNull();
-  });
-
-  it("renders NO expander when the note is empty (§5.3 empty-note guard); chips still show", () => {
+  it("curated with an empty note: chips + creator still show, no note panel (empty-note guard)", async () => {
     render(
       <MobilePlayerDock
         kind="curated"
@@ -300,41 +377,49 @@ describe("MobilePlayerDock — curated collapsed/expanded curation (§5.3)", () 
         onClose={vi.fn()}
       />
     );
-    expect(screen.queryByRole("button", { name: /Context/ })).toBeNull();
-    // Chips remain (the stance/accuracy signal still shows collapsed).
+    await userEvent.click(screen.getByRole("button", { name: "See context" }));
+    expect(screen.queryByText("Curator note")).toBeNull();
     expect(screen.getByText(/explainer/i)).toBeInTheDocument();
-  });
-
-  it("shows the logged-out join nudge for curated; none when signed in (§5.2)", () => {
-    const { rerender } = render(
-      <MobilePlayerDock
-        kind="curated"
-        clip={curatedPayload()}
-        onClose={vi.fn()}
-        signedIn={false}
-        onJoin={vi.fn()}
-      />
-    );
-    expect(
-      screen.getByRole("button", { name: "Log in to curate videos for this topic" })
-    ).toBeInTheDocument();
-    rerender(
-      <MobilePlayerDock
-        kind="curated"
-        clip={curatedPayload()}
-        onClose={vi.fn()}
-        signedIn
-        onJoin={vi.fn()}
-      />
-    );
-    expect(
-      screen.queryByRole("button", { name: "Log in to curate videos for this topic" })
-    ).toBeNull();
   });
 });
 
-describe("MobilePlayerDock — curated no-embed shows the note (§8 no-embed curated)", () => {
-  it("a curated clip with no embedUrl shows the 'can't be embedded' message AND the curation block", () => {
+describe("MobilePlayerDock — only one reveal open at a time (spec §8)", () => {
+  it("opening See context while Curate is open closes Curate, and vice versa", async () => {
+    render(
+      <MobilePlayerDock
+        kind="candidate"
+        clip={candidatePayload}
+        onClose={vi.fn()}
+        signedIn
+        onCurate={vi.fn()}
+        onDismiss={vi.fn()}
+      />
+    );
+    const curate = screen.getByRole("button", { name: "Curate" });
+    const context = screen.getByRole("button", { name: "See context" });
+
+    await userEvent.click(curate);
+    expect(curate).toHaveAttribute("aria-expanded", "true");
+    expect(context).toHaveAttribute("aria-expanded", "false");
+
+    // Opening See context closes Curate (only one open).
+    await userEvent.click(context);
+    expect(context).toHaveAttribute("aria-expanded", "true");
+    expect(curate).toHaveAttribute("aria-expanded", "false");
+    expect(
+      screen.queryByRole("button", { name: /Curate this clip:/ })
+    ).toBeNull();
+
+    // And back the other way.
+    await userEvent.click(curate);
+    expect(curate).toHaveAttribute("aria-expanded", "true");
+    expect(context).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByText("Why suggested")).toBeNull();
+  });
+});
+
+describe("MobilePlayerDock — curated no-embed shows the note (spec §4)", () => {
+  it("a curated clip with no embedUrl shows the can't-embed message; See context still reveals the note", async () => {
     render(
       <MobilePlayerDock
         kind="curated"
@@ -343,130 +428,36 @@ describe("MobilePlayerDock — curated no-embed shows the note (§8 no-embed cur
       />
     );
     expect(screen.getByText(/can't be embedded/i)).toBeInTheDocument();
-    // No src-less iframe is rendered (the message replaces it).
     expect(dock().querySelector("iframe")).toBeNull();
-    // The curation affordance still renders — the note is worth reading even when the frame can't play.
-    expect(screen.getByRole("button", { name: /Context/ })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "See context" }));
+    expect(screen.getByText("Curator note")).toBeInTheDocument();
   });
 });
 
-describe("MobilePlayerDock — frame-first launch order (#135 §1.1, AC-1/AC-3)", () => {
-  // The corrected launch inversion: the video frame is the FIRST region after the slim title bar,
-  // and everything secondary (chips / Context / match reason / CTA / expanded note) comes AFTER the
-  // frame in DOM order. This is what makes the frame the hero and fully visible on open; it would
-  // fail against the old frame-last layout.
-  function frameAndSecondaryOrder(root: HTMLElement) {
-    const frame = root.querySelector("[data-dock-frame]")!;
-    // The secondary region is the lone overflow-y-auto column under the frame.
-    const secondary = root.querySelector(".overflow-y-auto.flex-1");
-    return { frame, secondary };
-  }
-
-  it("renders the frame BEFORE the secondary region (curated)", () => {
-    render(<MobilePlayerDock kind="curated" clip={curatedPayload()} onClose={vi.fn()} />);
-    const { frame, secondary } = frameAndSecondaryOrder(dock());
-    expect(frame).not.toBeNull();
-    expect(secondary).not.toBeNull();
-    // DOCUMENT_POSITION_FOLLOWING (4): `secondary` follows `frame` in document order.
-    expect(frame.compareDocumentPosition(secondary!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-  });
-
-  it("renders the frame BEFORE the secondary region (candidate)", () => {
-    render(
-      <MobilePlayerDock
-        kind="candidate"
-        clip={candidatePayload}
-        onClose={vi.fn()}
-        signedIn={false}
-        onCurate={vi.fn()}
-      />
-    );
-    const { frame, secondary } = frameAndSecondaryOrder(dock());
-    expect(frame.compareDocumentPosition(secondary!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    // The "Curate this video" CTA is inside the secondary region (after the frame), not above it.
-    const cta = screen.getByRole("button", { name: /Curate this video/ });
-    expect(secondary!.contains(cta)).toBe(true);
-  });
-
-  it("marks the frame box and the title bar as shrink-0 (never the element that scrolls)", () => {
+describe("MobilePlayerDock — frame-first order + sole scroll area (spec §0.1)", () => {
+  it("renders the frame BEFORE the control bar", () => {
     render(<MobilePlayerDock kind="curated" clip={curatedPayload()} onClose={vi.fn()} />);
     const frame = dock().querySelector("[data-dock-frame]")!;
-    expect(frame.className).toMatch(/shrink-0/);
-    // The secondary region — and only it — is the overflow scroll area.
-    const scrollers = dock().querySelectorAll(".overflow-y-auto");
-    // Exactly the secondary region scrolls when collapsed (the expanded-note panel adds a second
-    // only when open — not here).
-    expect(scrollers.length).toBe(1);
-    expect((scrollers[0] as HTMLElement).className).toMatch(/flex-1/);
-  });
-
-  it("the logged-out curated join nudge sits inside the secondary region, after the frame", () => {
-    render(
-      <MobilePlayerDock
-        kind="curated"
-        clip={curatedPayload()}
-        onClose={vi.fn()}
-        signedIn={false}
-        onJoin={vi.fn()}
-      />
-    );
-    const secondary = dock().querySelector(".overflow-y-auto.flex-1")!;
-    const nudge = screen.getByRole("button", {
-      name: "Log in to curate videos for this topic",
-    });
-    expect(secondary.contains(nudge)).toBe(true);
-  });
-
-  it("collapses the title-bar controls into ONE horizontal row, each a separate 44px button (#135 §1.3.1)", () => {
-    render(<MobilePlayerDock kind="curated" clip={curatedPayload()} onClose={vi.fn()} />);
-    const maximize = screen.getByRole("button", { name: "Maximize video to fill the screen" });
-    const move = screen.getByRole("button", { name: "Move player to top of screen" });
     const close = screen.getByRole("button", { name: "Close video player" });
-    // All three controls share one flex-row container (collapsed, not the old vertical flex-col).
-    const row = maximize.parentElement!;
-    expect(row).toBe(move.parentElement);
-    expect(row).toBe(close.parentElement);
-    expect(row.className).toMatch(/flex-row/);
-    // Each control keeps its own ≥44px touch target (height AND width, now the words can collapse).
-    for (const b of [maximize, move, close]) {
-      expect(b.className).toMatch(/min-h-\[44px\]/);
-      expect(b.className).toMatch(/min-w-\[44px\]/);
-    }
+    expect(frame.compareDocumentPosition(close) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
-  it("collapses the control WORD to sr-only below sm so the caption/credit keep room (AC-3/AC-4), keeping the accessible name", () => {
+  it("the collapsed default has NO scroll area; opening a reveal adds exactly one (the reveal region)", async () => {
     render(<MobilePlayerDock kind="curated" clip={curatedPayload()} onClose={vi.fn()} />);
-    for (const [glyphLabel, word] of [
-      ["Maximize video to fill the screen", "Maximize"],
-      ["Move player to top of screen", "Move to top"],
-      ["Close video player", "Close"],
-    ] as const) {
-      const btn = screen.getByRole("button", { name: glyphLabel });
-      // The visible word is in the DOM (the accessible name still carries it) but sr-only below sm,
-      // restored visibly at sm+ — so it never steals the narrow-width text column.
-      const wordSpan = Array.from(btn.querySelectorAll("span")).find((s) =>
-        s.textContent === word
-      )!;
-      expect(wordSpan, `${word} word span present`).toBeTruthy();
-      expect(wordSpan.className).toMatch(/sr-only/);
-      expect(wordSpan.className).toMatch(/sm:not-sr-only/);
-      // The aria-label (the accessible name) is unchanged — text-labeled for AT regardless.
-      expect(btn).toHaveAccessibleName(glyphLabel);
-    }
+    // Collapsed slim default: frame + bar only, nothing scrolls.
+    expect(dock().querySelectorAll(".overflow-y-auto.flex-1")).toHaveLength(0);
+    await userEvent.click(screen.getByRole("button", { name: "See context" }));
+    const scrollers = dock().querySelectorAll(".overflow-y-auto.flex-1");
+    expect(scrollers).toHaveLength(1);
   });
 
-  it("shows the control words VISIBLY when maximized (the thin bar has room — no sr-only there)", async () => {
+  it("the frame box is shrink-0 (never the element that scrolls)", () => {
     render(<MobilePlayerDock kind="curated" clip={curatedPayload()} onClose={vi.fn()} />);
-    await userEvent.click(
-      screen.getByRole("button", { name: "Maximize video to fill the screen" })
-    );
-    const close = screen.getByRole("button", { name: "Close video player" });
-    const word = Array.from(close.querySelectorAll("span")).find((s) => s.textContent === "Close")!;
-    expect(word.className).not.toMatch(/sr-only/);
+    expect(dock().querySelector("[data-dock-frame]")!.className).toMatch(/shrink-0/);
   });
 });
 
-describe("MobilePlayerDock — measured-height report (#135 §3, AC-2)", () => {
+describe("MobilePlayerDock — measured-height report (spec §6.4)", () => {
   it("reports {edge, height, docked} up via onDockMetrics on mount", () => {
     const onDockMetrics = vi.fn();
     render(
@@ -499,7 +490,7 @@ describe("MobilePlayerDock — measured-height report (#135 §3, AC-2)", () => {
     expect(onDockMetrics.mock.calls.at(-1)![0]).toMatchObject({ edge: "top", docked: true });
   });
 
-  it("reports docked:false while maximized (no page spacer is reserved then)", async () => {
+  it("re-reports (grows) when a reveal opens, inside the observed root", async () => {
     const onDockMetrics = vi.fn();
     render(
       <MobilePlayerDock
@@ -509,14 +500,15 @@ describe("MobilePlayerDock — measured-height report (#135 §3, AC-2)", () => {
         onDockMetrics={onDockMetrics}
       />
     );
-    await userEvent.click(
-      screen.getByRole("button", { name: "Maximize video to fill the screen" })
-    );
-    expect(onDockMetrics.mock.calls.at(-1)![0]).toMatchObject({ docked: false, height: 0 });
+    onDockMetrics.mockClear();
+    await userEvent.click(screen.getByRole("button", { name: "See context" }));
+    // The layout effect re-runs on reveal change and reports the current edge/docked again.
+    expect(onDockMetrics).toHaveBeenCalled();
+    expect(onDockMetrics.mock.calls.at(-1)![0]).toMatchObject({ docked: true });
   });
 });
 
-describe("MobilePlayerDock — bounded dock + 9:16 frame cap (#135 §2.3/§2.6)", () => {
+describe("MobilePlayerDock — bounded dock + 9:16 frame cap (spec §6.2)", () => {
   it("caps the docked height at 88dvh − insets (never 100dvh)", () => {
     render(<MobilePlayerDock kind="curated" clip={curatedPayload()} onClose={vi.fn()} />);
     const style = dock().getAttribute("style") ?? "";
@@ -546,7 +538,76 @@ describe("MobilePlayerDock — bounded dock + 9:16 frame cap (#135 §2.3/§2.6)"
   });
 });
 
-describe("MobilePlayerDock — reduced motion (§9)", () => {
+describe("MobilePlayerDock — maximized / landscape (spec §5)", () => {
+  // The dock seeds `maximized` from matchMedia("(orientation: landscape)") on mount, so installing a
+  // landscape-matching matchMedia opens the dock in the maximized state (the rotate-to-maximize path,
+  // with no custom button). afterEach restores the default no-match shim from test/setup.ts.
+  function withLandscape() {
+    window.matchMedia = ((query: string) => ({
+      matches: /landscape/.test(query),
+      media: query,
+      onchange: null,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    })) as unknown as typeof window.matchMedia;
+  }
+  afterEach(() => {
+    window.matchMedia = ((query: string) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    })) as unknown as typeof window.matchMedia;
+  });
+
+  it("hides the four-cell bar and any reveal when maximized (video fills the screen)", () => {
+    withLandscape();
+    render(
+      <MobilePlayerDock
+        kind="candidate"
+        clip={candidatePayload}
+        onClose={vi.fn()}
+        signedIn
+        onCurate={vi.fn()}
+        onDismiss={vi.fn()}
+      />
+    );
+    // The full four-cell bar is gone: Move / Curate / See context do not render in maximized mode.
+    expect(
+      screen.queryByRole("button", { name: "Move player to top of screen" })
+    ).toBeNull();
+    expect(screen.queryByRole("button", { name: "Curate" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "See context" })).toBeNull();
+    // And there is no reveal region scroll area in maximized mode.
+    expect(dock().querySelectorAll(".overflow-y-auto.flex-1")).toHaveLength(0);
+  });
+
+  it("keeps a single condensed Close reachable so the reader is never stuck (spec §5)", () => {
+    withLandscape();
+    render(<MobilePlayerDock kind="candidate" clip={candidatePayload} onClose={vi.fn()} />);
+    const close = screen.getByRole("button", { name: "Close video player" });
+    expect(close.textContent).toMatch(/Close/); // glyph-above-WORD, never glyph-alone
+    // It is the ONLY control in maximized mode (no four-cell bar).
+    expect(dock().querySelectorAll("button")).toHaveLength(1);
+  });
+
+  it("activating the condensed Close tears the dock down (calls onClose)", async () => {
+    withLandscape();
+    const onClose = vi.fn();
+    render(<MobilePlayerDock kind="candidate" clip={candidatePayload} onClose={onClose} />);
+    await userEvent.click(screen.getByRole("button", { name: "Close video player" }));
+    expect(onClose).toHaveBeenCalledOnce();
+  });
+});
+
+describe("MobilePlayerDock — reduced motion (spec §8)", () => {
   it("applies the motion dock-in class when motion is allowed", () => {
     render(
       <MobilePlayerDock
