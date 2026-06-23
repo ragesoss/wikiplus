@@ -183,9 +183,11 @@ describe("PinnedPlayer — AA chrome, never color-alone (AC13)", () => {
     // numeric ratio is verified by the labels.ts chip-contrast precedent + UX eval.
     expect(region.className).toMatch(/bg-ink/);
     expect(region.className).toMatch(/text-white/);
-    // 2px ink border + offset shadow reinforce the boundary (not color alone).
+    // 2px ink border + offset shadow reinforce the boundary (not color alone). The border is the
+    // skin hardbox token (#119): `border-hardbox` resolves to the ink line on light, a light line on
+    // the dark skin — byte-identical to the old `border-ink` on the default skin.
     expect(region.className).toMatch(/border-2/);
-    expect(region.className).toMatch(/border-ink/);
+    expect(region.className).toMatch(/border-hardbox/);
   });
 
   it("credits the creator alongside (handle · platformLabel)", () => {
@@ -225,7 +227,9 @@ describe("PinnedPlayer — action row (issue #123, in-player-curation §3.3/§3.
       name: "Dismiss as not relevant: Glycolysis in 2 minutes",
     });
     expect(dismiss.textContent).toMatch(/Not relevant/);
-    expect(dismiss.className).toMatch(/bg-white/);
+    // Secondary "white fill" is the skin surface token (#119): `bg-surface-raised` resolves to white
+    // on the default skin and the raised charcoal on dark; no flex-1 (intrinsic width).
+    expect(dismiss.className).toMatch(/bg-surface-raised/);
     expect(dismiss.className).not.toMatch(/flex-1/);
     // Both are 44px touch targets (§3.3).
     expect(curate.className).toMatch(/min-h-\[44px\]/);

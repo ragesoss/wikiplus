@@ -1777,7 +1777,7 @@ export function TopicView() {
             aria-live="polite"
             className={
               dismissNotice === "limited"
-                ? "rounded-md border-l-4 border-brand bg-bg2 px-3 py-2 text-sm text-ink"
+                ? "rounded-md border-l-4 border-brand bg-surface-2 px-3 py-2 text-sm text-ink-plus"
                 : "rounded-md bg-red-50 px-3 py-2 text-sm text-red-700"
             }
           >
@@ -1801,7 +1801,7 @@ export function TopicView() {
             aria-live="polite"
             className={
               upvoteNotice === "limited"
-                ? "rounded-md border-l-4 border-brand bg-bg2 px-3 py-2 text-sm text-ink"
+                ? "rounded-md border-l-4 border-brand bg-surface-2 px-3 py-2 text-sm text-ink-plus"
                 : "rounded-md bg-red-50 px-3 py-2 text-sm text-red-700"
             }
           >
@@ -1824,7 +1824,7 @@ export function TopicView() {
             aria-live="polite"
             className={
               reviewNotice.reason === "limited"
-                ? "rounded-md border-l-4 border-brand bg-bg2 px-3 py-2 text-sm text-ink"
+                ? "rounded-md border-l-4 border-brand bg-surface-2 px-3 py-2 text-sm text-ink-plus"
                 : "rounded-md bg-red-50 px-3 py-2 text-sm text-red-700"
             }
           >

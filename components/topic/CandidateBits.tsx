@@ -48,7 +48,7 @@ export function SourcePill({ candidate }: { candidate: Candidate }) {
   return (
     <span
       title={`Auto-suggested from ${candidate.source}`}
-      className="inline-flex items-center gap-1 border-[1.5px] border-ink bg-white px-1.5 py-0.5 text-[9px] font-bold uppercase leading-none tracking-[0.06em] text-ink"
+      className="inline-flex items-center gap-1 border-[1.5px] border-hardbox bg-surface-raised px-1.5 py-0.5 text-[9px] font-bold uppercase leading-none tracking-[0.06em] text-ink-plus"
     >
       {candidate.source}
     </span>
@@ -74,7 +74,7 @@ export function CandidateActions({
         onClick={() => onPromote(candidate)}
         aria-label={`Curate this clip: ${candidate.caption}`}
         aria-haspopup="dialog"
-        className="inline-flex min-h-[44px] items-center border-2 border-ink bg-brand px-2.5 py-1 text-[12px] font-bold text-white hover:shadow-[2px_2px_0_#2C2C2C]"
+        className="inline-flex min-h-[44px] items-center border-2 border-hardbox bg-brand px-2.5 py-1 text-[12px] font-bold text-white hover:shadow-[2px_2px_0_var(--color-hardbox-offset)]"
       >
         <span aria-hidden>✦</span>&nbsp;Curate
       </button>
@@ -82,7 +82,7 @@ export function CandidateActions({
         type="button"
         onClick={() => onDismiss(candidate)}
         aria-label={`Dismiss as not relevant: ${candidate.caption}`}
-        className="inline-flex min-h-[44px] items-center border-2 border-ink bg-white px-2.5 py-1 text-[12px] font-bold text-ink hover:shadow-[2px_2px_0_#2C2C2C]"
+        className="inline-flex min-h-[44px] items-center border-2 border-hardbox bg-surface-raised px-2.5 py-1 text-[12px] font-bold text-ink-plus hover:shadow-[2px_2px_0_var(--color-hardbox-offset)]"
       >
         <span aria-hidden>✕</span>&nbsp;Not relevant
       </button>
@@ -131,13 +131,13 @@ export function CandidateSetHeader({
       {scope === "subset" ? (
         <p className="mt-1 text-[11px] leading-snug text-ink2">
           The suggested videos below are auto-found from{" "}
-          <span className="font-bold text-ink">{sources}</span> — no context notes
+          <span className="font-bold text-ink-plus">{sources}</span> — no context notes
           yet, not reviewed by a human.{" "}
           <span className="text-muted">Curate one to vouch for it.</span>
         </p>
       ) : (
         <p className="mt-1 text-[11px] leading-snug text-ink2">
-          Auto-found from <span className="font-bold text-ink">{sources}</span>. No
+          Auto-found from <span className="font-bold text-ink-plus">{sources}</span>. No
           context notes yet — a human hasn&apos;t reviewed these.{" "}
           <span className="text-muted">Curate one to vouch for it.</span>
         </p>
@@ -176,7 +176,7 @@ export function SeeMoreButton({
       onClick={onToggle}
       aria-expanded={expanded}
       aria-controls={controls}
-      className="inline-flex min-h-[44px] shrink-0 items-center self-center whitespace-nowrap border-2 border-ink bg-white px-3 py-1 text-[12px] font-bold text-ink hover:shadow-[2px_2px_0_#2C2C2C]"
+      className="inline-flex min-h-[44px] shrink-0 items-center self-center whitespace-nowrap border-2 border-hardbox bg-surface-raised px-3 py-1 text-[12px] font-bold text-ink-plus hover:shadow-[2px_2px_0_var(--color-hardbox-offset)]"
     >
       {expanded ? (
         <>
@@ -249,12 +249,12 @@ export function CandidateCard({
       >
         <span
           aria-hidden
-          className={`h-7 w-7 shrink-0 rounded-full border-2 border-ink bg-gradient-to-br ${
+          className={`h-7 w-7 shrink-0 rounded-full border-2 border-hardbox bg-gradient-to-br ${
             candidate.creator.avatarGrad ?? "from-brand to-violet"
           }`}
         />
         <span className="min-w-0">
-          <span className="block truncate text-[12px] font-bold text-ink">
+          <span className="block truncate text-[12px] font-bold text-ink-plus">
             {candidate.caption}
           </span>
           <span className="block truncate text-[11px] text-muted">

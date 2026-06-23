@@ -36,7 +36,7 @@ export function Toc({
 }) {
   return (
     <nav aria-label="Table of contents" className="plus-card">
-      <div className="border-b-2 border-ink bg-brand px-3 py-2">
+      <div className="border-b-2 border-hardbox bg-brand px-3 py-2">
         <span className="plus-disp text-base font-bold text-white">Contents</span>
       </div>
       <ul className={`overflow-y-auto px-2 py-2 text-[13px] ${bodyClassName}`}>
@@ -56,7 +56,7 @@ export function Toc({
                 }}
                 style={{ paddingLeft: indent }}
                 className={`flex items-center justify-between gap-2 rounded px-1 py-1 font-semibold hover:text-brand ${
-                  cur ? "text-brand" : "text-ink"
+                  cur ? "text-brand" : "text-ink-plus"
                 }`}
               >
                 <span className="truncate">
@@ -73,7 +73,7 @@ export function Toc({
                     {hasCurated && (
                       <span
                         title={`${e.curated} curated video(s)`}
-                        className="shrink-0 border-2 border-ink bg-white px-1.5 text-[10px] font-bold text-brand"
+                        className="shrink-0 border-2 border-hardbox bg-surface-raised px-1.5 text-[10px] font-bold text-brand"
                       >
                         {e.curated}
                         <span className="sr-only"> curated</span>
@@ -82,7 +82,7 @@ export function Toc({
                     {hasSuggested && (
                       <span
                         title={`${e.suggested} unvetted suggestion(s)`}
-                        className="shrink-0 border-2 border-dashed border-violet bg-white px-1.5 text-[10px] font-bold text-violet"
+                        className="shrink-0 border-2 border-dashed border-violet bg-surface-raised px-1.5 text-[10px] font-bold text-violet"
                       >
                         ~{e.suggested}
                         <span className="sr-only"> suggested, unvetted</span>

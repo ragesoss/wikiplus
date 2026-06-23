@@ -44,7 +44,7 @@ export function Infobox({
   return (
     <div className="plus-card overflow-hidden">
       {/* Header block — the Indigo identity (§6.1). */}
-      <div className="flex items-baseline gap-2 border-b-2 border-ink bg-brand px-4 py-2.5 text-white">
+      <div className="flex items-baseline gap-2 border-b-2 border-hardbox bg-brand px-4 py-2.5 text-white">
         <span className="plus-disp text-lg leading-none font-bold">＋plus</span>
         <span className="plus-sans text-[11px] font-bold uppercase tracking-widest opacity-90">
           on this topic
@@ -67,12 +67,12 @@ export function Infobox({
               // Empty: a dashed, light (bg2) panel — visually "provisional", matching the
               // unvetted candidate language. The word "uncurated" carries the unvetted
               // meaning in TEXT (§6.1 / §9), not the dashed border/fill alone.
-              <div className="flex items-center gap-3 border-2 border-dashed border-[#D9D9D9] bg-bg2 px-3 py-2.5">
+              <div className="flex items-center gap-3 border-2 border-dashed border-[var(--color-emptyrule)] bg-surface-2 px-3 py-2.5">
                 <p className="bignum text-3xl leading-none text-brand">
                   {suggestionCount}
                 </p>
                 <div className="leading-tight">
-                  <p className="plus-sans text-[12px] font-bold text-ink">
+                  <p className="plus-sans text-[12px] font-bold text-ink-plus">
                     uncurated videos
                   </p>
                 </div>
@@ -80,7 +80,7 @@ export function Infobox({
             ) : (
               <>
                 {/* Mixed + fully-curated: the three-numeral grid (§6.2 / §6.3). */}
-                <div className="grid grid-cols-3 divide-x-2 divide-ink border-2 border-ink">
+                <div className="grid grid-cols-3 divide-x-2 divide-hardbox border-2 border-hardbox">
                   <Stat n={stats.videos} label="Videos" />
                   <Stat n={stats.creators} label="Creators" />
                   <Stat n={stats.curators} label="Curators" />
@@ -106,7 +106,7 @@ export function Infobox({
               type="button"
               onClick={onBrowse}
               aria-label={isEmpty ? "Browse suggested videos" : "Jump to videos"}
-              className="block w-full border-2 border-ink bg-white px-3 py-2 text-center plus-sans text-[13px] font-bold text-ink transition hover:bg-bg2"
+              className="block w-full border-2 border-hardbox bg-surface-raised px-3 py-2 text-center plus-sans text-[13px] font-bold text-ink-plus transition hover:bg-surface-2"
             >
               {isEmpty ? "Browse suggested videos ↓" : "Jump to videos ↓"}
             </button>

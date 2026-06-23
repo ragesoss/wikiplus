@@ -10,7 +10,7 @@ import type { AccuracyFlag, Stance } from "@/lib/data/types";
 // The fact-vs-opinion signal (design §9, CURATION §2–§4). The LABEL text is the
 // signal; color reinforces. Text is bold + ≥10px on AA-safe fills (§9.3).
 const base =
-  "inline-flex items-center border-2 border-ink px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white";
+  "inline-flex items-center border-2 border-hardbox px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white";
 
 export function StanceChip({
   stance,

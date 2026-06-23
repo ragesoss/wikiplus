@@ -57,7 +57,7 @@ export function CurateModal({
           );
         }}
       >
-        <div className="flex items-center justify-between border-b-2 border-ink bg-brand px-3 py-2 text-white">
+        <div className="flex items-center justify-between border-b-2 border-hardbox bg-brand px-3 py-2 text-white">
           <h2 id={titleId} className="plus-disp text-lg font-bold">
             Curate this clip
           </h2>
@@ -72,8 +72,8 @@ export function CurateModal({
         </div>
         <div className="space-y-4 p-4">
           {candidate && (
-            <div className="border-l-4 border-brand bg-bg2 px-3 py-2">
-              <p className="text-[13px] font-bold text-ink">{candidate.caption}</p>
+            <div className="border-l-4 border-brand bg-surface-2 px-3 py-2">
+              <p className="text-[13px] font-bold text-ink-plus">{candidate.caption}</p>
               <p className="text-[11px] text-ink2">
                 {candidate.creator.name} · {candidate.platformLabel} —
                 auto-suggested, not yet curated

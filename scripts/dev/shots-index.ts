@@ -3,10 +3,12 @@ import { join } from "node:path";
 import {
   SCENES,
   sceneAuth,
+  sceneSkins,
   sceneViewports,
   shotName,
   type AuthState,
   type Scene,
+  type Skin,
   type Viewport,
 } from "../../e2e/screenshots/catalog";
 
@@ -33,14 +35,17 @@ interface Shot {
   file: string;
   viewport: Viewport;
   auth: AuthState;
+  skin: Skin;
 }
 
 function shotsFor(scene: Scene): Shot[] {
   const shots: Shot[] = [];
   for (const viewport of sceneViewports(scene)) {
     for (const auth of sceneAuth(scene)) {
-      const file = `${shotName(scene, viewport, auth)}.png`;
-      if (existsSync(join(outDir, file))) shots.push({ file, viewport, auth });
+      for (const skin of sceneSkins(scene)) {
+        const file = `${shotName(scene, viewport, auth, skin)}.png`;
+        if (existsSync(join(outDir, file))) shots.push({ file, viewport, auth, skin });
+      }
     }
   }
   return shots;
@@ -64,13 +69,19 @@ rendered.sort((a, b) => Number(isFocus(b.scene)) - Number(isFocus(a.scene)));
 const totalShots = rendered.reduce((n, r) => n + r.shots.length, 0);
 const groups = [...new Set(rendered.map((r) => r.scene.group))];
 
+function skinLabel(s: Skin): string {
+  return s === "zine-dark" ? "zine-dark" : "light";
+}
+
 function figure(scene: Scene, shot: Shot): string {
+  const skinTag =
+    shot.skin === "light" ? "" : ` · <span class="skin">${esc(skinLabel(shot.skin))}</span>`;
   return `
-        <figure class="shot" data-viewport="${shot.viewport}" data-auth="${shot.auth}">
+        <figure class="shot" data-viewport="${shot.viewport}" data-auth="${shot.auth}" data-skin="${shot.skin}">
           <a href="${esc(shot.file)}" target="_blank" rel="noopener">
-            <img loading="lazy" src="${esc(shot.file)}" alt="${esc(scene.label)} — ${shot.viewport} ${authLabel(shot.auth)}">
+            <img loading="lazy" src="${esc(shot.file)}" alt="${esc(scene.label)} — ${shot.viewport} ${authLabel(shot.auth)} ${skinLabel(shot.skin)}">
           </a>
-          <figcaption><span class="vp">${shot.viewport}</span> · ${authLabel(shot.auth)}</figcaption>
+          <figcaption><span class="vp">${shot.viewport}</span> · ${authLabel(shot.auth)}${skinTag}</figcaption>
         </figure>`;
 }
 
@@ -134,6 +145,7 @@ const html = `<!DOCTYPE html>
   figure.shot img { display:block; width:100%; height:auto; background:#f0f0f3; }
   figure.shot figcaption { font-size:12px; padding:5px 8px; color:#555; border-top:1px solid var(--line); }
   figure.shot .vp { font-weight:700; color:var(--brand); }
+  figure.shot .skin { font-weight:700; color:#111; background:#e8e6f3; padding:0 5px; border-radius:8px; }
   .empty { color:#999; padding:40px; text-align:center; }
 </style>
 </head>
@@ -152,6 +164,10 @@ const html = `<!DOCTYPE html>
       <label><input type="checkbox" class="f-auth" value="out" checked> logged-out</label>
       <label><input type="checkbox" class="f-auth" value="in" checked> logged-in</label>
     </fieldset>
+    <fieldset><legend>Skin</legend>
+      <label><input type="checkbox" class="f-skin" value="light" checked> light</label>
+      <label><input type="checkbox" class="f-skin" value="zine-dark" checked> zine-dark</label>
+    </fieldset>
     <fieldset><legend>Group</legend>${groupFilters}</fieldset>
   </div>
 </header>
@@ -164,17 +180,18 @@ const html = `<!DOCTYPE html>
   const search = document.getElementById('search');
   const vps = () => new Set($('.f-vp:checked').map(c => c.value));
   const auths = () => new Set($('.f-auth:checked').map(c => c.value));
+  const skins = () => new Set($('.f-skin:checked').map(c => c.value));
   const grps = () => new Set($('.f-group:checked').map(c => c.value));
   function apply() {
     const q = search.value.trim().toLowerCase();
-    const vp = vps(), au = auths(), gr = grps();
+    const vp = vps(), au = auths(), sk = skins(), gr = grps();
     let anyVisible = false;
     $('.scene').forEach(scene => {
       const inGroup = gr.has(scene.dataset.group);
       const matches = !q || scene.dataset.search.includes(q);
       let shotVisible = false;
       $('.shot', scene).forEach(fig => {
-        const show = vp.has(fig.dataset.viewport) && au.has(fig.dataset.auth);
+        const show = vp.has(fig.dataset.viewport) && au.has(fig.dataset.auth) && sk.has(fig.dataset.skin);
         fig.hidden = !show;
         if (show) shotVisible = true;
       });
@@ -187,7 +204,7 @@ const html = `<!DOCTYPE html>
     });
     document.getElementById('empty').hidden = anyVisible;
   }
-  [search, ...$('.f-vp'), ...$('.f-auth'), ...$('.f-group')].forEach(el =>
+  [search, ...$('.f-vp'), ...$('.f-auth'), ...$('.f-skin'), ...$('.f-group')].forEach(el =>
     el.addEventListener('input', apply));
   apply();
 </script>
@@ -207,6 +224,7 @@ const manifest = rendered.flatMap((r) =>
     label: r.scene.label,
     viewport: s.viewport,
     auth: s.auth,
+    skin: s.skin,
     file: s.file,
     focus: isFocus(r.scene),
   }))

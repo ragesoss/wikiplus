@@ -109,12 +109,12 @@ export function PinnedPlayer({
       className={
         // Shared: fixed layer below modals (z-40 < ModalShell z-50, §8), ink box,
         // 2px ink border. No backdrop, occupies only its own box (AC3).
-        "fixed z-40 border-2 border-ink bg-ink text-white" +
+        "fixed z-40 border-2 border-hardbox bg-ink text-white" +
         // Mobile: full-width bottom bar.
         " inset-x-0 bottom-0" +
         // Desktop: detach to the bottom-LEFT corner, capped width, offset shadow.
         " lg:inset-x-auto lg:bottom-4 lg:left-4 lg:right-auto" +
-        " lg:w-[min(380px,calc(100vw-2rem))] lg:shadow-[6px_6px_0_#2C2C2C]" +
+        " lg:w-[min(380px,calc(100vw-2rem))] lg:shadow-[6px_6px_0_var(--color-hardbox-offset)]" +
         // Vertical desktop dock narrows to its (height-capped) frame column.
         (vertical ? " lg:w-auto" : "") +
         // Reduced-motion-gated dock-in (AC12): class only when motion is allowed.
@@ -180,7 +180,7 @@ export function PinnedPlayer({
             onClick={onCurate}
             aria-haspopup="dialog"
             aria-label={`Curate this clip: ${clip.caption}`}
-            className="inline-flex min-h-[44px] flex-1 items-center justify-center border-2 border-ink bg-brand px-3 py-1 text-[13px] font-bold text-white hover:shadow-[2px_2px_0_#2C2C2C]"
+            className="inline-flex min-h-[44px] flex-1 items-center justify-center border-2 border-hardbox bg-brand px-3 py-1 text-[13px] font-bold text-white hover:shadow-[2px_2px_0_var(--color-hardbox-offset)]"
           >
             <span aria-hidden>✦</span>&nbsp;Curate
           </button>
@@ -188,7 +188,7 @@ export function PinnedPlayer({
             type="button"
             onClick={onDismiss}
             aria-label={`Dismiss as not relevant: ${clip.caption}`}
-            className="inline-flex min-h-[44px] items-center justify-center border-2 border-ink bg-white px-3 py-1 text-[13px] font-bold text-ink hover:shadow-[2px_2px_0_#2C2C2C]"
+            className="inline-flex min-h-[44px] items-center justify-center border-2 border-hardbox bg-surface-raised px-3 py-1 text-[13px] font-bold text-ink-plus hover:shadow-[2px_2px_0_var(--color-hardbox-offset)]"
           >
             <span aria-hidden>✕</span>&nbsp;Not relevant
           </button>
@@ -202,7 +202,7 @@ export function PinnedPlayer({
               onClick={onCurate}
               aria-haspopup="dialog"
               aria-label="Curate this video — log in to write a context note and vouch for it"
-              className="inline-flex min-h-[44px] w-full items-center justify-center border-2 border-ink bg-brand px-3 py-1 text-[13px] font-bold text-white hover:shadow-[2px_2px_0_#2C2C2C]"
+              className="inline-flex min-h-[44px] w-full items-center justify-center border-2 border-hardbox bg-brand px-3 py-1 text-[13px] font-bold text-white hover:shadow-[2px_2px_0_var(--color-hardbox-offset)]"
             >
               <span aria-hidden>✦</span>&nbsp;Curate this video
             </button>

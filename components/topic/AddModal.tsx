@@ -183,7 +183,7 @@ export function AddModal({
           );
         }}
       >
-        <div className="flex items-center justify-between gap-2 border-b-2 border-ink bg-brand px-3 py-2 text-white">
+        <div className="flex items-center justify-between gap-2 border-b-2 border-hardbox bg-brand px-3 py-2 text-white">
           <h2 id={titleId} className="plus-disp text-lg font-bold">
             Add a video
           </h2>
@@ -222,7 +222,7 @@ export function AddModal({
                 type="button"
                 onClick={fetchDetails}
                 disabled={resolving}
-                className="shrink-0 border-2 border-ink bg-white px-2.5 py-1 text-[12px] font-bold text-ink hover:shadow-[2px_2px_0_#2C2C2C] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:shadow-none"
+                className="shrink-0 border-2 border-hardbox bg-surface-raised px-2.5 py-1 text-[12px] font-bold text-ink-plus hover:shadow-[2px_2px_0_var(--color-hardbox-offset)] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:shadow-none"
               >
                 {resolving ? "Fetching…" : "Fetch details"}
               </button>
@@ -250,14 +250,14 @@ export function AddModal({
               role="status"
               aria-live="polite"
               aria-busy="true"
-              className="flex items-center gap-3 border-l-4 border-brand bg-bg2 p-3"
+              className="flex items-center gap-3 border-l-4 border-brand bg-surface-2 p-3"
             >
               <span
                 aria-hidden
-                className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-ink border-t-transparent motion-reduce:hidden"
+                className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-hardbox border-t-transparent motion-reduce:hidden"
               />
               <div className="min-w-0">
-                <p className="text-[12px] font-semibold text-ink">
+                <p className="text-[12px] font-semibold text-ink-plus">
                   Fetching video details…
                 </p>
                 <p className="truncate text-[11px] text-ink2">{link.trim()}</p>
@@ -280,10 +280,10 @@ export function AddModal({
           {phase.kind === "failed" && (
             <div
               role="alert"
-              className="space-y-3 border-2 border-action bg-bg2 px-3 py-3"
+              className="space-y-3 border-2 border-action bg-surface-2 px-3 py-3"
             >
               <div>
-                <p className="text-[13px] font-bold text-ink">
+                <p className="text-[13px] font-bold text-ink-plus">
                   Couldn&apos;t fetch video details
                 </p>
                 <p className="mt-1 text-[12px] text-ink2">
@@ -300,7 +300,7 @@ export function AddModal({
                   type="button"
                   ref={tryAgainRef}
                   onClick={() => void runResolve(phase.parsed)}
-                  className="border-2 border-ink bg-brand px-3 py-2 text-sm font-bold text-white hover:shadow-[2px_2px_0_#2C2C2C]"
+                  className="border-2 border-hardbox bg-brand px-3 py-2 text-sm font-bold text-white hover:shadow-[2px_2px_0_var(--color-hardbox-offset)]"
                 >
                   Try again
                 </button>
@@ -314,14 +314,14 @@ export function AddModal({
                     });
                     focusNoteSoon();
                   }}
-                  className="border-2 border-ink bg-white px-3 py-2 text-sm font-bold text-ink hover:shadow-[2px_2px_0_#2C2C2C]"
+                  className="border-2 border-hardbox bg-surface-raised px-3 py-2 text-sm font-bold text-ink-plus hover:shadow-[2px_2px_0_var(--color-hardbox-offset)]"
                 >
                   Add anyway
                 </button>
                 <button
                   type="button"
                   onClick={onClose}
-                  className="border-2 border-ink bg-white px-3 py-2 text-sm font-bold text-ink"
+                  className="border-2 border-hardbox bg-surface-raised px-3 py-2 text-sm font-bold text-ink-plus"
                 >
                   Cancel
                 </button>
@@ -405,19 +405,19 @@ function ResolvedPreview({
       <p role="status" aria-live="polite" className="sr-only">
         Video details resolved: {meta.title} by {meta.authorName}.
       </p>
-      <div className="flex gap-3 border-l-4 border-brand bg-bg2 p-3">
+      <div className="flex gap-3 border-l-4 border-brand bg-surface-2 p-3">
         {thumb && !thumbBroken ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={thumb}
             alt=""
             onError={() => setThumbBroken(true)}
-            className="h-16 w-24 shrink-0 border-2 border-ink object-cover"
+            className="h-16 w-24 shrink-0 border-2 border-hardbox object-cover"
           />
         ) : (
           <span
             aria-hidden
-            className="candthumb relative block h-16 w-24 shrink-0 border-2 border-ink bg-gradient-to-br from-brand to-violet"
+            className="candthumb relative block h-16 w-24 shrink-0 border-2 border-hardbox bg-gradient-to-br from-brand to-violet"
           />
         )}
         <div className="min-w-0">
@@ -427,7 +427,7 @@ function ResolvedPreview({
           <p className="mt-1 text-[10px] font-bold uppercase tracking-wide text-violet">
             Resolved via oEmbed
           </p>
-          <p className="line-clamp-2 text-[13px] font-bold text-ink">
+          <p className="line-clamp-2 text-[13px] font-bold text-ink-plus">
             {meta.title}
           </p>
           {/* Creator credit mirroring ClipCard (CURATION §5.2 / C10): outbound author_url link,
@@ -439,7 +439,7 @@ function ResolvedPreview({
               rel="noopener"
               className="mt-1 block min-w-0"
             >
-              <span className="block truncate text-[12px] font-bold text-ink">
+              <span className="block truncate text-[12px] font-bold text-ink-plus">
                 {meta.authorName}
               </span>
               <span className="block truncate text-[11px] text-muted">
@@ -448,7 +448,7 @@ function ResolvedPreview({
             </a>
           ) : (
             <span className="mt-1 block min-w-0">
-              <span className="block truncate text-[12px] font-bold text-ink">
+              <span className="block truncate text-[12px] font-bold text-ink-plus">
                 {meta.authorName}
               </span>
               <span className="block truncate text-[11px] text-muted">
@@ -481,7 +481,7 @@ function PlaceholderPreview({
     <div
       role="status"
       aria-live="polite"
-      className="border-2 border-dashed border-ink/30 bg-bg2 p-3"
+      className="border-2 border-dashed border-hardbox/30 bg-surface-2 p-3"
     >
       <span className="inline-block bg-ink px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
         {platformLabel}
@@ -489,11 +489,11 @@ function PlaceholderPreview({
       <p className="mt-1 text-[10px] font-bold uppercase tracking-wide text-ink2">
         Not resolved
       </p>
-      <p className="text-[13px] font-bold text-ink">
+      <p className="text-[13px] font-bold text-ink-plus">
         Unresolved {platformLabel} clip
       </p>
       {/* Non-linked placeholder credit (C10) — the credit analogue of "seed clip · no curator". */}
-      <p className="mt-1 text-[12px] font-bold text-ink">Creator not resolved</p>
+      <p className="mt-1 text-[12px] font-bold text-ink-plus">Creator not resolved</p>
       <p className="text-[11px] text-ink2">{platformLabel}</p>
       <p className="mt-1 truncate text-[11px] text-ink2">{link}</p>
       {unsupported && (

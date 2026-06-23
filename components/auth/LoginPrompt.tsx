@@ -41,8 +41,8 @@ function LoginButton({
           callbackUrl: callbackUrl ?? currentCallbackUrl(),
         });
       }}
-      className={`hardbox-sm inline-flex min-h-[44px] items-center gap-1.5 border-2 border-ink px-3 py-2 text-sm font-bold transition hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-none disabled:cursor-progress disabled:opacity-80 ${
-        onIndigo ? "bg-white text-action" : "bg-brand text-white"
+      className={`hardbox-sm inline-flex min-h-[44px] items-center gap-1.5 border-2 border-hardbox px-3 py-2 text-sm font-bold transition hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-none disabled:cursor-progress disabled:opacity-80 ${
+        onIndigo ? "bg-surface-raised text-action" : "bg-brand text-white"
       }`}
     >
       <WikiGlyph className="h-4 w-4 shrink-0" />
@@ -61,9 +61,9 @@ function LoginButton({
  */
 function GateDataNotice() {
   return (
-    <div className="border-t border-ink/15 pt-3">
+    <div className="border-t border-hardbox/15 pt-3">
       <p className="text-[12px] leading-relaxed text-ink2">
-        <span className="font-bold text-ink">{AUTH_COPY.dataNotice.gateLead}</span>{" "}
+        <span className="font-bold text-ink-plus">{AUTH_COPY.dataNotice.gateLead}</span>{" "}
         {AUTH_COPY.dataNotice.gateBody}
       </p>
       <Link
@@ -108,7 +108,7 @@ export function LoginPromptPanel({
 }) {
   return (
     <section className="plus-card overflow-hidden">
-      <div className="flex items-center gap-2 border-b-2 border-ink bg-brand px-3 py-2 text-white">
+      <div className="flex items-center gap-2 border-b-2 border-hardbox bg-brand px-3 py-2 text-white">
         <WikiGlyph className="h-5 w-5 shrink-0" />
         <h2 className="plus-disp text-lg font-bold">{title}</h2>
       </div>
@@ -150,7 +150,7 @@ export function LoginPromptDialog({
   return (
     <ModalShell onClose={onClose} labelledBy={titleId} className="w-full max-w-md">
       <div className="plus-card max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between gap-2 border-b-2 border-ink bg-brand px-3 py-2 text-white">
+        <div className="flex items-center justify-between gap-2 border-b-2 border-hardbox bg-brand px-3 py-2 text-white">
           <h2 id={titleId} className="plus-disp text-lg font-bold">
             {title}
           </h2>
@@ -172,7 +172,7 @@ export function LoginPromptDialog({
             <button
               type="button"
               onClick={onClose}
-              className="border-2 border-ink bg-white px-3 py-2 text-sm font-bold text-ink"
+              className="border-2 border-hardbox bg-surface-raised px-3 py-2 text-sm font-bold text-ink-plus"
             >
               Cancel
             </button>

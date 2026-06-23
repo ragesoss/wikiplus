@@ -30,14 +30,14 @@ export function PlayerCreatorCredit({ clip }: { clip: Clip }) {
   const avatar = (
     <span
       aria-hidden
-      className={`h-7 w-7 shrink-0 rounded-full border-2 border-ink bg-gradient-to-br ${
+      className={`h-7 w-7 shrink-0 rounded-full border-2 border-hardbox bg-gradient-to-br ${
         clip.creator.avatarGrad ?? "from-brand to-violet"
       }`}
     />
   );
   const text = (
     <span className="min-w-0">
-      <span className="block truncate text-[12px] font-bold text-ink">
+      <span className="block truncate text-[12px] font-bold text-ink-plus">
         {clip.creator.name}
       </span>
       <span className="block truncate text-[11px] text-muted">
@@ -93,7 +93,7 @@ export function CurationChips({
 export function CuratorNote({ clip }: { clip: Clip }) {
   if (!clip.contextNote) return null;
   return (
-    <div className="mt-2 border-l-4 border-brand bg-bg2 py-2 pl-3 pr-2">
+    <div className="mt-2 border-l-4 border-brand bg-surface-2 py-2 pl-3 pr-2">
       <p className="text-[10px] font-bold uppercase tracking-wide text-violet">
         Curator note
       </p>
@@ -141,7 +141,7 @@ export function CurationBlock({
   onJoin?: () => void;
 }) {
   return (
-    <div className="mt-3 border-2 border-ink bg-white p-4 text-left">
+    <div className="mt-3 border-2 border-hardbox bg-surface-raised p-4 text-left">
       <PlayerCreatorCredit clip={clip} />
       {clip.held && <HeldMarking />}
       <CurationChips clip={clip} />
@@ -152,7 +152,7 @@ export function CurationBlock({
           type="button"
           onClick={onJoin}
           aria-haspopup="dialog"
-          className="mt-3 inline-flex min-h-[44px] w-full items-center justify-center border-2 border-ink bg-white px-3 py-1 text-[13px] font-bold text-ink hover:shadow-[2px_2px_0_#2C2C2C]"
+          className="mt-3 inline-flex min-h-[44px] w-full items-center justify-center border-2 border-hardbox bg-surface-raised px-3 py-1 text-[13px] font-bold text-ink-plus hover:shadow-[2px_2px_0_var(--color-hardbox-offset)]"
         >
           Log in to curate videos for this topic
         </button>

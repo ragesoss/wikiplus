@@ -345,6 +345,48 @@ Content Service) endpoint and not by server User-Agent detection.
   structure (skin = color/theme tokens; mobile = layout/disclosure) so they compose rather than
   collide.
 
+## Skin system (theming as an isolated, cache-agnostic layer)
+
+A **skin** is a self-contained presentation layer (issue #119; design contract
+`docs/design/skin-system-zine-dark.md`). The default skin is the light **Indigo Press** zine; a
+second skin, **zine-dark**, ships as the proof that a skin is well isolated. The load-bearing
+property is the isolation: **adding or changing a skin touches only the skin-definition layer — never
+a component's logic.**
+
+**What a skin owns (the only things it may change):** the role color tokens in `app/globals.css`'s
+`@theme` block (`--color-surface*`, `--color-ink-plus*`, `--color-hardbox` / `--color-hardbox-offset`,
+the `--color-accent-*` roles, `--color-focus-ring`); the colors *inside* the fixed hardbox treatment
+classes (`.plus-card`, `.hardbox-*`, `.candcard`, `.candsethead`, `.candthumb`, `.input`/`.field`),
+which read those tokens; the faithful Wikipedia **article palette** (`--ink-article` + the
+`--article-*` group, governed independently of the plus palette so the article side stays faithful on
+either skin); and the **header treatment** (which wordmark tier shows + the band/seam colors). A skin
+is defined as the default `@theme` token values plus a scoped `[data-skin="<skin>"]` override block.
+
+**What a skin never touches:** geometry/dimensions, layout/structure/DOM order, copy/microcopy/labels,
+behavior (scroll-linked transitions, disclosures, animation timing, reduced-motion + forced-colors
+gating), and the chip accuracy/stance→color *semantics* (Curation/Editorial owns those — a skin may
+shift a chip fill for AA on a dark band but never the mapping or the always-present text label). The
+`/about` projector-theater centerpiece is **fixed art, not chrome**, and is exempt — only its
+surrounding page chrome/header follows the skin.
+
+**The seam.** The only switch is the `data-skin` attribute on `<html>` (`app/layout.tsx`); absent or
+`"zine"` = the light default. The two ink roles that were one overloaded `--color-ink` are split into
+`--ink-plus*` (plus chrome + structural hardbox ink) and `--ink-article` (faithful Wikipedia body
+ink) so a dark skin can flip one without wrecking the other. The light-skin token values equal the
+literals they replaced, so the default render is byte-unchanged; the dark skin is purely additive.
+
+**Read-path decision (skins are cache-agnostic).** Skins are a **pure CSS / `data-skin`-attribute**
+concern, so the SSR'd HTML shell stays **skin-agnostic**: the same cached page serves every skin. The
+`data-skin` attribute is therefore **not** baked into the server-rendered markup from a per-request
+cookie (that would fragment the cache by skin, multiplying every cached entry). Instead a tiny
+**pre-paint inline script** in the `<head>` sets `data-skin` from a `wikiplus-skin` cookie (the
+operator/spike override), falling back to the build-time `WIKIPLUS_SKIN` default — before first paint,
+so there is no flash and the cached shell is identical across skins. Consequence: the (future)
+ISR/Redis read path needs **no skin variance** — no skin cache key, no per-skin revalidation — exactly
+like the device-class branch above (one cached shell, a presentational branch in the browser). A
+polished in-app toggle + a per-user persisted preference are deliberately out of scope for #119; the
+seam makes them a small additive change.
+
 ## Topic discovery & search
 
 Topics are created on demand, so users need to *reach* uncurated ones. A search box resolves a

@@ -62,7 +62,7 @@ export function PlayerModal({
   return (
     <ModalShell onClose={onClose} ariaLabel="Video player" dark className="w-full max-w-3xl">
       <div className="max-h-[90vh] overflow-y-auto">
-      <div className="border-2 border-ink bg-black">
+      <div className="border-2 border-hardbox bg-black">
         <div className="flex justify-end p-2">
           <button
             type="button"

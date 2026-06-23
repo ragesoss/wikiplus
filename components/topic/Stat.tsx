@@ -6,7 +6,7 @@
 // (`size="default"`) and the homepage Topic card's compact 3-up grid (`size="compact"`) render
 // THIS cell, so the family is unmistakable and the tokens can never drift apart by hand-copy.
 // The cells are divided by the Indigo-Press hairlines on the GRID wrapper at each call site
-// (`grid-cols-3 divide-x-2 divide-ink border-2 border-ink`), not here.
+// (`grid-cols-3 divide-x-2 divide-hardbox border-2 border-hardbox`), not here.
 
 const SIZES = {
   // The Infobox overview scale (the original `Stat` look — preserved exactly).

@@ -3,10 +3,12 @@ import {
   SCENES,
   VIEWPORTS,
   applyStub,
+  applySkin,
   signInPage,
   waitForSignedIn,
   sceneViewports,
   sceneAuth,
+  sceneSkins,
   shotName,
   type Clip,
   type Viewport,
@@ -66,24 +68,35 @@ for (const scene of SCENES) {
 
     for (const viewport of sceneViewports(scene)) {
       for (const auth of sceneAuth(scene)) {
-        const title = `${viewport} ${auth === "in" ? "logged-in" : "logged-out"}`;
-        test(title, async ({ page, baseURL }) => {
-          await applyStub(page, scene.stub ?? "plain");
-          if (auth === "in") await signInPage(page, baseURL);
+        for (const skin of sceneSkins(scene)) {
+          const skinSuffix = skin === "light" ? "" : ` ${skin}`;
+          const title = `${viewport} ${auth === "in" ? "logged-in" : "logged-out"}${skinSuffix}`;
+          test(title, async ({ page, baseURL }) => {
+            await applyStub(page, scene.stub ?? "plain");
+            if (auth === "in") await signInPage(page, baseURL);
+            // Select the skin via its cookie (mirrors the pre-paint bootstrap in app/layout.tsx)
+            // BEFORE navigation, so the page renders the skin from first paint with no flash.
+            await applySkin(page, skin, baseURL);
 
-          const { width, height } = VIEWPORTS[viewport as Viewport];
-          await page.setViewportSize({ width, height });
-          await page.goto(scene.route);
+            const { width, height } = VIEWPORTS[viewport as Viewport];
+            await page.setViewportSize({ width, height });
+            await page.goto(scene.route);
 
-          // The loud signed-in guard (#109): fail rather than capture a logged-out "logged-in" shot.
-          if (auth === "in") await waitForSignedIn(page);
+            // The loud signed-in guard (#109): fail rather than capture a logged-out "logged-in" shot.
+            if (auth === "in") await waitForSignedIn(page);
 
-          if (scene.ready) await scene.ready(page);
-          else await defaultReady(page);
-          if (scene.prepare) await scene.prepare(page);
+            if (scene.ready) await scene.ready(page);
+            else await defaultReady(page);
+            if (scene.prepare) await scene.prepare(page);
 
-          await capture(page, `${OUT}/${shotName(scene, viewport, auth)}.png`, scene.clip ?? "fullPage", width);
-        });
+            await capture(
+              page,
+              `${OUT}/${shotName(scene, viewport, auth, skin)}.png`,
+              scene.clip ?? "fullPage",
+              width
+            );
+          });
+        }
       }
     }
   });

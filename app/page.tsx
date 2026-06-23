@@ -102,11 +102,11 @@ export default function HomePage() {
 
         <h2
           aria-label="Wiki, plus video."
-          className="projector-serif mt-5 text-[2.5rem] font-bold leading-[1.05] text-ink sm:text-[3.25rem]"
+          className="projector-serif mt-5 text-[2.5rem] font-bold leading-[1.05] text-ink-plus sm:text-[3.25rem]"
         >
           <span className="block">Wiki,</span>
           <span className="mt-3 flex items-center gap-3">
-            <span className="plus-disp inline-flex items-center border-2 border-ink bg-brand px-3 py-0.5 text-[1.7rem] font-black leading-none text-white shadow-[4px_4px_0_var(--color-ink)] sm:text-[2.25rem]">
+            <span className="plus-disp inline-flex items-center border-2 border-hardbox bg-brand px-3 py-0.5 text-[1.7rem] font-black leading-none text-white shadow-[4px_4px_0_var(--color-hardbox-offset)] sm:text-[2.25rem]">
               plus
             </span>
             <span>video.</span>
@@ -122,7 +122,7 @@ export default function HomePage() {
           {/* Primary — "How it works" → /about (the orientation path). */}
           <Link
             href="/about"
-            className="inline-flex min-h-[48px] items-center gap-2 border-2 border-ink bg-brand px-5 py-2.5 text-base font-bold text-white shadow-[4px_4px_0_var(--color-ink)] transition hover:translate-x-1 hover:translate-y-1 hover:shadow-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+            className="inline-flex min-h-[48px] items-center gap-2 border-2 border-hardbox bg-brand px-5 py-2.5 text-base font-bold text-white shadow-[4px_4px_0_var(--color-hardbox-offset)] transition hover:translate-x-1 hover:translate-y-1 hover:shadow-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-hardbox"
           >
             How it works <span aria-hidden>→</span>
           </Link>
@@ -130,7 +130,7 @@ export default function HomePage() {
           <button
             type="button"
             onClick={() => setSearchFocus((n) => (n === null ? 1 : n + 1))}
-            className="inline-flex min-h-[48px] items-center border-2 border-ink bg-white px-5 py-2.5 text-base font-bold text-ink shadow-[4px_4px_0_var(--color-ink)] transition hover:translate-x-1 hover:translate-y-1 hover:shadow-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+            className="inline-flex min-h-[48px] items-center border-2 border-hardbox bg-surface-raised px-5 py-2.5 text-base font-bold text-ink-plus shadow-[4px_4px_0_var(--color-hardbox-offset)] transition hover:translate-x-1 hover:translate-y-1 hover:shadow-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-hardbox"
           >
             Find a topic
           </button>
@@ -143,16 +143,16 @@ export default function HomePage() {
           are removed. The grid follows the heading directly. The data path (store.listCuratedTopics
           — recency-ordered + filtered to videos ≥ 1 by one grouped aggregate, §4/§4.1) drives the
           redesigned TopicCard; the three section-level state strings are unchanged (§6.1). ── */}
-      <section className="mx-auto mt-4 max-w-5xl border-t border-ink/15 px-4 pb-12 pt-10 sm:pt-14">
-        <h2 className="mt-3 text-xl font-bold text-ink sm:text-2xl">Recently curated</h2>
+      <section className="mx-auto mt-4 max-w-5xl border-t border-hardbox/15 px-4 pb-12 pt-10 sm:pt-14">
+        <h2 className="mt-3 text-xl font-bold text-ink-plus sm:text-2xl">Recently curated</h2>
 
         <div className="mt-6">
           {loadError ? (
-            <p className="text-sm text-ink/50">Couldn&apos;t load topics — please refresh.</p>
+            <p className="text-sm text-ink-plus/50">Couldn&apos;t load topics — please refresh.</p>
           ) : topics === null ? (
-            <p className="text-sm text-ink/50">Loading recently curated topics…</p>
+            <p className="text-sm text-ink-plus/50">Loading recently curated topics…</p>
           ) : topics.length === 0 ? (
-            <p className="text-sm text-ink/50">
+            <p className="text-sm text-ink-plus/50">
               No topics curated yet — be the first by searching for one above.
             </p>
           ) : (

@@ -31,9 +31,9 @@ export const HELD_ACCESSIBLE_NAME =
  */
 export function HeldMarking() {
   return (
-    <div className="mt-2 border-l-[3px] border-ink bg-bg2 py-1.5 pl-3 pr-2">
+    <div className="mt-2 border-l-[3px] border-hardbox bg-surface-2 py-1.5 pl-3 pr-2">
       <span className="sr-only">{HELD_ACCESSIBLE_NAME}</span>
-      <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-ink">
+      <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-ink-plus">
         <span aria-hidden className="h-1.5 w-1.5 shrink-0 rounded-full bg-ink2" />
         {HELD_EYEBROW}
       </p>
@@ -44,14 +44,14 @@ export function HeldMarking() {
 
 /**
  * The compact held marking for the indigo `GeneralStrip` tile (design §3.3): eyebrow ONLY (the
- * explainer is omitted for space), on a WHITE-FILL pill (`bg-white` + 2px ink border, ink text) so
+ * explainer is omitted for space), on a WHITE-FILL pill (`bg-surface-raised` + 2px ink border, ink text) so
  * it clears AA on the indigo band — never ink-on-indigo, and never the empty-band "uncurated"
  * white-outline pill (that is the §6 candidate word). Carries the verbatim accessible name via an
  * `sr-only` lead even though the explainer is omitted.
  */
 export function HeldPill() {
   return (
-    <span className="inline-flex items-center border-2 border-ink bg-white px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-ink">
+    <span className="inline-flex items-center border-2 border-hardbox bg-surface-raised px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-ink-plus">
       <span className="sr-only">{HELD_ACCESSIBLE_NAME}</span>
       <span aria-hidden>{HELD_EYEBROW}</span>
     </span>

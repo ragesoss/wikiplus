@@ -374,7 +374,7 @@ export function TopicSearch({ variant = "home", prefill }: TopicSearchProps) {
       )}
 
       <div className="relative">
-        <div className="search-field flex items-stretch border-2 border-ink bg-white">
+        <div className="search-field flex items-stretch border-2 border-hardbox bg-surface-raised">
           <input
             ref={inputRef}
             id={inputId}
@@ -396,7 +396,7 @@ export function TopicSearch({ variant = "home", prefill }: TopicSearchProps) {
             }}
             onKeyDown={onKeyDown}
             onFocus={onFocus}
-            className={`min-w-0 flex-1 bg-transparent pl-3 pr-2 ${inputSize} text-ink placeholder:text-muted focus:outline-none`}
+            className={`min-w-0 flex-1 bg-transparent pl-3 pr-2 ${inputSize} text-ink-plus placeholder:text-muted focus:outline-none`}
           />
           {/* S2 decorative busy affordance — never an error; aria-hidden. The slot is
               ALWAYS rendered at a fixed width (the dots toggle INSIDE it), so the dots
@@ -417,7 +417,7 @@ export function TopicSearch({ variant = "home", prefill }: TopicSearchProps) {
           <button
             type="submit"
             aria-label={SUBMIT_NAME}
-            className="flex items-center border-l-2 border-ink px-2.5 text-link hover:bg-bg2"
+            className="flex items-center border-l-2 border-hardbox px-2.5 text-link hover:bg-surface-2"
           >
             <MagnifierIcon />
           </button>
@@ -429,7 +429,7 @@ export function TopicSearch({ variant = "home", prefill }: TopicSearchProps) {
             role="listbox"
             id={listboxId}
             aria-label="Article suggestions"
-            className="absolute left-0 right-0 top-full z-50 mt-1 max-h-[60vh] overflow-auto border-2 border-ink bg-white shadow-[4px_4px_0_var(--color-ink)]"
+            className="absolute left-0 right-0 top-full z-50 mt-1 max-h-[60vh] overflow-auto border-2 border-hardbox bg-surface-raised shadow-[4px_4px_0_var(--color-hardbox-offset)]"
           >
             {hasOptions
               ? suggestions.map((s, i) => {
@@ -454,7 +454,7 @@ export function TopicSearch({ variant = "home", prefill }: TopicSearchProps) {
                       }`}
                     >
                       <span
-                        className={`block text-sm text-ink ${active ? "font-semibold" : ""}`}
+                        className={`block text-sm text-ink-plus ${active ? "font-semibold" : ""}`}
                       >
                         {s.title}
                       </span>
@@ -536,7 +536,7 @@ export function TopicSearch({ variant = "home", prefill }: TopicSearchProps) {
             aria-label={DISCLOSURE_CLOSE_NAME}
             onClick={collapse}
             // §3.5 — a proper 44×44 close target (was 36×36), at the right end of the field.
-            className="flex h-11 w-11 shrink-0 items-center justify-center text-ink"
+            className="flex h-11 w-11 shrink-0 items-center justify-center text-ink-plus"
           >
             <span aria-hidden="true" className="text-lg leading-none">
               ✕

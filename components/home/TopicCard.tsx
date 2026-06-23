@@ -46,10 +46,10 @@ export function TopicCard({ topic }: { topic: TopicWithStats }) {
     <Link
       href={topicHref(topic.title)}
       aria-label={ariaLabel}
-      className="plus-card block p-4 transition hover:translate-x-1 hover:translate-y-1 hover:shadow-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink motion-reduce:transition-none"
+      className="plus-card block p-4 transition hover:translate-x-1 hover:translate-y-1 hover:shadow-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-hardbox motion-reduce:transition-none"
     >
       {/* ── Article half (the LEAD): serif title + the text article mark + description. ── */}
-      <span className="projector-serif block text-lg font-bold leading-snug text-ink line-clamp-2 sm:text-xl">
+      <span className="projector-serif block text-lg font-bold leading-snug text-ink-plus line-clamp-2 sm:text-xl">
         {topic.title}
       </span>
       <span className="mt-1 block text-[10px] font-bold uppercase tracking-wide text-ink2 sm:text-[11px]">
@@ -63,13 +63,13 @@ export function TopicCard({ topic }: { topic: TopicWithStats }) {
 
       {/* ── The plus half (the SUPPORT): the wiki|plus seam + the compact 3-up stat grid. ──
           Omitted on the defensive zero-curation path (§6.2): the seam collapses with it. The
-          seam is the quiet `border-ink/15` hairline (§3.5) — distinct from the grid's heavy 2px
+          seam is the quiet `border-hardbox/15` hairline (§3.5) — distinct from the grid's heavy 2px
           ink border. The grid is aria-hidden — the composed aria-label conveys the counts (§8). */}
       {hasStats && (
-        <div className="mt-3 border-t border-ink/15 pt-3">
+        <div className="mt-3 border-t border-hardbox/15 pt-3">
           <div
             aria-hidden
-            className="grid grid-cols-3 divide-x-2 divide-ink border-2 border-ink"
+            className="grid grid-cols-3 divide-x-2 divide-hardbox border-2 border-hardbox"
           >
             <Stat n={videos} label="Videos" size="compact" />
             <Stat n={creators} label="Creators" size="compact" />

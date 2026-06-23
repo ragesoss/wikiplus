@@ -64,7 +64,7 @@ export function AuthControl({
       <span
         aria-hidden
         className={`inline-block h-[34px] min-h-[34px] w-20 animate-pulse rounded ${
-          onIndigo ? "bg-white/25" : "bg-ink/10"
+          onIndigo ? "bg-surface-raised/25" : "bg-hardbox/10"
         }`}
       />
     );
@@ -95,10 +95,10 @@ export function AuthControl({
   // make it a wide pill with no word). min-w-[44px] + justify-center guarantees the touch target
   // (AC14) while the glyph stays centred.
   const base = iconOnly
-    ? "inline-flex min-h-[44px] min-w-[44px] items-center justify-center border-2 border-ink px-2 py-1.5 text-sm font-bold transition hover:shadow-[2px_2px_0_#2C2C2C] disabled:cursor-progress disabled:opacity-80"
-    : "inline-flex min-h-[44px] items-center gap-1.5 border-2 border-ink px-3 py-1.5 text-sm font-bold transition hover:shadow-[2px_2px_0_#2C2C2C] disabled:cursor-progress disabled:opacity-80";
+    ? "inline-flex min-h-[44px] min-w-[44px] items-center justify-center border-2 border-hardbox px-2 py-1.5 text-sm font-bold transition hover:shadow-[2px_2px_0_var(--color-hardbox-offset)] disabled:cursor-progress disabled:opacity-80"
+    : "inline-flex min-h-[44px] items-center gap-1.5 border-2 border-hardbox px-3 py-1.5 text-sm font-bold transition hover:shadow-[2px_2px_0_var(--color-hardbox-offset)] disabled:cursor-progress disabled:opacity-80";
   const skin = onIndigo
-    ? "bg-white text-action" // white fill on the indigo block (AA-safe; never indigo-on-indigo)
+    ? "bg-surface-raised text-action" // white fill on the indigo block (AA-safe; never indigo-on-indigo)
     : "bg-brand text-white"; // canonical plus login button on light surfaces (AA 4.70)
 
   return (
@@ -154,8 +154,8 @@ function SignedIn({
 }) {
   const router = useRouter();
   const initial = username.slice(0, 1).toUpperCase();
-  const textColor = onIndigo ? "text-white" : "text-ink";
-  const ring = onIndigo ? "border-white" : "border-ink";
+  const textColor = onIndigo ? "text-white" : "text-ink-plus";
+  const ring = onIndigo ? "border-white" : "border-hardbox";
 
   return (
     <DropdownMenu.Root>
@@ -194,7 +194,7 @@ function SignedIn({
         <DropdownMenu.Content
           align="end"
           sideOffset={6}
-          className="z-50 min-w-[10rem] border-2 border-ink bg-white p-1 text-ink shadow-[3px_3px_0_#2C2C2C]"
+          className="z-50 min-w-[10rem] border-2 border-hardbox bg-surface-raised p-1 text-ink-plus shadow-[3px_3px_0_var(--color-hardbox-offset)]"
         >
           {/* D3 (issue #54, design §7): "My curations" → the viewer's OWN public profile, reached
               as the owner. Signed-in only (the SignedIn component only mounts then — AC5). In-SPA
@@ -203,7 +203,7 @@ function SignedIn({
               divider so the exit action stays last. The WORD is the label (never an icon alone). */}
           <DropdownMenu.Item
             onSelect={() => router.push(contributorHref(username))}
-            className="cursor-pointer select-none px-3 py-2 text-sm font-bold outline-none data-[highlighted]:bg-bg2"
+            className="cursor-pointer select-none px-3 py-2 text-sm font-bold outline-none data-[highlighted]:bg-surface-2"
           >
             My curations
           </DropdownMenu.Item>
@@ -213,14 +213,14 @@ function SignedIn({
               Ordered: My curations → About your data → (divider) → Sign out (the exit stays last). */}
           <DropdownMenu.Item
             onSelect={() => router.push("/about/data")}
-            className="cursor-pointer select-none px-3 py-2 text-sm font-bold outline-none data-[highlighted]:bg-bg2"
+            className="cursor-pointer select-none px-3 py-2 text-sm font-bold outline-none data-[highlighted]:bg-surface-2"
           >
             About your data
           </DropdownMenu.Item>
-          <DropdownMenu.Separator className="my-1 h-px bg-ink/15" />
+          <DropdownMenu.Separator className="my-1 h-px bg-hardbox/15" />
           <DropdownMenu.Item
             onSelect={() => void signOut({ callbackUrl: "/" })}
-            className="cursor-pointer select-none px-3 py-2 text-sm font-bold outline-none data-[highlighted]:bg-bg2"
+            className="cursor-pointer select-none px-3 py-2 text-sm font-bold outline-none data-[highlighted]:bg-surface-2"
           >
             Sign out
           </DropdownMenu.Item>

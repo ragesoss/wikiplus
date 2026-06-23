@@ -246,7 +246,7 @@ export function MobilePlayerDock({
     // white-on-ink chrome. No backdrop, occupies only its own box (docked) or the whole viewport
     // (maximized). A flex column in BOTH modes so the frame + bar stay pinned (shrink-0) and the
     // reveal region scrolls within the height cap.
-    "fixed z-40 flex flex-col border-2 border-ink bg-ink text-white" +
+    "fixed z-40 flex flex-col border-2 border-hardbox bg-ink text-white" +
     (maximized
       ? " inset-0"
       : " inset-x-0" + (edge === "top" ? " top-0" : " bottom-0")) +
@@ -293,7 +293,7 @@ export function MobilePlayerDock({
   //    video fills the screen); only a thin Close remains reachable. AA: white-on-ink (≈15:1); the
   //    global :focus-visible ring applies; no gold. ──
   const cellClass =
-    "flex min-h-[46px] min-w-[46px] flex-1 basis-[46px] flex-col items-center justify-center gap-0.5 px-1 py-1 text-center text-[11px] font-semibold leading-tight text-white hover:bg-white/10";
+    "flex min-h-[46px] min-w-[46px] flex-1 basis-[46px] flex-col items-center justify-center gap-0.5 px-1 py-1 text-center text-[11px] font-semibold leading-tight text-white hover:bg-surface-raised/10";
   const controlBar = !maximized && (
     <div className="flex shrink-0 flex-row flex-wrap border-t border-white/15">
       {/* Close — tears down the dock + iframe (playback stops). */}
@@ -381,7 +381,7 @@ export function MobilePlayerDock({
               onClick={onCurate}
               aria-haspopup="dialog"
               aria-label={`Curate this clip: ${clip.caption}`}
-              className="inline-flex min-h-[44px] flex-1 items-center justify-center border-2 border-ink bg-brand px-3 py-1 text-[13px] font-bold text-white hover:shadow-[2px_2px_0_#2C2C2C]"
+              className="inline-flex min-h-[44px] flex-1 items-center justify-center border-2 border-hardbox bg-brand px-3 py-1 text-[13px] font-bold text-white hover:shadow-[2px_2px_0_var(--color-hardbox-offset)]"
             >
               <span aria-hidden>✦</span>&nbsp;Curate
             </button>
@@ -389,7 +389,7 @@ export function MobilePlayerDock({
               type="button"
               onClick={onDismiss}
               aria-label={`Dismiss as not relevant: ${clip.caption}`}
-              className="inline-flex min-h-[44px] items-center justify-center border-2 border-ink bg-white px-3 py-1 text-[13px] font-bold text-ink hover:shadow-[2px_2px_0_#2C2C2C]"
+              className="inline-flex min-h-[44px] items-center justify-center border-2 border-hardbox bg-surface-raised px-3 py-1 text-[13px] font-bold text-ink-plus hover:shadow-[2px_2px_0_var(--color-hardbox-offset)]"
             >
               <span aria-hidden>✕</span>&nbsp;Not relevant
             </button>
@@ -402,7 +402,7 @@ export function MobilePlayerDock({
               onClick={onCurate}
               aria-haspopup="dialog"
               aria-label="Curate this video — log in to write a context note and vouch for it"
-              className="inline-flex min-h-[44px] w-full items-center justify-center border-2 border-ink bg-brand px-3 py-1 text-[13px] font-bold text-white hover:shadow-[2px_2px_0_#2C2C2C]"
+              className="inline-flex min-h-[44px] w-full items-center justify-center border-2 border-hardbox bg-brand px-3 py-1 text-[13px] font-bold text-white hover:shadow-[2px_2px_0_var(--color-hardbox-offset)]"
             >
               <span aria-hidden>✦</span>&nbsp;Curate this video
             </button>
@@ -418,7 +418,7 @@ export function MobilePlayerDock({
               type="button"
               onClick={onJoin}
               aria-haspopup="dialog"
-              className="inline-flex min-h-[44px] w-full items-center justify-center border-2 border-ink bg-white px-3 py-1 text-[13px] font-bold text-ink hover:shadow-[2px_2px_0_#2C2C2C]"
+              className="inline-flex min-h-[44px] w-full items-center justify-center border-2 border-hardbox bg-surface-raised px-3 py-1 text-[13px] font-bold text-ink-plus hover:shadow-[2px_2px_0_var(--color-hardbox-offset)]"
             >
               Log in to curate videos for this topic
             </button>
@@ -465,7 +465,7 @@ export function MobilePlayerDock({
                 <span className="sr-only">{HELD_ACCESSIBLE_NAME}</span>
                 <span
                   aria-hidden
-                  className="h-1.5 w-1.5 shrink-0 rounded-full bg-white/60"
+                  className="h-1.5 w-1.5 shrink-0 rounded-full bg-surface-raised/60"
                 />
                 <span aria-hidden>{HELD_EYEBROW}</span>
               </p>
@@ -475,7 +475,7 @@ export function MobilePlayerDock({
               className="mt-3 flex flex-nowrap gap-1.5 overflow-x-auto"
             />
             {hasNote && (
-              <div className="mt-3 max-h-[min(40vh,320px)] overflow-y-auto border-2 border-ink bg-white p-3">
+              <div className="mt-3 max-h-[min(40vh,320px)] overflow-y-auto border-2 border-hardbox bg-surface-raised p-3">
                 <CuratorNote clip={curatedClip} />
                 <CurationContextBy clip={curatedClip} />
               </div>

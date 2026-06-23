@@ -7,7 +7,7 @@ import Link from "next/link";
 // deliberately spare — a prototype, not a marketing footer — so it carries ONLY the spec-owned
 // required element: a single text link "About your data" → /about/data.
 //
-// Visual (Indigo Press, quiet): a `border-t border-ink/10` hairline, generous top padding,
+// Visual (Indigo Press, quiet): a `border-t border-hardbox/10` hairline, generous top padding,
 // `text-sm text-ink2`; the link uses the standard link affordance (`text-link` + hover/focus
 // underline + the focus-visible ring) — never gold, never color alone (AC11). It sits in normal
 // document flow at the end of the page (NOT position:fixed — a sticky footer would fight the
@@ -20,7 +20,7 @@ export function SiteFooter({
   containerClassName?: string;
 }) {
   return (
-    <footer className="border-t border-ink/10">
+    <footer className="border-t border-hardbox/10">
       <div className={`${containerClassName} py-8`}>
         <Link
           href="/about/data"

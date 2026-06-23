@@ -69,7 +69,7 @@ export function ModalActionRow({
           <div
             role="status"
             aria-live="polite"
-            className="border-2 border-brand bg-bg2 px-3 py-2 text-[12px] font-semibold text-ink"
+            className="border-2 border-brand bg-surface-2 px-3 py-2 text-[12px] font-semibold text-ink-plus"
           >
             {errorMessage}
           </div>
@@ -89,14 +89,14 @@ export function ModalActionRow({
           type="submit"
           disabled={disabled}
           aria-describedby={licenseStatementId}
-          className="border-2 border-ink bg-brand px-3 py-2 text-sm font-bold text-white hover:shadow-[2px_2px_0_#2C2C2C] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:shadow-none"
+          className="border-2 border-hardbox bg-brand px-3 py-2 text-sm font-bold text-white hover:shadow-[2px_2px_0_var(--color-hardbox-offset)] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:shadow-none"
         >
           {pending ? publishBusyLabel : publishIdleLabel}
         </button>
         <button
           type="button"
           onClick={onCancel}
-          className="border-2 border-ink bg-white px-3 py-2 text-sm font-bold text-ink"
+          className="border-2 border-hardbox bg-surface-raised px-3 py-2 text-sm font-bold text-ink-plus"
         >
           Cancel
         </button>
