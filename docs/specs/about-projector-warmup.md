@@ -3,10 +3,12 @@
 **Type:** build · **Milestone:** Functional prototype
 **Status:** Product spec (Phase 1) — **post-deploy refinement iteration** (the first version shipped to
 production; this revision captures the owner's reviewed-live changes: beam fade-in, dim-cool topic that
-warms, plus fade-only, red→green status-light first step, the click/keyboard power toggle, **and a
+warms, plus fade-only, red→green status-light first step, the click/keyboard power toggle, a
 dynamic miniature article title sourced from the home page's "recently curated" data — re-picked on each
-power-on, with an old→new flicker on a restarted power-on**). Feeds UX (motion/choreography + control
-spec) and Development (implementation).
+power-on, with an old→new flicker on a restarted power-on — **and the removal of the whole-field
+surface dim/brighten so the intro animates only the projector, the beam, and the page/miniature against a
+static, continuous background**). Feeds UX (motion/choreography + control spec) and Development
+(implementation).
 **Implements the deferred follow-up named in:** `docs/specs/about-page.md` → in-scope item 10
 ("Build for a future plus-layer toggle/animation") + the "Out of scope" note ("The animated
 centerpiece … Future follow-up.") and `docs/design/about-centerpiece-handoff/README.md` →
@@ -41,6 +43,21 @@ miniature's glow read as light in one continuous room. The files: `app/about/pag
 > warm-up begins; and the **projector becomes a click/keyboard power toggle** (OFF → initial dark state,
 > ON → replay). The settled-ON state is still exactly today's committed static poster (which already
 > shows the green status light) — so AC2 still holds.
+>
+> **This revision also removes the whole-field surface dim/brighten (owner directive).** The earlier
+> version dimmed the whole field at the start and brightened it to its final tone coupled to lamp-max;
+> the owner reversed this: *"animation should be restricted to the projector, beam and page… no
+> background change except for what the beam covers."* So the **background theater field is now STATIC
+> and CONTINUOUS** — at its final committed tone from the first painted frame, never dimming or
+> brightening. The **only** animated elements are the **projector** (lamp flicker + warm-up + the
+> red→green status light), the **beam** (opacity fade-in), and the **page/miniature** (its dim-cool →
+> illuminate transition). The only "illumination" change over the background area is the **beam itself
+> fading in over it** (the beam covers part of the field; as it fades in, that covered area lights up —
+> the underlying background does not change). **This fixes a real deployed flaw:** the old surface-dim
+> overlay was scoped to the `.about-stage` box, not the whole page, so in the dark start state the
+> stage's rectangular **outline** became visible against the rest of the page until the beam reached
+> full. Removing the surface dim removes that artifact — the field reads as one continuous tone at every
+> frame. See the revised AC1 and AC4, and the new AC4b.
 >
 > **This revision also folds in a dynamic miniature article title.** The miniature's article title —
 > today the hard-coded `"Acer palmatum"` (`DEFAULT_TITLE`) — becomes **a real title chosen from the home
@@ -128,17 +145,24 @@ The choreographed steps (the owner's intent, verbatim in intent), in order:
 4. **Topic miniature warms to full illumination.** The miniature starts **darker and cool** — without
    illumination it is dimmer and carries a **cool/fluorescent indoor shade** (a dim indoor location). As
    the beam fades in, the miniature **transitions to full illumination** — brightening and warming to
-   its committed lit appearance — reaching full **alongside the beam** (i.e. at lamp-max).
+   its committed lit appearance — reaching full **alongside the beam** (i.e. at lamp-max). This treatment
+   is **confined to the miniature element itself** — it must not dim or brighten the surrounding
+   background field.
 5. **＋plus layer fades in (no motion).** The miniature goes from **lacking** the ＋plus content (the
    bare Wikipedia article ground only — title + body lines + section heads) to **having** it: the indigo
    ＋plus layer (the plus cards + the clips, the separable `<PlusLayer>`-family subtree in
    `TopicMiniature.tsx`) **fades in (opacity only)** — **no scale, no slide, no motion**. Onset is after
    the beam.
-6. **Surface reaches full brightness.** The page/theater surface starts **dimmer** (darker) and
-   reaches today's committed color/brightness **only when the projector is fully illuminated at max
-   brightness**. ("Surface" = the full-page theater field's radial (`.about-theater-field`) + the
-   miniature's lit appearance under the beam; the overall scene brightens up to its final tone. There
-   is no separate scene-box radial — the `.about-stage` is transparent and the field is the surface.)
+
+> **The background theater field does NOT animate (owner directive).** There is **no** whole-field
+> surface dim/brighten step. The page/theater field (`.about-theater-field`) is at its **final committed
+> tone from the first painted frame and never changes** — it does not start dimmer and brighten to final.
+> The only thing that "lights up" any of the background area is the **beam fading in over it** (step 3):
+> the beam layer covers part of the field, and as its opacity ramps 0 → full that covered region brightens
+> — but the underlying field tone underneath is unchanged. There is **no surface/room-dim overlay**, and
+> in particular **no overlay scoped to the `.about-stage` box** (which would reveal the stage's rectangular
+> outline against the rest of the page — the deployed flaw this removes). The page field reads as **one
+> continuous tone across the whole page at every frame**.
 
 These steps form one continuous choreography; their exact phase boundaries, overlaps, easing, and
 per-phase timing are **UX's contract** (this spec fixes the *order* and the *start/end states*, not the
@@ -152,8 +176,8 @@ to/from, or block any content or control. The **power toggle** is a real, keyboa
   JS animation loop), gated as today's About-page motion conventions in `globals.css` already are
   (`@media (prefers-reduced-motion: no-preference)` for the animated path; nothing *auto-*animates on
   load under `reduce`). The intro animates **opacity / brightness / color-tint** (the beam and plus
-  fade; the lamp/surface/miniature brightness-and-warmth ramp; the status-light color) — **not**
-  position or scale.
+  fade; the lamp and the miniature brightness-and-warmth ramp; the status-light color) — **not**
+  position or scale, and **not** the background field (it never animates — AC4b).
 - **The projector becomes an interactive power control.** Where the projector is present (`≥ lg` — see
   AC12), it is a real, keyboard-operable, accessibly-labeled control (e.g. a `<button>`) — **not** a
   click handler on a decorative `aria-hidden` SVG. It has a **state-reflecting accessible name** (an
@@ -190,11 +214,17 @@ to/from, or block any content or control. The **power toggle** is a real, keyboa
   dropped miniature upper-right at `≥ xl`). This build adds an intro + a power toggle that *resolve into*
   that look; it does not restyle the projector, beams, miniature, card, theater field, header, the
   responsive composition/tiers, or tokens. (Note: the miniature today has **no** warm rectangular halo
-  glow — just a soft drop shadow; the beam landing on it is the "lit" cue. The surface/topic
-  brighten-and-warm must not add a halo back — it brightens the *beam's lit cue + the miniature's
-  existing surface tone* and removes the dim/cool tint, not a new glow.) The **OFF** state is *not* a new
-  static look to design — it is the intro's own initial pre-illumination state (AC1), reused as the
-  toggle's off rest state (AC13).
+  glow — just a soft drop shadow; the beam landing on it is the "lit" cue. The miniature's
+  warm-and-brighten must not add a halo back — it brightens the *miniature's existing surface tone* and
+  removes the dim/cool tint, not a new glow, and stays confined to the miniature element.) The **OFF**
+  state is *not* a new static look to design — it is the intro's own initial pre-illumination state
+  (AC1), reused as the toggle's off rest state (AC13).
+- **Any animation of the background theater field.** The full-page theater field
+  (`.about-theater-field`) is **static and continuous** — it is at its final committed tone from the
+  first painted frame and **does not** dim or brighten at any point, in either the auto-intro or a
+  toggle. The intro animates **only** the projector, the beam, and the page/miniature (AC4b). There is
+  **no** whole-field surface dim/brighten step and **no** surface-dim overlay — in particular none scoped
+  to the `.about-stage` box (which would expose the stage outline — the deployed flaw this removes).
 - **Real / final copy.** The explainer copy stays as-is (placeholder this round per
   `docs/specs/about-page.md`); the animation does not touch copy. The "How it works" card is **not**
   part of the warm-up choreography (it is the page's light surface and load-bearing copy; it does not
@@ -236,11 +266,15 @@ the intro's own pre-illumination start state (AC1), which the power toggle reuse
    and the **beam is not visible** (opacity 0); (b) the ＋plus layer is **not visible** (the miniature
    shows the bare article ground — title + body lines + section heads — with the indigo plus cards +
    clips not yet revealed); (c) the topic miniature is **darker and cool-tinted** (its dim-indoor
-   fluorescent shade, below the committed lit brightness and warmth); (d) the theater/page **surface is
-   dimmer** than the final committed tone; (e) where the projector is present (`≥ lg`), the **status
-   light is RED**. (Testable: at animation start the plus-layer and beam elements are hidden/transparent,
-   a brightness/opacity signal on the lamp/surface/miniature is below its final value with a cool tint,
-   and the status-light state is "red"/"off".)
+   fluorescent shade, below the committed lit brightness and warmth); (d) where the projector is present
+   (`≥ lg`), the **status light is RED**. The **background theater field is already at its final
+   committed tone** in this off state — it is **not** dimmed (it never dims; see AC4b) — so the only ways
+   the off state differs from the settled-on state are: lamp off, beam absent, ＋plus absent, miniature
+   dim+cool, and (≥ lg) the red status light. (Testable: at animation start the plus-layer and beam
+   elements are hidden/transparent, a brightness/opacity signal on the lamp and miniature is below its
+   final value with a cool tint on the miniature, the status-light state is "red"/"off", and the
+   `.about-theater-field` background tone equals its settled-on value — no full-field dim and no
+   stage-box overlay.)
 
 2. **Settled-on state equals the committed static poster (`178c148`), exactly.** After the intro
    completes (and at all times once settled-on, including after a toggle back ON settles), the
@@ -263,22 +297,40 @@ the intro's own pre-illumination start state (AC1), which the power toggle reuse
    or after the previous one's start (phases may overlap, but the *onset order* is fixed and
    observable): **(0) status light RED → GREEN → (1) lamp flicker → (2) lamp warm-up dim→bright → (3)
    beam fades in to its final geometry → (4) topic miniature warms to full illumination → (5) ＋plus
-   layer fades in → (6) surface reaches full brightness/color.** The **status-light RED → GREEN flip is
-   the first observable action** — the warm-up (flicker onward) begins only *after* the light has gone
-   green; nothing else changes before it. (Testable via timed sampling: the status light reads red at
-   the first frame and flips to green before the lamp begins to flicker; the lamp shows uneven flicker
-   before it reaches steady brightness; the beam's opacity rises from 0 toward full as the lamp warms,
-   reaching full alongside the lamp; the topic miniature's brightness/warmth rises with the beam,
-   reaching full at lamp-max; the plus layer's onset is after the beam; the surface reaches full
-   brightness no earlier than the lamp reaching max.)
+   layer fades in.** The **status-light RED → GREEN flip is the first observable action** — the warm-up
+   (flicker onward) begins only *after* the light has gone green; nothing else changes before it. (There
+   is **no** background-surface brighten step; the background field never animates — AC4b.) (Testable via
+   timed sampling: the status light reads red at the first frame and flips to green before the lamp
+   begins to flicker; the lamp shows uneven flicker before it reaches steady brightness; the beam's
+   opacity rises from 0 toward full as the lamp warms, reaching full alongside the lamp; the topic
+   miniature's brightness/warmth rises with the beam, reaching full at lamp-max; the plus layer's onset
+   is after the beam.)
 
-4. **Step coupling (the brighten dependencies).** Two couplings hold: (i) the page/theater **surface
-   reaches its final brightness/color only when the projector is fully illuminated at max brightness** —
-   the surface does not reach its final committed tone before the lamp warm-up (step 2) completes; and
-   (ii) the **topic miniature reaches full illumination (full warmth + brightness, cool tint gone)
-   alongside the beam reaching full opacity — i.e. at lamp-max** — it does not finish warming before the
-   lamp reaches max. (Testable: sample surface brightness, miniature brightness/tint, beam opacity, and
-   lamp brightness over the timeline; surface-final and miniature-final must not precede lamp-max.)
+4. **Step coupling (the brighten dependency).** What reaches full at lamp-max is the **beam (full
+   opacity)** and the **topic miniature's illumination** — **not** any background brighten. The coupling:
+   the **topic miniature reaches full illumination (full warmth + brightness, cool tint gone) alongside
+   the beam reaching full opacity — i.e. at lamp-max** — it does not finish warming before the lamp
+   reaches max, and it does not begin to illuminate before the beam begins to fade in. (Testable: sample
+   miniature brightness/tint, beam opacity, and lamp brightness over the timeline; miniature-final and
+   beam-full must not precede lamp-max; sample the `.about-theater-field` background tone over the whole
+   timeline and confirm it does **not** change — see AC4b.)
+
+4b. **The background theater field does not animate — the page is a continuous field at every frame.**
+    The intro (and any toggle) animates **only three things: the projector** (lamp flicker + warm-up +
+    red→green status light), **the beam** (opacity fade-in), **and the page/miniature** (dim-cool →
+    illuminate). The **background theater field (`.about-theater-field`) does NOT change** — no
+    whole-field dim, no whole-field brighten, no surface ramp — and is at its final committed tone from
+    the first painted frame through every frame of the intro and toggle. The only "illumination" change
+    over background area is the **beam fading in over it** (step 3): the beam layer covers part of the
+    field and brightens that covered region as its opacity ramps, but the underlying field tone is
+    unchanged. There must be **no surface/room-dim overlay, and in particular no overlay scoped to the
+    `.about-stage` box** — the field must read as **one continuous tone across the whole page at every
+    frame**, never revealing the stage's rectangular outline (the deployed flaw this fixes). The
+    miniature's own dim-cool→illuminate (AC4) stays **confined to the miniature element** and must not
+    bleed into or dim the surrounding field. (Testable: sample the `.about-theater-field` background tone
+    at the first frame, mid-intro, and settled — it is constant; there is no full-field opacity/brightness
+    keyframe and no `.about-stage`-scoped dimming layer whose edge could appear; a screenshot at any
+    mid-intro frame shows no rectangular stage outline against the surrounding field.)
 
 5. **The plus reveal is the article gaining the layer — fade only, no motion.** The plus step animates
    the **＋plus layer appearing on an already-present article ground** — the article-ground elements
@@ -301,9 +353,11 @@ the intro's own pre-illumination start state (AC1), which the power toggle reuse
 6. **`prefers-reduced-motion: reduce` ⇒ no auto-intro on load; toggle snaps.** Under
    `prefers-reduced-motion: reduce`, the page renders the **settled-on static state on first paint**
    with **no auto-intro**: no red→green flip, no flicker, no dim/cool start, no beam fade-in, no
-   topic-warm ramp, no delayed/animated ＋plus reveal, no surface ramp. The lamp is at full brightness
+   topic-warm ramp, no delayed/animated ＋plus reveal. (The background field has no animation in either
+   motion mode — AC4b — so there is nothing to suppress there.) The lamp is at full brightness
    (status light green), the beams present at full opacity, the topic miniature fully lit, the ＋plus
-   layer fully visible, the surface at final tone — all immediately, identical to AC2's settled-on state.
+   layer fully visible, the background field at its final committed tone — all immediately, identical to
+   AC2's settled-on state.
    There is **no flashing** and **no content that appears late** on load. The **power toggle still works**
    (it is user-initiated, so reduced-motion does not suppress it — AC13/AC14), but it **snaps**
    instantly between the OFF state (AC1) and the settled-on state (AC2) with **no warm-up animation** (no
@@ -387,8 +441,9 @@ the intro's own pre-illumination start state (AC1), which the power toggle reuse
       up-right** to the **dropped Topic-page miniature on the upper-right** (its bottom aligned with the
       projector's lower edge). The **full choreography** runs — red→green → flicker → warm-up dim→bright →
       the diagonal beam fades in to its geometry → the dropped miniature warms to full illumination →
-      ＋plus fades in → surface reaches full brightness. The projector is the interactive power control.
-      The card is **not** part of the choreography (AC6/AC7); it is present and lit from first paint.
+      ＋plus fades in. (The background field does not brighten — AC4b — so there is no surface step.) The
+      projector is the interactive power control. The card is **not** part of the choreography (AC6/AC7);
+      it is present and lit from first paint.
     - **`lg`–`xl` — STACKED (card FIRST, the full poster scene below it):** the same projector + status
       light + beam + miniature scene runs the **full choreography** and the projector is the interactive
       control; only the page layout differs (the card is stacked above the scene rather than overlaid).
@@ -425,10 +480,11 @@ the intro's own pre-illumination start state (AC1), which the power toggle reuse
 14. **Activating the control toggles power OFF then ON.** Activating the control (click or Enter/Space)
     when the projector is **ON** powers it **OFF** — the scene returns to the **initial pre-illumination
     OFF state** (AC1): lamp off, **beam gone** (opacity 0), topic miniature back to **dim + cool**,
-    ＋plus layer **gone**, surface dimmer, and the **status light back to RED**. Activating it again when
-    **OFF** powers it **ON** and **replays the full power-on sequence** (red→green → flicker → warm-up →
-    beam fade-in → topic illuminate → plus fade-in → surface brighten — AC3), settling into the
-    settled-on state (AC2). The control's accessible name/state updates to match (AC13). Under motion
+    ＋plus layer **gone**, and the **status light back to RED** — while the **background field stays at
+    its final tone** (it does not dim; AC4b). Activating it again when **OFF** powers it **ON** and
+    **replays the full power-on sequence** (red→green → flicker → warm-up → beam fade-in → topic
+    illuminate → plus fade-in — AC3; the background field does not change), settling into the settled-on
+    state (AC2). The control's accessible name/state updates to match (AC13). Under motion
     enabled the OFF→ON replays the animation; under reduced motion both directions **snap** (AC6).
     (Testable: from the settled-on state, activate → assert the scene matches the OFF state (AC1) incl.
     red light, beam hidden, dim-cool topic, no plus; activate again → assert the on-sequence runs (motion
@@ -514,9 +570,11 @@ glance but should **not** block.
   prefers "first visit per session only," that is a one-line gate UX/Dev can add later; **not** blocking.
   (A full reload always auto-plays.)
 - **Performance posture — DECISION: CSS / Web-Animations only, GPU-friendly, appearance-only.** Animate
-  **opacity, brightness/filter, and color-tint** (the beam and plus fades; the lamp/surface/miniature
+  **opacity, brightness/filter, and color-tint** (the beam and plus fades; the lamp and the miniature
   brightness-and-warmth ramps; the status-light color) — and **no position/scale animation of the beam,
-  plus, or any element** (this iteration removed the beam grow and the plus scale/slide on purpose).
+  plus, or any element** (this iteration removed the beam grow and the plus scale/slide on purpose), and
+  **no animation of the background field** (this iteration removed the whole-field surface dim/brighten
+  on purpose — AC4b).
   **No** animation of layout properties, no per-frame JS layout reads, no long main-thread tasks. The
   intro must not introduce jank or **cumulative layout shift** (it animates appearance, not box flow —
   elements occupy their final layout boxes throughout, so nothing reflows). This matches the existing
@@ -567,6 +625,13 @@ owner / QA / UX confirm:
 - **The beam fade reads as natural (the iteration's intent).** The revised beam (fade-in into final
   geometry, no grow/jitter) reads as a calm "light arriving" rather than the prior unnatural
   grow-along-throw. Confirmed by owner read against the deployed before-state.
+- **The background field is one continuous tone — the stage-outline artifact is gone (this iteration's
+  fix).** Because the whole-field surface dim/brighten and the `.about-stage`-scoped dim overlay are
+  removed (AC4b), the deployed flaw — the stage's rectangular outline becoming visible against the rest
+  of the page in the dark start state — no longer appears at any frame of the intro or a toggle. The
+  page reads as one continuous field while only the projector, beam, and page/miniature animate.
+  Confirmed by owner read against the deployed before-state and by a mid-intro screenshot showing no
+  stage outline.
 - **The interactive toggle works and is discoverable enough.** A pointer or keyboard user can power the
   projector off and on and watch the sequence replay; the control is operable and labeled (AC13–AC15).
   Confirmed by UX evaluation + an informal owner read.
@@ -616,8 +681,14 @@ owner / QA / UX confirm:
     on-sequence (red→green→warm-up). The toggle is an *added* manual OFF/ON replay path, not a
     replacement for the on-load play (AC10/AC15).
   - **OFF state == the initial pre-illumination state** (AC1): dark lens + RED light + dim-cool topic +
-    no beam + no ＋plus + dimmer surface. **Settled-ON == today's committed lit poster** (green light,
-    lit) — so AC2 still holds and the static poster already shows the green light.
+    no beam + no ＋plus — with the **background field at its final tone (it never dims; AC4b)**.
+    **Settled-ON == today's committed lit poster** (green light, lit) — so AC2 still holds and the static
+    poster already shows the green light.
+  - **The whole-field surface dim/brighten is removed (owner directive).** The intro animates **only**
+    the projector, the beam, and the page/miniature; the **background theater field is static and
+    continuous** at its final tone (AC4b). This fixes the deployed flaw where the `.about-stage`-scoped
+    dim overlay exposed the stage's rectangular outline against the rest of the page in the dark start
+    state. The page/miniature dim-cool→illuminate (AC4) stays, confined to the miniature element.
   - **The projector becomes a real interactive control** — keyboard-operable + accessibly-labeled with a
     state-reflecting name + focus-visible (NOT a click handler on an aria-hidden SVG). This is an
     accessibility requirement (AC13); UX designs the control treatment, the spec requires it exists.
@@ -666,7 +737,8 @@ owner / QA / UX confirm:
   `docs/design/about-projector-warmup.md` (or extend `docs/design/about-page.md` with a motion
   section) for this iteration — the exact phase boundaries/overlaps and easing for the steps including
   the new **status-light RED → GREEN first step**, the flicker rhythm, the dim→bright ramp values for
-  the lamp + surface, the **beam fade-in** treatment (opacity into final geometry, **no** grow), the
+  the **lamp** (the background field does **not** ramp — it is static and continuous; AC4b), the **beam
+  fade-in** treatment (opacity into final geometry, **no** grow), the
   **topic miniature's dim-cool → fully-lit** treatment (the cool/fluorescent tint and how it warms to
   the committed lit look, reaching full at lamp-max alongside the beam), the **＋plus fade-in** treatment
   (opacity only, **no** scale/slide), the total duration within the ~1.6–2.6s range, the reduced-form
@@ -679,18 +751,26 @@ owner / QA / UX confirm:
   **no** such flicker on the first/auto-play and **none** under reduced motion; confirm the title is
   **readable in every state** (dim/off + lit) and is **never** a placeholder/skeleton bar; and set the
   **title fit-threshold** — the exact character-count cap (recommended) tuned to the miniature's title
-  line so a fitting title never wraps/overflows at any tier (see the fit-threshold decision). Work against
-  the current components named above; the settled-on static state is the fixed endpoint. Confirm: no
-  settled-on static-look change, no focus move on load, content never gated (AC2, AC6–AC10, AC15).
+  line so a fitting title never wraps/overflows at any tier (see the fit-threshold decision). **New this
+  iteration — the background field is static and continuous (AC4b):** the motion spec must animate **only**
+  the projector, the beam, and the page/miniature — **drop any whole-field surface dim/brighten and any
+  `.about-stage`-scoped dim overlay** (which exposed the stage outline in the deployed version). The
+  miniature's dim-cool→illuminate stays but must be confined to the miniature element, not bleed into the
+  field. Work against the current components named above; the settled-on static state is the fixed
+  endpoint. Confirm: no settled-on static-look change, no background-field animation, no focus move on
+  load, content never gated (AC2, AC4b, AC6–AC10, AC15).
 - **Development (after UX):** implement the intro as CSS/Web-Animations gated behind
   `@media (prefers-reduced-motion: no-preference)` (mirroring the existing About/topic motion in
   `globals.css`), animating **opacity / brightness / color-tint only — no position/scale** on the beam,
   plus, or any element, over the existing markup — the lamp (the white "+" aperture + bloom in
   `Projector.tsx`), the **status light** (RED↔GREEN, in `Projector.tsx`), the three beam cones (fade-in,
-  `Beams.tsx`), the separable ＋plus subtree (fade-in, `TopicMiniature.tsx`), the topic miniature's
-  dim-cool→lit appearance, and the scene surface (the `.about-theater-field` radial + the lit miniature;
-  the `.about-stage` itself is transparent). Keep the article-ground present from the start; reveal only
-  the plus layer (fade). Implement the **projector as a real keyboard-operable, accessibly-labeled power
+  `Beams.tsx`), the separable ＋plus subtree (fade-in, `TopicMiniature.tsx`), and the topic miniature's
+  dim-cool→lit appearance (confined to the miniature element). **Do NOT animate the background theater
+  field (`.about-theater-field`) — it is static and continuous at its final tone (AC4b); remove any
+  whole-field surface dim/brighten and, critically, any dim overlay scoped to the `.about-stage` box
+  (which revealed the stage's rectangular outline in the deployed version). The only illumination over
+  background area is the beam fading in over it.** Keep the article-ground present from the start; reveal
+  only the plus layer (fade). Implement the **projector as a real keyboard-operable, accessibly-labeled power
   control** (a `<button>` wrapper with a state-reflecting accessible name + focus-visible — **not** a
   click handler on the decorative `aria-hidden` SVG; the SVG stays decorative) that toggles OFF↔ON and
   replays the on-sequence (snap under reduced motion). No focus move on load, no input gating, no layout
