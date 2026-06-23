@@ -1083,6 +1083,59 @@ export function TopicView() {
     },
     [requireLogin]
   );
+
+  // ── In-player curation actions (issue #123, design §5 States K/L). ──────────────────────────
+  // The dock's bottom action row routes back through the SAME `promote` / `dismiss` handlers the
+  // card uses (no new gate kinds, no #45 change). Both close the dock for the now-gone candidate.
+  //
+  // Not relevant (State L): run the existing optimistic-dismiss-with-rollback (`dismiss` → gate →
+  // `runDismiss`: instant hide, background persist, rollback + polite notice on failure, expired-
+  // session gate). Because the playing candidate is dismissed, the dock must not keep showing a
+  // dead clip — so it CLOSES (state → null, iframe torn down). `dismiss`/`runDismiss` already send
+  // focus to the General band heading via `focusBandHeading()`, the same anchor `dismissPinned`
+  // uses — so closing the dock leaves focus on a live heading, never dropped to <body>. On a
+  // rollback the CARD reappears (existing behavior) for a retry; the dock stays closed (the reader
+  // chose to stop watching; the clip is recoverable from the card). Closing is NOT auto-advance: we
+  // never autoplay an unrequested clip (the dock's "swap only on explicit click" rule). Logged out
+  // the dock shows no Not-relevant button (PinnedPlayer State J), so this only fires signed in.
+  const dismissPinnedCandidate = useCallback(() => {
+    const c = pinnedCandidate;
+    if (!c) return;
+    setPinned(null);
+    setPinnedCandidate(null);
+    dismiss(c);
+  }, [pinnedCandidate, dismiss]);
+
+  // ── In-player curation, mobile slim dock (mobile-player-slim.md §3.2/§10 — mirrors desktop #123
+  //    State L exactly). The Curate reveal's "✕ Not relevant" routes the playing candidate through
+  //    the SAME `dismiss` handler (gate → `runDismiss`: instant optimistic hide, background persist,
+  //    rollback + polite notice on failure, expired-session gate). Because the playing candidate is
+  //    dismissed, the dock must not keep showing a dead clip — so it CLOSES (state → null, iframe
+  //    torn down). `dismiss`/`runDismiss` already send focus to the General band heading via
+  //    `focusBandHeading()`, the same anchor `dismissMobileDock` uses — so closing the dock leaves
+  //    focus on a live heading, never dropped to <body>. On a rollback the CARD reappears (existing
+  //    behavior) for a retry; the dock stays closed. Logged out the Curate reveal shows no
+  //    Not-relevant button (spec §3.3), so this only fires signed in. ──
+  const dismissMobileDockCandidate = useCallback(() => {
+    const c = mobileDock?.candidate;
+    if (!c) return;
+    setMobileDock(null);
+    dismiss(c);
+  }, [mobileDock, dismiss]);
+
+  // Curate from the player (State K): gate → CurateModal (signed in) or the `curate` login gate
+  // (logged out) for the playing candidate, via the existing `promote`. The dock + iframe STAY
+  // mounted behind the modal (the accepted "modal over pinned player" coexistence — design §5 K;
+  // the modal's own focus trap governs while it is up). The dock is closed only when the curate
+  // SUCCEEDS (the playing candidate is then gone from `liveCandidates`) — handled in the curate-
+  // success path (`onCurateSubmit` below), which closes the dock iff the promoted candidate is the
+  // one pinned. A cancelled curate leaves the dock unchanged and still playing.
+  const curatePinnedCandidate = useCallback(() => {
+    const c = pinnedCandidate;
+    if (!c) return;
+    promote(c);
+  }, [pinnedCandidate, promote]);
+
   // ＋plus panel primary action (plus-overview-redesign §6 / §10): Browse/Jump ALWAYS scrolls
   // to the General band / first video — never opens curate. Not a write, so it runs regardless
   // of session. (Splits the formerly-overloaded `curateFirst`, which scrolled OR curated.)
@@ -1161,6 +1214,21 @@ export function TopicView() {
             // Unparseable id: at least hide the exact card this session by its candidate id.
             setDismissed((prev) => new Set(prev).add(promoted.id));
           }
+          // In-player curate (issue #123, State K): if the promoted candidate is the one playing in
+          // the pinned dock, close the dock — the candidate is now curated and gone from
+          // `liveCandidates`, so the dock must not keep showing a dead clip. Same advance/close rule
+          // as a player dismiss (State L). (No-op for a card-initiated curate of a non-pinned clip.)
+          setPinned((prev) => (pinnedCandidate?.id === promoted.id ? null : prev));
+          setPinnedCandidate((prev) =>
+            prev?.id === promoted.id ? null : prev
+          );
+          // Mobile slim player (mobile-player-slim.md §10): if the promoted candidate is the one
+          // playing in the unified mobile dock, close that dock too — same close-on-curate rule as
+          // the desktop pinned dock above (the candidate is now curated and gone from
+          // `liveCandidates`, so the dock must not keep showing a dead clip).
+          setMobileDock((prev) =>
+            prev?.candidate?.id === promoted.id ? null : prev
+          );
           // The promoted candidate card was removed — anchor focus on the band heading after
           // the modal's own focus-return fires (else focus is lost to <body>).
           if (typeof requestAnimationFrame !== "undefined") {
@@ -1171,7 +1239,7 @@ export function TopicView() {
         },
       });
     },
-    [curateFor, persistClip, focusBandHeading]
+    [curateFor, persistClip, focusBandHeading, pinnedCandidate]
   );
 
   // Add-by-link (design §2.2 / AC4/AC5). Upsert the topic first if it is not yet in the store
@@ -1938,15 +2006,14 @@ export function TopicView() {
           onClose={dismissPinned}
           prefersReduced={prefersReduced.current}
           signedIn={signedIn}
-          // #71 §6.5: the logged-out "Curate this video" CTA routes into the curate flow for the
-          // currently-pinned candidate via the existing `promote` → `requireLogin({gate:"curate"})`
-          // path (no new gate kind). Bound only when a candidate is pinned; `PinnedPlayer` renders
-          // the CTA only when `!signedIn && onCurate`, so signed in the dock stays metadata-only.
-          onCurate={
-            !signedIn && pinnedCandidate
-              ? () => promote(pinnedCandidate)
-              : undefined
-          }
+          // #123 §3.3/§5: the dock's bottom action row acts on the currently-pinned candidate.
+          //   onCurate → State K: gate → CurateModal (signed in) / `curate` login gate (logged out)
+          //     via `promote`; closes the dock on a successful curate (the candidate is then gone).
+          //   onDismiss → State L: the existing optimistic-dismiss-with-rollback via `dismiss`, then
+          //     close the dock + focus the band heading (signed in only; logged out shows no
+          //     Not-relevant button — PinnedPlayer State J). Bound only when a candidate is pinned.
+          onCurate={pinnedCandidate ? curatePinnedCandidate : undefined}
+          onDismiss={pinnedCandidate ? dismissPinnedCandidate : undefined}
         />
       )}
 
@@ -1968,15 +2035,25 @@ export function TopicView() {
           prefersReduced={prefersReduced.current}
           onClose={dismissMobileDock}
           onDockMetrics={setDockMetrics}
-          // Candidate, logged out: route the playing candidate into the gated curate flow (the same
-          // `promote` → `requireLogin({gate:"curate"})` path the desktop dock uses; §5.2 / #71 §6.5).
+          // Candidate Curate (mobile-player-slim.md §3.2/§3.3 — both signed-in and logged-out): route
+          // the playing candidate through the SAME `promote` → `requireLogin({gate:"curate"})` path
+          // the desktop dock uses (signed in → CurateModal; logged out → the curate login gate). The
+          // Curate reveal renders the signed-in two-button row or the logged-out single CTA from
+          // `signedIn`; both bind to this one handler.
           onCurate={
-            mobileDock.kind === "candidate" && !signedIn && mobileDock.candidate
+            mobileDock.kind === "candidate" && mobileDock.candidate
               ? () => promote(mobileDock.candidate as Candidate)
               : undefined
           }
-          // Curated, logged out: the topic-level join nudge through the same `curate` gate (the same
-          // binding PlayerModal uses; §5.2 / #71 §7).
+          // Candidate, signed in — Not relevant (spec §3.2 / desktop #123 State L): the existing
+          // optimistic-dismiss-with-rollback, then close the dock + focus the band heading.
+          onDismiss={
+            mobileDock.kind === "candidate" && signedIn && mobileDock.candidate
+              ? dismissMobileDockCandidate
+              : undefined
+          }
+          // Curated, logged out: the topic-level join nudge through the same `curate` gate, rendered
+          // in the Curate reveal's "act" slot (spec §3.4 — placement for the #65 vote/manage slot).
           onJoin={
             mobileDock.kind === "curated" && !signedIn
               ? () => requireLogin({ gate: "curate", action: () => {} })

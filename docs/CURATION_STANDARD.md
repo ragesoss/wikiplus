@@ -212,10 +212,25 @@ standard, because the signals are *our* editorial output, not just UI decoration
 
 ---
 
-## 5. CC BY-SA + creator-credit norms
+## 5. Attribution and creator-credit norms
 
 These set *what* attribution must appear and *how* creators are credited. UX places it and
 Development renders it; this section is the standard they implement against.
+
+**Two separate obligations — do not conflate them.** CC BY-SA attribution and creator credit
+are distinct requirements covering distinct content:
+
+- **CC BY-SA attribution** is a **license obligation** on the **Wikipedia article text** wiki+
+  renders. It applies to article views. It has nothing to do with the embedded videos.
+- **Creator credit** is a **reference norm** for the **embedded videos** — third-party nonfree
+  works (mostly YouTube and similar platform videos). The embedded player already carries the
+  creator's identity (channel name, etc.). wiki+ is **not** under a CC BY-SA obligation to
+  credit the video creator; the obligation is a matter of honest attribution practice and
+  product integrity, not a CC BY-SA license requirement.
+
+Conflating these — labeling video creator credit as "CC BY-SA" or treating it as a CC
+license requirement — is incorrect and must not appear in code comments, design specs, or UX
+copy.
 
 ### 5.1 Wikipedia article attribution (CC BY-SA)
 
@@ -236,15 +251,32 @@ ARCHITECTURE §"Licensing & attribution"):
   notes are about the clip, not derivatives of the article text, so this primarily means: do
   not relicense or obscure the article's CC BY-SA status.
 
+This CC BY-SA obligation applies to the **article text only**. The curated videos are
+nonfree third-party works; CC BY-SA does not apply to them and does not govern how their
+creators are credited.
+
 ### 5.2 Creator credit (reference, never host)
 
-Creators are **external people we reference and credit, never host** (VISION; ARCHITECTURE
-"embed, never host"). Every curated clip must visibly credit its creator:
+The curated videos are **nonfree third-party works** — mostly YouTube and other platform
+embeds. They are not CC-licensed content, and wiki+'s obligation to credit their creators
+is not a CC BY-SA license requirement. It is a norm of honest attribution and product
+integrity: creators are **external people we reference and credit, never host** (VISION;
+ARCHITECTURE "embed, never host").
 
-- **Display name + handle + platform** are shown on the card (AC9): e.g. "Crash Course ·
-  @crashcourse · YouTube". Platform is named in words (not by icon alone — §4 spirit).
-- The creator's **avatar** and (where known) **follower count** may accompany the credit
-  (design supports them); they are enrichment, not a substitute for the name/handle/platform.
+The **embedded player itself carries the creator's identity** (channel name, thumbnail,
+and platform controls). wiki+'s own chrome showing the creator's name/handle/platform is
+therefore a UX and editorial practice, **not a CC attribution requirement**. Showing it
+is good practice; whether it appears on every clip surface in every UI state is a
+**UX/space decision**, not a license obligation that must be enforced on every surface.
+
+Good practice for any surface that has room for it: show **display name + handle +
+platform** (e.g. "Crash Course · @crashcourse · YouTube"). Platform is named in words
+(not by icon alone — §4 spirit). The creator's **avatar** and (where known) **follower
+count** may accompany the credit (design supports them); they are enrichment, not a
+substitute for the name/handle/platform.
+
+Additional norms that remain firm regardless of surface:
+
 - The credit **links out** to the creator/clip on its platform; wiki+ does not present the
   video as its own. Playback is **click-to-load / embed-never-host** (AC11).
 - We **do not** imply creator endorsement of wiki+ or of the curator's note. The context note

@@ -165,9 +165,9 @@ describe("issue #120 — curated playback on mobile opens the unified dock (not 
 
     const dock = await screen.findByRole("region", { name: "Video player" });
     expect(within(dock).getByText(/can't be embedded/i)).toBeInTheDocument();
-    // No src-less iframe; the curation affordance is present.
+    // No src-less iframe; the See context reveal (where the note lives) is present.
     expect(dock.querySelector("iframe")).toBeNull();
-    expect(within(dock).getByRole("button", { name: /Context/ })).toBeInTheDocument();
+    expect(within(dock).getByRole("button", { name: "See context" })).toBeInTheDocument();
   });
 });
 
@@ -182,8 +182,8 @@ describe("issue #120 — candidate playback on mobile uses the same dock", () =>
     expect(dock.querySelector("iframe")!.getAttribute("src")).toBe(
       "https://www.youtube-nocookie.com/embed/AAA?autoplay=1"
     );
-    // The match reason rides the dock's supplemental row (it also shows on the candidate card on
-    // the page, so scope the assertion to the dock region).
+    // The match reason lives behind the See context reveal (slim default — not in the bar). Open it.
+    await userEvent.click(within(dock).getByRole("button", { name: "See context" }));
     expect(within(dock).getByText("Mentions glycolysis")).toBeInTheDocument();
     expect(open).not.toHaveBeenCalled();
   });
@@ -227,10 +227,11 @@ describe("issue #120 — single instance, swap in place across kinds (§8)", () 
         "https://www.youtube-nocookie.com/embed/DDD?autoplay=1"
       );
     });
-    // The supplemental row swapped to the curation block (the curated "Context" expander appears
-    // inside the dock).
+    // The dock swapped to the curated kind: opening See context reveals the curated note (a
+    // candidate has no curator note, so this is curated-specific evidence of the swap).
     const dock = screen.getByRole("region", { name: "Video player" });
-    expect(within(dock).getByRole("button", { name: /Context/ })).toBeInTheDocument();
+    await userEvent.click(within(dock).getByRole("button", { name: "See context" }));
+    expect(within(dock).getByText("Curator note")).toBeInTheDocument();
   });
 });
 

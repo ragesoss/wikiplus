@@ -206,7 +206,17 @@ export async function applyStub(page: Page, profile: StubProfile): Promise<void>
         qid: "Q189603",
         title: "Cellular respiration",
         article: SUGGESTION_ARTICLE_HTML,
-        youtube: () => RESP_YT_ITEMS,
+        // Append one PORTRAIT (9:16) candidate so the PinnedPlayer's narrowed vertical dock + its
+        // action row can be captured at the stressing width (issue #123 §6).
+        youtube: () => [
+          ...RESP_YT_ITEMS,
+          {
+            videoId: "resp006",
+            title: PINNED_VERTICAL_CAPTION,
+            channelTitle: "ShortBio",
+            vertical: true,
+          },
+        ],
       });
     case "empty":
       return stubTopic(page, {
@@ -350,6 +360,38 @@ async function openPinnedPlayer(page: Page): Promise<void> {
   await page.waitForTimeout(200);
 }
 
+/** The caption of the portrait (9:16) candidate appended to the `suggestions` YouTube stub (above)
+ *  so the PinnedPlayer's narrowed VERTICAL dock + its action row can be captured (issue #123 §6). */
+const PINNED_VERTICAL_CAPTION = "Cellular respiration in 60 seconds";
+
+/** Open the PinnedPlayer on a VERTICAL (9:16) candidate so the narrowed dock + its action row are
+ *  captured at the stressing width (issue #123 §6 — the two buttons still fit). */
+async function openPinnedPlayerVertical(page: Page): Promise<void> {
+  await page.locator("#general-band").waitFor();
+  await page
+    .getByRole("button", { name: `Play: ${PINNED_VERTICAL_CAPTION}` })
+    .first()
+    .click();
+  await page.locator('section[aria-label="Video preview"]').waitFor();
+  await page.waitForTimeout(200);
+}
+
+/** Open the dock, then activate the signed-in "Not relevant" action: the dock closes (the playing
+ *  candidate is dismissed) and focus lands on the General band heading (issue #123 State L). This
+ *  scene is the POST-DISMISS resting state — evidence the dock tears down and the loop returns to
+ *  the band. Run signed-in only (the Not-relevant button is gated, not shown, logged out). */
+async function dismissFromPinnedPlayer(page: Page): Promise<void> {
+  await openPinnedPlayer(page);
+  await page
+    .getByRole("button", { name: /^Dismiss as not relevant:/ })
+    .first()
+    .click();
+  await page
+    .locator('section[aria-label="Video preview"]')
+    .waitFor({ state: "detached" });
+  await page.waitForTimeout(200);
+}
+
 /** Wait for the article column to be present, then scroll the collapsed `h2` disclosure stack into
  *  view (past the lead + TOC). On a phone (`< md`) each `h2` section is a collapsed disclosure button
  *  (`.sec-h2-toggle > button`); this frames the stack of closed rows (design §10 collapsed scene). */
@@ -385,7 +427,8 @@ async function articleExpandSection(page: Page, name: RegExp): Promise<void> {
 // PinnedPlayer's "Video preview"). These helpers drive its captured states. The mobile scenes
 // run only at the `mobile` viewport, so the play click always lands on the mobile dock.
 
-/** Open the unified mobile dock by playing the first video in the General band. */
+/** Open the unified slim mobile dock by playing the first video in the General band. The slim
+ *  default is the frame + ONE four-cell control row (Close · Move · Curate · See context). */
 async function openMobileDock(page: Page): Promise<void> {
   await page.locator("#general-band").waitFor();
   await page.getByRole("button", { name: /^Play:/ }).first().click();
@@ -393,56 +436,24 @@ async function openMobileDock(page: Page): Promise<void> {
   await page.waitForTimeout(200);
 }
 
-/** Open the mobile dock, then expand the curated "Context ▸" note panel. */
-async function openMobileDockExpanded(page: Page): Promise<void> {
+/** Open the mobile dock, then open the Curate inline expander reveal (mobile-player-slim.md §3). */
+async function openMobileDockCurate(page: Page): Promise<void> {
   await openMobileDock(page);
-  await page.getByRole("button", { name: /^Context/ }).click();
+  await page.getByRole("button", { name: "Curate" }).click();
   await page.waitForTimeout(150);
 }
 
-/** Open the mobile dock, then park it at the TOP edge (the toggle's other state). */
+/** Open the mobile dock, then open the See context inline expander reveal (mobile-player-slim.md §4). */
+async function openMobileDockSeeContext(page: Page): Promise<void> {
+  await openMobileDock(page);
+  await page.getByRole("button", { name: "See context" }).click();
+  await page.waitForTimeout(150);
+}
+
+/** Open the mobile dock, then park it at the TOP edge (the toggle's other state — "Move to bottom"). */
 async function openMobileDockTopParked(page: Page): Promise<void> {
   await openMobileDock(page);
   await page.getByRole("button", { name: /Move player to top of screen/ }).click();
-  await page.waitForTimeout(150);
-}
-
-/** Rotate to a landscape mobile window, THEN open the dock so it mounts maximized (CSS
- *  fill-the-viewport, not native fullscreen — design §6.5). A 16:9 clip fills the width. */
-async function openMobileDockMaximizedHorizontal(page: Page): Promise<void> {
-  await page.setViewportSize({ width: 740, height: 390 });
-  await page.waitForTimeout(150);
-  await openMobileDock(page);
-}
-
-// A specific 9:16 vertical curated Short on the Photosynthesis topic (lib/data/seed.ts) — used to
-// evidence the height-capped, letterboxed vertical fit and the upright maximized vertical view.
-const VERTICAL_CLIP_CAPTION = "Photosynthesis Explained in under 1min! 🌱🔆";
-
-/** Play a vertical (9:16) curated Short → the dock docks height-capped + centered/letterboxed. */
-async function openMobileDockVertical(page: Page): Promise<void> {
-  await page.locator("#general-band").waitFor();
-  await page.getByRole("button", { name: `Play: ${VERTICAL_CLIP_CAPTION}` }).first().click();
-  await page.locator(SEL_MOBILE_DOCK).waitFor();
-  await page.waitForTimeout(200);
-}
-
-/** Open a vertical Short docked, then expand its curated "Context ▸" note. This is the stressing
- *  fit case (a tall 9:16 frame + an expanded note): the frame + title bar are shrink-0 and stay
- *  fully visible while the note scrolls inside the bounded secondary region, the dock staying within
- *  the 88dvh ceiling (frame-first fit guarantee, mobile-player-launch.md §2) — the state a
- *  horizontal clip can never exercise. */
-async function openMobileDockVerticalExpanded(page: Page): Promise<void> {
-  await openMobileDockVertical(page);
-  await page.getByRole("button", { name: /^Context/ }).click();
-  await page.waitForTimeout(150);
-}
-
-/** Open a vertical Short docked, then maximize it (explicit ⤢ button — a Short's best frame is
- *  portrait-tall, so its maximize is reachable without a rotation gesture). Fills full height. */
-async function openMobileDockMaximizedVertical(page: Page): Promise<void> {
-  await openMobileDockVertical(page);
-  await page.getByRole("button", { name: /Maximize video to fill the screen/ }).click();
   await page.waitForTimeout(150);
 }
 
@@ -677,8 +688,8 @@ export const SCENES: Scene[] = [
   {
     id: "pinned-player",
     group: "Players",
-    label: "PinnedPlayer — candidate dock (non-modal, desktop)",
-    note: "The corner dock, opened from a suggested candidate. Desktop-only: on mobile/tablet (< lg) candidate playback uses the unified mobile dock (issue #120).",
+    label: "PinnedPlayer — candidate dock (watch + act, desktop)",
+    note: "The corner dock, opened from a suggested candidate (issue #123): title bar → frame → action row below the frame. Signed-in shows ✦ Curate (primary) + ✕ Not relevant (secondary); logged-out shows the single ✦ Curate this video CTA (no Not-relevant button). Desktop-only: on mobile/tablet (< lg) candidate playback uses the unified mobile dock (issue #120).",
     route: "/topic/Cellular_respiration/",
     stub: "suggestions",
     viewports: ["desktop"],
@@ -686,75 +697,54 @@ export const SCENES: Scene[] = [
     prepare: openPinnedPlayer,
     clip: "fullPage",
   },
-
-  // ── Unified mobile player (issue #120) — all mobile-only states ──
   {
-    id: "mobile-player-curated",
-    group: "Players · mobile unified",
-    label: "Mobile dock — curated, collapsed curation",
-    note: "Curated clip docked at the bottom, frame-first: slim title bar (credit) → video frame (the hero, fully visible) → chips + 'Context ▸' below the frame. Logged-out adds the join nudge below. A meaningful article slice stays visible above.",
-    route: "/topic/Photosynthesis/",
-    stub: "curated",
-    viewports: ["mobile"],
-    ready: topicReady,
-    prepare: openMobileDock,
-    clip: "viewport",
-  },
-  {
-    id: "mobile-player-curated-expanded",
-    group: "Players · mobile unified",
-    label: "Mobile dock — curated, expanded note",
-    note: "The 'Context ▸' expander opened: full note + 'context by' on a light surface BELOW the frame, scrolling inside the bounded secondary region. The frame stays its size and stays fully visible above. Logged-out arm shows the join nudge after the note.",
-    route: "/topic/Photosynthesis/",
-    stub: "curated",
-    viewports: ["mobile"],
-    ready: topicReady,
-    prepare: openMobileDockExpanded,
-    clip: "viewport",
-  },
-  {
-    id: "mobile-player-candidate",
-    group: "Players · mobile unified",
-    label: "Mobile dock — candidate, match reason",
-    note: "Candidate docked, frame-first: slim title bar (credit) → video frame (the hero) → one-line match reason below it. Logged-out shows '✦ Curate this video' below the frame; signed-in is metadata-only.",
+    id: "pinned-player-vertical",
+    group: "Players",
+    label: "PinnedPlayer — vertical 9:16 dock, action row (desktop)",
+    note: "The stressing width (issue #123 §6): the narrowed 9:16 dock with the action row still a single horizontal row beneath the frame — signed-in ✦ Curate (flex-1) + ✕ Not relevant fit; logged-out shows the single CTA.",
     route: "/topic/Cellular_respiration/",
     stub: "suggestions",
+    viewports: ["desktop"],
+    ready: topicReady,
+    prepare: openPinnedPlayerVertical,
+    clip: "fullPage",
+  },
+  {
+    id: "pinned-player-post-dismiss",
+    group: "Players",
+    label: "PinnedPlayer — post-dismiss (dock closed, focus to band)",
+    note: "After ✦ Not relevant from the dock (issue #123 State L): the playing candidate is optimistically hidden, the dock + iframe tear down, and focus returns to the General band heading — the watch→decide→back-to-the-list loop, no autoplay of an unrequested clip. Signed-in only (the Not-relevant button is gated, not shown, logged out).",
+    route: "/topic/Cellular_respiration/",
+    stub: "suggestions",
+    viewports: ["desktop"],
+    auth: ["in"],
+    ready: topicReady,
+    prepare: dismissFromPinnedPlayer,
+    clip: "fullPage",
+  },
+
+  // ── Unified SLIM mobile player (mobile-player-slim.md) — all mobile-only states ──
+  // The slim default is the frame + ONE 46px row of four glyph-above-word cells (Close · Move ·
+  // Curate · See context); all metadata + curation live behind the Curate / See context inline
+  // expanders. There is no custom maximize control (fullscreen = the embed's native button;
+  // rotate-to-maximize is automatic CSS), so no maximize scenes.
+  {
+    id: "mobile-player-slim-default",
+    group: "Players · mobile unified",
+    label: "Mobile dock — slim default (bottom-parked)",
+    note: "The locked slim model: video frame + ONE four-cell row (Close · Move · Curate · See context) and nothing else — no caption, creator, chips, or description. A generous article slice (~69% for a 16:9 clip) stays visible above.",
+    route: "/topic/Photosynthesis/",
+    stub: "curated",
     viewports: ["mobile"],
     ready: topicReady,
     prepare: openMobileDock,
     clip: "viewport",
   },
   {
-    id: "mobile-player-vertical",
+    id: "mobile-player-slim-top-parked",
     group: "Players · mobile unified",
-    label: "Mobile dock — vertical 9:16 clip",
-    note: "A 9:16 Short docked, frame-first: height-capped at min(46vh,380px), centered + letterboxed on black, fully visible with the article slice above — the vertical fit at 390px.",
-    route: "/topic/Photosynthesis/",
-    stub: "curated",
-    viewports: ["mobile"],
-    auth: ["out"],
-    ready: topicReady,
-    prepare: openMobileDockVertical,
-    clip: "viewport",
-  },
-  {
-    id: "mobile-player-vertical-expanded",
-    group: "Players · mobile unified",
-    label: "Mobile dock — vertical 9:16, expanded note",
-    note: "The stressing fit case: a tall 9:16 frame (fully visible, frame-first) WITH the curated note expanded BELOW it. The frame + title bar stay pinned (shrink-0); the note scrolls inside the bounded secondary region and the whole dock stays within the 88dvh ceiling.",
-    route: "/topic/Photosynthesis/",
-    stub: "curated",
-    viewports: ["mobile"],
-    auth: ["out"],
-    ready: topicReady,
-    prepare: openMobileDockVerticalExpanded,
-    clip: "viewport",
-  },
-  {
-    id: "mobile-player-top-parked",
-    group: "Players · mobile unified",
-    label: "Mobile dock — parked at the top edge",
-    note: "The park toggle's other state: the dock pinned to the top with the internal order identical (slim title bar at the top edge → frame → secondary below), the article reflowed below it (the toggle now reads 'Move to bottom').",
+    label: "Mobile dock — slim default, parked at the top edge",
+    note: "The Move toggle's other state: the slim dock pinned to the top edge (Move now reads 'Move to bottom'); the internal order is identical (frame → four-cell row), the article reflowed below it.",
     route: "/topic/Photosynthesis/",
     stub: "curated",
     viewports: ["mobile"],
@@ -764,29 +754,53 @@ export const SCENES: Scene[] = [
     clip: "viewport",
   },
   {
-    id: "mobile-player-maximized-horizontal",
+    id: "mobile-player-curate-expanded",
     group: "Players · mobile unified",
-    label: "Mobile dock — maximized 16:9 (landscape)",
-    note: "Rotated to a landscape window (740×390), a 16:9 clip maximizes to fill the viewport via CSS (not native fullscreen — §6.5); chrome condenses to a thin Close bar.",
-    route: "/topic/Photosynthesis/",
-    stub: "curated",
+    label: "Mobile dock — Curate reveal (signed in)",
+    note: "The Curate inline expander open on a candidate, signed in: ✦ Curate (brand-primary) + ✕ Not relevant (quiet secondary), the same vocabulary + treatment as the desktop player. The frame stays pinned above; the reveal body grows the dock.",
+    route: "/topic/Cellular_respiration/",
+    stub: "suggestions",
     viewports: ["mobile"],
-    auth: ["out"],
+    auth: ["in"],
     ready: topicReady,
-    prepare: openMobileDockMaximizedHorizontal,
+    prepare: openMobileDockCurate,
     clip: "viewport",
   },
   {
-    id: "mobile-player-maximized-vertical",
+    id: "mobile-player-curate-loggedout",
     group: "Players · mobile unified",
-    label: "Mobile dock — maximized 9:16 (full height upright)",
-    note: "A 9:16 Short maximized via the explicit ⤢ button: fills the full portrait height upright, centered + letterboxed (a Short's best frame regardless of device orientation).",
-    route: "/topic/Photosynthesis/",
-    stub: "curated",
+    label: "Mobile dock — Curate reveal (logged out)",
+    note: "The Curate inline expander open on a candidate, logged out: a single ✦ Curate this video CTA and NO dismiss (a logged-out dismiss can't honestly optimistic-hide). The frame stays pinned above.",
+    route: "/topic/Cellular_respiration/",
+    stub: "suggestions",
     viewports: ["mobile"],
     auth: ["out"],
     ready: topicReady,
-    prepare: openMobileDockMaximizedVertical,
+    prepare: openMobileDockCurate,
+    clip: "viewport",
+  },
+  {
+    id: "mobile-player-seecontext-candidate",
+    group: "Players · mobile unified",
+    label: "Mobile dock — See context reveal (candidate)",
+    note: "The See context inline expander open on a candidate: caption · creator credit · the 'Why suggested' match reason. The creator identity appears ONLY here, never in the slim default.",
+    route: "/topic/Cellular_respiration/",
+    stub: "suggestions",
+    viewports: ["mobile"],
+    ready: topicReady,
+    prepare: openMobileDockSeeContext,
+    clip: "viewport",
+  },
+  {
+    id: "mobile-player-seecontext-curated",
+    group: "Players · mobile unified",
+    label: "Mobile dock — See context reveal (curated)",
+    note: "The See context inline expander open on a curated clip: caption · creator credit · stance/accuracy chips · the full 'Context note' on a light card · 'Context by @curator'. The note scrolls inside the bounded reveal body; the frame stays pinned above.",
+    route: "/topic/Photosynthesis/",
+    stub: "curated",
+    viewports: ["mobile"],
+    ready: topicReady,
+    prepare: openMobileDockSeeContext,
     clip: "viewport",
   },
 
