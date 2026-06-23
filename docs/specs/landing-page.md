@@ -60,17 +60,20 @@ This issue is **one coherent build (v1)** plus **one written design deliverable 
    note separating fact from the creator's opinion. Kept tight — get out of the user's way; the search is the
    action, the explanation is orientation. (The current prototype-disclaimer line — "curations are shared" —
    may be kept as secondary/muted text.)
-3. **Demote the topic list to secondary content — the "Recently curated" section.** Keep the existing topic
-   list (read via `store.listTopics()`), repositioned and reframed as **secondary** content below the search
-   hero. The section is headed by the eyebrow `FRESH FROM THE COMMUNITY` + `<h2>Recently curated</h2>`,
-   harmonized with the "Wiki, plus video." hero above it via the same Indigo-Press eyebrow device. The list
-   is **recency-ordered** — `listTopics()` orders by `updated_at` descending with a `title` ascending
-   tie-breaker (cheap, DB-side; no migration, no `Topic` type change). On seed data whose timestamps are
-   near-identical the visible order falls to the title tie-breaker until real curation varies the timestamps,
-   which is expected and acceptable. The section's four data states (loading / read-error floor / empty /
-   populated) are preserved; only the framing and ordering change. Card markup is **unchanged** — card
-   redesign is a deferred follow-up issue. See `docs/design/homepage-recently-curated.md` for the full
-   section design spec.
+3. **Demote the topic list to secondary content — the "Recently curated" section.** The section sits below
+   the search hero as **secondary** content. The section header is the `<h2>Recently curated</h2>` heading
+   **alone** — the `FRESH FROM THE COMMUNITY` eyebrow device and the supporting/disclaimer line are removed
+   (owner directive; supersedes `docs/design/homepage-recently-curated.md` §5.1 and §5.2). The list is
+   read via `store.listCuratedTopics()` — a cheap one-read grouped aggregate (INNER join, `GROUP BY topic`,
+   `ORDER BY updated_at desc, title`) that **simultaneously filters** the list to topics with `videos ≥ 1`
+   and delivers per-card stats (`videos`, `creators`, `curators`) — so **only topics with at least one
+   curated video appear** (a zero-curation topic isn't "recently curated"). Recency ordering is applied to
+   the surviving curated set. The section's four data states (loading / read-error floor / empty / populated)
+   are preserved with unchanged strings; the empty state now also legitimately covers "no curated topics
+   exist" (the section's filter produced no results). The Topic card carries Wikipedia-article identity
+   (serif title + `WIKIPEDIA ARTICLE` text mark) and the at-a-glance curation stat block (Videos · Creators ·
+   Curators). See `docs/design/topic-card-redesign.md` for the card design spec and
+   `docs/ARCHITECTURE.md` ("Recently-curated read") for the `listCuratedTopics` aggregate decision.
 4. **Debut the Daylight Projector header at full Tier A**, implemented as a **new reusable, tier-aware
    component** (working name `HeaderProjector`), per `docs/VISUAL_IDENTITY.md`:
    - The landing page renders the **complete §5 Tier-A treatment** of **variant `01` "Daylight — subtle
@@ -161,16 +164,22 @@ screenshots / built UI**, **not** by a live URL.
   contextualized creator video with fact-vs-opinion context notes — faithful to `docs/VISION.md` *What it is
   / Why it exists*. *(Verify: screenshot; copy review against VISION.)*
 - **AC7 — The "Recently curated" section is demoted to secondary content and all four data states are
-  preserved.** The topic list renders (from `store.listTopics()`) in the **"Recently curated" section**
-  (eyebrow `FRESH FROM THE COMMUNITY` + `<h2>Recently curated</h2>` + the recency-ordering and supporting
-  line), positioned **below** the search hero — never the page's headline. The section is
-  **recency-ordered** (`updated_at` desc, `title` asc tie-breaker). All four data states render inside the
-  section: **loading** → `Loading recently curated topics…`; **empty** → `No topics curated yet — be the
-  first by searching for one above.`; **read-error floor** → `Couldn't load topics — please refresh.`
-  (verbatim; never a hang on "Loading…"); **populated** → the card grid, recency-ordered. Card markup is
-  unchanged. *(Verify: screenshot showing the section below the hero with the "Recently curated" heading;
-  test or screenshot confirming the read-error floor line is present verbatim; screenshot of the populated
-  card grid. See `docs/design/homepage-recently-curated.md` §3–§4 for the full section contract.)*
+  preserved.** The topic list renders (from `store.listCuratedTopics()`) in the **"Recently curated"
+  section**, positioned **below** the search hero — never the page's headline. The section header is the
+  `<h2>Recently curated</h2>` heading **alone** — the `FRESH FROM THE COMMUNITY` eyebrow device and the
+  supporting/disclaimer line are **not present**. The list is filtered to **topics with `videos ≥ 1`**
+  (zero-curation topics do not appear) and **recency-ordered** (`updated_at` desc, `title` asc tie-breaker)
+  over the surviving curated set, delivered by one grouped aggregate (see `docs/ARCHITECTURE.md`
+  "Recently-curated read"). All four data states render inside the section with these verbatim strings:
+  **loading** → `Loading recently curated topics…`; **empty** → `No topics curated yet — be the first by
+  searching for one above.` (also the correct state when no curated topics exist, since uncurated topics
+  are filtered out); **read-error floor** → `Couldn't load topics — please refresh.` (never a hang on
+  "Loading…"); **populated** → the card grid, recency-ordered, showing only topics with ≥1 curated video.
+  Each card reads as a Wikipedia article (serif title + `WIKIPEDIA ARTICLE` text mark) and shows the
+  Videos · Creators · Curators stat block. *(Verify: screenshot showing the section below the hero with
+  the `Recently curated` heading alone — no eyebrow, no supporting line; test or screenshot confirming
+  the read-error floor string is present verbatim; screenshot of the populated card grid showing only
+  curated topics. See `docs/design/topic-card-redesign.md` for the card design contract.)*
 - **AC8 — The Daylight Projector renders at Tier A per VISUAL_IDENTITY.** The landing header renders the full
   §5 Tier-A treatment of variant `01`: the `wiki | +plus` lockup, the lit "+" aperture, the geometric "+"
   beam burning to white into the hero, the solid gold border running off both page edges, and the faint
