@@ -3,8 +3,10 @@
 **Type:** build · **Milestone:** Functional prototype
 **Status:** Product spec (Phase 1) — **post-deploy refinement iteration** (the first version shipped to
 production; this revision captures the owner's reviewed-live changes: beam fade-in, dim-cool topic that
-warms, plus fade-only, red→green status-light first step, and the click/keyboard power toggle). Feeds UX
-(motion/choreography + control spec) and Development (implementation).
+warms, plus fade-only, red→green status-light first step, the click/keyboard power toggle, **and a
+dynamic miniature article title sourced from the home page's "recently curated" data — re-picked on each
+power-on, with an old→new flicker on a restarted power-on**). Feeds UX (motion/choreography + control
+spec) and Development (implementation).
 **Implements the deferred follow-up named in:** `docs/specs/about-page.md` → in-scope item 10
 ("Build for a future plus-layer toggle/animation") + the "Out of scope" note ("The animated
 centerpiece … Future follow-up.") and `docs/design/about-centerpiece-handoff/README.md` →
@@ -39,6 +41,19 @@ miniature's glow read as light in one continuous room. The files: `app/about/pag
 > warm-up begins; and the **projector becomes a click/keyboard power toggle** (OFF → initial dark state,
 > ON → replay). The settled-ON state is still exactly today's committed static poster (which already
 > shows the green status light) — so AC2 still holds.
+>
+> **This revision also folds in a dynamic miniature article title.** The miniature's article title —
+> today the hard-coded `"Acer palmatum"` (`DEFAULT_TITLE`) — becomes **a real title chosen from the home
+> page's "recently curated" articles** (issue #126; read via the existing `listCuratedTopicsAction()`
+> seam), filtered to titles that **fit the miniature's single title line** (a too-long title is excluded,
+> never truncated/wrapped). `"Acer palmatum"` is the **fallback** when nothing fits or the list is empty.
+> The title is **(re)picked on each power-on** (the on-load auto-play *and* every toggle-ON), so it may
+> **change between power-ons**; it is **readable in every state** (dim/off and lit); on a **restarted**
+> power-on (one that re-picks a *new* title) the title text **flickers old→new during the lamp flicker**,
+> synchronized with the lamp strikes (no such flicker on the first/auto-play, which has no prior title);
+> and it remains the **editable, Enter-to-navigate input** (`MiniatureTitleInput`), now **seeded** with
+> the picked value. See AC16–AC18; the architecture note records that `/about` now reads the
+> recently-curated data server-side (a read of existing data — no schema/policy change).
 
 ---
 
@@ -149,10 +164,23 @@ to/from, or block any content or control. The **power toggle** is a real, keyboa
 - Reuse the **already-separated** structure: the ＋plus pieces in `TopicMiniature.tsx` (plus cards +
   clips) are distinct from the article-ground pieces, so the plus-fade step reveals the plus subtree
   without re-architecting the miniature. Do **not** introduce a parallel/duplicate miniature.
+- **A dynamic miniature article title sourced from the home page's "recently curated" data.** `/about`
+  (today a static server component) **reads `listCuratedTopicsAction()`** server-side (the existing
+  DataStore-seam read the homepage uses — recency-ordered, `videos ≥ 1`), derives the **eligible title
+  pool** (the recent-curation titles that **fit** the miniature's single title line — see AC16 and the
+  fit-threshold note in *Open product decisions*), and passes **the pool + the fallback** (`"Acer
+  palmatum"`, today's `DEFAULT_TITLE`) to the client miniature. The client picks one on each power-on. See
+  AC16–AC18 and the architecture note below. This is a **read of existing data — no schema, no new
+  policy, no new Server Action**; it likely shifts `/about` from static-prerender to a dynamic/ISR read
+  (acceptable for the prototype — the production ISR/Redis read path is deferred per
+  `docs/ARCHITECTURE.md`).
 - A **refreshed UI screenshot baseline** for the About surface. The baseline captures the **settled
   final state** (the intro is not a steady state). If a capture races the intro, the catalog's About
   scene must wait for / force the settled state (e.g. a reduced-motion capture, or a "settled" readiness
-  signal) so the baseline is deterministic and equals today's committed shot — see AC11.
+  signal) so the baseline is deterministic and equals today's committed shot — see AC11. **Because the
+  miniature title is now dynamic, the capture must also pin the title deterministically** (e.g. force the
+  fallback, or stub/seed the recently-curated read to a fixed title) so the baseline does not churn as
+  real curations change — see AC11 and the deterministic-capture note.
 
 ### Out of scope (state explicitly)
 
@@ -181,7 +209,11 @@ to/from, or block any content or control. The **power toggle** is a real, keyboa
   the projector control — AC13/AC14): OFF then ON replays the power-on sequence once. There is no
   pointer-hover replay and no automatic re-trigger.
 - **New tokens, schema, data, auth, or Server Actions.** None are needed; the colors/values already
-  exist as `@theme` tokens.
+  exist as `@theme` tokens. The dynamic title (AC16–AC18) **reuses the existing
+  `listCuratedTopicsAction()` read** — it adds **no new** schema, data model, policy, auth, or Server
+  Action; it only consumes data the homepage already reads. (It does change `/about`'s render mode from
+  static to dynamic/ISR — see the architecture note — which is a render-path change, not a data/schema
+  change.)
 
 ---
 
@@ -287,7 +319,9 @@ the intro's own pre-illumination start state (AC1), which the power toggle reuse
    visually-hidden description are present in the DOM and exposed in the accessibility tree, and the
    **miniature title input** (the one real control) is present, in the tab order, focusable, editable,
    and able to navigate on Enter. The intro must **not** hide, disable, `display:none`, `aria-hidden`,
-   or otherwise remove any of this content while animating, and must **not** delay its availability.
+   or otherwise remove any of this content while animating, and must **not** delay its availability. The
+   title input's **value is the dynamic picked title (AC16–AC18)** rather than a hard-coded string, but
+   the control's presence, name, focusability, editability, and Enter-navigation are **unchanged**.
    (Testable: RTL renders the page and finds the heading text, the step list, and the named title input
    immediately, regardless of the simulated motion preference; Playwright can focus and submit the title
    input during/right after load.)
@@ -324,13 +358,20 @@ the intro's own pre-illumination start state (AC1), which the power toggle reuse
     settle window no element is mid-animation; the scene is static; no replay fires without a toggle
     activation.)
 
-11. **Screenshot baseline equals the settled-on state, deterministically.** The committed UI screenshot
-    baseline for the About surface is regenerated and captures the **settled-on final state** (not a
-    mid-intro frame and not the OFF state), so the About baseline shot is **unchanged from / equivalent
-    to** today's committed About shot. The capture is deterministic — it must not race the intro or land
-    mid-toggle (achieved via reduced-motion capture and/or a "settled-on" readiness signal). (Testable:
-    the regenerated `docs/design/ui-screenshots` About PNGs match the prior committed About PNGs within
-    normal tolerance; the catalog scene waits for a settled-on signal.)
+11. **Screenshot baseline equals the settled-on state, deterministically — with a pinned title.** The
+    committed UI screenshot baseline for the About surface is regenerated and captures the **settled-on
+    final state** (not a mid-intro frame and not the OFF state). The capture is deterministic in **two**
+    respects: (i) it must not race the intro or land mid-toggle (achieved via reduced-motion capture
+    and/or a "settled-on" readiness signal); and (ii) **because the miniature title is now dynamic
+    (AC16), the capture must pin the title to a fixed, deterministic value** — e.g. force the fallback
+    `"Acer palmatum"`, or stub/seed the recently-curated read to a fixed title — so the About baseline
+    does **not churn** as real curations change. With the title pinned, the About baseline shot is
+    **unchanged from / equivalent to** today's committed About shot (which shows `"Acer palmatum"`).
+    (Testable: the regenerated `docs/design/ui-screenshots` About PNGs match the prior committed About
+    PNGs within normal tolerance; the catalog scene waits for a settled-on signal **and** renders a
+    deterministic, pinned title; re-running the capture without a real-data change reproduces the same
+    PNGs. Flagged for UX/Dev/QA: the catalog About scene must pin the title — see the deterministic-capture
+    note.)
 
 **Responsive (the intro works coherently at every supported width)**
 
@@ -403,6 +444,56 @@ the intro's own pre-illumination start state (AC1), which the power toggle reuse
     intro runs exactly as AC3 describes without any toggle interaction; the control changes state only on
     explicit activation.)
 
+**Dynamic miniature article title (sourced from "recently curated")**
+
+16. **The miniature title is picked from recently-curated articles, with `"Acer palmatum"` as the
+    fallback, and is re-picked on every power-on.** `/about` reads the recently-curated topics via the
+    existing `listCuratedTopicsAction()` seam and derives an **eligible title pool**: the recent-curation
+    `title`s **that fit the miniature's single title line** — a title that would not fit on one line is
+    **excluded** from the pool (it is **never truncated, wrapped, or shrunk** to fit; the fit test is a
+    filter, not a transform). On **each power-on** — the **on-load auto-play** and **every toggle-ON**
+    (AC10/AC14, `≥ lg` for the toggle; on-load applies at every tier) — the miniature title is **(re)set
+    to one title chosen from the eligible pool**. The chosen title is the value the **editable title
+    input** (`MiniatureTitleInput`) **starts at** for that power-on. If the eligible pool is **empty** (no
+    recent curation fits, or the list is empty/unavailable), the title is the **fallback** `"Acer
+    palmatum"` (today's `DEFAULT_TITLE`). Because the pick happens per power-on, a user toggling OFF then
+    ON **may see the title change** between power-ons (re-picking the same title is acceptable — AC17). No
+    article-side curation, schema, or policy is read or written — only the existing recently-curated list.
+    (Testable: with a stubbed/seeded recently-curated list containing a mix of short and over-long titles,
+    the miniature title at a power-on is one of the **fitting** titles and never an over-long one and never
+    a truncated/ellipsized string; with an empty/unavailable list the title is exactly `"Acer palmatum"`;
+    toggling OFF→ON re-runs the pick. The eligible pool is derived from `listCuratedTopicsAction()` and the
+    over-long titles are absent from it.)
+
+17. **The title is readable in every state; on a restarted power-on it flickers old→new with the lamp.**
+    The miniature title is a **real, readable article title in all states** — dim/off and lit alike — and
+    is **never hidden behind a placeholder/skeleton bar** while the projector is off or warming. On a
+    **restarted** power-on (a toggle-ON that re-picks a title *different* from the one previously shown —
+    i.e. after the user toggled OFF then ON), the title **text transitions from the OLD title to the NEW
+    title during the lamp's flicker phase (AC3 step 1)**, synchronized with the lamp strikes, as if the
+    projector is re-focusing on a different article. On the **first / on-load auto-play** (there is no
+    prior title) there is **no** old→new flicker — the chosen title simply shows (readable from the first
+    painted frame, per AC1, which shows the bare article ground including its title). If a power-on
+    happens to **re-pick the same title**, there is **no visible title change** (acceptable). Under
+    `prefers-reduced-motion: reduce` there is **no title flicker** — a re-picked toggle-ON simply shows
+    the new (re)picked title with the rest of the scene snapping per AC6. (Testable: the title element
+    holds a non-empty, non-placeholder string at the OFF state and at first paint; with a forced re-pick
+    to a different title, the title text changes old→new during the flicker window under motion-enabled,
+    and changes with no flicker/transition under reduced motion; with no prior title (first load) the
+    title shows with no old→new transition.)
+
+18. **The title remains the editable, Enter-to-navigate control — only its seed becomes dynamic.** The
+    miniature title stays the **one real control** of the scene: the **named, keyboard-operable
+    `MiniatureTitleInput`** (AC7/AC8 unchanged) — present in the tab order, focusable, editable, and
+    navigating to the corresponding topic on **Enter** (via `topicHref`). The only change is that its
+    **starting value for a power-on is the picked title (AC16)** rather than the hard-coded `"Acer
+    palmatum"`. A user may still **edit** the field and press Enter to navigate to *their* title; the pick
+    sets the **initial** value only and does **not** lock, disable, or overwrite the field after the user
+    types, and does **not** auto-navigate. (Testable: the input is the same named control as today,
+    editable and Enter-navigating; its initial value equals the picked title for the current power-on; a
+    re-pick on a *later* power-on reseeds the value, but user-typed edits within a power-on are not
+    clobbered by the animation.)
+
 ---
 
 ## Open product decisions (resolved here; assumptions for UX/Dev to refine)
@@ -444,6 +535,21 @@ glance but should **not** block.
   power-indicator convention; the committed static poster already uses green for "on." The color is
   decorative (AC9) — assistive tech gets the state from the control's accessible name (AC13), not the
   color alone.
+- **Title fit-threshold — DECISION (recommendation; non-blocking): a character-count cap tuned to the
+  miniature title width, for the prototype.** AC16 requires excluding titles that don't fit the
+  miniature's single title line. Two approaches: **(a) a character-count cap** (a fixed max length, tuned
+  once to the miniature's title width + font, applied server-side when deriving the pool) — simple,
+  deterministic, no client measurement, and works for the server-derived pool; or **(b) a measured fit**
+  (the client measures rendered text width against the line box and excludes overflowing titles) — exact
+  but requires client-side measurement and a layout pass, and is harder to do server-side where the pool
+  is derived. **Recommendation: ship (a) — a character-count cap** for this prototype iteration: it keeps
+  the pool derivation server-side (where `/about` reads `listCuratedTopicsAction()`), is deterministic
+  and CLS-free, and the title line's width is fixed by the poster. UX should set the **exact cap value**
+  tuned to the miniature's title line (font, weight, available width) so a title at the cap renders on one
+  line without wrapping/overflow at every tier where the miniature shows; if a single safe cap proves too
+  coarse across tiers, fall back to (b) for the affected tier. Either way the rule is a **filter** — a
+  title over the threshold is **excluded, never truncated** (AC16). The fallback `"Acer palmatum"` (15
+  chars) must itself be within the cap.
 
 ---
 
@@ -487,12 +593,24 @@ owner / QA / UX confirm:
   spec against the current components (`Centerpiece.tsx` / `Projector.tsx` / `Beams.tsx` /
   `TopicMiniature.tsx`), whose ＋plus subtree is already separated for exactly this reveal, and against
   the poster tiers in AC12.
-- **No new tokens/schema/data/auth/Server-Action.** This is a pure client-side animation + a local
-  client-state power toggle over existing markup and existing `@theme` tokens (`--color-theater-*`, the
-  lamp/bloom/beam warms, the indigo hardbox tokens). A **dim/cool tint** for the topic-off state and a
-  **red** status-light color may need a color value if one isn't already present — that is a small
-  cosmetic token, not data/schema; UX/Dev decide whether an existing token covers it. Confirm no
-  data/schema/auth/Server-Action is introduced.
+- **No new tokens/schema/data/auth/Server-Action.** The animation + power toggle are a pure client-side
+  animation + a local client-state power toggle over existing markup and existing `@theme` tokens
+  (`--color-theater-*`, the lamp/bloom/beam warms, the indigo hardbox tokens). A **dim/cool tint** for the
+  topic-off state and a **red** status-light color may need a color value if one isn't already present —
+  that is a small cosmetic token, not data/schema; UX/Dev decide whether an existing token covers it.
+  Confirm no data/schema/auth/Server-Action is introduced.
+- **Architecture note — `/about` now reads the recently-curated data (AC16–AC18).** To source the dynamic
+  miniature title, `/about` (today a static server component) **reads the existing
+  `listCuratedTopicsAction()`** (`lib/server/actions.ts` → `Promise<TopicWithStats[]>` per
+  `lib/data/types.ts`; the same DataStore-seam read the homepage `app/page.tsx` uses via `TopicCard` —
+  recency-ordered `updated_at desc`, filtered to `videos ≥ 1`), derives the **eligible-title pool**
+  (filtered by the fit-the-title-line test), and passes **the pool + the fallback** (`"Acer palmatum"`) to
+  the client miniature. This is a **reuse of an existing read** — **no schema change, no new Server
+  Action, no new policy**. It does shift `/about` from **static-prerender to a dynamic/ISR read** (it now
+  depends on live data). That is **acceptable for the prototype** — the production ISR/Redis read path is
+  deferred per `docs/ARCHITECTURE.md` (Prototype phase). Dev confirms the read mode (dynamic vs. ISR with
+  a short revalidate) is fine for the prototype and that an empty/failed read falls back cleanly to
+  `"Acer palmatum"` (AC16) — `/about` must still render if the read returns nothing or errors.
 - **Resolved decisions baked into this iteration (owner intent recorded):**
   - **Auto-play on load remains** — first load (and the existing replay model) still auto-plays the
     on-sequence (red→green→warm-up). The toggle is an *added* manual OFF/ON replay path, not a
@@ -504,7 +622,15 @@ owner / QA / UX confirm:
     state-reflecting name + focus-visible (NOT a click handler on an aria-hidden SVG). This is an
     accessibility requirement (AC13); UX designs the control treatment, the spec requires it exists.
   - **Reduced motion** — no auto-intro on load (lit settled poster on first paint, as today); the toggle
-    still works (user-initiated) but **snaps** with no warm-up (AC6).
+    still works (user-initiated) but **snaps** with no warm-up (AC6); and a re-picked toggle-ON shows the
+    new title with **no** old→new flicker (AC17).
+  - **The miniature title is dynamic, sourced from "recently curated"** (AC16–AC18): the pool is the
+    recent-curation titles that **fit** the title line; `"Acer palmatum"` is the **fallback**; the title is
+    **re-picked on each power-on** (auto-play + toggle-ON) and may change between power-ons; it is
+    **readable in every state**; on a **restarted** power-on it **flickers old→new with the lamp**; it
+    remains the **editable, Enter-to-navigate input**, only its seed becomes dynamic. `/about` reads the
+    existing `listCuratedTopicsAction()` server-side (architecture note) — a read of existing data, no
+    schema/policy change. The screenshot baseline pins the title deterministically (AC11).
 - ★ **Replay-on-soft-nav** policy (above) — owner may prefer first-visit-only; non-blocking.
 - The motion design (easing, exact phase timing/overlap, flicker rhythm, the beam-fade / topic-warm /
   plus-fade treatments, total duration within the ~1.6–2.6s range, the control's visual + reduced-motion
@@ -547,9 +673,15 @@ owner / QA / UX confirm:
   choreography `< lg` (topic-warm + plus-fade), the `prefers-reduced-motion: reduce` end-state, and —
   new this iteration — the **projector power-control treatment**: the control's visual + focus-visible
   state, its accessible-name wording for on/off, the OFF (dark) rest appearance, and the reduced-motion
-  **snap** toggle treatment (AC6/AC13–AC15). Work against the current components named above; the
-  settled-on static state is the fixed endpoint. Confirm: no settled-on static-look change, no focus move
-  on load, content never gated (AC2, AC6–AC10, AC15).
+  **snap** toggle treatment (AC6/AC13–AC15). **New this iteration — the dynamic miniature title
+  (AC16–AC18):** design the **title old→new flicker on a restarted power-on** — how the title text
+  transitions old→new **synchronized with the lamp flicker** (AC3 step 1 / AC17), and confirm there is
+  **no** such flicker on the first/auto-play and **none** under reduced motion; confirm the title is
+  **readable in every state** (dim/off + lit) and is **never** a placeholder/skeleton bar; and set the
+  **title fit-threshold** — the exact character-count cap (recommended) tuned to the miniature's title
+  line so a fitting title never wraps/overflows at any tier (see the fit-threshold decision). Work against
+  the current components named above; the settled-on static state is the fixed endpoint. Confirm: no
+  settled-on static-look change, no focus move on load, content never gated (AC2, AC6–AC10, AC15).
 - **Development (after UX):** implement the intro as CSS/Web-Animations gated behind
   `@media (prefers-reduced-motion: no-preference)` (mirroring the existing About/topic motion in
   `globals.css`), animating **opacity / brightness / color-tint only — no position/scale** on the beam,
@@ -562,6 +694,16 @@ owner / QA / UX confirm:
   control** (a `<button>` wrapper with a state-reflecting accessible name + focus-visible — **not** a
   click handler on the decorative `aria-hidden` SVG; the SVG stays decorative) that toggles OFF↔ON and
   replays the on-sequence (snap under reduced motion). No focus move on load, no input gating, no layout
-  shift. Ensure the screenshot-baseline capture settles deterministically to the settled-on state
-  (AC11) and refresh the About baseline. Hand to QA & Review for verification against AC1–AC15, then UX
-  evaluates the built motion + control against the design spec.
+  shift. **New this iteration — the dynamic title (AC16–AC18):** make `/about` **read
+  `listCuratedTopicsAction()` server-side** (the architecture note), derive the **eligible-title pool**
+  (apply the fit-threshold cap UX sets — exclude over-long titles, never truncate), and pass **the pool +
+  the fallback `"Acer palmatum"`** to the client miniature; the client **(re)picks** a title on each
+  power-on (auto-play + toggle-ON), **seeds** the existing `MiniatureTitleInput` with it (still editable,
+  still Enter-navigates via `topicHref` — AC18), keeps the title **readable in every state** (no
+  placeholder bar — AC17), and **flickers the title old→new during the lamp flicker on a restarted
+  power-on only** (no flicker on first/auto-play; none under reduced motion). Ensure `/about` **falls back
+  cleanly** to `"Acer palmatum"` on an empty/failed read, and confirm the render-mode change
+  (static→dynamic/ISR) is fine for the prototype. Ensure the screenshot-baseline capture settles
+  deterministically to the settled-on state **and pins the title to a fixed value** (AC11) and refresh
+  the About baseline. Hand to QA & Review for verification against AC1–AC18, then UX evaluates the built
+  motion + control + dynamic title against the design spec.
