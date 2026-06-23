@@ -253,7 +253,10 @@ export function GeneralStrip({
         {/* The one horizontally-scrollable row: curated group FIRST (uncapped), then the
             divider (mixed only), then the capped suggestion group + "See N more". */}
         {(hasCurated || hasSuggestions || showLoading) && (
-          <ul role="list" className="mt-4 flex gap-3 overflow-x-auto pb-2">
+          // `relative` makes the <ul> a containing block for the absolute overlays inside the cards
+          // (thumbnail wash, brand wash, play circle, badge), so overflow-x clips them instead of
+          // letting them escape the scroller and expand the document width beyond the viewport on mobile.
+          <ul role="list" className="relative mt-4 flex gap-3 overflow-x-auto pb-2">
             {/* Curated group (§2.1 — always first, never capped). Full Indigo-Press chrome. */}
             {generalClips.map((clip) => {
               const owned = ownsClip?.(clip) ?? false;
