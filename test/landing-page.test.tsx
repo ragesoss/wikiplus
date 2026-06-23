@@ -27,10 +27,12 @@ vi.mock("@/lib/wiki/suggest", () => ({
   fetchTopicSuggestions: (...a: unknown[]) => fetchTopicSuggestions(...a),
 }));
 
-// Mock the DataStore seam so the demoted topic list's states are driven deterministically.
-const listTopics = vi.fn();
+// Mock the DataStore seam so the demoted topic list's states are driven deterministically. The
+// homepage reads `listCuratedTopics()` (issue #126) — curated topics + their at-a-glance stats,
+// already filtered to videos ≥ 1 and recency-ordered server-side.
+const listCuratedTopics = vi.fn();
 vi.mock("@/lib/data", () => ({
-  store: { listTopics: () => listTopics() },
+  store: { listCuratedTopics: () => listCuratedTopics() },
 }));
 
 import HomePage from "@/app/page";
@@ -40,10 +42,16 @@ beforeEach(() => {
   routerPush.mockReset();
   fetchTopicSuggestions.mockReset();
   fetchTopicSuggestions.mockResolvedValue([]);
-  listTopics.mockReset();
-  // Default: a populated seeded list (the create-on-demand test types a title NOT in it).
-  listTopics.mockResolvedValue([
-    { qid: "Q11173", title: "Photosynthesis", description: "Process used by plants" },
+  listCuratedTopics.mockReset();
+  // Default: a populated curated list (the create-on-demand test types a title NOT in it). Each
+  // item carries its at-a-glance stats — the shape the redesigned TopicCard consumes (#126).
+  listCuratedTopics.mockResolvedValue([
+    {
+      qid: "Q11173",
+      title: "Photosynthesis",
+      description: "Process used by plants",
+      stats: { videos: 12, creators: 7, curators: 3 },
+    },
   ]);
 });
 afterEach(() => {
@@ -97,9 +105,9 @@ describe("the landing hero leads with the reused search", () => {
     await screen.findByRole("combobox", { name: /find a topic/i });
     // One search control on the page (AC2 — no divergent second search).
     expect(screen.getAllByRole("combobox")).toHaveLength(1);
-    // The "Explore example topics" heading (the demoted list) is present and secondary (an <h2>).
+    // The "Recently curated" heading (the demoted list) is present and secondary (an <h2>).
     expect(
-      screen.getByRole("heading", { level: 2, name: /explore example topics/i })
+      screen.getByRole("heading", { level: 2, name: /recently curated/i })
     ).toBeInTheDocument();
   });
 });
@@ -107,7 +115,7 @@ describe("the landing hero leads with the reused search", () => {
 // ── The demoted topic list — read-error floor preserved (AC7 guardrail). ──────
 describe("the demoted topic list preserves its states", () => {
   it("renders the read-error FLOOR line when the topic read fails", async () => {
-    listTopics.mockRejectedValue(new Error("DB down"));
+    listCuratedTopics.mockRejectedValue(new Error("DB down"));
     render(<HomePage />);
     expect(
       await screen.findByText(/Couldn't load topics — please refresh\./i)

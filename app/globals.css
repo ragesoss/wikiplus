@@ -1144,6 +1144,50 @@ figure.wikifig .credit {
   }
 }
 
+/* ── Landing tagline: a beam crosses "illuminated" (landing hero, app/page.tsx). ──
+   The last word of "The encyclopedia, illuminated" rests at the eyebrow's ink2 color and catches a
+   slow, occasional warm pass — the projector's daylight crossing the word that names it. The glint
+   is the wordmark's DAYLIGHT gold (decorative light, like the beam's warm edge-glow), distinct from
+   the reserved functional gold #E5AB28 and never a persistent fill: between passes the word is plain
+   ink2, so the label's contrast and read are unchanged. The pass sweeps the highlight band of a
+   300%-wide gradient (its ends are ink2) across the text; position stays within 0–100% so the
+   clip-to-text image always fully covers the word (no transparent gaps). Double-gated: only with
+   motion allowed AND background-clip:text support — otherwise the word is plain inherited ink2,
+   never an invisible transparent word. */
+@media (prefers-reduced-motion: no-preference) {
+  @supports ((-webkit-background-clip: text) or (background-clip: text)) {
+    @keyframes wikiplus-tagline-beam {
+      0% {
+        background-position: 100% 0;
+      }
+      30% {
+        background-position: 0% 0;
+      }
+      100% {
+        background-position: 0% 0;
+      }
+    }
+    .tagline-illuminated {
+      background-image: linear-gradient(
+        100deg,
+        var(--color-ink2) 0%,
+        var(--color-ink2) 40%,
+        #dfc074 50%,
+        var(--color-ink2) 60%,
+        var(--color-ink2) 100%
+      );
+      background-size: 300% 100%;
+      background-position: 100% 0;
+      background-repeat: no-repeat;
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+      color: transparent;
+      animation: wikiplus-tagline-beam 5s linear infinite;
+    }
+  }
+}
+
 /* ── Reduced motion (design §10.4, binding). ── */
 @media (prefers-reduced-motion: reduce) {
   .sec.active > :is(h2, h3, h4) {

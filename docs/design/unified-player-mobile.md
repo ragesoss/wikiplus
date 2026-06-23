@@ -147,34 +147,47 @@ regions differ only by `kind` and `signedIn`:
 
 ```
 ┌──────────────────────────────────────────────────────────┐  ← dock root: <section aria-label="Video player">
-│ TITLE BAR (shared)                                         │     ink #2C2C2C, white text/glyphs (AA)
-│   ＋plus eyebrow                                           │
-│   caption (line-clamp-1, bold)                  [⤓ Move]   │   ← park toggle (shared, §7)
-│   creator credit  handle · platformLabel        [✕ Close]  │   ← Close (shared) + CC BY-SA credit (shared)
+│ SLIM TITLE BAR (shared)               [⤢ Max · ⤓ Move · ✕]│     ink #2C2C2C, white (AA); shrink-0; ~56–64px
+│   ＋plus · caption (clamp-1)  ·  one compact controls row  │   ← Maximize · park toggle · Close, one row (§5.1)
+│   creator credit  handle · platformLabel                   │   ← CC BY-SA credit, present in every state (AC-4)
 ├──────────────────────────────────────────────────────────┤
-│ SUPPLEMENTAL ROW (parameterized — §5.2)                    │     curated: collapsed curation block (chips +
-│   curated → chips + "Context ▸" expander                   │       "Context ▸"); candidate → match reason;
-│   candidate → match reason (one line)                      │       logged-out adds the matching CTA below it
-│   (logged-out) → CTA: "✦ Curate this video" / join nudge   │
-├──────────────────────────────────────────────────────────┤
-│ VIDEO FRAME (shared)                                       │     black backing; iframe (autoplay) or, for a
+│ VIDEO FRAME — THE HERO (shared)                            │     black backing; iframe (autoplay) or, for a
 │   <iframe …> at the orientation-correct size (§6)          │       curated clip with no embedUrl, the
-│                                                            │       "can't be embedded" message (§8)
+│   fully visible on open, no internal scroll to reach it    │       "can't be embedded" message (§8); shrink-0
+├──────────────────────────────────────────────────────────┤
+│ SECONDARY REGION (parameterized — §5.2, scrolls in-dock)   │     curated: chips (one line) + "Context ▸";
+│   curated → chips (one line) · "Context ▸"                 │       candidate → match reason; logged-out adds
+│   candidate → match reason (one line)                      │       the matching CTA — all BELOW the frame, in
+│   (logged-out) → CTA: "✦ Curate this video" / join nudge   │       the dock's sole overflow-y-auto region
 └──────────────────────────────────────────────────────────┘
 ```
 
-**Reading / DOM order is fixed: title bar → supplemental row → frame.** Putting the metadata and the
-action *above* the frame (not overlaid on the video) means the CTA and the curation affordance never
-cover the picture, and the credit + Close are reachable without fighting the video — and it keeps the
-tab order natural (Close/Move first, then the CTA, then nothing focusable in the frame except the
-embed itself).
+**Reading / DOM order is fixed and frame-first: slim title bar → frame → secondary region.** The
+video frame is the hero — it sits directly against the un-parked edge with only the slim title bar
+between it and the parked edge, so on open the reader lands on the picture, fully visible, with no
+scroll inside the dock to reach it. The title bar and the frame are both `shrink-0` (never the
+element that scrolls or clips); the secondary region (chips · "Context ▸" · the CTA · the expanded
+note) is the dock's **sole** `overflow-y-auto` area and sits on the far side of the frame from the
+article, so it never covers the picture and never crowds it off-screen on open. The order is
+**identical** top- and bottom-parked (only which viewport edge the whole bar hugs changes — §6.6).
+Tab order: the always-needed controls (Close / Move / Maximize) come first, then the frame's embed,
+then the secondary affordances (Context expander, CTA) — a coherent narration that reaches Close
+first and treats the CTA as secondary-but-reachable.
 
 ### 5.1 Shared regions (identical for every clip)
 
-1. **Title bar** (ink `#2C2C2C` bar, white text — ≈15:1, clears AAA): the **`＋plus` eyebrow**, the
-   **caption** (`line-clamp-1`, bold), and the **creator credit** `handle · platformLabel` (muted
-   white, `truncate`). On the right, stacked or inline as space allows: the **park toggle** (§7) and
-   the **Close** control. Both are real `<button>`s in normal tab order (§9).
+1. **Slim title bar** (ink `#2C2C2C` bar, white text — ≈15:1, clears AAA; ~56–64px, `shrink-0`): two
+   clamped text lines on the left — line 1 = the **`＋plus` eyebrow** inline-prefixed to the
+   **caption** (`line-clamp-1`, bold); line 2 = the **creator credit** `handle · platformLabel`
+   (muted white, `truncate`). On the right, **one compact horizontal controls row** (`flex-row`):
+   the **Maximize/Exit** toggle (§6.5), the **park toggle** (§7), and the **Close** control, each a
+   separate real `<button>` in normal tab order (§9), each with a ≥44px min touch target. **Below
+   `sm` (every in-scope phone width) the control word is `sr-only` — the glyph shows and the word
+   stays in the accessible name** (`aria-label` + the `sr-only` span), so three full-word buttons
+   don't starve the caption/credit text column at 360/390px (the caption would otherwise truncate to
+   "＋…" and the credit drop its platform). At `sm`+ (the `< lg` tablet) and in **maximized** mode
+   (the thin bar has room) the words are restored **visibly**. Text-labeled-for-AT holds throughout —
+   the word is never carried by glyph or colour alone.
    - **CC BY-SA creator credit is in the shared title bar and therefore present in EVERY state,
      including the collapsed curated state and both maximized states** (§6). This satisfies the
      non-negotiable that creator attribution rides every clip surface (CURATION §5.2). The credit
@@ -234,7 +247,8 @@ on mobile the dock shows a **compact** form by default and expands the heavy tex
 The credit (title bar) + chips + held marking are the trust signals a reader needs to *weigh* the
 clip at a glance; the full prose note is the thing that's one tap away.
 
-**Expanded.** Activating "Context ▸" reveals, in place (pushing the frame down, not overlaying it):
+**Expanded.** Activating "Context ▸" reveals, in the secondary region **below** the frame (never
+overlaying it; the frame keeps its size and stays fully visible above):
 - The **full context note** (the `PlayerModal` "Curator note" block verbatim: the `Curator note`
   eyebrow + the untruncated `clip.contextNote`), on a **light surface** (white card, 2px ink border,
   `text-ink2`) so the prose reads in the Indigo-Press light register — never white-on-black body
@@ -250,12 +264,12 @@ clip at a glance; the full prose note is the thing that's one tap away.
 
 **How expansion coexists with "keep reading" (the heart of tension 1).** The dock has a **height
 budget** so that even expanded it cannot eat the screen:
-- The dock's **chrome + supplemental row + frame together are capped** at the dock's `max-height`
-  (§6 sizing). When expanded, the **note panel itself scrolls inside the supplemental row** (an
-  `overflow-y: auto` region with a sensible `max-height`, e.g. `min(40vh, …)`), rather than growing
-  the dock past its cap. The **frame stays its orientation size**; the **note is what scrolls**. So
-  even a long note never pushes Close/Move/credit off-screen and never grows the dock to cover the
-  article.
+- The dock is capped at `88dvh − insets` (§6.2). The frame + title bar are `shrink-0`; the secondary
+  region (below the frame) is the dock's sole scroll area. When expanded, the **note panel scrolls
+  inside the secondary region** (its own `overflow-y: auto`, `max-h-[min(40vh,320px)]`), rather than
+  growing the dock past its cap. The **frame stays its orientation size and stays fully visible**;
+  the **note is what scrolls**. So even a long note never pushes Close/Move/credit off-screen, never
+  clips the frame, and never grows the dock to cover the article.
 - Expanding does **not** collapse the article or stop playback — the video keeps playing in the
   frame above (top-parked) or below (bottom-parked) the expanded note.
 - Re-activating "Context ▾" collapses it back; focus stays on the expander button. The expander
@@ -286,28 +300,35 @@ hope.
 Let `VH` = the visual-viewport height, `VW` = width, and reserve the **safe-area insets**
 (`env(safe-area-inset-top/bottom/left/right)`) so chrome never hides under a notch / home indicator.
 
-### 6.2 Docked mode (portrait, the default reading posture)
+### 6.2 Docked mode (portrait, the default reading posture) — the frame-first fit guarantee
 
-The dock is a column: **title bar + supplemental row** (the "chrome", height `C`) above (bottom-park)
-or below (top-park) the **frame** (height `F`). The whole dock height `C + F` must leave the article
-visible, so the **dock is capped** and the frame is sized within that cap:
+The dock is a fixed-height flex column, **frame-first**: `[slim title bar T: shrink-0]` →
+`[frame F: shrink-0]` → `[secondary region S: flex-1 min-h-0 overflow-y-auto]`. The title bar and the
+frame are **both `shrink-0`** — neither is ever the element that scrolls or clips. The **secondary
+region is the dock's sole `overflow-y-auto` area** (chips · "Context ▸" · CTA · the expanded note),
+sitting below the frame. This is what makes the whole frame visible on open with no scroll to reach
+it (the buildable launch contract is `docs/design/mobile-player-launch.md`).
 
-- **Chrome `C`** is content-height (≈ 2–3 lines + chips/CTA), typically ~96–150px; it is never
-  capped away — Close/Move live here and must always show. The note panel, when expanded, scrolls
-  inside `C` (§5.3) so `C`'s contribution to the dock height stays bounded.
+- **Slim title bar `T`** (~56–64px): the eyebrow+caption line, the credit line, and the one-row
+  controls. `shrink-0` — Close/Move/Maximize live here and always show.
 - **Frame `F`:**
   - **16:9 (horizontal):** `F = VW × 9/16` (full-width `aspect-video`). At 360–430px that's
     ~203–242px — comfortably leaving the article visible above/below.
-  - **9:16 (vertical):** **height-capped** so a Short can't tower: `F = min(55vh, 420px)`, the frame
+  - **9:16 (vertical):** **height-capped** so a Short can't tower: `F = min(46vh, 380px)`, the frame
     `aspect-ratio: 9/16`, **centered** (`mx-auto`) and **letterboxed** on black within the
-    full-width bar. At a 720px-tall phone, `55vh ≈ 396px` → frame width ≈ 223px, centered.
-- **Total dock cap:** the dock's `max-height` = `min(VH − safe-insets, C + F)`. Because `F` for a
-  vertical is already capped at `55vh` and `F` for a horizontal is `~0.56·VW` (well under `VH`), and
-  `C` is bounded (the note scrolls), `C + F` is always `< VH − insets` at every named width — so the
-  dock fits with the article still showing. If a pathologically short viewport ever made `C + F`
-  exceed the cap, the **dock body scrolls internally** (the chrome stays pinned, the frame +
-  expanded note are the scroll region) so **Close + Move are never pushed off** — the same
-  scroll-not-clip discipline `PlayerModal` already uses (`max-h-[90vh] overflow-y-auto`).
+    full-width bar. At a 780px-tall phone, `46vh ≈ 359px` → frame width ≈ 202px, centered.
+- **Secondary region `S`** is short at launch (one chips line + "Context ▸", or a 2-line match
+  reason, plus the CTA when logged out) and shows in full without scrolling at every in-scope width;
+  the expanded note panel scrolls **inside** it (its own `max-h-[min(40vh,320px)]`, §5.3).
+- **Docked height ceiling:** `max-height: calc(88dvh − safe-insets)` — **88dvh, not 100dvh**. This
+  guarantees ≥ 12dvh of article always visible at the un-parked edge, so the dock can never fill the
+  viewport. It is a ceiling, not the normal height: at every in-scope width the content height
+  `T + F + S` is far below it, so the dock sizes to its content; the cap only engages on a
+  pathologically short viewport or a very long expanded note. **When the cap engages, the secondary
+  region scrolls inside it** while the frame + title bar (`shrink-0`) stay pinned and fully visible —
+  the corrected fit invariant (the cap protects the article slice *and* the frame at once). The
+  `dvh` unit tracks the visual viewport as mobile browser chrome shows/hides, so the dock is never
+  clipped by a retracting URL bar.
 
 ### 6.3 Maximized — landscape, horizontal (16:9) clip → fill width
 
@@ -331,7 +352,7 @@ honors the clip's native shape:
 - The frame fills the **full available height** (`100vh` minus insets), `aspect-ratio: 9/16`,
   centered, letterboxed left/right on black. This is the biggest sensible upright frame for a Short.
 - Same condensed chrome as §6.3 (thin Close bar; supplemental row + park toggle hidden).
-- A vertical clip held in **portrait** is already at `min(55vh,420px)` docked; the reader can also
+- A vertical clip held in **portrait** is already at `min(46vh,380px)` docked; the reader can also
   reach this full-height maximized view (see §6.5 trigger) — turning the phone is not the only path
   for a Short, since a Short's "biggest frame" is portrait-tall regardless of device orientation.
 
@@ -374,17 +395,22 @@ honors the clip's native shape:
   (§9) — it is a maximized non-modal region, exited by rotation / the Exit button / Close, not a
   dialog. The page underneath is inert only visually, never by a focus trap.
 - **Page reflow (the "keep reading" guarantee).** While the dock is open in **docked** mode, the page
-  reserves space at the **parked edge** so the article never hides permanently behind the bar:
-  - **Bottom-parked:** add `padding-bottom` to the page scroll container equal to the docked bar's
-    height (+ `safe-area-inset-bottom`) so the last section / the candidate's Promote-Dismiss row can
-    always be scrolled clear of the bar (the existing mobile `PinnedPlayer` spacer pattern,
-    `pinned-player.md` §6.2).
-  - **Top-parked:** add `padding-top` equivalently (so the top of the article isn't permanently
-    hidden under the bar). This is the symmetric new case the toggle introduces.
-  - The spacer is the **one intentional, additive layout shift**, only while the dock is open and
-    only at the parked edge; it is removed on dismiss (§8 state "dismissed") so the page reflows to
-    full height. **Maximized mode needs no spacer** (it covers everything by design and restores on
-    exit).
+  reserves space at the **parked edge**, sized to the dock's **measured actual height**, so the
+  article never hides permanently behind the bar and there is no dead gap:
+  - The dock measures its own rendered height (a `ResizeObserver` on the dock root) and reports it +
+    the current edge up to `TopicView` (`onDockMetrics({ edge, height, docked })`); the spacer is
+    rendered at exactly that height plus the relevant safe-area inset.
+  - **Bottom-parked:** a bottom spacer of `dockHeight + safe-area-inset-bottom` so the last section /
+    the candidate's Promote-Dismiss row can always be scrolled clear of the bar.
+  - **Top-parked:** a top spacer of `dockHeight + safe-area-inset-top` (so the top of the article
+    isn't permanently hidden under the bar). The internal dock order is identical at either edge
+    (§5); only the spacer's edge changes.
+  - It updates **live** as the dock resizes (expand/collapse the note, swap a different-aspect clip,
+    park to the other edge), and is the **one intentional, additive layout shift**, only while the
+    dock is open and only at the parked edge; it is removed on dismiss (§8 state "dismissed") so the
+    page reflows to full height. Where measurement is unavailable, the spacer falls back to a bounded
+    static `min(56vh,460px)` (never unbounded). **Maximized mode needs no spacer** (the dock reports
+    `docked: false`; it covers everything by design and restores on exit).
 
 ---
 
@@ -690,8 +716,9 @@ subset to the PR with `--scene … --pr <N>`.
     nudge, as `PlayerModal` binds today).
   - The **page spacer**: generalize the existing mobile `pinned` bottom-spacer (`{pinned && …}`) to
     the `mobileDock`-open case, and make it **edge-aware** (bottom-pad when parked bottom, top-pad
-    when parked top) — the dock reports its edge up, or `TopicView` mirrors the edge state. Removed on
-    dismiss.
+    when parked top) and sized to the dock's **measured** height — the dock reports
+    `{ edge, height, docked }` up via `onDockMetrics`, and the spacer is rendered at that height (+
+    the relevant safe-area inset) at the parked edge. Removed on dismiss.
   - The candidate play path still only opens a dock when `embedUrl` is present (else the
     `VideoThumb.activate()` new-tab fall-through handles it). The **curated** play path opens the dock
     even without `embedUrl` (it shows the "can't be embedded" message + the note — §8).
@@ -706,7 +733,7 @@ subset to the PR with `--scene … --pr <N>`.
 
 | "Done when" criterion (issue #120) | Satisfied by |
 |---|---|
-| Opening a curated clip on a phone **never overflows the viewport** in either orientation at 360–430px, for 16:9 **and** 9:16, close/controls always reachable | §6.1 fit guarantee + §6.2 sizing math (dock capped, frame capped, internal scroll fallback); §5 Close/Move always in the pinned chrome |
+| Opening a clip on a phone lands the reader on the video — the **whole video frame is fully visible on open**, no internal scroll to reach it, the dock is bounded so a meaningful article slice stays visible, in either orientation at 360–430px for 16:9 **and** 9:16, close/controls always reachable | §5 frame-first DOM order (frame `shrink-0`, second from the parked edge) + §6.2 sizing (9:16 frame `min(46vh,380px)`, `88dvh` ceiling, secondary region the sole scroll area) + §6.6 measured edge-aware spacer; the buildable launch contract + the frame-box fit math are `docs/design/mobile-player-launch.md` (§1–§2), asserted against the **frame box** by `e2e/mobile-player-fit.spec.ts` |
 | **Rotating to landscape** maximizes a horizontal clip; a **vertical** clip uses full portrait height upright; per-platform behavior matches the recorded decision, degrades gracefully | §6.3 (16:9 fill width) + §6.4 (9:16 fill height upright) + §6.5 (CSS maximize, why not native Fullscreen API, per-platform reasoning) + the explicit Maximize/Exit toggle for no-gesture/AT |
 | When not fullscreen, the clip plays in a **container the reader can move to top or bottom**, article remains scrollable/readable | §7 park toggle (labeled, keyboard, not drag) + §6.6 page reflow (edge-aware spacer) + §9 non-modal/no-backdrop |
 | Accessibility: non-fullscreen player doesn't trap or steal focus, keyboard-operable + labeled, AA, signals text-labeled (never color-alone) | §9 in full (no trap/steal, real buttons, focus return, AA tokens, word-carried signals) |

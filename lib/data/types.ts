@@ -69,6 +69,20 @@ export interface Topic {
 }
 
 /**
+ * A topic carried alongside its at-a-glance curation counts — the shape the homepage
+ * "Recently curated" card consumes (issue #126). The `stats` here are the SAME
+ * videos/creators/curators the Topic overview card derives via `deriveStats` over the
+ * topic's non-removed clip set (CARD PARITY: a card count equals the overview count for
+ * the same topic). It is delivered by `listCuratedTopics()` via ONE grouped aggregate for
+ * the whole list (no N-per-topic reads), and that same aggregate filters the list to
+ * `videos ≥ 1` — a zero-curation topic never appears (design topic-card-redesign.md §4.1).
+ * `synced` is omitted: the card shows no freshness this build.
+ */
+export interface TopicWithStats extends Topic {
+  stats: Pick<TopicStats, "videos" | "creators" | "curators">;
+}
+
+/**
  * A contributor's PUBLIC-SAFE identity (issue #54 / D3, AC2). The ONLY fields a public profile
  * surface (`/contributor/<username>`) and the `getContributorByUsername` read may expose:
  * the stable internal id (used only to scope the clip list + the owner compare), the public

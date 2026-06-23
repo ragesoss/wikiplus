@@ -1,6 +1,17 @@
 import "server-only";
 
-import { and, asc, count, desc, eq, inArray, isNull, ne, sql } from "drizzle-orm";
+import {
+  and,
+  asc,
+  count,
+  countDistinct,
+  desc,
+  eq,
+  inArray,
+  isNull,
+  ne,
+  sql,
+} from "drizzle-orm";
 import type { DataStore } from "@/lib/data/store";
 import type {
   ArticleSection,
@@ -9,6 +20,7 @@ import type {
   ContributorClip,
   PublicContributor,
   Topic,
+  TopicWithStats,
   UpvoteToggle,
 } from "@/lib/data/types";
 import { STUB_HANDLE } from "@/lib/curation/curator-attribution";
@@ -43,11 +55,63 @@ export class DrizzleDataStore implements DataStore {
 
   // ── Topics ───────────────────────────────────────────────────────────────────────
   async listTopics(): Promise<Topic[]> {
+    // "Recently curated" ordering (homepage-recently-curated.md §4): most recently created-or-updated
+    // topic first (`updated_at` advances on create + metadata upsert — the cheapest "recently active"
+    // proxy, no join). A stable `title` tie-breaker keeps ordering deterministic when timestamps are
+    // equal (e.g. a single seed batch), so the grid never reshuffles between loads.
     const rows = await this.db
       .select()
       .from(topic)
-      .orderBy(topic.title);
+      .orderBy(desc(topic.updatedAt), topic.title);
     return rows.map(rowToTopic);
+  }
+
+  async listCuratedTopics(): Promise<TopicWithStats[]> {
+    // The homepage "Recently curated" read (issue #126). ONE grouped aggregate over `clip` joined
+    // to `topic` delivers the per-topic counts AND filters out zero-curation topics — no N-per-
+    // topic reads, no second query (design topic-card-redesign.md §4 / §4.1).
+    //
+    // COUNT PARITY with the Topic overview card (the critical contract): the `videos`/`creators`/
+    // `curators` here are computed over EXACTLY the set `listClips` returns — non-removed clips
+    // (`removed_at IS NULL`), which INCLUDES held clips (`vetted = false` still counts). So the
+    // join predicate matches `listClips`' filter, and the three counts mirror `deriveStats` term-
+    // for-term:
+    //   - videos   = count of those non-removed clips                  (deriveStats: clips.length)
+    //   - creators = COUNT(DISTINCT creator_handle) among them         (deriveStats: distinct creator.handle)
+    //   - curators = COUNT(DISTINCT curated_by) among them             (deriveStats: distinct non-empty curatedBy)
+    // `curated_by` (the handle string) is the parity key — it is exactly the field `deriveStats`
+    // dedups on; an INNER join naturally drops a NULL `curated_by` row from the distinct count, so
+    // a clip with no curator handle adds to `videos` but not `curators`, matching `deriveStats`.
+    //
+    // FILTER (§4.1): an INNER join means a topic with no non-removed clip contributes no rows and
+    // never appears — i.e. the section shows only topics with `videos ≥ 1`, for free. ORDERING:
+    // the #125 `updated_at desc, title` recency order is applied to this surviving (curated) set.
+    const rows = await this.db
+      .select({
+        qid: topic.wikidataQid,
+        title: topic.title,
+        description: topic.description,
+        videos: count(clip.id),
+        creators: countDistinct(clip.creatorHandle),
+        curators: countDistinct(clip.curatedBy),
+      })
+      .from(topic)
+      .innerJoin(
+        clip,
+        and(eq(clip.topicId, topic.id), isNull(clip.removedAt))
+      )
+      .groupBy(topic.id, topic.wikidataQid, topic.title, topic.description, topic.updatedAt)
+      .orderBy(desc(topic.updatedAt), topic.title);
+    return rows.map((r) => ({
+      qid: r.qid,
+      title: r.title,
+      description: r.description ?? undefined,
+      stats: {
+        videos: Number(r.videos),
+        creators: Number(r.creators),
+        curators: Number(r.curators),
+      },
+    }));
   }
 
   async getTopic(qid: string): Promise<Topic | null> {

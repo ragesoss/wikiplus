@@ -70,6 +70,10 @@ export interface YouTubeItemStub {
   channelTitle: string;
   /** Optional description text (feeds section-match keyword scan; omit for General-only). */
   description?: string;
+  /** When set, emit a PORTRAIT thumbnail so the candidate pipeline derives `orientation:
+   *  "vertical"` (the Shorts signal — lib/candidates/youtube.ts). Default (omitted) = landscape →
+   *  horizontal. */
+  vertical?: boolean;
 }
 
 /** Build a YouTube `search.list` response body from a fixed list of items. */
@@ -85,8 +89,9 @@ export function youtubeBody(items: YouTubeItemStub[]): string {
         thumbnails: {
           high: {
             url: `https://i.ytimg.com/vi/${it.videoId}/hqdefault.jpg`,
-            width: 480,
-            height: 360,
+            // Portrait when `vertical` → the pipeline reads it as a 9:16 Short; landscape otherwise.
+            width: it.vertical ? 360 : 480,
+            height: it.vertical ? 480 : 360,
           },
         },
       },

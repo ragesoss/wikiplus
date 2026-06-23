@@ -3,19 +3,19 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { store } from "@/lib/data";
-import type { Topic } from "@/lib/data/types";
-import { topicHref } from "@/lib/wiki/topicRoute";
+import type { TopicWithStats } from "@/lib/data/types";
 import { TopicSearch } from "@/components/search/TopicSearch";
 import { AuthControl } from "@/components/auth/AuthControl";
 import { SiteFooter } from "@/components/chrome/SiteFooter";
 import { SiteHeader } from "@/components/header/SiteHeader";
+import { TopicCard } from "@/components/home/TopicCard";
 
 // The landing page — the product's FRONT DOOR, top to bottom (design §2):
 //   Daylight Projector header (host="home", Tier A at every width) → a SIMPLIFIED search segment
 //   (just the search bar — the first, primary action, sitting inside the projected light) → the
 //   "Wiki, plus video." intro hero (eyebrow, the locked headline with the Indigo-Press "plus" block,
-//   a subheading, and two offset-shadow CTAs) → the demoted "Explore example topics" list (all four
-//   data states).
+//   a subheading, and two offset-shadow CTAs) → the demoted "Recently curated" topic list (all four
+//   data states, recency-ordered).
 //
 // The search is REUSED unforked (one TopicSearch, variant="home"). The hero's secondary CTA focuses
 // that search via the component's prefill+focus signal (a nonce bump seeds an empty field and moves
@@ -32,7 +32,7 @@ import { SiteHeader } from "@/components/header/SiteHeader";
 // See docs/specs/landing-page.md + docs/design/landing-page.md.
 
 export default function HomePage() {
-  const [topics, setTopics] = useState<Topic[] | null>(null);
+  const [topics, setTopics] = useState<TopicWithStats[] | null>(null);
   // Read-error floor (design §6.1): a server read can fail (DB down) — show an honest line
   // rather than hang on "Loading…" forever (AC7).
   const [loadError, setLoadError] = useState(false);
@@ -45,8 +45,11 @@ export default function HomePage() {
     let alive = true;
     (async () => {
       try {
+        // The "Recently curated" read (issue #126): topics WITH their at-a-glance counts, already
+        // filtered to videos ≥ 1 and recency-ordered by ONE grouped aggregate (no N-per-topic
+        // reads, no zero-curation topics — see the card + ARCHITECTURE "Recently-curated read").
         // Seeded topics come from shared storage (the DB seed) — no per-browser seedIfEmpty.
-        const list = await store.listTopics();
+        const list = await store.listCuratedTopics();
         if (alive) setTopics(list);
       } catch {
         if (alive) setLoadError(true);
@@ -89,7 +92,12 @@ export default function HomePage() {
         <p className="flex items-center text-xs font-bold uppercase tracking-[0.18em] text-ink2">
           {/* Indigo accent rule (gold is reserved for the wordmark — VISUAL_IDENTITY §9.1). */}
           <span aria-hidden className="mr-3 h-[2px] w-8 bg-brand" />
-          The encyclopedia, illuminated
+          {/* The last word catches a slow, occasional warm beam pass — the projector light crossing
+              the word that names it. The effect is CSS-only (.tagline-illuminated, globals.css):
+              gated behind no-preference + background-clip:text support, and it rests at the eyebrow's
+              ink2 color, so contrast and the read are unchanged when motion/support is off. */}
+          The encyclopedia,{" "}
+          <span className="tagline-illuminated">illuminated</span>
         </p>
 
         <h2
@@ -129,37 +137,29 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── The DEMOTED topic list (AC7) — secondary "explore" content below a quiet rule. The
-          data path (store.listTopics) and all four states are unchanged. ── */}
-      <section className="mx-auto max-w-5xl border-t border-ink/10 px-4 pb-12 pt-8">
-        <h2 className="text-lg font-medium text-ink">Explore example topics</h2>
-        <p className="mt-1 text-xs text-ink/50">
-          (Prototype: curations are shared — everyone sees the same topics and clips.)
-        </p>
+      {/* ── The DEMOTED "Recently curated" topic list (AC7) — the page's third and last beat. Per
+          the owner revision (topic-card-redesign.md §6.1.1), the section chrome above the grid is
+          the `Recently curated` <h2> ALONE — the eyebrow device + the supporting/disclaimer line
+          are removed. The grid follows the heading directly. The data path (store.listCuratedTopics
+          — recency-ordered + filtered to videos ≥ 1 by one grouped aggregate, §4/§4.1) drives the
+          redesigned TopicCard; the three section-level state strings are unchanged (§6.1). ── */}
+      <section className="mx-auto mt-4 max-w-5xl border-t border-ink/15 px-4 pb-12 pt-10 sm:pt-14">
+        <h2 className="mt-3 text-xl font-bold text-ink sm:text-2xl">Recently curated</h2>
 
-        <div className="mt-4">
+        <div className="mt-6">
           {loadError ? (
             <p className="text-sm text-ink/50">Couldn&apos;t load topics — please refresh.</p>
           ) : topics === null ? (
-            <p className="text-sm text-ink/50">Loading…</p>
+            <p className="text-sm text-ink/50">Loading recently curated topics…</p>
           ) : topics.length === 0 ? (
-            <p className="text-sm text-ink/50">No topics yet.</p>
+            <p className="text-sm text-ink/50">
+              No topics curated yet — be the first by searching for one above.
+            </p>
           ) : (
             <ul className="grid gap-3 sm:grid-cols-2">
               {topics.map((t) => (
                 <li key={t.qid}>
-                  <Link
-                    href={topicHref(t.title)}
-                    className="block rounded-xl border border-ink/10 bg-white p-4 shadow-sm transition hover:border-brand/40"
-                  >
-                    <span className="block font-medium text-ink">{t.title}</span>
-                    {t.description && (
-                      <span className="mt-1 block text-sm text-ink/60">
-                        {t.description}
-                      </span>
-                    )}
-                    <span className="mt-2 block text-xs text-brand">{t.qid}</span>
-                  </Link>
+                  <TopicCard topic={t} />
                 </li>
               ))}
             </ul>

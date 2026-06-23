@@ -10,6 +10,7 @@ import {
   holdClipAction,
   listClipsAction,
   listClipsByContributorAction,
+  listCuratedTopicsAction,
   listTopicsAction,
   recordDismissalAction,
   removeClipAction,
@@ -41,6 +42,7 @@ import type { ArticleSection, Candidate, Clip, TopicStats } from "./types";
 // they used against the localStorage store, so the call-site rewire is minimal (parity).
 const clientStore: DataStore = {
   listTopics: () => listTopicsAction(),
+  listCuratedTopics: () => listCuratedTopicsAction(),
   getTopic: (qid) => getTopicAction(qid),
   getTopicByTitle: (title) => getTopicByTitleAction(title),
   upsertTopic: (topic) => upsertTopicAction(topic),

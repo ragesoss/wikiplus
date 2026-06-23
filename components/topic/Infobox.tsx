@@ -1,6 +1,7 @@
 "use client";
 
 import type { TopicStats } from "@/lib/data/types";
+import { Stat } from "./Stat";
 
 // ＋plus overview panel (design docs/design/plus-overview-redesign.md — Direction A).
 //
@@ -112,17 +113,6 @@ export function Infobox({
           </div>
         </>
       )}
-    </div>
-  );
-}
-
-function Stat({ n, label }: { n: number; label: string }) {
-  return (
-    <div className="px-2 py-3 text-center">
-      <p className="bignum text-3xl text-brand">{n}</p>
-      <p className="mt-1 text-[10px] font-bold uppercase tracking-wide text-ink2">
-        {label}
-      </p>
     </div>
   );
 }

@@ -26,7 +26,7 @@ import {
 } from "@/lib/db/drizzle-store";
 import { seedDatabase } from "@/lib/db/seed";
 import { seedClips } from "@/lib/data/seed";
-import { clip, contributor } from "@/lib/db/schema";
+import { clip, contributor, topic } from "@/lib/db/schema";
 import { deriveStats } from "@/lib/data";
 import type { Clip } from "@/lib/data/types";
 import { makeTestDb, type TestDb } from "./helpers/pglite-db";
@@ -74,6 +74,36 @@ describe("AC11 — shared persistence across store instances (one DB = two sessi
     expect(qids).toContain("Q42");
   });
 
+  // ── #125 recency ordering (homepage-recently-curated.md §4) — listTopics() returns
+  //    most-recently-updated first, with a stable `title` tie-breaker. The author's diff changed
+  //    `.orderBy(topic.title)` → `.orderBy(desc(topic.updatedAt), topic.title)`; nothing in the
+  //    existing suite asserted the ORDER (only set membership / round-trip). This closes that gap.
+  it("listTopics orders most-recently-updated first (recency ordering, #125 §4)", async () => {
+    // Insert directly with explicit, distinct updated_at values so the order is deterministic and
+    // independent of insertion order — middle/oldest/newest deliberately out of recency order.
+    await h.db.insert(topic).values([
+      { wikidataQid: "Q-mid", title: "Beta", updatedAt: new Date("2026-02-01T00:00:00Z") },
+      { wikidataQid: "Q-old", title: "Alpha", updatedAt: new Date("2026-01-01T00:00:00Z") },
+      { wikidataQid: "Q-new", title: "Gamma", updatedAt: new Date("2026-03-01T00:00:00Z") },
+    ]);
+    const order = (await store.listTopics()).map((t) => t.qid);
+    // Newest updated_at first, oldest last — NOT alphabetical-by-title (which would be Alpha/Beta/Gamma).
+    expect(order).toEqual(["Q-new", "Q-mid", "Q-old"]);
+  });
+
+  it("ties on updated_at break by title ascending (stable order across loads, #125 §4)", async () => {
+    // Equal timestamps (a single seed batch) must fall back to a deterministic title sort so the
+    // grid never reshuffles between renders.
+    const sameTs = new Date("2026-04-01T00:00:00Z");
+    await h.db.insert(topic).values([
+      { wikidataQid: "Q-c", title: "Cherry", updatedAt: sameTs },
+      { wikidataQid: "Q-a", title: "Apple", updatedAt: sameTs },
+      { wikidataQid: "Q-b", title: "Banana", updatedAt: sameTs },
+    ]);
+    const titles = (await store.listTopics()).map((t) => t.title);
+    expect(titles).toEqual(["Apple", "Banana", "Cherry"]);
+  });
+
   it("infobox counts (deriveStats) reflect the SHARED clip set, not a per-session view", async () => {
     await store.upsertTopic({ qid: "Q11982", title: "Photosynthesis" });
     // Session A adds two clips from two distinct creators.
@@ -98,6 +128,88 @@ describe("AC11 — shared persistence across store instances (one DB = two sessi
     expect(stats.videos).toBe(2);
     expect(stats.creators).toBe(2);
     expect(stats.curators).toBe(2);
+  });
+});
+
+// ── #126 listCuratedTopics — the homepage "Recently curated" read (DB path). ──
+// One grouped aggregate delivers per-topic counts AND filters zero-curation topics, with the
+// counts mirroring `listClips` + `deriveStats` exactly (CARD PARITY) — non-removed clips, held
+// clips still counted; recency-ordered on the surviving set.
+describe("#126 — listCuratedTopics (filter + count parity + recency order)", () => {
+  it("returns ONLY topics with videos ≥ 1, with deriveStats-parity counts", async () => {
+    await store.upsertTopic({ qid: "Q-curated", title: "Curated", description: "d" });
+    await store.upsertTopic({ qid: "Q-bare", title: "Bare" }); // zero clips → hidden (§4.1)
+    await store.addClip({
+      ...clip0(),
+      topicQid: "Q-curated",
+      caption: "a",
+      creator: { ...clip0().creator, handle: "@one", name: "One" },
+      curatedBy: "@alice",
+    });
+    await store.addClip({
+      ...clip0(),
+      topicQid: "Q-curated",
+      caption: "b",
+      creator: { ...clip0().creator, handle: "@two", name: "Two" },
+      curatedBy: "@bob",
+    });
+
+    const curated = await store.listCuratedTopics();
+    // The zero-curation topic never appears (§4.1).
+    expect(curated.map((t) => t.qid)).toEqual(["Q-curated"]);
+    // The card counts equal deriveStats over the SAME set listClips returns (CARD PARITY).
+    const overview = deriveStats(await store.listClips("Q-curated"));
+    expect(curated[0].stats).toEqual({
+      videos: overview.videos,
+      creators: overview.creators,
+      curators: overview.curators,
+    });
+    expect(curated[0].stats).toEqual({ videos: 2, creators: 2, curators: 2 });
+    // The article-side fields ride along for the card.
+    expect(curated[0].title).toBe("Curated");
+    expect(curated[0].description).toBe("d");
+  });
+
+  it("counts a HELD clip but EXCLUDES a removed clip — exactly the listClips set", async () => {
+    await store.upsertTopic({ qid: "Q-mix", title: "Mix" });
+    const held = await store.addClip({
+      ...clip0(),
+      topicQid: "Q-mix",
+      caption: "held",
+      creator: { ...clip0().creator, handle: "@c", name: "C" },
+      curatedBy: "@alice",
+    });
+    const removed = await store.addClip({
+      ...clip0(),
+      topicQid: "Q-mix",
+      caption: "removed",
+      creator: { ...clip0().creator, handle: "@d", name: "D" },
+      curatedBy: "@bob",
+    });
+    await store.setClipVetted(held.id, false); // held — still counts
+    await store.removeClip(removed.id, 1, null); // removed — excluded
+
+    const curated = await store.listCuratedTopics();
+    const overview = deriveStats(await store.listClips("Q-mix"));
+    expect(curated[0].stats.videos).toBe(1); // only the held clip remains
+    expect(curated[0].stats).toEqual({
+      videos: overview.videos,
+      creators: overview.creators,
+      curators: overview.curators,
+    });
+  });
+
+  it("orders the surviving curated topics most-recently-updated first (recency, #125 §4)", async () => {
+    // Two curated topics with distinct updated_at; expect newest first.
+    await h.db.insert(topic).values([
+      { wikidataQid: "Q-old", title: "Alpha", updatedAt: new Date("2026-01-01T00:00:00Z") },
+      { wikidataQid: "Q-new", title: "Beta", updatedAt: new Date("2026-03-01T00:00:00Z") },
+    ]);
+    for (const qid of ["Q-old", "Q-new"]) {
+      await store.addClip({ ...clip0(), topicQid: qid, caption: qid, curatedBy: "@alice" });
+    }
+    const order = (await store.listCuratedTopics()).map((t) => t.qid);
+    expect(order).toEqual(["Q-new", "Q-old"]);
   });
 });
 
