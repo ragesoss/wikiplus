@@ -227,12 +227,73 @@ describe("AC11 — accessible-name leaf semantics + keyboard reach", () => {
   });
 });
 
+// ── #125 — the "Recently curated" section: heading reframe + all four data-state strings. ──
+// homepage-recently-curated.md §3.1 (eyebrow/title/supporting line), §3.2 (the four states, the
+// read-error line VERBATIM). The author suite asserts the heading text + the read-error line, but
+// not the eyebrow, the supporting line, or the loading/empty/populated state copy. This closes
+// those gaps so each acceptance-criterion string is independently pinned.
+describe("#125 — Recently curated heading + supporting microcopy (§3.1)", () => {
+  it("renders the eyebrow, the <h2> title, and the supporting line with the shared-data disclaimer", async () => {
+    render(<HomePage />);
+    await screen.findByRole("combobox", { name: /find a topic/i });
+    // Eyebrow kicker (authored in normal case, displayed uppercase via CSS).
+    expect(screen.getByText(/fresh from the community/i)).toBeInTheDocument();
+    // Title is an <h2> (peer section heading — keeps the screen-reader outline logical).
+    expect(
+      screen.getByRole("heading", { level: 2, name: /^recently curated$/i })
+    ).toBeInTheDocument();
+    // Supporting line: recency framing + the prototype shared-data disclaimer (RC3, functionally required).
+    expect(
+      screen.getByText(/The topics most recently curated on wiki\+\./i)
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/curations are shared, so everyone sees the same topics and clips/i)
+    ).toBeInTheDocument();
+  });
+});
+
+describe("#125 — all four data states render verbatim microcopy (§3.2)", () => {
+  it("LOADING: shows the descriptive loading line while the read is pending", async () => {
+    // A never-resolving read holds the loading state (topics === null, no loadError).
+    listTopics.mockReturnValue(new Promise(() => {}));
+    render(<HomePage />);
+    expect(
+      await screen.findByText("Loading recently curated topics…")
+    ).toBeInTheDocument();
+  });
+
+  it("EMPTY: an empty list points the visitor back at the search above", async () => {
+    listTopics.mockResolvedValue([]);
+    render(<HomePage />);
+    expect(
+      await screen.findByText(
+        "No topics curated yet — be the first by searching for one above."
+      )
+    ).toBeInTheDocument();
+  });
+
+  it("READ-ERROR: shows the verbatim floor line (AC7 verify line — must not drift)", async () => {
+    listTopics.mockRejectedValue(new Error("DB down"));
+    render(<HomePage />);
+    // Byte-for-byte the §3.2 string (apostrophe is rendered from `&apos;`).
+    expect(
+      await screen.findByText("Couldn't load topics — please refresh.")
+    ).toBeInTheDocument();
+  });
+
+  it("POPULATED: a non-empty list renders the card grid (the default mock)", async () => {
+    render(<HomePage />);
+    const card = await screen.findByRole("link", { name: /Photosynthesis/i });
+    expect(card.closest("ul")?.className).toMatch(/grid gap-3 sm:grid-cols-2/);
+  });
+});
+
 // ── AC1/AC7 — composition: search dominant + above the demoted, framed list. ──
 describe("AC1/AC7 — hero leads, the topic list is demoted below it", () => {
-  it("the 'Explore example topics' list region sits AFTER the search in document order", async () => {
+  it("the 'Recently curated' list region sits AFTER the search in document order", async () => {
     render(<HomePage />);
     const search = await screen.findByRole("combobox", { name: /find a topic/i });
-    const listHeading = screen.getByRole("heading", { level: 2, name: /explore example topics/i });
+    const listHeading = screen.getByRole("heading", { level: 2, name: /recently curated/i });
     // Search precedes the demoted list (AC1 dominant/above; AC7 demoted/below).
     expect(
       search.compareDocumentPosition(listHeading) & Node.DOCUMENT_POSITION_FOLLOWING
@@ -243,10 +304,10 @@ describe("AC1/AC7 — hero leads, the topic list is demoted below it", () => {
     render(<HomePage />);
     const card = await screen.findByRole("link", { name: /Photosynthesis/i });
     expect(card.getAttribute("href")).toMatch(/^\/topic\/Photosynthesis\/?$/);
-    // The card lives under the demoted "Explore example topics" section, not the hero.
+    // The card lives under the demoted "Recently curated" section, not the hero.
     const section = card.closest("section");
     expect(section && within(section).getByRole("heading", { level: 2 })).toHaveTextContent(
-      /explore example topics/i
+      /recently curated/i
     );
   });
 });

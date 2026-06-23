@@ -97,9 +97,9 @@ describe("the landing hero leads with the reused search", () => {
     await screen.findByRole("combobox", { name: /find a topic/i });
     // One search control on the page (AC2 — no divergent second search).
     expect(screen.getAllByRole("combobox")).toHaveLength(1);
-    // The "Explore example topics" heading (the demoted list) is present and secondary (an <h2>).
+    // The "Recently curated" heading (the demoted list) is present and secondary (an <h2>).
     expect(
-      screen.getByRole("heading", { level: 2, name: /explore example topics/i })
+      screen.getByRole("heading", { level: 2, name: /recently curated/i })
     ).toBeInTheDocument();
   });
 });

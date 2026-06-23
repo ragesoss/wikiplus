@@ -60,10 +60,17 @@ This issue is **one coherent build (v1)** plus **one written design deliverable 
    note separating fact from the creator's opinion. Kept tight — get out of the user's way; the search is the
    action, the explanation is orientation. (The current prototype-disclaimer line — "curations are shared" —
    may be kept as secondary/muted text.)
-3. **Demote the seeded topic list to secondary content.** Keep the existing seeded-topics list (read via
-   `store.listTopics()`), but reposition and reframe it as **secondary** content below the search hero — an
-   "examples" / "explore" affordance, not the page's headline. Its existing states (loading, read-error
-   floor, empty, list) are preserved; only its prominence and framing change.
+3. **Demote the topic list to secondary content — the "Recently curated" section.** Keep the existing topic
+   list (read via `store.listTopics()`), repositioned and reframed as **secondary** content below the search
+   hero. The section is headed by the eyebrow `FRESH FROM THE COMMUNITY` + `<h2>Recently curated</h2>`,
+   harmonized with the "Wiki, plus video." hero above it via the same Indigo-Press eyebrow device. The list
+   is **recency-ordered** — `listTopics()` orders by `updated_at` descending with a `title` ascending
+   tie-breaker (cheap, DB-side; no migration, no `Topic` type change). On seed data whose timestamps are
+   near-identical the visible order falls to the title tie-breaker until real curation varies the timestamps,
+   which is expected and acceptable. The section's four data states (loading / read-error floor / empty /
+   populated) are preserved; only the framing and ordering change. Card markup is **unchanged** — card
+   redesign is a deferred follow-up issue. See `docs/design/homepage-recently-curated.md` for the full
+   section design spec.
 4. **Debut the Daylight Projector header at full Tier A**, implemented as a **new reusable, tier-aware
    component** (working name `HeaderProjector`), per `docs/VISUAL_IDENTITY.md`:
    - The landing page renders the **complete §5 Tier-A treatment** of **variant `01` "Daylight — subtle
@@ -153,11 +160,17 @@ screenshots / built UI**, **not** by a live URL.
   explanation that wiki+ is a curation/contextualization layer over Wikipedia attaching curated,
   contextualized creator video with fact-vs-opinion context notes — faithful to `docs/VISION.md` *What it is
   / Why it exists*. *(Verify: screenshot; copy review against VISION.)*
-- **AC7 — The seeded topic list is demoted to secondary content.** The seeded-topics list still renders (from
-  `store.listTopics()`), but **below** the search hero and **framed as examples/explore**, not as the page's
-  headline. Its loading / read-error / empty / populated states are preserved. *(Verify: screenshot showing
-  the list below the hero with the secondary framing; test or screenshot of the read-error floor line still
-  present.)*
+- **AC7 — The "Recently curated" section is demoted to secondary content and all four data states are
+  preserved.** The topic list renders (from `store.listTopics()`) in the **"Recently curated" section**
+  (eyebrow `FRESH FROM THE COMMUNITY` + `<h2>Recently curated</h2>` + the recency-ordering and supporting
+  line), positioned **below** the search hero — never the page's headline. The section is
+  **recency-ordered** (`updated_at` desc, `title` asc tie-breaker). All four data states render inside the
+  section: **loading** → `Loading recently curated topics…`; **empty** → `No topics curated yet — be the
+  first by searching for one above.`; **read-error floor** → `Couldn't load topics — please refresh.`
+  (verbatim; never a hang on "Loading…"); **populated** → the card grid, recency-ordered. Card markup is
+  unchanged. *(Verify: screenshot showing the section below the hero with the "Recently curated" heading;
+  test or screenshot confirming the read-error floor line is present verbatim; screenshot of the populated
+  card grid. See `docs/design/homepage-recently-curated.md` §3–§4 for the full section contract.)*
 - **AC8 — The Daylight Projector renders at Tier A per VISUAL_IDENTITY.** The landing header renders the full
   §5 Tier-A treatment of variant `01`: the `wiki | +plus` lockup, the lit "+" aperture, the geometric "+"
   beam burning to white into the hero, the solid gold border running off both page edges, and the faint
@@ -216,14 +229,14 @@ screenshots / built UI**, **not** by a live URL.
 
 - **Primary:** the landing **search is used as the way into a topic.** Once analytics exist, the target is
   that a clear majority of topic arrivals that originate on the landing page come **through the search**
-  (select or submit) rather than the seeded-topic list — confirming the front door now matches the product's
+  (select or submit) rather than the "Recently curated" section — confirming the front door now matches the product's
   "find a topic" loop. (Analytics is deferred; this is the metric definition to wire up at launch — the
   trackable event is a `TopicSearch` select/submit originating from the landing hero.)
 - **Secondary (qualitative, this round):** UX evaluation confirms the projector header renders at Tier A
   with fidelity to VISUAL_IDENTITY (burn-to-white seam, gold-edge-only signal, "pedia" halation, the a11y
   model) and that the explanation reads as "what it is / why it exists" in one glance.
-- **Guardrail:** no regression to the seeded-topic list's existing states (loading / read-error floor /
-  empty / populated) and no regression to `TopicSearch`'s #12-verified behavior.
+- **Guardrail:** no regression to the "Recently curated" section's four data states (loading / read-error
+  floor / empty / populated — AC7) and no regression to `TopicSearch`'s #12-verified behavior.
 
 ## Forward-looking design considerations (parameterized geometry — NOT a v1 requirement)
 

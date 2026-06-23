@@ -455,7 +455,7 @@ export const SCENES: Scene[] = [
     id: "home",
     group: "Home",
     label: "Home — landing page",
-    note: "Daylight Projector header + Find-a-topic search + example topics.",
+    note: "Daylight Projector header + Find-a-topic search + the 'Recently curated' topic list.",
     route: "/",
     stub: "plain",
     ready: homeReady,
