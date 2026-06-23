@@ -79,22 +79,29 @@ export function Projector({ idPrefix = "proj" }: { idPrefix?: string }) {
       <ellipse cx="424" cy="272" rx="40" ry="56" fill="var(--color-indigo-dark)" stroke="var(--color-ink)" strokeWidth="1.6" />
       <ellipse cx="438" cy="272" rx="38" ry="54" fill="var(--color-ink)" />
       <ellipse cx="438" cy="272" rx="32" ry="47" fill="var(--color-lamp-base)" />
-      {/* The designed OFF-state lens base (docs/design/about-projector-warmup.md §2.1.1). The
+      {/* The designed OFF-state lens base (docs/design/about-projector-warmup.md §2.1.1, §2.2). The
           projector's lens BEFORE the lamp strikes: a dark interior, a geometric "+" aperture that
           reads by GEOMETRY (a dark plus on the slightly-darker interior, edged by a faint lighter
           outline — never a glow), and a faint glass reflection. It is the floor the About warm-up
-          intro's lit layers light up OVER (the lit group's opacity animates 0 → 1 above it). Static
-          (never animated). Each node sits a couple px INSIDE the lit glass radial's clip (#proj-pclip
-          rx31 ry46) — or, for the "+", inset within the lit white "+"'s path — so its anti-aliased
-          edge falls in the zone the opaque lit layers cover at 100%, and the lit lamp occludes the
-          whole off base pixel-for-pixel once on (AC2: the settled poster is the lit lamp exactly, no
-          residual edge ring). The thin warm lamp-base ring just beyond them is the committed art (the
-          lit radial is clipped to rx31; that ring reads warm whether off or lit), and when off the
-          interior still nearly fills the visible glass inside the ink rim. Decorative (the whole SVG
-          is aria-hidden); painted in order interior → rim → "+" → reflection. */}
-      <g>
-        {/* Dark off interior — inside the lit radial's clip so its edge is fully occluded at settle. */}
-        <ellipse cx="438" cy="272" rx="29" ry="44" fill="var(--color-lens-off-interior)" />
+          intro's lit layers light up OVER (the lit group's opacity animates 0 → 1 above it). The dark
+          off interior is painted at the FULL lit-glass extent (the lamp-base ellipse rx32 ry47) so it
+          covers that warm #ffdf9f base completely — the OFF lens reads as OFF, with no warm gold rim
+          around its edge.
+
+          The whole group cross-fades opacity 1 → 0 over the warm-up (completing by lamp-max,
+          t = 1240ms; the §2.2 belt-and-braces) so by settle it contributes ZERO pixels and the
+          settled lens is byte-identical to the committed lit poster — there is no anti-aliased seam at
+          the lit radial's clip edge under the stage's non-uniform scale. The group's CSS DEFAULT
+          opacity is 0 (see globals.css `.about-off-lens`), so a reduced-motion / no-JS / settled
+          render never shows the OFF lens at all — only the lit poster. The fade is gated exactly like
+          the rest of the intro (`@media (prefers-reduced-motion: no-preference)` + `.about-intro`).
+
+          Decorative (the whole SVG is aria-hidden); painted in order interior → rim → "+" →
+          reflection, beneath the lit `about-lamp-light` group. */}
+      <g className="about-off-lens">
+        {/* Dark off interior — at the full lit-glass extent (rx32 ry47) so it fully covers the warm
+            lamp-base ellipse: no warm rim shows around the OFF lens. */}
+        <ellipse cx="438" cy="272" rx="32" ry="47" fill="var(--color-lens-off-interior)" />
         {/* The thin interior rim — stroke only, fully inside the clip (covered by the lit radial). */}
         <ellipse
           cx="438"
@@ -132,19 +139,23 @@ export function Projector({ idPrefix = "proj" }: { idPrefix?: string }) {
       {/* The LAMP LIGHT group — the warm/white light layers that read as "the lamp is lit": the two
           warm bloom radials, the clipped glass lamp radial, and the white "+" aperture, painted OVER
           the designed OFF-state lens base above. The About warm-up intro animates THIS group's
-          opacity (flicker → dim→bright) from 0 (the off lens shows through) up to 1, where the lit
-          glass radial + "+" + bloom fully occlude the off base = today's committed lit projector. At
-          rest the group is opacity 1 (the default, so reduced-motion / no-JS get the lit lamp for
-          free — the off base never shows). Grouping the light layers keeps the intro a single
+          opacity from 0 (the off lens shows through) up to 1 over a single flicker → dim→bright
+          keyframe, reaching the committed lit projector at lamp-max. As it rises, the OFF base below
+          cross-fades out (see `.about-off-lens`), so at settle only the lit lamp paints. At rest the
+          group is opacity 1 (the default, so reduced-motion / no-JS get the lit lamp for free — the
+          off base, default opacity 0, never shows). Grouping the light layers keeps the intro a single
           group-opacity tween. The group stays decorative (the whole SVG is aria-hidden). */}
       <g className="about-lamp-light">
-        {/* Warm bloom over the bezel/body. */}
-        <circle cx="438" cy="272" r="150" fill={`url(#${bloom})`} />
-        <circle cx="438" cy="272" r="96" fill={`url(#${bloom})`} />
         {/* The clipped glass lamp radial (the warm glow inside the aperture). */}
         <g clipPath={`url(#${clip})`}>
           <ellipse cx="438" cy="272" rx="32" ry="47" fill={`url(#${lamp})`} />
         </g>
+        {/* Warm bloom over the bezel/body — painted OVER the glass radial (the committed paint order:
+            the bloom's warm spill layers on top of the bright glass, so the lens reads bright-white at
+            the core with a warm halo; this exact ordering keeps the settled lens byte-identical to the
+            committed lit poster). */}
+        <circle cx="438" cy="272" r="150" fill={`url(#${bloom})`} />
+        <circle cx="438" cy="272" r="96" fill={`url(#${bloom})`} />
         {/* The white "+" aperture — the lamp the beams originate from (pure white, clipped). */}
         <g clipPath={`url(#${clip})`}>
           <path

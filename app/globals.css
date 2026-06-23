@@ -1324,37 +1324,72 @@ figure.wikifig .credit {
   transform-box: view-box;
 }
 
+/* The designed OFF-state lens base (Projector.tsx §2.1.1 / §2.2). Its DEFAULT opacity is 0 — so a
+   reduced-motion / no-JS / settled render shows only the lit lamp (the OFF lens never appears, and it
+   contributes zero pixels at settle → the settled lens is byte-identical to the committed lit poster,
+   no anti-aliased seam at the lit radial's clip edge). During the intro it is visible from t=0 and
+   cross-fades OUT as the lit lamp rises (the keyframe in the no-preference block below). */
+.about-off-lens {
+  opacity: 0;
+}
+
 @media (prefers-reduced-motion: no-preference) {
   /* ── Step 1+2 — Lamp: the lit warm/white layers strike on OVER the designed OFF lens base (the
-     dark interior + geometric "+"; §2.1.1). The group opacity rises from 0 (only the OFF lens shows)
-     through a few quick uneven flashes (the projector striking — each drop falls near 0 so the gap
-     snaps back toward the visible OFF lens), then a fast-then-settle dim→bright filament ramp to max
-     at t = 1240ms (where the lit layers fully occlude the OFF base = the committed lit projector). ── */
-  @keyframes about-lamp-flicker {
-    0% { opacity: 0; }      /* t=0 — the designed OFF lens (lit layers fully absent) */
-    6% { opacity: 0.55; }   /* first strike */
-    12% { opacity: 0.06; }  /* drop — back toward the bare OFF lens */
-    16% { opacity: 0.7; }   /* second strike */
-    19% { opacity: 0.08; }
-    30% { opacity: 0.4; }   /* weak third */
-    34% { opacity: 0.05; }  /* drop — nearly the OFF lens again */
-    52% { opacity: 0.85; }  /* fourth strike — the "catch" */
-    58% { opacity: 0.3; }
-    100% { opacity: 0.3; }  /* hold low, ready to warm up — off "+" still reading through */
+     dark interior + geometric "+"; §2.1.1). ONE keyframe over 0 → 1240ms (flicker + warm-up folded
+     into a single animation, so no animation-list order can override the strikes): the group opacity
+     rises from 0 (only the OFF lens shows) through a few quick UNEVEN flashes — the projector striking
+     — in the first ~42% (≈0–520ms), then a fast-then-settle dim→bright filament ramp to max at 100%
+     (t = 1240ms, where the lit layers fully occlude the OFF base = the committed lit projector). The
+     "snap" of each strike is built from near-coincident keyframe pairs (a ~4ms rise/fall window around
+     each peak) under `linear` timing, so each flash reads as a hard catch — NOT a steps() quantization
+     (which collapses the strikes to one held value) and NOT a smooth pulse. Each drop falls near 0 so
+     the gap snaps back toward the visible OFF lens, reading as a lamp catching against a real dark
+     lens. Phase boundaries (flicker ends ~42% / 520ms, max at 1240ms) are unchanged. ── */
+  @keyframes about-lamp-up {
+    0% { opacity: 0; }        /* t=0 — the designed OFF lens (lit layers fully absent) */
+    2.1% { opacity: 0; }
+    2.42% { opacity: 0.55; }  /* first strike (t≈30ms) */
+    2.74% { opacity: 0.55; }
+    4.68% { opacity: 0.55; }
+    5% { opacity: 0.06; }     /* drop — back toward the bare OFF lens */
+    6.45% { opacity: 0.06; }
+    6.77% { opacity: 0.7; }   /* second strike (t≈84ms) */
+    7.1% { opacity: 0.7; }
+    7.74% { opacity: 0.7; }
+    8.06% { opacity: 0.08; }  /* drop (shorter gap) */
+    12.26% { opacity: 0.08; }
+    12.58% { opacity: 0.4; }  /* weak third strike (t≈156ms) */
+    12.9% { opacity: 0.4; }
+    13.95% { opacity: 0.4; }
+    14.27% { opacity: 0.05; } /* drop — nearly the OFF lens again */
+    21.45% { opacity: 0.05; }
+    21.77% { opacity: 0.85; } /* fourth strike — the "catch" (t≈270ms) */
+    22.1% { opacity: 0.85; }
+    23.87% { opacity: 0.85; }
+    24.19% { opacity: 0.3; }  /* settle dip (t≈300ms) */
+    41.94% { opacity: 0.3; }  /* flicker end (t≈520ms) — hold low, hand off to the warm-up ramp */
+    61.29% { opacity: 0.78; } /* warm-up (t≈760ms) */
+    80.65% { opacity: 0.94; } /* (t≈1000ms) */
+    100% { opacity: 1; }      /* max (t=1240ms) — the committed lit projector */
   }
-  @keyframes about-lamp-warm {
-    0% { opacity: 0.3; }    /* hand-off from the flicker */
-    33% { opacity: 0.78; }
-    67% { opacity: 0.94; }
-    100% { opacity: 1; }    /* max — the committed lit projector */
-  }
-  /* The scene runs the lamp in two phases via a single group whose animation list chains the
-     flicker (0→520ms, stepped feel) then the warm-up (520→1240ms, easeOutQuart), each filling
-     forwards so the group holds at its end value between/after phases. */
+  /* One animation, `linear` so every keyframe actually renders (the snap is in the keyframe pairs);
+     fills forwards so the group holds at opacity 1 after lamp-max. */
   .about-intro .about-stage--scene .about-lamp-light {
-    animation:
-      about-lamp-flicker 520ms steps(1, end) 0ms 1 both,
-      about-lamp-warm 720ms cubic-bezier(0.22, 0.61, 0.36, 1) 520ms 1 both;
+    animation: about-lamp-up 1240ms linear 0ms 1 both;
+  }
+
+  /* ── The OFF-lens base cross-fades OUT as the lit lamp rises (§2.2 belt-and-braces). It is visible
+     at t = 0 (covering the warm lamp-base rim — the OFF lens reads as OFF) and reaches opacity 0 by
+     lamp-max (t = 1240ms, the same end as the lamp ramp), so by settle it contributes ZERO pixels and
+     the settled lens is byte-identical to the committed lit poster. It stays near full through the
+     flicker, then crossfades down through the warm-up as the lit layers take over. ── */
+  @keyframes about-off-lens-out {
+    0% { opacity: 1; }    /* t=0 — the OFF lens, covering the warm rim */
+    42% { opacity: 1; }   /* held through the flicker (≈520ms) */
+    100% { opacity: 0; }  /* gone by lamp-max (t=1240ms) */
+  }
+  .about-intro .about-stage--scene .about-off-lens {
+    animation: about-off-lens-out 1240ms cubic-bezier(0.4, 0, 0.6, 1) 0ms 1 both;
   }
 
   /* ── Step 3 — Beam grows along the throw (scaleX about the apex) + fades in, reaching the

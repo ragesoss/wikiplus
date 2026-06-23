@@ -156,16 +156,25 @@ describe("AC5/AC9 — plus groups present from first paint; graphics stay decora
   });
 
   it("starts the lit lamp group hidden (intro t=0 lit opacity is 0 over the OFF lens)", () => {
-    // The lit lamp-light group animates from opacity 0 (the OFF lens shows through) up to 1. The
-    // intro's first flicker keyframe sets the group to opacity 0; we assert that contract on the
-    // committed stylesheet so a regression that re-dims to a 6% ghost (or skips the OFF floor) is
+    // The lit lamp-light group animates from opacity 0 (the OFF lens shows through) up to 1 over a
+    // SINGLE keyframe (flicker + warm-up folded into `about-lamp-up`, so no animation-list order can
+    // override the strikes). We assert that contract on the committed stylesheet so a regression that
+    // re-dims to a 6% ghost, skips the OFF floor, or re-introduces a second overriding animation is
     // caught. (jsdom does not apply @media keyframes, so the source value is the assertable contract;
-    // the class binding + the OFF-base DOM are asserted in the sibling tests.)
+    // the rendered strikes are the Playwright surface — see e2e/about-warmup.spec.ts. The class
+    // binding + the OFF-base DOM are asserted in the sibling tests.)
     const css = readFileSync(join(process.cwd(), "app/globals.css"), "utf8");
-    const flicker = css.match(/@keyframes about-lamp-flicker\s*\{([\s\S]*?)\n\s*\}/);
-    expect(flicker).not.toBeNull();
+    const lampUp = css.match(/@keyframes about-lamp-up\s*\{([\s\S]*?)\n\s*\}/);
+    expect(lampUp).not.toBeNull();
     // The 0% (t=0) frame of the lit group is fully transparent — the designed OFF lens, not a glow.
-    expect(flicker![1]).toMatch(/0%\s*\{\s*opacity:\s*0(;|\s)/);
+    expect(lampUp![1]).toMatch(/0%\s*\{\s*opacity:\s*0(;|\s)/);
+    // It is the ONLY opacity animation on the lit group (one animation = no list-order conflict).
+    const lampRule = css.match(
+      /\.about-lamp-light\s*\{([\s\S]*?)\n\s*\}/
+    );
+    expect(lampRule).not.toBeNull();
+    expect(lampRule![1]).toMatch(/animation:\s*about-lamp-up\b/);
+    expect(lampRule![1]).not.toContain(",");
   });
 
   it("keeps the decorative projector + beam SVGs aria-hidden", async () => {
