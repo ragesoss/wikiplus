@@ -1200,6 +1200,186 @@
     "focus": false
   },
   {
+    "id": "topic-loading",
+    "group": "Topic · loading & states",
+    "label": "Topic — loading (projector scan, both regions)",
+    "viewport": "mobile",
+    "auth": "out",
+    "skin": "light",
+    "file": "topic-loading-mobile-logged-out.png",
+    "focus": false
+  },
+  {
+    "id": "topic-loading",
+    "group": "Topic · loading & states",
+    "label": "Topic — loading (projector scan, both regions)",
+    "viewport": "mobile",
+    "auth": "in",
+    "skin": "light",
+    "file": "topic-loading-mobile-logged-in.png",
+    "focus": false
+  },
+  {
+    "id": "topic-loading",
+    "group": "Topic · loading & states",
+    "label": "Topic — loading (projector scan, both regions)",
+    "viewport": "tablet",
+    "auth": "out",
+    "skin": "light",
+    "file": "topic-loading-tablet-logged-out.png",
+    "focus": false
+  },
+  {
+    "id": "topic-loading",
+    "group": "Topic · loading & states",
+    "label": "Topic — loading (projector scan, both regions)",
+    "viewport": "tablet",
+    "auth": "in",
+    "skin": "light",
+    "file": "topic-loading-tablet-logged-in.png",
+    "focus": false
+  },
+  {
+    "id": "topic-loading",
+    "group": "Topic · loading & states",
+    "label": "Topic — loading (projector scan, both regions)",
+    "viewport": "desktop",
+    "auth": "out",
+    "skin": "light",
+    "file": "topic-loading-desktop-logged-out.png",
+    "focus": false
+  },
+  {
+    "id": "topic-loading",
+    "group": "Topic · loading & states",
+    "label": "Topic — loading (projector scan, both regions)",
+    "viewport": "desktop",
+    "auth": "in",
+    "skin": "light",
+    "file": "topic-loading-desktop-logged-in.png",
+    "focus": false
+  },
+  {
+    "id": "topic-settled-empty",
+    "group": "Topic · loading & states",
+    "label": "Topic — settled, genuinely empty (legitimate bootstrap)",
+    "viewport": "mobile",
+    "auth": "out",
+    "skin": "light",
+    "file": "topic-settled-empty-mobile-logged-out.png",
+    "focus": false
+  },
+  {
+    "id": "topic-settled-empty",
+    "group": "Topic · loading & states",
+    "label": "Topic — settled, genuinely empty (legitimate bootstrap)",
+    "viewport": "mobile",
+    "auth": "in",
+    "skin": "light",
+    "file": "topic-settled-empty-mobile-logged-in.png",
+    "focus": false
+  },
+  {
+    "id": "topic-settled-empty",
+    "group": "Topic · loading & states",
+    "label": "Topic — settled, genuinely empty (legitimate bootstrap)",
+    "viewport": "tablet",
+    "auth": "out",
+    "skin": "light",
+    "file": "topic-settled-empty-tablet-logged-out.png",
+    "focus": false
+  },
+  {
+    "id": "topic-settled-empty",
+    "group": "Topic · loading & states",
+    "label": "Topic — settled, genuinely empty (legitimate bootstrap)",
+    "viewport": "tablet",
+    "auth": "in",
+    "skin": "light",
+    "file": "topic-settled-empty-tablet-logged-in.png",
+    "focus": false
+  },
+  {
+    "id": "topic-settled-empty",
+    "group": "Topic · loading & states",
+    "label": "Topic — settled, genuinely empty (legitimate bootstrap)",
+    "viewport": "desktop",
+    "auth": "out",
+    "skin": "light",
+    "file": "topic-settled-empty-desktop-logged-out.png",
+    "focus": false
+  },
+  {
+    "id": "topic-settled-empty",
+    "group": "Topic · loading & states",
+    "label": "Topic — settled, genuinely empty (legitimate bootstrap)",
+    "viewport": "desktop",
+    "auth": "in",
+    "skin": "light",
+    "file": "topic-settled-empty-desktop-logged-in.png",
+    "focus": false
+  },
+  {
+    "id": "topic-article-error",
+    "group": "Topic · loading & states",
+    "label": "Topic — article load failed (error card, no contradictory empty copy)",
+    "viewport": "mobile",
+    "auth": "out",
+    "skin": "light",
+    "file": "topic-article-error-mobile-logged-out.png",
+    "focus": false
+  },
+  {
+    "id": "topic-article-error",
+    "group": "Topic · loading & states",
+    "label": "Topic — article load failed (error card, no contradictory empty copy)",
+    "viewport": "mobile",
+    "auth": "in",
+    "skin": "light",
+    "file": "topic-article-error-mobile-logged-in.png",
+    "focus": false
+  },
+  {
+    "id": "topic-article-error",
+    "group": "Topic · loading & states",
+    "label": "Topic — article load failed (error card, no contradictory empty copy)",
+    "viewport": "tablet",
+    "auth": "out",
+    "skin": "light",
+    "file": "topic-article-error-tablet-logged-out.png",
+    "focus": false
+  },
+  {
+    "id": "topic-article-error",
+    "group": "Topic · loading & states",
+    "label": "Topic — article load failed (error card, no contradictory empty copy)",
+    "viewport": "tablet",
+    "auth": "in",
+    "skin": "light",
+    "file": "topic-article-error-tablet-logged-in.png",
+    "focus": false
+  },
+  {
+    "id": "topic-article-error",
+    "group": "Topic · loading & states",
+    "label": "Topic — article load failed (error card, no contradictory empty copy)",
+    "viewport": "desktop",
+    "auth": "out",
+    "skin": "light",
+    "file": "topic-article-error-desktop-logged-out.png",
+    "focus": false
+  },
+  {
+    "id": "topic-article-error",
+    "group": "Topic · loading & states",
+    "label": "Topic — article load failed (error card, no contradictory empty copy)",
+    "viewport": "desktop",
+    "auth": "in",
+    "skin": "light",
+    "file": "topic-article-error-desktop-logged-in.png",
+    "focus": false
+  },
+  {
     "id": "player-modal",
     "group": "Players",
     "label": "PlayerModal — curated clip (blocking, desktop)",
@@ -1242,7 +1422,7 @@
   {
     "id": "pinned-player",
     "group": "Players",
-    "label": "PinnedPlayer — candidate dock (non-modal, desktop)",
+    "label": "PinnedPlayer — candidate dock (watch + act, desktop)",
     "viewport": "desktop",
     "auth": "out",
     "skin": "light",
@@ -1252,7 +1432,7 @@
   {
     "id": "pinned-player",
     "group": "Players",
-    "label": "PinnedPlayer — candidate dock (non-modal, desktop)",
+    "label": "PinnedPlayer — candidate dock (watch + act, desktop)",
     "viewport": "desktop",
     "auth": "out",
     "skin": "zine-dark",
@@ -1262,7 +1442,7 @@
   {
     "id": "pinned-player",
     "group": "Players",
-    "label": "PinnedPlayer — candidate dock (non-modal, desktop)",
+    "label": "PinnedPlayer — candidate dock (watch + act, desktop)",
     "viewport": "desktop",
     "auth": "in",
     "skin": "light",
@@ -1272,141 +1452,11 @@
   {
     "id": "pinned-player",
     "group": "Players",
-    "label": "PinnedPlayer — candidate dock (non-modal, desktop)",
+    "label": "PinnedPlayer — candidate dock (watch + act, desktop)",
     "viewport": "desktop",
     "auth": "in",
     "skin": "zine-dark",
     "file": "pinned-player-desktop-logged-in-zine-dark.png",
-    "focus": false
-  },
-  {
-    "id": "mobile-player-curated",
-    "group": "Players · mobile unified",
-    "label": "Mobile dock — curated, collapsed curation",
-    "viewport": "mobile",
-    "auth": "out",
-    "skin": "light",
-    "file": "mobile-player-curated-mobile-logged-out.png",
-    "focus": false
-  },
-  {
-    "id": "mobile-player-curated",
-    "group": "Players · mobile unified",
-    "label": "Mobile dock — curated, collapsed curation",
-    "viewport": "mobile",
-    "auth": "out",
-    "skin": "zine-dark",
-    "file": "mobile-player-curated-mobile-logged-out-zine-dark.png",
-    "focus": false
-  },
-  {
-    "id": "mobile-player-curated",
-    "group": "Players · mobile unified",
-    "label": "Mobile dock — curated, collapsed curation",
-    "viewport": "mobile",
-    "auth": "in",
-    "skin": "light",
-    "file": "mobile-player-curated-mobile-logged-in.png",
-    "focus": false
-  },
-  {
-    "id": "mobile-player-curated",
-    "group": "Players · mobile unified",
-    "label": "Mobile dock — curated, collapsed curation",
-    "viewport": "mobile",
-    "auth": "in",
-    "skin": "zine-dark",
-    "file": "mobile-player-curated-mobile-logged-in-zine-dark.png",
-    "focus": false
-  },
-  {
-    "id": "mobile-player-curated-expanded",
-    "group": "Players · mobile unified",
-    "label": "Mobile dock — curated, expanded note",
-    "viewport": "mobile",
-    "auth": "out",
-    "skin": "light",
-    "file": "mobile-player-curated-expanded-mobile-logged-out.png",
-    "focus": false
-  },
-  {
-    "id": "mobile-player-curated-expanded",
-    "group": "Players · mobile unified",
-    "label": "Mobile dock — curated, expanded note",
-    "viewport": "mobile",
-    "auth": "in",
-    "skin": "light",
-    "file": "mobile-player-curated-expanded-mobile-logged-in.png",
-    "focus": false
-  },
-  {
-    "id": "mobile-player-candidate",
-    "group": "Players · mobile unified",
-    "label": "Mobile dock — candidate, match reason",
-    "viewport": "mobile",
-    "auth": "out",
-    "skin": "light",
-    "file": "mobile-player-candidate-mobile-logged-out.png",
-    "focus": false
-  },
-  {
-    "id": "mobile-player-candidate",
-    "group": "Players · mobile unified",
-    "label": "Mobile dock — candidate, match reason",
-    "viewport": "mobile",
-    "auth": "in",
-    "skin": "light",
-    "file": "mobile-player-candidate-mobile-logged-in.png",
-    "focus": false
-  },
-  {
-    "id": "mobile-player-vertical",
-    "group": "Players · mobile unified",
-    "label": "Mobile dock — vertical 9:16 clip",
-    "viewport": "mobile",
-    "auth": "out",
-    "skin": "light",
-    "file": "mobile-player-vertical-mobile-logged-out.png",
-    "focus": false
-  },
-  {
-    "id": "mobile-player-vertical-expanded",
-    "group": "Players · mobile unified",
-    "label": "Mobile dock — vertical 9:16, expanded note",
-    "viewport": "mobile",
-    "auth": "out",
-    "skin": "light",
-    "file": "mobile-player-vertical-expanded-mobile-logged-out.png",
-    "focus": false
-  },
-  {
-    "id": "mobile-player-top-parked",
-    "group": "Players · mobile unified",
-    "label": "Mobile dock — parked at the top edge",
-    "viewport": "mobile",
-    "auth": "out",
-    "skin": "light",
-    "file": "mobile-player-top-parked-mobile-logged-out.png",
-    "focus": false
-  },
-  {
-    "id": "mobile-player-maximized-horizontal",
-    "group": "Players · mobile unified",
-    "label": "Mobile dock — maximized 16:9 (landscape)",
-    "viewport": "mobile",
-    "auth": "out",
-    "skin": "light",
-    "file": "mobile-player-maximized-horizontal-mobile-logged-out.png",
-    "focus": false
-  },
-  {
-    "id": "mobile-player-maximized-vertical",
-    "group": "Players · mobile unified",
-    "label": "Mobile dock — maximized 9:16 (full height upright)",
-    "viewport": "mobile",
-    "auth": "out",
-    "skin": "light",
-    "file": "mobile-player-maximized-vertical-mobile-logged-out.png",
     "focus": false
   },
   {
