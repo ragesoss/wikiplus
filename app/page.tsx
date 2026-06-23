@@ -89,7 +89,12 @@ export default function HomePage() {
         <p className="flex items-center text-xs font-bold uppercase tracking-[0.18em] text-ink2">
           {/* Indigo accent rule (gold is reserved for the wordmark — VISUAL_IDENTITY §9.1). */}
           <span aria-hidden className="mr-3 h-[2px] w-8 bg-brand" />
-          The encyclopedia, illuminated
+          {/* The last word catches a slow, occasional warm beam pass — the projector light crossing
+              the word that names it. The effect is CSS-only (.tagline-illuminated, globals.css):
+              gated behind no-preference + background-clip:text support, and it rests at the eyebrow's
+              ink2 color, so contrast and the read are unchanged when motion/support is off. */}
+          The encyclopedia,{" "}
+          <span className="tagline-illuminated">illuminated</span>
         </p>
 
         <h2
