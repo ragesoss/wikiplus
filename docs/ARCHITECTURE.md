@@ -844,8 +844,25 @@ build on additively.
   image build never connects to a DB.
 - **The read / write / client-Wikipedia flow (the central invariant is unchanged — the server never
   calls Wikipedia, AC8):**
-  - **Reads (server-DB):** `listTopics`, `getTopic`, `getTopicByTitle`, `listClips`, the persisted
-    `dismissedKeys` — Server Actions → `DrizzleDataStore` → Postgres.
+  - **Reads (server-DB):** `listTopics`, `listCuratedTopics`, `getTopic`, `getTopicByTitle`,
+    `listClips`, the persisted `dismissedKeys` — Server Actions → `DrizzleDataStore` → Postgres.
+  - **Recently-curated read (issue #126).** The homepage "Recently curated" grid reads
+    **`listCuratedTopics()`** — a method DISTINCT from `listTopics()` (which stays the unfiltered,
+    no-stats `Topic[]` other callers depend on). It returns `TopicWithStats[]` (topic +
+    `{ videos, creators, curators }`) via **ONE grouped aggregate** over `clip` INNER-joined to
+    `topic` (`GROUP BY topic`, `ORDER BY updated_at desc, title`) — never N per-topic reads. The
+    **INNER join + the join predicate are the filter and the parity rule at once:**
+    - **Filter (§4.1):** a topic with no matching clip contributes no rows and never appears — i.e.
+      the section shows only topics with **`videos ≥ 1`** (a zero-curation topic isn't "recently
+      curated"). Free from the same aggregate; no second query.
+    - **Count parity (critical):** the join matches **exactly the set `listClips` returns** —
+      **non-removed clips** (`removed_at IS NULL`) which **INCLUDE held clips** (`vetted = false`
+      still counts) — and the three counts mirror `deriveStats` term-for-term: `videos` =
+      `count(clip)`, `creators` = `countDistinct(creator_handle)`, `curators` =
+      `countDistinct(curated_by)`. So a card's counts equal what the Topic overview shows for the
+      same topic. `deriveStats` is reused unchanged; the SQL only mirrors its semantics. The
+      reference `LocalStorageDataStore` derives the same shape over its in-memory clip set (test +
+      reference parity).
   - **Writes (server-DB):** `upsertTopic`, `addClip`, `recordDismissal` — same path, **auth-gated as
     of issue C** (rejected when anonymous; attributed to the real signed-in contributor). **As of
     issue #53 / D2 `updateClip` / `deleteClip` are also boundary actions** (`updateClipAction` /

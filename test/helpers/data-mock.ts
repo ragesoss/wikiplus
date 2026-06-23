@@ -98,6 +98,9 @@ function deriveStats(clips: Clip[]): TopicStats {
 export function buildDataMock() {
   const store = {
     listTopics: () => local.listTopics(),
+    // The homepage "Recently curated" read (issue #126): curated topics + at-a-glance stats,
+    // filtered to videos ≥ 1, derived over the in-memory clip set by the reference impl.
+    listCuratedTopics: () => local.listCuratedTopics(),
     getTopic: (qid: string) => local.getTopic(qid),
     getTopicByTitle: (title: string) => local.getTopicByTitle(title),
     upsertTopic: (t: Parameters<typeof local.upsertTopic>[0]) =>

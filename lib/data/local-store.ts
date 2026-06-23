@@ -8,6 +8,7 @@ import type {
   ContributorClip,
   PublicContributor,
   Topic,
+  TopicWithStats,
   UpvoteToggle,
 } from "./types";
 
@@ -52,6 +53,34 @@ function isRemoved(c: Clip): boolean {
 export class LocalStorageDataStore implements DataStore {
   async listTopics(): Promise<Topic[]> {
     return read<Topic>(TOPICS_KEY);
+  }
+
+  async listCuratedTopics(): Promise<TopicWithStats[]> {
+    // Reference parallel of the DrizzleDataStore aggregate (issue #126): derive each topic's
+    // counts over its OWN non-removed clip set (the same set `listClips` returns — `isRemoved`
+    // excluded, held clips still counted), filter to `videos ≥ 1`, and carry the at-a-glance
+    // stats. The counts mirror `deriveStats` term-for-term (videos = clip count, creators =
+    // distinct creator.handle, curators = distinct non-empty curatedBy) so a card count equals
+    // the overview count for the same topic (CARD PARITY, design topic-card-redesign.md §4).
+    const clips = read<Clip>(CLIPS_KEY).filter((c) => !isRemoved(c));
+    const out: TopicWithStats[] = [];
+    for (const t of read<Topic>(TOPICS_KEY)) {
+      const own = clips.filter((c) => c.topicQid === t.qid);
+      if (own.length === 0) continue; // §4.1: zero-curation topics are hidden
+      out.push({
+        qid: t.qid,
+        title: t.title,
+        description: t.description,
+        stats: {
+          videos: own.length,
+          creators: new Set(own.map((c) => c.creator.handle)).size,
+          curators: new Set(
+            own.map((c) => c.curatedBy).filter((x): x is string => !!x)
+          ).size,
+        },
+      });
+    }
+    return out;
   }
 
   async getTopic(qid: string): Promise<Topic | null> {

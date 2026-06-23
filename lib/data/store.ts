@@ -5,6 +5,7 @@ import type {
   ContributorClip,
   PublicContributor,
   Topic,
+  TopicWithStats,
   UpvoteToggle,
 } from "./types";
 
@@ -29,6 +30,19 @@ import type {
 // caller, not stored, so they can never drift from the clip set.
 export interface DataStore {
   listTopics(): Promise<Topic[]>;
+  /**
+   * The homepage "Recently curated" read (issue #126): topics that carry curation, each with
+   * its at-a-glance counts. Returns ONLY topics with `videos ≥ 1` (a zero-curation topic isn't
+   * "recently curated" — design topic-card-redesign.md §4.1), recency-ordered (`updated_at desc,
+   * title`, the #125 ordering applied to the surviving set). The per-topic `stats` match the
+   * Topic overview card exactly — `videos` = the topic's non-removed clip count (held clips
+   * still count; `removed_at IS NULL` clips only — the same set `listClips` returns), `creators`
+   * = distinct `creator.handle`, `curators` = distinct curator. Delivered via ONE grouped
+   * aggregate over `clip` joined to `topic` (no N-per-topic reads), the same query that applies
+   * the `videos ≥ 1` filter — see `docs/ARCHITECTURE.md` "Recently-curated read". Distinct from
+   * `listTopics()`, which stays the unfiltered, no-stats `Topic[]` other callers rely on.
+   */
+  listCuratedTopics(): Promise<TopicWithStats[]>;
   getTopic(qid: string): Promise<Topic | null>;
   /**
    * Resolve a Wikipedia article title to a known Topic (canonical title-based route:
