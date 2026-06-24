@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { currentCallbackUrl } from "@/lib/auth/callback-url";
 import { contributorHref } from "@/lib/wiki/topicRoute";
-import { useSkin, otherSkin } from "@/lib/skin/client";
 import { WikiGlyph } from "./WikiGlyph";
 
 // ── AuthControl (issue C, design §1 / §9). ────────────────────────────────────────────────
@@ -157,14 +156,6 @@ function SignedIn({
   const initial = username.slice(0, 1).toUpperCase();
   const textColor = onIndigo ? "text-white" : "text-ink-plus";
   const ring = onIndigo ? "border-white" : "border-hardbox";
-  // Issue #143 (design §2 / §5.2): the account-menu mirror of the skin toggle. The SAME `useSkin()`
-  // hook + `toggle()` the header control uses — one action, one state. The item label is derived from
-  // the resolved skin (the full verb phrase, like the other menu rows). Not a second source of truth:
-  // both controls mutate the same `data-skin`, and `useSkin` observes it, so they always agree.
-  const { skin: resolvedSkin, toggle: toggleSkin } = useSkin();
-  const skinMenuLabel = `Switch to ${
-    otherSkin(resolvedSkin) === "zine-dark" ? "dark" : "light"
-  } skin`;
 
   return (
     <DropdownMenu.Root>
@@ -205,18 +196,6 @@ function SignedIn({
           sideOffset={6}
           className="z-50 min-w-[10rem] border-2 border-hardbox bg-surface-raised p-1 text-ink-plus shadow-[3px_3px_0_var(--color-hardbox-offset)]"
         >
-          {/* Issue #143 (design §2 / §5.2): the skin-toggle mirror, FIRST in the menu (above "My
-              curations"), sharing the existing item styling. Calls the SAME `toggle()` as the header
-              control — one action, one state. The label is the full verb phrase derived from the
-              resolved skin ("Switch to dark skin" / "Switch to light skin"). A convenience pointer for
-              the signed-in reader who looks in the account menu for settings — not a second source of
-              truth. The WORD is the label (the other menu rows are text-only too). */}
-          <DropdownMenu.Item
-            onSelect={() => toggleSkin()}
-            className="cursor-pointer select-none px-3 py-2 text-sm font-bold outline-none data-[highlighted]:bg-surface-2"
-          >
-            {skinMenuLabel}
-          </DropdownMenu.Item>
           {/* D3 (issue #54, design §7): "My curations" → the viewer's OWN public profile, reached
               as the owner. Signed-in only (the SignedIn component only mounts then — AC5). In-SPA
               navigation to `/contributor/<own-username>` (Decision 1's deterministic resolve maps

@@ -160,10 +160,10 @@ describe("AC2 — the account-menu item reaches /about/data (signed-in supplemen
     fireEvent.keyDown(trigger, { key: "Enter" });
     await screen.findByText("About your data");
     const items = screen.getAllByRole("menuitem").map((n) => n.textContent);
-    // Issue #143 (design §5.2): the skin-toggle mirror is the FIRST menu item (above "My curations");
-    // "About your data" stays between "My curations" and "Sign out", with "Sign out" last.
+    // The account menu carries: My curations → About your data → (separator) → Sign out.
+    // The skin-toggle mirror was removed when the toggle moved to the footer; the account menu
+    // no longer carries a skin item (the footer is the single canonical control).
     expect(items).toEqual([
-      "Switch to dark skin",
       "My curations",
       "About your data",
       "Sign out",

@@ -530,19 +530,6 @@ async function openMobileDockTopParked(page: Page): Promise<void> {
   await page.waitForTimeout(150);
 }
 
-/** Open the logged-in account menu so the skin-toggle mirror item is visible (issue #143, design
- *  §5.2). The account trigger is the "Account: <username>" menu-button; open it by keyboard (Radix
- *  opens on Enter), then wait for the first menu item ("Switch to … skin") to mount. Signed-in only. */
-async function openAccountMenu(page: Page): Promise<void> {
-  await page.locator("header.header-shared, .auth-slot, header").first().waitFor();
-  const trigger = page.getByRole("button", { name: /^Account:/ }).first();
-  await trigger.waitFor();
-  await trigger.focus();
-  await page.keyboard.press("Enter");
-  await page.getByRole("menuitem", { name: /Switch to (dark|light) skin/i }).waitFor();
-  await page.waitForTimeout(200);
-}
-
 /** Reveal the mobile header search (icon → expanded field). */
 async function revealMobileSearch(page: Page): Promise<void> {
   await page.locator("header.header-shared").waitFor();
@@ -625,50 +612,26 @@ export const SCENES: Scene[] = [
     clip: { x: 0, y: 0, width: 390, height: 140 },
   },
 
-  // ── Skin toggle (issue #143) — the in-app light ↔ zine-dark control on the universal header ──
-  // Captured on BOTH skins so the chip's destination word/glyph (Dark↔Light, moon↔sun) and its
-  // ink-on-band AA on each band are evidenced. The toggle also rides every header scene above/below
-  // (home, topic-header-*, about-data, contribute, …) — these are the focused, framed evidence.
+  // ── Skin toggle — the in-app light ↔ zine-dark control in the footer ──
+  // The skin toggle lives in SiteFooter, alongside "About your data." Captured on BOTH skins
+  // so the destination word/glyph (Dark↔Light, moon↔sun), text-link quiet affordance, and its
+  // AA on both footer surfaces are evidenced. Both logged-out and logged-in (AC1).
   {
-    id: "home-skin-toggle",
+    id: "footer-skin-toggle",
     skins: ["light", "zine-dark"],
     focus: true,
-    group: "Header · skin toggle",
-    label: "Home header — skin toggle chip (left of auth)",
-    note: "The labeled skin chip immediately left of the login: 'Dark' + moon on the light skin, 'Light' + sun on the dark skin. Ink-on-band, hardbox border, never gold (AC13/AC15).",
+    group: "Footer · skin toggle",
+    label: "Footer — skin toggle (quiet text+icon, alongside 'About your data')",
+    note: "The skin toggle in the footer: 'Dark' + moon on light, 'Light' + sun on dark. Quiet text-link affordance (no chip border), unobtrusive alongside the data notice link (AC13/AC15).",
     route: "/",
     stub: "plain",
-    ready: homeReady,
+    ready: async (page) => {
+      await homeReady(page);
+      await page.locator('[data-testid="footer-skin-toggle"]').scrollIntoViewIfNeeded();
+      await page.waitForTimeout(150);
+    },
     viewports: ["desktop"],
-    clip: { x: 760, y: 0, width: 520, height: 72 },
-  },
-  {
-    id: "topic-skin-toggle",
-    skins: ["light", "zine-dark"],
-    focus: true,
-    group: "Header · skin toggle",
-    label: "Topic header — skin toggle (icon-only, dense chrome)",
-    note: "The Topic host's icon-only skin square (sun/moon + full aria-label) immediately left of the account control — the dense-chrome form (design §7.4).",
-    route: "/topic/Photosynthesis/",
-    stub: "curated",
-    ready: topicReady,
-    viewports: ["desktop"],
-    clip: { x: 880, y: 0, width: 400, height: 56 },
-  },
-  {
-    id: "account-menu-skin",
-    skins: ["light", "zine-dark"],
-    focus: true,
-    group: "Header · skin toggle",
-    label: "Account menu — skin-toggle mirror item (signed in)",
-    note: "The logged-in account menu with 'Switch to dark/light skin' as the FIRST item (above My curations), same action as the header chip (design §5.2). Signed-in only.",
-    route: "/",
-    stub: "plain",
-    auth: ["in"],
-    viewports: ["desktop"],
-    ready: homeReady,
-    prepare: openAccountMenu,
-    clip: { x: 760, y: 0, width: 520, height: 320 },
+    clip: "footer",
   },
 
   // ── Topic — body ──
