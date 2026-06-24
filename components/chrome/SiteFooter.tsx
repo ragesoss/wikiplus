@@ -1,17 +1,21 @@
 import Link from "next/link";
+import { FooterSkinToggle } from "./FooterSkinToggle";
 
 // ── SiteFooter (issue #66, design §4.3 / §2.2). ───────────────────────────────────────────
 // The slim shared footer — the PRIMARY persistent, signed-out-reachable link home for the data
 // notice (AC2). The app had NO footer before #66; this introduces a minimal one placed at the
 // bottom of the constrained-container routes (home / contribute / contributor profile). It is
-// deliberately spare — a prototype, not a marketing footer — so it carries ONLY the spec-owned
-// required element: a single text link "About your data" → /about/data.
+// deliberately spare — a prototype, not a marketing footer — so it carries the spec-owned
+// required element ("About your data" → /about/data) plus the small skin toggle (the canonical
+// home for the light ↔ zine-dark control — see FooterSkinToggle for the a11y contract).
 //
 // Visual (Indigo Press, quiet): a `border-t border-hardbox/10` hairline, generous top padding,
 // `text-sm text-ink2`; the link uses the standard link affordance (`text-link` + hover/focus
-// underline + the focus-visible ring) — never gold, never color alone (AC11). It sits in normal
-// document flow at the end of the page (NOT position:fixed — a sticky footer would fight the
-// vertical-first scroll). Rendered as a <footer> (contentinfo) landmark so AT users can jump to it.
+// underline + the focus-visible ring) — never gold, never color alone (AC11). The skin toggle
+// sits inline with "About your data" as a quiet text+icon control, not a bordered chip.
+// It sits in normal document flow at the end of the page (NOT position:fixed — a sticky footer
+// would fight the vertical-first scroll). Rendered as a <footer> (contentinfo) landmark so AT
+// users can jump to it.
 //
 // `containerClassName` lets each route align the footer to its own reading column.
 export function SiteFooter({
@@ -21,13 +25,19 @@ export function SiteFooter({
 }) {
   return (
     <footer className="border-t border-hardbox/10">
-      <div className={`${containerClassName} py-8`}>
+      <div
+        className={`${containerClassName} flex items-center gap-4 py-8`}
+      >
         <Link
           href="/about/data"
           className="text-sm text-link hover:underline focus-visible:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-link focus-visible:ring-offset-2"
         >
           About your data
         </Link>
+        {/* The skin toggle — a client island in this server component. It is small, text+icon,
+            matching the footer's quiet affordance language (no hardbox chip border). Sits inline
+            with the "About your data" link so the two controls read as a footer group. */}
+        <FooterSkinToggle />
       </div>
     </footer>
   );

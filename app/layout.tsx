@@ -11,7 +11,8 @@ export const metadata: Metadata = {
 // ── The skin seam (docs/design/skin-system-zine-dark.md §10 / issues #119, #143). ───────────────────
 // A skin is a pure CSS / `data-skin`-attribute concern (the override block lives in globals.css). The
 // ONLY switch is the `data-skin` attribute on <html>; the default (absent / "zine") is the light
-// Indigo Press zine. The in-app toggle (components/header/SkinToggle.tsx) drives this seam from the UI.
+// Indigo Press zine. The footer toggle (components/chrome/FooterSkinToggle.tsx, in SiteFooter)
+// drives this seam from the UI.
 //
 // READ-PATH CONSTRAINT (recorded in docs/ARCHITECTURE.md): the SSR'd HTML shell must stay
 // SKIN-AGNOSTIC so the (future) ISR/Redis read path needs no skin variance — the same cached page

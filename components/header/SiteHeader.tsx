@@ -31,7 +31,6 @@ import {
   type ProjectorGeometry,
 } from "@/components/wordmark/HeaderProjector";
 import { TopicSearch } from "@/components/search/TopicSearch";
-import { SkinToggle } from "./SkinToggle";
 import {
   computeProgress,
   deriveHeaderProgress,
@@ -283,11 +282,7 @@ function PageSiteHeader({ auth }: { auth: ReactNode }) {
             className="header-chrome pointer-events-none absolute inset-x-0 top-0 z-10 mx-auto flex max-w-[1200px] items-center px-5"
             style={{ height: SLIM_BAR_HEIGHT }}
           >
-            {/* Issue #143: the skin toggle joins the right-anchored group, immediately LEFT of auth
-                (design §7.2). Both pointer-events-auto over the pointer-events-none row. Labeled chip,
-                collapsing to icon-only below 480px (responsiveCollapse). */}
             <div className="pointer-events-auto ml-auto flex shrink-0 items-center gap-2">
-              <SkinToggle responsiveCollapse />
               {auth}
             </div>
           </div>
@@ -324,10 +319,6 @@ function HomeSiteHeader({ auth }: { auth: ReactNode }) {
         className="auth-slot absolute right-0 top-0 z-10 flex items-center justify-end gap-2 px-3 sm:px-4"
         style={{ height: 56 }}
       >
-        {/* Issue #143: the skin toggle joins the right-anchored group, immediately LEFT of auth
-            (design §7.1). Labeled chip, collapsing to icon-only below 480px (responsiveCollapse) so
-            the right group stays clear of the left-anchored wordmark. */}
-        <SkinToggle responsiveCollapse />
         {auth}
       </div>
     </div>
@@ -350,12 +341,8 @@ function FlatSiteHeader({ auth }: { auth: ReactNode }) {
         style={{ minHeight: SLIM_BAR_HEIGHT }}
       >
         <HeaderProjector variant="lockup-flat" as="a" href="/" />
-        {/* The single AuthControl, right-anchored on the wordmark row (AC9), with the skin toggle
-            immediately to its left (issue #143, design §7.3). Labeled chip, collapsing to icon-only
-            below 480px (responsiveCollapse). The /about theater art is exempt from the skin, but this
-            page chrome follows it normally. */}
+        {/* The single AuthControl, right-anchored on the wordmark row (AC9). */}
         <div className="ml-auto flex shrink-0 items-center gap-2">
-          <SkinToggle responsiveCollapse />
           {auth}
         </div>
       </div>
@@ -680,16 +667,8 @@ function TopicSiteHeader({
 
           {/* The single consolidated AuthControl, right-anchored (AC9). Same node in both states.
               ml-auto pushes it right whether or not the title cue renders. pointer-events-auto
-              restores interactivity over the pointer-events-none row. The skin toggle (issue #143,
-              design §7.4) is immediately LEFT of auth, both inside this right-anchored group.
-              ICON-ONLY at every width (the dense Topic chrome), and HIDDEN while the narrow search is
-              open (`narrowSearchExpanded`) — exactly as the projector wordmark is suppressed and the
-              login collapses in that state. It reads the same `narrowSearchExpanded` signal the host
-              already derives (no new plumbing). It is present + operable in the DEFAULT mobile state
-              (collapsed search), so AC1 holds; it is only transiently hidden during an explicit,
-              dismissible search interaction. */}
+              restores interactivity over the pointer-events-none row. */}
           <div className="pointer-events-auto ml-auto flex shrink-0 items-center gap-2">
-            {!narrowSearchExpanded ? <SkinToggle iconOnly /> : null}
             {auth}
           </div>
         </div>

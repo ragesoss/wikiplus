@@ -1,102 +1,42 @@
 [
   {
-    "id": "home-skin-toggle",
-    "group": "Header · skin toggle",
-    "label": "Home header — skin toggle chip (left of auth)",
+    "id": "footer-skin-toggle",
+    "group": "Footer · skin toggle",
+    "label": "Footer — skin toggle (quiet text+icon, alongside 'About your data')",
     "viewport": "desktop",
     "auth": "out",
     "skin": "light",
-    "file": "home-skin-toggle-desktop-logged-out.png",
+    "file": "footer-skin-toggle-desktop-logged-out.png",
     "focus": true
   },
   {
-    "id": "home-skin-toggle",
-    "group": "Header · skin toggle",
-    "label": "Home header — skin toggle chip (left of auth)",
+    "id": "footer-skin-toggle",
+    "group": "Footer · skin toggle",
+    "label": "Footer — skin toggle (quiet text+icon, alongside 'About your data')",
     "viewport": "desktop",
     "auth": "out",
     "skin": "zine-dark",
-    "file": "home-skin-toggle-desktop-logged-out-zine-dark.png",
+    "file": "footer-skin-toggle-desktop-logged-out-zine-dark.png",
     "focus": true
   },
   {
-    "id": "home-skin-toggle",
-    "group": "Header · skin toggle",
-    "label": "Home header — skin toggle chip (left of auth)",
+    "id": "footer-skin-toggle",
+    "group": "Footer · skin toggle",
+    "label": "Footer — skin toggle (quiet text+icon, alongside 'About your data')",
     "viewport": "desktop",
     "auth": "in",
     "skin": "light",
-    "file": "home-skin-toggle-desktop-logged-in.png",
+    "file": "footer-skin-toggle-desktop-logged-in.png",
     "focus": true
   },
   {
-    "id": "home-skin-toggle",
-    "group": "Header · skin toggle",
-    "label": "Home header — skin toggle chip (left of auth)",
+    "id": "footer-skin-toggle",
+    "group": "Footer · skin toggle",
+    "label": "Footer — skin toggle (quiet text+icon, alongside 'About your data')",
     "viewport": "desktop",
     "auth": "in",
     "skin": "zine-dark",
-    "file": "home-skin-toggle-desktop-logged-in-zine-dark.png",
-    "focus": true
-  },
-  {
-    "id": "topic-skin-toggle",
-    "group": "Header · skin toggle",
-    "label": "Topic header — skin toggle (icon-only, dense chrome)",
-    "viewport": "desktop",
-    "auth": "out",
-    "skin": "light",
-    "file": "topic-skin-toggle-desktop-logged-out.png",
-    "focus": true
-  },
-  {
-    "id": "topic-skin-toggle",
-    "group": "Header · skin toggle",
-    "label": "Topic header — skin toggle (icon-only, dense chrome)",
-    "viewport": "desktop",
-    "auth": "out",
-    "skin": "zine-dark",
-    "file": "topic-skin-toggle-desktop-logged-out-zine-dark.png",
-    "focus": true
-  },
-  {
-    "id": "topic-skin-toggle",
-    "group": "Header · skin toggle",
-    "label": "Topic header — skin toggle (icon-only, dense chrome)",
-    "viewport": "desktop",
-    "auth": "in",
-    "skin": "light",
-    "file": "topic-skin-toggle-desktop-logged-in.png",
-    "focus": true
-  },
-  {
-    "id": "topic-skin-toggle",
-    "group": "Header · skin toggle",
-    "label": "Topic header — skin toggle (icon-only, dense chrome)",
-    "viewport": "desktop",
-    "auth": "in",
-    "skin": "zine-dark",
-    "file": "topic-skin-toggle-desktop-logged-in-zine-dark.png",
-    "focus": true
-  },
-  {
-    "id": "account-menu-skin",
-    "group": "Header · skin toggle",
-    "label": "Account menu — skin-toggle mirror item (signed in)",
-    "viewport": "desktop",
-    "auth": "in",
-    "skin": "light",
-    "file": "account-menu-skin-desktop-logged-in.png",
-    "focus": true
-  },
-  {
-    "id": "account-menu-skin",
-    "group": "Header · skin toggle",
-    "label": "Account menu — skin-toggle mirror item (signed in)",
-    "viewport": "desktop",
-    "auth": "in",
-    "skin": "zine-dark",
-    "file": "account-menu-skin-desktop-logged-in-zine-dark.png",
+    "file": "footer-skin-toggle-desktop-logged-in-zine-dark.png",
     "focus": true
   },
   {
@@ -1577,26 +1517,6 @@
     "auth": "in",
     "skin": "zine-dark",
     "file": "pinned-player-desktop-logged-in-zine-dark.png",
-    "focus": false
-  },
-  {
-    "id": "pinned-player-vertical",
-    "group": "Players",
-    "label": "PinnedPlayer — vertical 9:16 dock, action row (desktop)",
-    "viewport": "desktop",
-    "auth": "out",
-    "skin": "light",
-    "file": "pinned-player-vertical-desktop-logged-out.png",
-    "focus": false
-  },
-  {
-    "id": "pinned-player-vertical",
-    "group": "Players",
-    "label": "PinnedPlayer — vertical 9:16 dock, action row (desktop)",
-    "viewport": "desktop",
-    "auth": "in",
-    "skin": "light",
-    "file": "pinned-player-vertical-desktop-logged-in.png",
     "focus": false
   },
   {

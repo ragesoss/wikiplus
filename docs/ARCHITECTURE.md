@@ -386,12 +386,15 @@ key, no per-skin revalidation — exactly like the device-class branch above (on
 presentational branch in the browser).
 
 **Selection mechanism.** The skin is driven from the UI by an in-app **skin toggle**
-(`components/header/SkinToggle.tsx`), a binary `light ↔ zine-dark` control on the persistent chrome row
-of every `SiteHeader` host (left of the auth slot), with a mirrored item in the logged-in account menu
-— one action, one resolved-skin state, shared via `lib/skin/client.ts`'s `useSkin`. On activation it
-flips `data-skin` on `<html>` **in place** (no reload, no remount) and writes the `wikiplus-skin`
-cookie — the whole-page re-skin through the existing `[data-skin]` CSS cascade. (An operator-level
-build default still exists: `WIKIPLUS_SKIN` seeds the bootstrap when there is no cookie.)
+(`components/chrome/FooterSkinToggle.tsx`), a binary `light ↔ zine-dark` control in **`SiteFooter`**
+(alongside the "About your data" link), reachable on both auth states without requiring an account. It
+is a quiet text+icon button (not a bordered chip), using `text-link` color and the site focus ring to
+match the footer's affordance language. The Topic page carries no footer and therefore no toggle;
+readers on Topic rely on the preference persisted from any other page. One action, one resolved-skin
+state, shared via `lib/skin/client.ts`'s `useSkin`. On activation it flips `data-skin` on `<html>`
+**in place** (no reload, no remount) and writes the `wikiplus-skin` cookie — the whole-page re-skin
+through the existing `[data-skin]` CSS cascade. (An operator-level build default still exists:
+`WIKIPLUS_SKIN` seeds the bootstrap when there is no cookie.)
 
 **Persistence model + the cache-agnostic guarantee.** The **`wikiplus-skin` cookie is the single
 client source of truth** the pre-paint bootstrap reads — it works logged-out and is what makes first
