@@ -654,6 +654,17 @@ stands unchanged. **What is new is strictly the header treatment** — and with 
    there is no separate per-page header implementation. See `docs/specs/shared-header.md` +
    `docs/design/shared-header.md`.
 
+   The universal header carries a **skin toggle** (`components/header/SkinToggle.tsx`) on the
+   persistent chrome row, immediately left of the auth slot, in **every** host — the binary
+   `light ↔ zine-dark` control reachable on both auth states. It is the same hardbox-chip language as
+   the login affordance (ink-on-band via `--color-ink-plus` + `border-hardbox` + the login's hover
+   drop-shadow + the site focus ring), **never gold** and never a color-only signal (§7.3): the
+   destination word ("Dark" / "Light") + a decorative sun/moon glyph carry the meaning. It is the
+   labeled chip where there is room, icon-only at the narrowest home/page widths and by default on the
+   dense Topic host, and hidden while the Topic narrow-search field is open. A mirrored item in the
+   logged-in account menu points at the same action. See `docs/specs/skin-toggle.md` +
+   `docs/design/skin-toggle.md`.
+
 ### 10.2 Open design questions (resolve with Product/Dev)
 
 4. **Favicon / app-icon mark (Tier D) — RESOLVED.** The mark is the indigo "+" tile carrying a

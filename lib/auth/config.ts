@@ -4,7 +4,7 @@ import NextAuth, {
   type NextAuthConfig,
 } from "next-auth";
 import Wikimedia, { type WikimediaProfile } from "next-auth/providers/wikimedia";
-import { findOrCreateContributor } from "./contributor";
+import { findOrCreateContributor, getSkinPreference } from "./contributor";
 import { isModeratorContributor } from "./moderators";
 import { getDb } from "@/lib/db/client";
 
@@ -42,6 +42,14 @@ declare module "next-auth" {
        * role and never trusts this claim. Default false (logged-out + every non-moderator).
        */
       isModerator?: boolean;
+      /**
+       * Issue #143: the contributor's stored skin preference (`'zine'` | `'zine-dark'`, or
+       * undefined for none). Resolved SERVER-SIDE once at sign-in (the `jwt` callback's one DB pass),
+       * carried on the JWT, exposed read-only here so a thin post-login client step can MIRROR it into
+       * the `wikiplus-skin` cookie (DB→cookie — spec §6.1), making the next paint correct cross-device.
+       * It is NEVER read on the render path; ordinary reads stay JWT-only (no per-read DB hit).
+       */
+      skinPreference?: string;
     } & DefaultSession["user"];
   }
 }
@@ -50,6 +58,7 @@ declare module "@auth/core/jwt" {
     contributorId?: number;
     username?: string;
     isModerator?: boolean;
+    skinPreference?: string;
   }
 }
 
@@ -137,6 +146,13 @@ export const authConfig: NextAuthConfig = {
           getDb(),
           resolved.contributorId
         );
+        // Issue #143: read the stored skin preference in the SAME sign-in pass (no extra read on
+        // ordinary requests — read-path discipline / AC4). It is exposed on the session so a thin
+        // client step mirrors it DB→cookie at login (spec §6.1), so the next paint's pre-paint
+        // bootstrap reads the cookie alone. `undefined` ⇒ no stored preference (fall through to the
+        // cookie / OS default). It NEVER enters the render path, so the cache stays skin-agnostic.
+        const storedSkin = await getSkinPreference(resolved.contributorId, getDb());
+        token.skinPreference = storedSkin ?? undefined;
       }
       return token;
     },
@@ -146,6 +162,10 @@ export const authConfig: NextAuthConfig = {
         session.user.contributorId = token.contributorId;
         session.user.username = token.username;
         session.user.isModerator = token.isModerator ?? false;
+        // Issue #143: expose the stored skin preference so a thin client step mirrors it into the
+        // `wikiplus-skin` cookie at login (DB→cookie — spec §6.1). Read-only here; the cookie is the
+        // single client source of truth for rendering and the toggle keeps both in sync.
+        session.user.skinPreference = token.skinPreference;
         // Keep `name` aligned with the Wikimedia username for any default rendering.
         if (token.username) session.user.name = token.username;
       }

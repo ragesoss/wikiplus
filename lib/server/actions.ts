@@ -553,6 +553,37 @@ export async function votedClipIdsAction(
   return store().votedClipIds(clipIds, contributorId);
 }
 
+// ── Per-user skin preference (issue #143 — the durable backstop behind the cookie) ───────
+// A logged-in toggle persists the chosen skin to the contributor row so it follows the user
+// cross-device (the login mirrors it back into the `wikiplus-skin` cookie — spec §6.1). This is a
+// PRESENTATIONAL write, fire-and-forget from the control's perspective: the cookie + the live
+// `data-skin` flip happen on the client FIRST and never wait on this (design §4.6). It is NEVER on
+// the read/render path — the server never reads `skin_preference` to render `data-skin`, so the
+// cache-agnostic guarantee (AC9/AC10) holds. GATE FIRST (`requireContributor`): an anonymous direct
+// call writes nothing (a logged-out reader has the cookie only — no DB row to write). It is NOT rate-
+// limited (a low-frequency preference flip, not a spam vector like add/upvote) and writes no
+// `write_event` ledger row.
+
+/** The closed skin set the preference column may store (spec A3.2 / §6.1). */
+const SKINS = new Set<string>(["zine", "zine-dark"]);
+
+/**
+ * Persist the signed-in contributor's chosen skin (`'zine'` | `'zine-dark'`, or `null` to clear).
+ * GATE FIRST (an anonymous call is rejected before any DB touch). A value outside the closed skin
+ * set is rejected (the column never stores an out-of-vocabulary skin). Returns nothing — the client
+ * fired this alongside the instant cookie/`data-skin` switch and does not await the result for the
+ * visual change.
+ */
+export async function setSkinPreferenceAction(
+  skin: string | null
+): Promise<void> {
+  const { contributorId } = await requireContributor();
+  if (skin !== null && !SKINS.has(skin)) {
+    throw new Error(`Unknown skin: ${skin}`);
+  }
+  await store().setSkinPreference(skin, contributorId);
+}
+
 // ── Sticky dismissals (shared + durable — AC5) ──────────────────────────────────────────
 export async function recordDismissalAction(input: {
   topicQid: string;

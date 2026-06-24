@@ -1,0 +1,1 @@
+ALTER TABLE "contributor" ADD COLUMN "skin_preference" text;
