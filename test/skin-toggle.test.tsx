@@ -19,9 +19,6 @@ vi.mock("@/lib/data", () => ({
   store: { setSkinPreference: (skin: string | null) => setSkinPreference(skin) },
 }));
 
-// SkinToggle (the base component — still lives in components/header/ — tests its core logic
-// independently of placement).
-import { SkinToggle } from "@/components/header/SkinToggle";
 // FooterSkinToggle — the canonical footer control.
 import { FooterSkinToggle } from "@/components/chrome/FooterSkinToggle";
 // SiteFooter — the host; the toggle is embedded inside it.
@@ -84,7 +81,7 @@ describe("FooterSkinToggle — the canonical footer skin control", () => {
     await waitFor(() => {
       expect(btn.textContent).toMatch(/Dark|Light/);
     });
-    // There should be no hidden span with the word (unlike the header's icon-only form).
+    // There should be no hidden span with the word.
     const hiddenWord = btn.querySelector("span.hidden");
     expect(hiddenWord).toBeNull();
   });
@@ -125,72 +122,3 @@ describe("FooterSkinToggle — the live switch", () => {
   });
 });
 
-// ── SkinToggle (base component) — core logic, still valid and placement-independent ──────────
-describe("SkinToggle (base) — light active (resolved skin = light zine)", () => {
-  it("shows the destination word 'Dark' and the full aria-label 'Switch to dark skin' (AC13/§5.1)", async () => {
-    render(<SkinToggle />);
-    const btn = await screen.findByRole("button", { name: "Switch to dark skin" });
-    expect(btn).toBeInTheDocument();
-    await waitFor(() => expect(btn).toHaveTextContent("Dark"));
-  });
-
-  it("is a plain toggle BUTTON — NO role='switch', NO aria-pressed (§5.3)", async () => {
-    render(<SkinToggle />);
-    const btn = await screen.findByRole("button", { name: "Switch to dark skin" });
-    expect(btn).toHaveAttribute("type", "button");
-    expect(btn.getAttribute("role")).not.toBe("switch");
-    expect(btn).not.toHaveAttribute("aria-pressed");
-    expect(btn).not.toBeDisabled();
-  });
-});
-
-describe("SkinToggle (base) — dark active (resolved skin = zine-dark)", () => {
-  beforeEach(() => document.documentElement.setAttribute("data-skin", "zine-dark"));
-
-  it("reads the RESOLVED dark skin on mount and shows 'Light' / 'Switch to light skin' (§4.5 honesty)", async () => {
-    render(<SkinToggle />);
-    const btn = await screen.findByRole("button", { name: "Switch to light skin" });
-    await waitFor(() => expect(btn).toHaveTextContent("Light"));
-  });
-});
-
-describe("SkinToggle (base) — the live switch (AC2/AC3/AC4)", () => {
-  it("flips data-skin on <html> IN PLACE light→dark and writes the wikiplus-skin cookie", async () => {
-    render(<SkinToggle />);
-    const btn = await screen.findByRole("button", { name: "Switch to dark skin" });
-    fireEvent.click(btn);
-    expect(document.documentElement.getAttribute("data-skin")).toBe("zine-dark");
-    expect(document.cookie).toContain("wikiplus-skin=zine-dark");
-    await waitFor(() =>
-      expect(
-        screen.getByRole("button", { name: "Switch to light skin" })
-      ).toBeInTheDocument()
-    );
-  });
-
-  it("flips dark→light by REMOVING data-skin (the byte-identical light render returns — AC15) and writes zine", async () => {
-    document.documentElement.setAttribute("data-skin", "zine-dark");
-    render(<SkinToggle />);
-    const btn = await screen.findByRole("button", { name: "Switch to light skin" });
-    fireEvent.click(btn);
-    expect(document.documentElement.hasAttribute("data-skin")).toBe(false);
-    expect(document.cookie).toContain("wikiplus-skin=zine");
-  });
-
-  it("persists the choice to the DB seam fire-and-forget (§6.1) — and does NOT gate the visual switch", async () => {
-    render(<SkinToggle />);
-    const btn = await screen.findByRole("button", { name: "Switch to dark skin" });
-    fireEvent.click(btn);
-    await waitFor(() => expect(setSkinPreference).toHaveBeenCalledWith("zine-dark"));
-  });
-});
-
-describe("SkinToggle (base) — icon-only collapse (§7.4 legacy prop)", () => {
-  it("hides the visible word but keeps the full aria-label and a 44px-min square", async () => {
-    render(<SkinToggle iconOnly />);
-    const btn = await screen.findByRole("button", { name: "Switch to dark skin" });
-    const word = btn.querySelector("span.hidden");
-    expect(word?.textContent).toBe("Dark");
-    expect(btn.className).toContain("min-w-[44px]");
-  });
-});
