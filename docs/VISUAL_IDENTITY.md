@@ -465,17 +465,27 @@ white" on a dark field without inverting the entire concept.
 
 wiki+ now ships the **zine-dark** skin (issue #119; design contract
 `docs/design/skin-system-zine-dark.md`, ARCHITECTURE "Skin system"). Its header resolution is the
-**flat Tier-C lockup at every scroll state** — the indigo "+plus" block (keeping the brand-fill
-`#676EB4` with a white "+", the committed AA-large exemption §7.2) + a serif "Wiki" in a light ink
-`#ECEAF1` on the flat dark band. It hides the lit aperture + descending beam (the same code path the
-`forced-colors` fallback uses) and does **not** attempt the burn-to-white projector. The header band
-is flat `--surface-2`, the page-top illumination falloff resolves to flat `--surface`, and the 2px
-chrome rule is a light line — a color + layer-visibility change only, with the scroll-transition
-behavior, geometry, and focus order unchanged.
+**flat Tier-C lockup with no descending beam, on every host and at every scroll state** — the indigo
+"+plus" block (keeping the brand-fill `#676EB4` with a white "+", the committed AA-large exemption
+§7.2) + a serif "Wiki" in a light ink `#ECEAF1` on the flat dark band. It hides the lit aperture +
+descending beam and does **not** attempt the burn-to-white projector. The header band is flat
+`--surface-2`, the page-top illumination falloff resolves to flat `--surface`, and the 2px chrome rule
+is a light line — a color + layer-visibility change only, with the scroll-transition behavior,
+geometry, and focus order unchanged. This holds for the **free-standing home hero** as well as the
+scroll-aware Topic / content-page hosts: the home header reads as a clean flat "off" lockup on a flat
+dark band — no beam, no white burn slab — at every width.
 
 A true dark-theater inversion (e.g. a *spotlight in a dark room* re-derivation of the projector) is a
 **separate future design task, explicitly out of scope** — zine-dark deliberately uses the flat
 lockup rather than re-deriving the projector.
+
+The **`/about` orientation page** is itself a deliberate dark warm-theater room on both skins; in
+zine-dark its centerpiece **fixed art is exempt** (the warm-dark room, the projector, the lit lamp,
+the lit Topic-page miniature, and the warm "How it works" card keep their committed colours, insulated
+from the skin's global token re-points), while the mini-preview's title input and the article loading
+sweep get an intentional dark-readable treatment — so `/about` reads well as a dark page without
+inverting the theater. See `docs/design/skin-system-zine-dark.md` §7.1 and
+`docs/design/dark-mode-cleanup.md` (issue #156).
 
 ### 6.5 Static, not animated
 
