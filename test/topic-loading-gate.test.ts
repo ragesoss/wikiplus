@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  shouldShowCandidatesLoadingLine,
   shouldShowEmptySuggestions,
+  type CandidatesLoadingLineInput,
   type EmptySuggestionsInput,
 } from "@/app/topic/loading-state";
 
@@ -65,5 +67,49 @@ describe("shouldShowEmptySuggestions (the §4 gate)", () => {
     // is the plus side's own honest state whether the article is ready, loading, or errored.
     expect(shouldShowEmptySuggestions(settledEmpty)).toBe(true);
     expect("fetchState" in settledEmpty).toBe(false);
+  });
+});
+
+// The candidate-loading line (`Looking for suggestions…`) gate (#148, topic-loading-states §4 row 7).
+// `storeReady` flips true even on a store-read error, so this line must be gated on `!storeError`
+// too — otherwise the rail could show both its error floor and the loading line at once.
+
+/** A live candidate search in flight, no rail suggestions resolved, store healthy: returns true. */
+const searchingNoStoreError: CandidatesLoadingLineInput = {
+  storeError: false,
+  candidatesLoading: true,
+  sectionCandidatesCount: 0,
+};
+
+describe("shouldShowCandidatesLoadingLine (§4 row 7)", () => {
+  it("shows while a candidate search is in flight with no rail suggestions resolved", () => {
+    expect(shouldShowCandidatesLoadingLine(searchingNoStoreError)).toBe(true);
+  });
+
+  it("never shows when the store read errored (the rail shows its own floor, not both)", () => {
+    expect(
+      shouldShowCandidatesLoadingLine({
+        ...searchingNoStoreError,
+        storeError: true,
+      })
+    ).toBe(false);
+  });
+
+  it("does not show when no candidate search is in flight", () => {
+    expect(
+      shouldShowCandidatesLoadingLine({
+        ...searchingNoStoreError,
+        candidatesLoading: false,
+      })
+    ).toBe(false);
+  });
+
+  it("does not show once rail suggestions have resolved", () => {
+    expect(
+      shouldShowCandidatesLoadingLine({
+        ...searchingNoStoreError,
+        sectionCandidatesCount: 2,
+      })
+    ).toBe(false);
   });
 });
