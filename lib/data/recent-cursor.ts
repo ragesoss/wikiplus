@@ -16,6 +16,11 @@
 // null and the read simply starts from the head (a robust, side-effect-free degrade — the feed is a
 // public read with no auth or mutation to protect).
 
+/** Postgres `int4` (signed 32-bit) max — the ceiling for a `clip.id` serial. A numeric cursor `i`
+ *  above this could never be a real id and would overflow the int4 column at bind time, so the
+ *  decode rejects it (DEF-1b). */
+const INT4_MAX = 2147483647;
+
 export interface RecentCursor {
   /** The boundary clip's `createdAt` as an ISO timestamp string. */
   t: string;
@@ -60,13 +65,19 @@ export function decodeRecentCursor(
     //   - `i` is the tiebreaker: a FINITE INTEGER (the production serial PK) or a STRING (the
     //     localStorage reference's `c_xxxx` id, compared lexically in that store's keyset). A
     //     non-finite / non-integer NUMBER (`NaN`, `3.14`, `Infinity`) is never a real id → reject.
+    //     A numeric `i` must also be WITHIN Postgres int4 range (`clip.id` is `serial`): an
+    //     overflowing integer (`|i| > 2147483647`) is bound against the int4 column and Postgres
+    //     throws `value … is out of range for type integer` (22003), so reject it here too — it
+    //     could never be a real `clip.id` and must degrade to a head read, never throw (DEF-1b).
     //   - The Drizzle keyset's `Number(i)` coercion of a NON-NUMERIC string `i` is guarded at the
     //     QUERY (it drops the tiebreak branch rather than send NaN), so a string `i` stays VALID
     //     here for the reference store; we don't reject it (that would break local-store paging).
     if (typeof t !== "string") return null;
     if (Number.isNaN(new Date(t).getTime())) return null;
     if (typeof i === "number") {
-      return Number.isInteger(i) ? { t, i } : null;
+      if (!Number.isInteger(i)) return null;
+      if (Math.abs(i) > INT4_MAX) return null; // out of int4 range — never a real serial id
+      return { t, i };
     }
     if (typeof i === "string") {
       return { t, i };

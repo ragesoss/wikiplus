@@ -383,31 +383,24 @@ describe("recent-curations feed — listRecentCurations (issue #160)", () => {
     expect(new Set(collected).size).toBe(collected.length); // no dupes
   });
 
-  // ── DEFECT DEF-1b (QA re-verify of fix round 1, routed to Development). Fix round 1 closed the
-  //    non-date-`t` and NaN-`i` throw paths, but a THIRD forged-cursor throw remains: an OVERFLOWING
-  //    integer `i`. `clip.id` is a Postgres `serial` (int4, max 2_147_483_647). A forged `i` beyond
-  //    int4 range PASSES the new `Number.isInteger(idTiebreak)` guard (JS has no int4 notion), so the
-  //    keyset KEEPS the id-tiebreak branch and binds the oversized value against the int4 column —
-  //    Postgres throws `value "<n>" is out of range for type integer` (SQLSTATE 22003) out of the
-  //    Server Action. The issue's security AC names "OVERFLOWING" explicitly: a forged/overflowing
-  //    cursor must degrade safely and NEVER throw. Fails CLOSED (no leak/injection/crash — the value
-  //    is parameterized and rejected as data; the feed surfaces an error state), so severity is
-  //    LOW–MEDIUM, same profile as the round-1 defects. SUGGESTED FIX: bound `i` to int4 range in
-  //    `decodeRecentCursor` (reject |i| > 2_147_483_647 → null) OR drop the id-tiebreak branch when
-  //    `i` is out of int4 range (like the non-numeric-string handling). Pinned `it.fails` so the gate
-  //    stays green AND it flips RED the moment Development bounds the value — then make it ordinary `it`.
-  it.fails(
-    "DEFECT DEF-1b: a forged OVERFLOWING integer-id cursor THROWS (int4 out of range) instead of degrading",
-    async () => {
-      await addN(2);
-      const forged = encodeRecentCursor({
-        t: "2999-01-01T00:00:00.000Z",
-        i: 9_999_999_999_999, // > int4 max (2_147_483_647)
-      });
-      // Contract: should resolve to a safe page; CURRENTLY throws (22003 integer out of range).
-      await store.listRecentCurations({ cursor: forged });
-    }
-  );
+  // ── DEF-1b (QA re-verify of fix round 1). `clip.id` is a Postgres `serial` (int4, max
+  //    2_147_483_647). A forged integer `i` BEYOND int4 range would pass a plain `Number.isInteger`
+  //    guard (JS has no int4 notion) and, if kept, bind against the int4 column → Postgres `value
+  //    "<n>" is out of range for type integer` (22003). `decodeRecentCursor` now bounds a numeric
+  //    `i` to int4 range, so an overflowing `i` nulls the WHOLE cursor → a plain head read; the
+  //    oversized value never reaches the bound query param. (The string-`i` keyset path is unchanged.)
+  it("a forged OVERFLOWING integer-id cursor decodes to null → head read, no throw (DEF-1b)", async () => {
+    const added = await addN(2);
+    const forged = encodeRecentCursor({
+      t: "2999-01-01T00:00:00.000Z",
+      i: 9_999_999_999_999, // > int4 max (2_147_483_647)
+    });
+    const page = await store.listRecentCurations({ cursor: forged });
+    // Degrades to the head: the full newest-first set, not a 22003 error.
+    expect(page.items.map((c) => c.id)).toEqual(
+      [...added].reverse().map((c) => c.id)
+    );
+  });
 
   it("a huge `limit` is honored as a page size, not an error (no resource blowup on the small set)", async () => {
     const added = await addN(3);

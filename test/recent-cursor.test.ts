@@ -52,6 +52,15 @@ describe("recent-curations cursor (issue #160)", () => {
     expect(
       decodeRecentCursor(enc({ t: "2026-06-25T12:00:00.000Z", i: Number.NaN }))
     ).toBeNull();
+    // DEF-1b: a numeric `i` beyond Postgres int4 range could never be a real serial id and would
+    // overflow the int4 column at bind time → decode to null (degrade to a head read).
+    expect(
+      decodeRecentCursor(enc({ t: "2026-06-25T12:00:00.000Z", i: 9_999_999_999_999 }))
+    ).toBeNull();
+    // The int4 boundary itself is still a valid id.
+    expect(
+      decodeRecentCursor(enc({ t: "2026-06-25T12:00:00.000Z", i: 2147483647 }))
+    ).toEqual({ t: "2026-06-25T12:00:00.000Z", i: 2147483647 });
   });
 
   it("accepts a string `i` (the reference store's `c_xxxx` keyset id round-trips)", () => {
