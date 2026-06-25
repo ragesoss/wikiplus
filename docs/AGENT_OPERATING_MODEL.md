@@ -1,8 +1,8 @@
 # wiki+ — Agent Operating Model
 
 wiki+ is **built and operated by AI agents** (Claude) acting in distinct, named roles. This
-document describes that operating model. The role subagent definitions live in
-`.claude/agents/`; the build loop that enforces the pipeline is the `/build-loop` skill (see "Bootstrap").
+document describes that operating model. The role charters live in `.claude/agents/`; the build loop
+that enforces the pipeline is the `/build-loop` skill (see *How roles map to tooling*).
 
 ## Premise
 
@@ -15,11 +15,13 @@ A human (the project owner) sets direction, approves plans, and arbitrates — a
 production work within their charters. The owner drives the loop from a prompt, **including
 from a mobile Claude Code session** (see *How work flows*).
 
-**What a "role" actually is.** Each role is a Claude Code subagent: a focused system prompt
-with fresh context, not a persistent process. Roles do **not** invoke each other — the
-orchestrator (the main session running the `/build-loop` skill) drives the sequence, and the durable hand-off
-is always an **artifact in the repo**. The value is specialized attention, independent
-verification, and legibility — not a literal company simulation.
+**What a "role" actually is.** Each role is a **charter** — a focused system prompt defining a
+domain, its owned artifacts, and its standards — living in `.claude/agents/`. The `/build-loop`
+session **wears each charter in turn**, inline, reading it before that stage; the durable hand-off is
+always an **artifact in the repo**. The **one** role that runs as its own fresh-context Claude Code
+subagent is the Phase-4 verifier — independent, non-author eyes are the whole point there — and it
+runs in the **background** so the main session stays active. The value is specialized attention,
+independent verification, and legibility — not a literal company simulation.
 
 ## Roles
 
@@ -100,13 +102,13 @@ contribute loop.
 
 Roles are not strictly sequential — UX and early Dev exploration can overlap, **UX appears both before
 Dev** (design spec) **and after** (design evaluation), and Curation feeds in upstream. The artifact each
-role produces is the hand-off contract: the next role works from the document/code, not from
-conversation. Roles do not invoke each other — the orchestrator drives the sequence.
+role produces is the hand-off contract: the next stage works from the committed document/code, not
+from conversation. The `/build-loop` session wears each charter in turn and drives the sequence;
+the one stage that runs as its own fresh-context subagent is Phase-4 verification.
 
 ## Seams to watch
 
-The set-level review surfaced three boundary edges. Here's how each resolves, so nothing is
-orphaned or double-owned:
+Three role boundaries need care, so nothing is orphaned or double-owned:
 
 - **Accessibility testing** — split by altitude: **QA & Review** owns *automated* a11y checks
   (part of the test suite); **UX / Design** owns *judgment-based* a11y evaluation (in design
@@ -121,17 +123,19 @@ orphaned or double-owned:
 
 ## How roles map to tooling
 
-- **Subagent definitions** — one per role in `.claude/agents/`, each a focused system prompt encoding
-  its charter, owned artifacts, and hand-off rules. Tools and model are inherited; **boundaries are
+- **Role charters** — one per role in `.claude/agents/`, each a focused system prompt encoding its
+  charter, owned artifacts, and hand-off rules. Tools and model are inherited; **boundaries are
   charter-enforced**, not sandboxed.
-- **Slash commands** — for common cross-role actions (spec a feature, review the diff, deploy, report
-  metrics). *Follows as the app comes into existence.*
+- **Slash commands** — `/build-loop` (run the pipeline) and `/prepare-issue` (groom an idea into a
+  ready build task); more follow as needed.
 - **The build-loop skill** (`.claude/skills/build-loop/`) — the core multi-role pipeline, realizing the
   **cloud, mobile-drivable prompt → deploy cycle**. It is a *skill*, not the deterministic **Workflow**
   tool: that tool is local-terminal-only, and the loop must run in cloud/mobile sessions (skills, slash
   commands, and `.claude/agents/` subagents all load from the repo clone in cloud sessions; the Workflow
-  runtime does not). It enforces the sequence by ordered, gated delegation to role subagents rather than
-  by a deterministic script.
+  runtime does not). It enforces the sequence **inline** — the session wears each role charter in turn
+  behind an artifact gate per stage — with the **verify phase split** between an inline evaluation and a
+  concurrent fresh-eyes background subagent, so the main session never goes idle (idle freezes a cloud
+  container).
 - **Shared artifacts / source of truth** — `docs/` holds vision, architecture, specs, design, and the
   curation standard; code holds the implementation; `CLAUDE.md` encodes the shared conventions all
   roles follow.

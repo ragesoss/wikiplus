@@ -46,31 +46,33 @@ and produces the artifacts named in `docs/AGENT_OPERATING_MODEL.md`.
 
 **This is a hard rule, not a suggestion — cloud sessions included:**
 
-- **Delegate; don't wear hats.** The session you're in is the *orchestrator*. For any non-trivial
-  feature or code change, **spawn the matching role as a subagent** (the Task tool → `.claude/agents/`)
-  and let it work in its own fresh context. Do **not** do Product/UX/Dev/QA work inline and label it
-  with a role name in the commit — that defeats the whole point (specialized attention, independent
-  verification, legibility).
-- **Artifacts are the hand-off.** Each role works from the previous role's committed artifact (spec,
-  design spec, code), not from the conversation. A design spec is an **input to Dev**, written *before*
-  implementation — never a doc edited afterward to match what shipped.
-- **QA & Review is not optional.** Code isn't "done" until a `qa-reviewer` subagent (fresh, non-author
-  eyes) has reviewed it and UX has evaluated the built UI against the design spec. A passing `yarn
-  build` by the author is not review, even for the client-side prototype.
-- **Trivial, process-neutral changes** (a CI version bump, a typo, a doc tweak) can be done inline —
-  use judgment; the rule is about feature/code work.
-- **Run the cloud orchestrator on Opus.** The discipline of delegating rather than just-doing-it is
-  meta-judgment a stronger model holds better; a 2026-06-14 Sonnet cloud session defaulted to solo
-  execution (see `docs/AGENT_OPERATING_MODEL.md`). The `/build-loop` skill pins per-role models (Opus for the judgment-heavy roles).
+- **Run the loop inline, in one active session; never block idle on a subagent.** Wear each role's
+  hat in turn — read that role's `.claude/agents/` charter and the relevant `docs/` first — and do the
+  work yourself. (A cloud container freezes the session on inactivity and kills a subagent you're idly
+  waiting on; staying busy keeps the build alive.)
+- **Verification is the one thing that must not come from your own head.** Code isn't "done" until
+  **fresh, non-author eyes** have checked the axis most prone to author bias. `/build-loop` does this
+  without going idle: at the verify phase it spawns the fresh-eyes evaluator (QA correctness+security
+  by default) as a **background** subagent and does the *other* evaluation (UX) inline, concurrently.
+  A passing `yarn build` by the author is not review.
+- **Artifacts are the record, and the design spec comes before code.** Commit each stage's output
+  (spec, design, code, tests) as its own commit, in order. The design spec is an **input to the
+  build**, committed *before* the first code commit (provable in `git log`).
+- **Trivial, process-neutral changes** (a CI version bump, a typo, a doc tweak) can be done free-form —
+  use judgment; the rule above is about feature/code work.
+- **Run the session on Opus.** The judgment-heavy work — lane/gate decisions, the design contract, the
+  inline evaluation — runs in the main session, so run it on Opus; the fresh-eyes verify subagent runs
+  on Opus too.
 
 The enforcement of this loop is the **`/build-loop` skill** (`.claude/skills/build-loop/`): it runs the
-role pipeline by delegating each stage to the matching `.claude/agents/` subagent, autonomously, from a
-prompt to a deployed prototype. (It's a skill, not the deterministic **Workflow** tool, which is
-local-terminal-only — the loop must run in cloud/mobile sessions; see `docs/AGENT_OPERATING_MODEL.md`.)
-Invoke `/build-loop` — or just describe the feature work and let it trigger — instead of building inline;
-the rule above still holds whenever the loop isn't used. Work is queued as **GitHub Issues** — one issue
-= one build-loop run, and a session auto-picks up only an issue signed off as `type: build` +
-`status: ready` (see *Issue pipeline* in `docs/AGENT_OPERATING_MODEL.md`).
+role pipeline inline, with the verify phase split between an inline evaluation and a concurrent
+background subagent, autonomously, from a prompt to a deployed prototype. (It's a skill, not the
+deterministic **Workflow** tool, which is local-terminal-only — the loop must run in cloud/mobile
+sessions; see `docs/AGENT_OPERATING_MODEL.md`.) Invoke `/build-loop` — or just describe the feature
+work and let it trigger — instead of building free-form; the discipline above still holds whenever the
+loop isn't used. Work is queued as **GitHub Issues** — one issue = one build-loop run, and a session
+auto-picks up only an issue signed off as `type: build` + `status: ready` (see *Issue pipeline* in
+`docs/AGENT_OPERATING_MODEL.md`).
 
 ## UI screenshot gallery
 
