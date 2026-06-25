@@ -296,6 +296,10 @@ export class LocalStorageDataStore implements DataStore {
 
     const pageRows = after.slice(0, limit);
     const hasMore = after.length > limit;
+    // The stored `c.upvotes` is carried as-is, mirroring this reference impl's `listClips` — the
+    // DB-derived PUBLIC count (seed baseline + distinct `clip_vote` rows, the D1/§6.2 parity) lives
+    // in the DrizzleDataStore; the reference impl has no separate vote table, so the clip's own
+    // count IS its figure on both reads (reference parity).
     const items: ContributorClip[] = pageRows.map((c) => ({
       ...c,
       topicTitle: topics.find((t) => t.qid === c.topicQid)?.title ?? c.topicQid,

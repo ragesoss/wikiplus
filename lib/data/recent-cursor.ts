@@ -48,15 +48,27 @@ export function decodeRecentCursor(
     const parsed = JSON.parse(
       Buffer.from(cursor, "base64url").toString("utf8")
     ) as unknown;
-    const t = (parsed as RecentCursor)?.t;
-    const i = (parsed as RecentCursor)?.i;
-    if (
-      parsed &&
-      typeof parsed === "object" &&
-      typeof t === "string" &&
-      (typeof i === "string" ||
-        (typeof i === "number" && Number.isFinite(i)))
-    ) {
+    if (!parsed || typeof parsed !== "object") return null;
+    const t = (parsed as RecentCursor).t;
+    const i = (parsed as RecentCursor).i;
+    // VALUE validation, not just type (DEF-1): a well-formed-but-FORGED cursor must still decode to
+    // null so the read degrades to the head and NEVER reaches the DB with a bad value (the §3.4
+    // security contract — "decodes to null and the read starts from the head… never throws").
+    //   - `t` must be a string that parses to a REAL date. A non-date string would make
+    //     `new Date(t)` an Invalid Date → `RangeError: Invalid time value` at the keyset param
+    //     serializer — so reject it here.
+    //   - `i` is the tiebreaker: a FINITE INTEGER (the production serial PK) or a STRING (the
+    //     localStorage reference's `c_xxxx` id, compared lexically in that store's keyset). A
+    //     non-finite / non-integer NUMBER (`NaN`, `3.14`, `Infinity`) is never a real id → reject.
+    //   - The Drizzle keyset's `Number(i)` coercion of a NON-NUMERIC string `i` is guarded at the
+    //     QUERY (it drops the tiebreak branch rather than send NaN), so a string `i` stays VALID
+    //     here for the reference store; we don't reject it (that would break local-store paging).
+    if (typeof t !== "string") return null;
+    if (Number.isNaN(new Date(t).getTime())) return null;
+    if (typeof i === "number") {
+      return Number.isInteger(i) ? { t, i } : null;
+    }
+    if (typeof i === "string") {
       return { t, i };
     }
     return null;

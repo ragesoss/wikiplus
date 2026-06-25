@@ -972,7 +972,11 @@ build on additively.
       an offset drifts as new curations arrive at the head between page loads (dupes/gaps), whereas a
       keyset pins the boundary to a concrete `(createdAt, id)` so paging back through history has no
       dupes and no gaps. The cursor is an **opaque** base64url `{ t, i }` (`lib/data/recent-cursor.ts`);
-      the client only round-trips it. `nextCursor === null` ⇒ exhausted (the end-of-feed marker). The
+      the client only round-trips it. A **forged/stale cursor degrades safely, never throws**: the
+      decode value-validates `t` (a non-date nulls the whole cursor → a plain head read) and `i` (a
+      non-integer *number* nulls it), and the keyset additionally drops the id-tiebreak branch when
+      `i` is not integer-coercible — so a hostile value never reaches the bound query param as an
+      Invalid Date or a `Number→NaN`. `nextCursor === null` ⇒ exhausted (the end-of-feed marker). The
       read fetches `limit + 1` to learn "is there more?" without a second COUNT. `RECENT_PAGE_DEFAULT
       = 12`. **No schema/migration:** `clip.created_at` (and the serial `clip.id` tiebreaker) already
       exist — the feed is a new query over existing columns.
@@ -982,6 +986,12 @@ build on additively.
       cross-topic feed is the site's public "best recent curations" shopfront, so a not-yet-vouched
       (held) clip does not surface there. The reference `LocalStorageDataStore` derives the same
       newest-first, held/removed-excluded, keyset-paged shape over its in-memory clip set (parity).
+    - **Count parity (§6.2).** Each feed clip carries the **same PUBLIC derived upvote count the
+      topic page shows** — the frozen seed baseline (`clip.upvotes`) **plus** `COUNT(distinct
+      clip_vote)` — via the SAME `voteCountsForClips` helper `listClips` uses, so a feed item never
+      undercounts a clip that accrued real votes. This is the **public total only**; the per-viewer
+      "have I voted" state is deliberately **not** computed on this read (it stays off the read path —
+      the feed shows social proof, never the interactive toggle).
   - **`/recent` is a dynamic (uncached) render — explicitly NOT on the (future) static/ISR shell.** A
     global chronological list changes on **every** curation, so it does not fit the cacheable
     per-topic ISR shell (whose cache key is a topic, revalidated on that topic's writes). The route

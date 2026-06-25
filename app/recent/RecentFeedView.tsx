@@ -215,7 +215,7 @@ export function RecentFeedView() {
         // viewport below the slim header. `overflow-y-auto` + `h-[calc(100dvh-56px)]` makes IT the
         // scroller (not the window), so the sticky header stays put and the IntersectionObservers
         // can use it as their root.
-        className="recent-feed-track snap-y snap-mandatory overflow-y-auto overflow-x-hidden"
+        className="snap-y snap-mandatory overflow-y-auto overflow-x-hidden"
         style={{ height: ITEM_HEIGHT }}
       >
         {items.map((clip, i) => (

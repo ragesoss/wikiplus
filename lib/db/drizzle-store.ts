@@ -484,18 +484,25 @@ export class DrizzleDataStore implements DataStore {
     // Keyset boundary (§3.4): strictly OLDER than the cursor in the `(created_at desc, id desc)`
     // order — `created_at < t OR (created_at = t AND id < i)`. This is the dupe/gap-free stable
     // page boundary an offset cannot give (an offset shifts as new curations land at the head).
+    // `cursor.t` is already validated to be a real date (decodeRecentCursor), so `new Date(t)` is
+    // never an Invalid Date here. `cursor.i` is the numeric serial PK in production; coerce it and
+    // INCLUDE the id-tiebreak branch only when it is integer-coercible. A non-numeric string `i`
+    // (a forged or cross-store cursor — `Number(i)` would be NaN, which Postgres rejects as an
+    // invalid integer) DROPS the tiebreak branch and uses the `created_at < t` boundary alone —
+    // a safe degrade that never sends NaN to the query (DEF-1).
+    const idTiebreak = Number(cursor?.i);
     const where = cursor
       ? and(
           visible,
-          or(
-            sql`${clip.createdAt} < ${new Date(cursor.t)}`,
-            and(
-              sql`${clip.createdAt} = ${new Date(cursor.t)}`,
-              // The production cursor's `i` is always the numeric serial id; coerce defensively
-              // so a forged string cursor degrades to a no-op tiebreak rather than a bad query.
-              sql`${clip.id} < ${Number(cursor.i)}`
-            )
-          )
+          Number.isInteger(idTiebreak)
+            ? or(
+                sql`${clip.createdAt} < ${new Date(cursor.t)}`,
+                and(
+                  sql`${clip.createdAt} = ${new Date(cursor.t)}`,
+                  sql`${clip.id} < ${idTiebreak}`
+                )
+              )
+            : sql`${clip.createdAt} < ${new Date(cursor.t)}`
         )
       : visible;
 
@@ -512,10 +519,22 @@ export class DrizzleDataStore implements DataStore {
 
     const hasMore = rows.length > limit;
     const pageRows = hasMore ? rows.slice(0, limit) : rows;
-    const items: ContributorClip[] = pageRows.map((r) => ({
-      ...rowToClip(r.clip, r.topicQid),
-      topicTitle: r.topicTitle,
-    }));
+    // D1 / §6.2 count parity: surface the SAME PUBLIC derived count the topic page shows — the
+    // frozen seed baseline (`clip.upvotes`) PLUS the count of distinct real `clip_vote` rows — using
+    // the SAME helper `listClips` uses, so a feed item never undercounts a clip that accrued votes.
+    // This is the PUBLIC TOTAL only; the PER-VIEWER "have I voted" state is deliberately NOT computed
+    // here (it stays off this read — the read-path principle + the logged-out model: the feed shows
+    // social proof, never the interactive toggle). The derive-to-`undefined`-when-zero rule mirrors
+    // `listClips` so a never-seeded, never-voted clip renders no figure (matching the topic page).
+    const counts = await this.voteCountsForClips(pageRows.map((r) => r.clip.id));
+    const items: ContributorClip[] = pageRows.map((r) => {
+      const derived = (r.clip.upvotes ?? 0) + (counts.get(r.clip.id) ?? 0);
+      return {
+        ...rowToClip(r.clip, r.topicQid),
+        upvotes: derived > 0 || r.clip.upvotes != null ? derived : undefined,
+        topicTitle: r.topicTitle,
+      };
+    });
     // The cursor is the LAST emitted item's `(createdAt, id)` — the boundary the next call pages
     // strictly past. Only emit it when a further page exists, so `nextCursor === null` is the
     // single, honest "exhausted" signal the feed's end marker keys on (§3.4 / §4.4).

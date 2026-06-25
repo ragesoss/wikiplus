@@ -36,4 +36,26 @@ describe("recent-curations cursor (issue #160)", () => {
       )
     ).toBeNull();
   });
+
+  // DEF-1: VALUE validation. A non-date `t` and a non-finite/non-integer NUMBER `i` decode to null
+  // (they could never be a real cursor and would otherwise reach the keyset as a bad value — an
+  // Invalid Date or a non-integer). A STRING `i` stays VALID (the localStorage reference's `c_xxxx`
+  // id is a legitimate keyset key in that store); the Drizzle keyset guards the `Number(i)`→NaN
+  // coercion at the QUERY (it drops the id tiebreak), so decode need not reject a string `i`.
+  it("rejects a non-date `t` and a non-integer numeric `i` (decodes to null)", () => {
+    const enc = (c: { t: unknown; i: unknown }) =>
+      Buffer.from(JSON.stringify(c), "utf8").toString("base64url");
+    expect(decodeRecentCursor(enc({ t: "garbage-not-a-date", i: 1 }))).toBeNull();
+    expect(
+      decodeRecentCursor(enc({ t: "2026-06-25T12:00:00.000Z", i: 3.14 }))
+    ).toBeNull();
+    expect(
+      decodeRecentCursor(enc({ t: "2026-06-25T12:00:00.000Z", i: Number.NaN }))
+    ).toBeNull();
+  });
+
+  it("accepts a string `i` (the reference store's `c_xxxx` keyset id round-trips)", () => {
+    const c = { t: "2026-06-25T12:00:00.000Z", i: "c_forged" };
+    expect(decodeRecentCursor(encodeRecentCursor(c))).toEqual(c);
+  });
 });

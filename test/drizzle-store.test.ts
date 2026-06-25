@@ -209,6 +209,26 @@ describe("recent-curations feed — listRecentCurations (issue #160)", () => {
     expect(page.nextCursor).toBeNull();
   });
 
+  it("shows the PUBLIC DERIVED upvote count (seed baseline + real votes), like the topic page (D1/§6.2)", async () => {
+    // A clip with a frozen seed baseline of 5 that then accrues one real vote should read 6 in the
+    // feed — the SAME derived total `listClips` (the topic page) surfaces. Mapping via `rowToClip`
+    // alone would undercount to the baseline; the feed must derive like the topic read.
+    const c = await store.addClip({ ...clip0(), topicQid: "Q11982", upvotes: 5 });
+    await store.toggleUpvote(c.id); // one real clip_vote (stub voter) → derived = 5 + 1
+    const page = await store.listRecentCurations({});
+    const got = page.items.find((x) => x.id === c.id);
+    expect(got?.upvotes).toBe(6);
+    // Parity with the topic page's derived count for the same clip.
+    const onTopic = (await store.listClips("Q11982")).find((x) => x.id === c.id);
+    expect(got?.upvotes).toBe(onTopic?.upvotes);
+  });
+
+  it("a never-seeded, never-voted clip shows NO count figure (undefined — matches the topic page)", async () => {
+    const c = await store.addClip({ ...clip0(), topicQid: "Q11982", upvotes: undefined });
+    const page = await store.listRecentCurations({});
+    expect(page.items.find((x) => x.id === c.id)?.upvotes).toBeUndefined();
+  });
+
   it("EXCLUDES held clips (vetted=false) and removed clips (the public vouched shopfront)", async () => {
     const [a, b, c] = await addN(3);
     await store.setClipVetted(b.id, false); // held → excluded
@@ -262,58 +282,43 @@ describe("recent-curations feed — listRecentCurations (issue #160)", () => {
     expect(page.items.map((c) => c.id)).toEqual([added[1].id, added[0].id]);
   });
 
-  // ── Adversarial cursor robustness (QA security review, issue #160). A WELL-FORMED cursor whose
-  //    contents are forged must reach the SQL keyset without throwing, without injecting, and
-  //    without leaking rows the visibility predicate excludes. These probe the production code path:
-  //    `decodeRecentCursor` ACCEPTS a string `i` and ANY string `t` (it validates the *types*, not
-  //    that `t` is a valid date or `i` a numeric string), and the DrizzleDataStore then coerces
-  //    `new Date(cursor.t)` / `Number(cursor.i)` — so a hostile value reaches the bound query param.
-  //
-  //    DEFECT (issue #160, routed to Development): the documented contract is "a forged/stale cursor
-  //    never throws and degrades to the head of the feed" (recent-cursor.ts + the seam doc), but two
-  //    well-formed-but-forged cursors THROW out of `listRecentCurations` instead of degrading:
-  //      (1) a non-date `t` → `new Date("garbage")` = Invalid Date → the pglite/drizzle param
-  //          serializer throws `RangeError: Invalid time value` BEFORE the DB; and
-  //      (2) a non-numeric string `i` → `Number(...)` = NaN → Postgres rejects with
-  //          `invalid input syntax for type integer: "NaN"`.
-  //    It fails CLOSED (no data leak, no SQL injection — the value is correctly parameterized; the
-  //    feed surfaces an error state, never the server crashing), so severity is LOW–MEDIUM, but it
-  //    violates the stated "never throw / degrade to head" invariant in the issue's security AC.
-  //    These are pinned with `it.fails` so the suite stays green AND they flip to RED (alerting QA)
-  //    the moment Development hardens the decode (validate `t` is a real date + `i` a finite int, or
-  //    null the cursor) — at which point they should become ordinary `it(...)` assertions.
-  it.fails(
-    "DEFECT: a forged string-id cursor (Number(i) = NaN) THROWS instead of degrading to the head",
-    async () => {
-      await addN(3);
-      const forged = encodeRecentCursor({
-        t: "2026-06-25T12:00:00.000Z",
-        i: "c_forged_string",
-      });
-      // Contract: should resolve to a safe page; CURRENTLY throws (invalid integer "NaN").
-      await store.listRecentCurations({ cursor: forged });
-    }
-  );
+  // ── Adversarial cursor robustness (QA security review, issue #160 / DEF-1). A WELL-FORMED cursor
+  //    whose CONTENTS are forged must NEVER throw, never inject, never leak rows the visibility
+  //    predicate excludes — the contract (recent-cursor.ts + the seam doc): "a forged/stale cursor
+  //    never throws and the read degrades safely." DEF-1 hardened two value-level hazards:
+  //      (1) a non-date `t` → `decodeRecentCursor` nulls the WHOLE cursor → a plain head read; and
+  //      (2) a non-numeric string `i` (with a real `t`) → the Drizzle keyset coerces `Number(i)` =
+  //          NaN, so it DROPS the id-tiebreak branch and uses the `created_at < t` boundary alone —
+  //          a safe keyset that never sends NaN to Postgres. Neither reaches the bound param badly.
+  it("a forged string-id cursor (Number(i)=NaN) drops the id tiebreak safely, no throw", async () => {
+    const added = await addN(3);
+    // A real `t` in the FUTURE (newer than every just-created clip) with a non-numeric `i`: the
+    // tiebreak is dropped, the `created_at < t` boundary holds, so all clips return — no throw.
+    const forged = encodeRecentCursor({ t: "2999-01-01T00:00:00.000Z", i: "c_forged_string" });
+    const page = await store.listRecentCurations({ cursor: forged });
+    expect(page.items.map((c) => c.id)).toEqual(
+      [...added].reverse().map((c) => c.id)
+    );
+  });
 
-  it.fails(
-    "DEFECT: a forged non-date `t` cursor (Invalid Date) THROWS instead of degrading to the head",
-    async () => {
-      await addN(3);
-      const forged = encodeRecentCursor({ t: "garbage-not-a-date", i: 999999 });
-      // Contract: should resolve to a safe page; CURRENTLY throws (RangeError: Invalid time value).
-      await store.listRecentCurations({ cursor: forged });
-    }
-  );
+  it("a forged non-date `t` cursor (would be Invalid Date) decodes to null → head read, no throw", async () => {
+    const added = await addN(3);
+    const forged = encodeRecentCursor({ t: "garbage-not-a-date", i: 999999 });
+    const page = await store.listRecentCurations({ cursor: forged });
+    // The whole cursor is nulled → a plain head read of the full newest-first set.
+    expect(page.items.map((c) => c.id)).toEqual(
+      [...added].reverse().map((c) => c.id)
+    );
+  });
 
   it("a SQL-injection-shaped cursor value is bound as data, never executed (no DROP TABLE)", async () => {
     const added = await addN(2);
-    // The `t` is a parameterized value via drizzle's sql`` — a classic injection payload is treated
-    // as DATA, never interpolated/executed. (It is also a non-date string, so per the DEFECT above
-    // the coercion path currently throws; we assert here only that the table is NOT dropped — i.e.
-    // there is no SQL injection — by confirming the data survives a subsequent head read.)
+    // The injection payload is a non-date `t`, so `decodeRecentCursor` nulls the cursor and the read
+    // degrades to a head read — the payload never reaches the query at all. (Even if it did, the
+    // value is parameterized via drizzle's sql`` and bound as DATA, never interpolated/executed.) We
+    // assert the table is intact: a head read still returns the two live clips.
     const forged = encodeRecentCursor({ t: "2026'); DROP TABLE clip;--", i: 1 });
-    await store.listRecentCurations({ cursor: forged }).catch(() => {});
-    // The clip table still exists + is intact: a fresh head read returns the two live clips.
+    await store.listRecentCurations({ cursor: forged });
     const head = await store.listRecentCurations({});
     expect(head.items.map((c) => c.id).sort()).toEqual(
       [added[0].id, added[1].id].sort()
