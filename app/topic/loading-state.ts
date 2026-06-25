@@ -47,3 +47,26 @@ export function shouldShowEmptySuggestions(s: EmptySuggestionsInput): boolean {
     s.generalCandidatesCount === 0
   );
 }
+
+/** The plus-side facts the candidate-loading line gate consumes. */
+export interface CandidatesLoadingLineInput {
+  /** The store read failed (`storeError`) — the rail shows its own error floor instead. */
+  storeError: boolean;
+  /** The live candidate search is still in flight. */
+  candidatesLoading: boolean;
+  /** Section-anchored remaining suggestions already resolved. */
+  sectionCandidatesCount: number;
+}
+
+/**
+ * The candidate-loading line (`Looking for suggestions…`) gate (topic-loading-states §4 row 7).
+ * It renders ONLY while a candidate search is in flight AND no rail suggestions have resolved AND
+ * the store did NOT error — so it never coexists with the rail's `Couldn't load curated videos —
+ * please refresh.` floor. (The candidate effect also bails on `storeError`, so the line cannot mount
+ * under a store error in the first place; this gate is the belt-and-suspenders consistency.)
+ */
+export function shouldShowCandidatesLoadingLine(
+  s: CandidatesLoadingLineInput
+): boolean {
+  return !s.storeError && s.candidatesLoading && s.sectionCandidatesCount === 0;
+}

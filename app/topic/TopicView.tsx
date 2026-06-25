@@ -10,7 +10,10 @@ import {
   ownerH2SlugMap,
 } from "@/components/topic/ArticleBody";
 import { useIsPhone } from "@/components/topic/useIsPhone";
-import { shouldShowEmptySuggestions } from "./loading-state";
+import {
+  shouldShowCandidatesLoadingLine,
+  shouldShowEmptySuggestions,
+} from "./loading-state";
 import { AddModal } from "@/components/topic/AddModal";
 import {
   ArticleNotFound,
@@ -550,7 +553,16 @@ export function TopicView() {
   // a set (a key is present) we replace it, else we keep the seed (no-key no-op, AC1).
   // Decoupled from storeReady so a slow search never blocks the page chrome (§5.4).
   useEffect(() => {
-    if (!qid || !storeReady || fetchState !== "ready" || !article) return;
+    // Gated on `!storeError` alongside `storeReady` (topic-loading-states §4 row 7):
+    // `storeReady` flips true even on a store-read error, so without this the candidate
+    // search could run — flipping `candidatesLoading` true — while the rail already shows
+    // its `Couldn't load curated videos — please refresh.` floor, surfacing the contradictory
+    // `Looking for suggestions…` line at the same time. Bailing at the root keeps the rail
+    // honest: under a store error the candidate search never starts and the loading line
+    // never mounts. (The same `!storeError` condition gates the empty-suggestion line via
+    // `shouldShowEmptySuggestions`.)
+    if (!qid || !storeReady || storeError || fetchState !== "ready" || !article)
+      return;
     // No source enabled (every local/CI/cloud build — no key) → the live path is a no-op.
     // Do NOT flash the loading skeleton or fire the AT announcement; nothing about a
     // missing key should surface to the user (design §5.3). Keep the seeded/empty set.
@@ -592,7 +604,7 @@ export function TopicView() {
     // `clips` intentionally excluded: it's a dedup input captured at run time, not a
     // re-trigger (the curated set is stable for a topic in the prototype).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [qid, storeReady, fetchState, article]);
+  }, [qid, storeReady, storeError, fetchState, article]);
 
   // The topic title is split into canonical vs. display.
   //   - `canonicalTitle` (space-form) keys the "From Wikipedia"/ArticleError URL, the
@@ -2156,10 +2168,17 @@ export function TopicView() {
             {/* Rail suggestion-region loading / zero-results lines (design §5.2 / §5.4;
                 issue #60 §7.4/§7.5). The loading line shows whenever a candidate fetch is in
                 flight AND no rail suggestions have resolved yet — in MIXED as well as empty;
-                it sits AFTER the curated group, so curated cards are never disturbed. */}
+                it sits AFTER the curated group, so curated cards are never disturbed. Gated on
+                `!storeError` (topic-loading-states §4 row 7), consistent with the empty-suggestion
+                line: under a store error the rail shows its own floor, never both that floor and
+                `Looking for suggestions…` at once. (The candidate effect also bails on `storeError`,
+                so this is belt-and-suspenders honesty.) */}
             {!suppressSuggestions &&
-              candidatesLoading &&
-              sectionCandidates.length === 0 && (
+              shouldShowCandidatesLoadingLine({
+                storeError,
+                candidatesLoading,
+                sectionCandidatesCount: sectionCandidates.length,
+              }) && (
                 <p className="text-sm text-muted" aria-live="polite">
                   Looking for suggestions…
                 </p>
