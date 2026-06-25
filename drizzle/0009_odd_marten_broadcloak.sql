@@ -1,0 +1,1 @@
+ALTER TABLE "topic" ADD COLUMN "closed_to_suggestions" boolean DEFAULT false NOT NULL;

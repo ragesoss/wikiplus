@@ -72,6 +72,9 @@ export class LocalStorageDataStore implements DataStore {
         qid: t.qid,
         title: t.title,
         description: t.description,
+        // Issue #159: carried for type parity. A stored topic that predates the field reads as
+        // not-complete (the `?? false` default), matching the DB column default.
+        closedToSuggestions: t.closedToSuggestions ?? false,
         stats: {
           videos: own.length,
           creators: new Set(own.map((c) => c.creator.handle)).size,
@@ -101,6 +104,21 @@ export class LocalStorageDataStore implements DataStore {
     else topics.push(topic);
     write(TOPICS_KEY, topics);
     return topic;
+  }
+
+  // Issue #159: set/clear the topic's "marked complete" flag (reference impl). The production
+  // CURATOR role-gate lives in `setTopicClosedToSuggestionsAction`; this just persists the boolean
+  // on the stored topic row, touching no other field and no clip/candidate.
+  async setTopicClosedToSuggestions(
+    qid: string,
+    closed: boolean
+  ): Promise<Topic> {
+    const topics = read<Topic>(TOPICS_KEY);
+    const i = topics.findIndex((t) => t.qid === qid);
+    if (i < 0) throw new Error(`Topic ${qid} not found`);
+    topics[i] = { ...topics[i], closedToSuggestions: closed };
+    write(TOPICS_KEY, topics);
+    return topics[i];
   }
 
   async listClips(topicQid: string): Promise<Clip[]> {

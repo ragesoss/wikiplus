@@ -165,6 +165,33 @@ export async function upsertTopicAction(topic: Topic): Promise<Topic> {
   return result;
 }
 
+// ── "Marked complete" / closed-to-suggestions (issue #159 — a curator-set topic flag) ────────
+// Set or clear the topic-level `closed_to_suggestions` flag (the user-facing "mark complete" /
+// "reopen"). A CURATION act available to ANY signed-in curator (the same bar as adding/curating —
+// no moderation lock, no ownership restriction); a logged-out reader cannot set or clear it (AC4).
+//
+// THE SECURITY CONTROL IS HERE, not the affordance: the curator control in `Infobox` is only
+// rendered when `signedIn`, but that is an affordance gate — this action re-checks the signed-in
+// curator SERVER-SIDE via `requireContributor()` FIRST and REJECTS an anonymous/expired caller
+// before any DB write, so a direct boundary invocation with no session changes nothing (AC4). It
+// slots into the same gate→limit→write contract as the other gated writes: a counted gated write
+// (recorded in the `write_event` ledger as `topic-complete`), so a mark/un-mark flood is bounded
+// like add/dismiss. It is NON-destructive and fully reversible (no confirm dialog in the UI).
+export async function setTopicClosedToSuggestionsAction(
+  qid: string,
+  closed: boolean
+): Promise<Topic> {
+  // GATE FIRST (AC4): reject an unauthenticated mark/un-mark before any DB write.
+  const { contributorId } = await requireContributor();
+  // LIMIT SECOND (issue #57 / D5a — the gate→limit→write contract): reject + write nothing if this
+  // identity is over its per-window cap. Pure-read check; the event is recorded after the write.
+  const db = getDb();
+  await checkWriteRateLimit(db, contributorId);
+  const result = await store().setTopicClosedToSuggestions(qid, closed);
+  await recordWriteEvent(db, contributorId, "topic-complete");
+  return result;
+}
+
 // ── Clips ──────────────────────────────────────────────────────────────────────────────
 export async function listClipsAction(topicQid: string): Promise<Clip[]> {
   return store().listClips(topicQid);

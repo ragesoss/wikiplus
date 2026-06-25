@@ -37,6 +37,26 @@ export const topic = pgTable("topic", {
   lang: text("lang").notNull().default("en"),
   /** Short Wikidata description (display attribute; nullable). */
   description: text("description"),
+  // ── "Marked complete" / closed to suggestions (issue #159). ────────────────────────────────
+  // An explicit, curator-set topic-level flag: when `true`, the Topic page suppresses ALL
+  // auto-suggestion chrome by default (candidate tiles, the "Suggested · uncurated" divider/header,
+  // "See N more", dashed TOC counts, the wiki+ panel suggestion volume) and renders only curated
+  // content — a curator's "I've finished this topic" judgment. The stored truth is mechanical and
+  // precise (suggestions are closed); the user-facing word is "marked complete" (the gloss "closed
+  // to suggestions"). DISTINCT from the auto-derived `fully-curated` state (no suggestion chrome
+  // only because the candidate pool emptied): that is computed in `TopicView` from the counts and
+  // is never stored, holds only at ≥1 curated clip + 0 remaining suggestions, and changes as the
+  // pool changes; THIS flag is explicit, persisted, holds even when suggestions exist, and is
+  // allowed at zero curated videos (the intended end state). It does NOT delete or dismiss any
+  // candidate — the candidate pipeline is unchanged; suppression is a PRESENTATION derivation over
+  // it (a per-viewer, session-local override re-enables the normal presentation for one viewer).
+  // `NOT NULL DEFAULT false` so every existing/new topic lands NOT-complete when the column lands —
+  // the safe default; the feature ships green with no topic suppressed until a curator marks one.
+  // Set/cleared by ANY signed-in curator via a role-gated Server Action (no moderation lock, no
+  // ownership restriction). NO `marked_by`/`marked_at` audit columns this run — a plain boolean.
+  closedToSuggestions: boolean("closed_to_suggestions")
+    .notNull()
+    .default(false),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),

@@ -91,6 +91,7 @@ export class DrizzleDataStore implements DataStore {
         qid: topic.wikidataQid,
         title: topic.title,
         description: topic.description,
+        closedToSuggestions: topic.closedToSuggestions,
         videos: count(clip.id),
         creators: countDistinct(clip.creatorHandle),
         curators: countDistinct(clip.curatedBy),
@@ -100,12 +101,20 @@ export class DrizzleDataStore implements DataStore {
         clip,
         and(eq(clip.topicId, topic.id), isNull(clip.removedAt))
       )
-      .groupBy(topic.id, topic.wikidataQid, topic.title, topic.description, topic.updatedAt)
+      .groupBy(
+        topic.id,
+        topic.wikidataQid,
+        topic.title,
+        topic.description,
+        topic.closedToSuggestions,
+        topic.updatedAt
+      )
       .orderBy(desc(topic.updatedAt), topic.title);
     return rows.map((r) => ({
       qid: r.qid,
       title: r.title,
       description: r.description ?? undefined,
+      closedToSuggestions: r.closedToSuggestions,
       stats: {
         videos: Number(r.videos),
         creators: Number(r.creators),
@@ -153,6 +162,23 @@ export class DrizzleDataStore implements DataStore {
         },
       })
       .returning();
+    return rowToTopic(rows[0]);
+  }
+
+  async setTopicClosedToSuggestions(
+    qid: string,
+    closed: boolean
+  ): Promise<Topic> {
+    // Issue #159: write ONLY the `closed_to_suggestions` flag (+ updatedAt) — no other topic field,
+    // and no clip/candidate touched (suppression is a presentation derivation over the unchanged
+    // candidate pipeline; this never dismisses or rules out a candidate). The CURATOR role-gate ran
+    // already in `setTopicClosedToSuggestionsAction`; this just persists. Keyed by the canonical QID.
+    const rows = await this.db
+      .update(topic)
+      .set({ closedToSuggestions: closed, updatedAt: new Date() })
+      .where(eq(topic.wikidataQid, qid))
+      .returning();
+    if (!rows[0]) throw new Error(`Topic ${qid} not found`);
     return rowToTopic(rows[0]);
   }
 

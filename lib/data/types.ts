@@ -66,6 +66,23 @@ export interface Topic {
   /** Wikipedia article title. */
   title: string;
   description?: string;
+  /**
+   * "Marked complete" / closed to suggestions (issue #159). When `true`, the Topic page suppresses
+   * all auto-suggestion chrome BY DEFAULT (for every viewer) and renders only curated content — a
+   * curator's explicit "I've finished this topic" judgment. Persisted on the `topic` row
+   * (`closed_to_suggestions`, `NOT NULL DEFAULT false`). DISTINCT from the auto-derived
+   * `fully-curated` state (which `TopicView` computes from the counts and never stores): this flag
+   * is explicit, holds even when suggestions exist, and is allowed at zero curated videos. It does
+   * NOT touch the candidate pipeline — suppression is a PRESENTATION derivation in `TopicView`
+   * (`suppressSuggestions = closedToSuggestions && !viewerOverride`), and a session-local per-viewer
+   * override re-enables the normal presentation for one viewer. Set/cleared by any signed-in curator.
+   *
+   * OPTIONAL on the type so a topic CREATED/UPSERTED by a caller need not specify it (it defaults to
+   * `false` via the DB column default — a curator marks complete later via the dedicated action).
+   * The store READS always populate it concretely (the column is `NOT NULL`), so a topic loaded from
+   * the store always carries a definite boolean; treat an absent value as `false`.
+   */
+  closedToSuggestions?: boolean;
 }
 
 /**
