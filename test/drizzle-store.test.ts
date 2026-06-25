@@ -7,6 +7,8 @@ import {
 import { seedDatabase } from "@/lib/db/seed";
 import { seedClips } from "@/lib/data/seed";
 import { encodeRecentCursor } from "@/lib/data/recent-cursor";
+import { clip as clipTbl, topic as topicTbl } from "@/lib/db/schema";
+import { eq as eqOp } from "drizzle-orm";
 import type { Clip } from "@/lib/data/types";
 import { makeTestDb, type TestDb } from "./helpers/pglite-db";
 
@@ -324,6 +326,88 @@ describe("recent-curations feed — listRecentCurations (issue #160)", () => {
       [added[0].id, added[1].id].sort()
     );
   });
+
+  it("LEGITIMATE pagination across a SAME-TIMESTAMP batch still has no dupes/gaps (the id-tiebreak branch is load-bearing and NOT dropped for a real numeric cursor)", async () => {
+    // DEF-1 fix correctness guard: the keyset now DROPS the id-tiebreak branch when `Number(i)` is
+    // not integer-coercible. That must fire ONLY for a forged string `i` — for a real production
+    // cursor (`i` is the numeric serial PK) the tiebreak MUST stay, or a tied-`created_at` batch
+    // would dupe/gap. Force the worst case: several clips with the IDENTICAL `created_at`, so the
+    // id tiebreak is the ONLY thing giving a total order, then page through them one at a time.
+    const ts = new Date("2026-06-20T08:00:00.000Z");
+    const topicRow = await h.db
+      .select({ id: topicTbl.id })
+      .from(topicTbl)
+      .where(eqOp(topicTbl.wikidataQid, "Q11982"))
+      .limit(1);
+    const base = clip0();
+    const insertedIds: number[] = [];
+    for (let k = 0; k < 4; k++) {
+      const r = await h.db
+        .insert(clipTbl)
+        .values({
+          topicId: topicRow[0].id,
+          platform: base.platform,
+          platformLabel: base.platformLabel,
+          orientation: base.orientation,
+          watchUrl: base.watchUrl,
+          caption: `tied ${k}`,
+          creatorHandle: base.creator.handle,
+          creatorName: base.creator.name,
+          creatorPlatform: base.creator.platform,
+          general: base.general,
+          contextNote: base.contextNote,
+          stance: base.stance,
+          accuracyFlag: base.accuracyFlag,
+          vetted: true,
+          createdAt: ts,
+          updatedAt: ts,
+        })
+        .returning({ id: clipTbl.id });
+      insertedIds.push(r[0].id);
+    }
+    // Newest-first total order across the tie = id DESC (the tiebreaker).
+    const expected = [...insertedIds].sort((a, b) => b - a).map(String);
+
+    // Page one-at-a-time through the whole tied batch; every cursor here is a REAL numeric-id cursor,
+    // so the id-tiebreak branch is exercised (never dropped). Concatenation must reproduce the set
+    // exactly — no dupe, no gap — proving the tiebreak survives the DEF-1 refactor.
+    const collected: string[] = [];
+    let cursor: string | null | undefined = undefined;
+    for (let guard = 0; guard < 10; guard++) {
+      const page = await store.listRecentCurations({ cursor, limit: 1 });
+      collected.push(...page.items.map((c) => c.id));
+      cursor = page.nextCursor;
+      if (cursor === null) break;
+    }
+    expect(collected).toEqual(expected);
+    expect(new Set(collected).size).toBe(collected.length); // no dupes
+  });
+
+  // ── DEFECT DEF-1b (QA re-verify of fix round 1, routed to Development). Fix round 1 closed the
+  //    non-date-`t` and NaN-`i` throw paths, but a THIRD forged-cursor throw remains: an OVERFLOWING
+  //    integer `i`. `clip.id` is a Postgres `serial` (int4, max 2_147_483_647). A forged `i` beyond
+  //    int4 range PASSES the new `Number.isInteger(idTiebreak)` guard (JS has no int4 notion), so the
+  //    keyset KEEPS the id-tiebreak branch and binds the oversized value against the int4 column —
+  //    Postgres throws `value "<n>" is out of range for type integer` (SQLSTATE 22003) out of the
+  //    Server Action. The issue's security AC names "OVERFLOWING" explicitly: a forged/overflowing
+  //    cursor must degrade safely and NEVER throw. Fails CLOSED (no leak/injection/crash — the value
+  //    is parameterized and rejected as data; the feed surfaces an error state), so severity is
+  //    LOW–MEDIUM, same profile as the round-1 defects. SUGGESTED FIX: bound `i` to int4 range in
+  //    `decodeRecentCursor` (reject |i| > 2_147_483_647 → null) OR drop the id-tiebreak branch when
+  //    `i` is out of int4 range (like the non-numeric-string handling). Pinned `it.fails` so the gate
+  //    stays green AND it flips RED the moment Development bounds the value — then make it ordinary `it`.
+  it.fails(
+    "DEFECT DEF-1b: a forged OVERFLOWING integer-id cursor THROWS (int4 out of range) instead of degrading",
+    async () => {
+      await addN(2);
+      const forged = encodeRecentCursor({
+        t: "2999-01-01T00:00:00.000Z",
+        i: 9_999_999_999_999, // > int4 max (2_147_483_647)
+      });
+      // Contract: should resolve to a safe page; CURRENTLY throws (22003 integer out of range).
+      await store.listRecentCurations({ cursor: forged });
+    }
+  );
 
   it("a huge `limit` is honored as a page size, not an error (no resource blowup on the small set)", async () => {
     const added = await addN(3);
