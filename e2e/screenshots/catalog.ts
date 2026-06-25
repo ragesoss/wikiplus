@@ -565,9 +565,10 @@ export const SCENES: Scene[] = [
   },
   {
     id: "home-header",
+    skins: ["light", "zine-dark"],
     group: "Home",
     label: "Home — header (Tier A beam)",
-    note: "The projector beam + lockup + auth control, scroll-top.",
+    note: "The projector beam + lockup + auth control, scroll-top. On zine-dark the home header reads clearly OFF — the flat indigo +plus lockup on a flat dark band, no beam / lit-aperture glow / white burn slab.",
     route: "/",
     stub: "plain",
     ready: homeReady,
@@ -785,9 +786,10 @@ export const SCENES: Scene[] = [
   // "no contradictory empty copy" point is visible alongside the preserved plus side.
   {
     id: "topic-loading",
+    skins: ["light", "zine-dark"],
     group: "Topic · loading & states",
     label: "Topic — loading (projector scan, both regions)",
-    note: "Both regions pending: the projector scan over the article + plus skeletons. No empty or error copy.",
+    note: "Both regions pending: the projector scan over the article + plus skeletons. No empty or error copy. On zine-dark the sweep is a cool light-ink wash (no warm daylight gold).",
     route: "/topic/Photosynthesis/",
     stub: "curated",
     setup: stallTopicLoading,

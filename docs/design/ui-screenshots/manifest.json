@@ -234,9 +234,29 @@
     "group": "Home",
     "label": "Home — header (Tier A beam)",
     "viewport": "mobile",
+    "auth": "out",
+    "skin": "zine-dark",
+    "file": "home-header-mobile-logged-out-zine-dark.png",
+    "focus": false
+  },
+  {
+    "id": "home-header",
+    "group": "Home",
+    "label": "Home — header (Tier A beam)",
+    "viewport": "mobile",
     "auth": "in",
     "skin": "light",
     "file": "home-header-mobile-logged-in.png",
+    "focus": false
+  },
+  {
+    "id": "home-header",
+    "group": "Home",
+    "label": "Home — header (Tier A beam)",
+    "viewport": "mobile",
+    "auth": "in",
+    "skin": "zine-dark",
+    "file": "home-header-mobile-logged-in-zine-dark.png",
     "focus": false
   },
   {
@@ -254,9 +274,29 @@
     "group": "Home",
     "label": "Home — header (Tier A beam)",
     "viewport": "tablet",
+    "auth": "out",
+    "skin": "zine-dark",
+    "file": "home-header-tablet-logged-out-zine-dark.png",
+    "focus": false
+  },
+  {
+    "id": "home-header",
+    "group": "Home",
+    "label": "Home — header (Tier A beam)",
+    "viewport": "tablet",
     "auth": "in",
     "skin": "light",
     "file": "home-header-tablet-logged-in.png",
+    "focus": false
+  },
+  {
+    "id": "home-header",
+    "group": "Home",
+    "label": "Home — header (Tier A beam)",
+    "viewport": "tablet",
+    "auth": "in",
+    "skin": "zine-dark",
+    "file": "home-header-tablet-logged-in-zine-dark.png",
     "focus": false
   },
   {
@@ -274,9 +314,29 @@
     "group": "Home",
     "label": "Home — header (Tier A beam)",
     "viewport": "desktop",
+    "auth": "out",
+    "skin": "zine-dark",
+    "file": "home-header-desktop-logged-out-zine-dark.png",
+    "focus": false
+  },
+  {
+    "id": "home-header",
+    "group": "Home",
+    "label": "Home — header (Tier A beam)",
+    "viewport": "desktop",
     "auth": "in",
     "skin": "light",
     "file": "home-header-desktop-logged-in.png",
+    "focus": false
+  },
+  {
+    "id": "home-header",
+    "group": "Home",
+    "label": "Home — header (Tier A beam)",
+    "viewport": "desktop",
+    "auth": "in",
+    "skin": "zine-dark",
+    "file": "home-header-desktop-logged-in-zine-dark.png",
     "focus": false
   },
   {
@@ -1274,9 +1334,29 @@
     "group": "Topic · loading & states",
     "label": "Topic — loading (projector scan, both regions)",
     "viewport": "mobile",
+    "auth": "out",
+    "skin": "zine-dark",
+    "file": "topic-loading-mobile-logged-out-zine-dark.png",
+    "focus": false
+  },
+  {
+    "id": "topic-loading",
+    "group": "Topic · loading & states",
+    "label": "Topic — loading (projector scan, both regions)",
+    "viewport": "mobile",
     "auth": "in",
     "skin": "light",
     "file": "topic-loading-mobile-logged-in.png",
+    "focus": false
+  },
+  {
+    "id": "topic-loading",
+    "group": "Topic · loading & states",
+    "label": "Topic — loading (projector scan, both regions)",
+    "viewport": "mobile",
+    "auth": "in",
+    "skin": "zine-dark",
+    "file": "topic-loading-mobile-logged-in-zine-dark.png",
     "focus": false
   },
   {
@@ -1294,9 +1374,29 @@
     "group": "Topic · loading & states",
     "label": "Topic — loading (projector scan, both regions)",
     "viewport": "tablet",
+    "auth": "out",
+    "skin": "zine-dark",
+    "file": "topic-loading-tablet-logged-out-zine-dark.png",
+    "focus": false
+  },
+  {
+    "id": "topic-loading",
+    "group": "Topic · loading & states",
+    "label": "Topic — loading (projector scan, both regions)",
+    "viewport": "tablet",
     "auth": "in",
     "skin": "light",
     "file": "topic-loading-tablet-logged-in.png",
+    "focus": false
+  },
+  {
+    "id": "topic-loading",
+    "group": "Topic · loading & states",
+    "label": "Topic — loading (projector scan, both regions)",
+    "viewport": "tablet",
+    "auth": "in",
+    "skin": "zine-dark",
+    "file": "topic-loading-tablet-logged-in-zine-dark.png",
     "focus": false
   },
   {
@@ -1314,9 +1414,29 @@
     "group": "Topic · loading & states",
     "label": "Topic — loading (projector scan, both regions)",
     "viewport": "desktop",
+    "auth": "out",
+    "skin": "zine-dark",
+    "file": "topic-loading-desktop-logged-out-zine-dark.png",
+    "focus": false
+  },
+  {
+    "id": "topic-loading",
+    "group": "Topic · loading & states",
+    "label": "Topic — loading (projector scan, both regions)",
+    "viewport": "desktop",
     "auth": "in",
     "skin": "light",
     "file": "topic-loading-desktop-logged-in.png",
+    "focus": false
+  },
+  {
+    "id": "topic-loading",
+    "group": "Topic · loading & states",
+    "label": "Topic — loading (projector scan, both regions)",
+    "viewport": "desktop",
+    "auth": "in",
+    "skin": "zine-dark",
+    "file": "topic-loading-desktop-logged-in-zine-dark.png",
     "focus": false
   },
   {
