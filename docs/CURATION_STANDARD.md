@@ -1,11 +1,6 @@
 # wiki+ — Curation Standard
 
-- **Status:** v1, committed (Phase 2 / Curation-Editorial, build-loop for Topic Page v1)
 - **Owner:** Curation / Editorial
-- **Inputs:** `docs/VISION.md`, `docs/specs/topic-page-v1.md`, `docs/TOPIC_PAGE_DESIGN.md`,
-  `docs/ARCHITECTURE.md`, reference mockups `mockups/inline-indigo-sync.html` /
-  `inline-indigo-empty-v2.html` and their data (`mockups/data/content.js`,
-  `content-empty.js`).
 - **Feeds:** UX (form fields + microcopy), Development (schema enums + limits), Product
   (policy → roadmap/criteria).
 
@@ -14,10 +9,6 @@ standard, the controlled **stance** and **accuracy** vocabularies that render as
 attribution and creator-credit norms, the unvetted-candidate rule, and the moderation
 posture. UX embodies it in form fields and microcopy; Development encodes the vocabularies
 as schema enums and enforces the limits; a reviewer judges notes against it.
-
-The standard is deliberately scoped to what **this build** needs to be correct. Where a
-choice was not settled by the mockups, it is recorded below as a **Decision** so Product and
-UX can react.
 
 ---
 
@@ -37,9 +28,8 @@ A passing note does **all** of the following:
 
 1. **Separate fact from the creator's take.** State plainly which claims in the clip are
    established/article-supported and which are the creator's opinion, framing, emphasis, or
-   self-presentation. This is the non-negotiable core — a note that does not draw this line
-   fails, regardless of how well-written it is. (VISION: "separates the creator's take from
-   the established facts.")
+   self-presentation. This is the non-negotiable core: a note must draw this line to pass.
+   (VISION: "separates the creator's take from the established facts.")
 2. **State relevance to this section.** Say why the clip is worth watching *here* — what it
    adds that the article text does not (a visual, a worked example, a demonstration, a
    plain-language on-ramp), and who it is best for.
@@ -68,9 +58,8 @@ A passing note does **all** of the following:
 
 - **Length:** roughly **1–3 sentences, ~40–320 characters** of body text. Long enough to
   draw the fact/opinion line and state relevance; short enough to read at a glance beside the
-  article. (The reference clips run ~120–320 chars; treat **320 as the soft cap UX should
-  size the card for** and Development should set as the field maxlength. A hard ceiling
-  prevents notes from becoming essays.) **Decision C1.**
+  article. **320 is the soft cap** UX sizes the card for and Development sets as the field
+  maxlength, so notes don't become essays.
 - **Tone:** plain, neutral, editorial — the register of a knowledgeable librarian, not a fan
   and not a critic. Wikipedia's neutral-point-of-view spirit applies to *our* prose even
   though we are describing opinionated source video.
@@ -117,9 +106,8 @@ A passing note does **all** of the following:
 
 `stance` is a **fixed controlled enum** describing **what kind of clip this is / how to read
 it**. It is the indigo chip in the design. **Decision C2:** stance is a closed vocabulary,
-**not** free-form — this is required for consistent filtering, for the empty-state/curated
-distinction, and for any future AI-assisted drafting (ARCHITECTURE open question, now
-resolved here and recorded in ARCHITECTURE §"Open questions").
+**not** free-form — required for consistent filtering, for the empty-state/curated
+distinction, and for any future AI-assisted drafting.
 
 A clip carries **exactly one** stance value. An optional **free-form `stance_modifier`**
 (≤24 chars, e.g. "kids", "AP-level", "primary") may be displayed after the label as
@@ -136,17 +124,10 @@ The modifier is **display sugar only** — never filtered on, never required.
 | `myth_busting` | **Myth-busting** | Frames itself against a common misconception; corrects or debunks. |
 | `personal_experiment` | **Personal experiment** | The creator tries something themselves; value is the first-person attempt, with the creator's interpretation attached. |
 
-**Reconciliation vs. mockups.** The mockup display strings (`Explainer · conceptual`,
-`Short · exam recap`, `Demonstration · primary`, `Classroom`, …) map onto this enum as
-**base value + modifier**: everything `Explainer · *` → `explainer`; every `Short · *` →
-`short`; `Demonstration · primary` → `demonstration` + modifier "primary"; `Classroom` →
-`classroom`. The mockups never showed `opinion` / `myth_busting` / `personal_experiment`
-(Photosynthesis is a benign, consensus topic), but they are core to the product thesis
-(VISION: creators "blend personal opinion and perspective with factual content") and are
-**retained** so the vocabulary works on contested topics. The provisional `lib/data/types.ts`
-enum (`explainer | opinion | myth-busting | personal-experiment | primary-source`) is
-superseded by this set: `primary-source` becomes the **`demonstration`** stance (primary
-*footage* is a stance) and/or the **`primary_source` accuracy value** (§3) — see Decision C4.
+A display string like `Demonstration · primary` is **base value + modifier**: `demonstration`
+plus modifier "primary". The `opinion` / `myth_busting` / `personal_experiment` values are
+core to the product thesis (VISION: creators "blend personal opinion and perspective with
+factual content") so the vocabulary works on contested topics, not only benign ones.
 
 ---
 
@@ -159,8 +140,8 @@ applies: closed vocabulary, not free-form, for the same filtering/consistency/AI
 
 A clip carries **exactly one** accuracy value. As with stance, an optional free-form
 **`accuracy_modifier`** (≤24 chars: "fast-paced", "simplified", "big-picture", "exam-framed",
-…) may render after the label as "*Label · modifier*", reproducing the mockup strings.
-**Modifier is display only**; the enum value carries the meaning and the color.
+…) may render after the label as "*Label · modifier*". **Modifier is display only**; the enum
+value carries the meaning and the color.
 
 | Value (enum) | Label (chip text) | Color (per design) | Definition |
 |---|---|---|---|
@@ -172,18 +153,11 @@ A clip carries **exactly one** accuracy value. As with stance, an optional free-
 | `misleading` | **Misleading** | red `#C44949` | Technically-defensible pieces assembled to leave a false overall impression, or material omissions that distort. |
 | `inaccurate` | **Inaccurate** | red `#C44949` | Contains clear factual errors against the established material. (Curated only when worth showing *with* the correction in the note — e.g. a popular-but-wrong clip readers will meet anyway.) |
 
-**Reconciliation vs. mockups.** Every mockup accuracy string collapses to one of these:
-`"Accurate"`, `"Accurate · academic/AP-level/thorough"` → **`accurate`**; `"Accurate but
-simplified"`, `"Accurate · fast-paced / condensed / big-picture / definitional /
-beginner-friendly / exam-framed / ultra-condensed / teaching context"` → **`accurate_with_caveat`**
-(qualifier becomes the modifier); `"Real footage · phenomenon"` → **`primary_source`**. The
-mockups carried no red-group examples (benign topic); `opinion` / `mixed` / `misleading` /
-`inaccurate` are retained from the design's red bucket and the product thesis so honest
-flagging is possible on contested clips. The design doc's open note ("red for the opinion
-group is provisional; revisit if it reads as 'error'") is addressed by **Decision C3**: the
-red group is split so `opinion` (weigh-as-perspective) is **labeled distinctly** from
-`mixed`/`misleading`/`inaccurate` (real reliability problems) — same color family, different
-text — so color is never the sole carrier of that difference (§4).
+**The red group is split by label (Decision C3).** `opinion` (weigh-as-perspective) is
+**labeled distinctly** from `mixed`/`misleading`/`inaccurate` (real reliability problems) —
+same color family, different text — so color is never the sole carrier of that difference
+(§4). The red-group values exist so honest flagging is possible on contested clips, not only
+benign ones.
 
 > **Note for UX/Dev — color is a *secondary* cue.** Per §4, the **label text** is the signal;
 > the color (teal / blue / red) reinforces three coarse tiers (sound · sound-with-a-limit ·
@@ -228,9 +202,8 @@ are distinct requirements covering distinct content:
   credit the video creator; the obligation is a matter of honest attribution practice and
   product integrity, not a CC BY-SA license requirement.
 
-Conflating these — labeling video creator credit as "CC BY-SA" or treating it as a CC
-license requirement — is incorrect and must not appear in code comments, design specs, or UX
-copy.
+Keep the two distinct everywhere — in code comments, design specs, and UX copy: video creator
+credit is never a "CC BY-SA" or CC-license requirement.
 
 ### 5.1 Wikipedia article attribution (CC BY-SA)
 
@@ -244,9 +217,8 @@ ARCHITECTURE §"Licensing & attribution"):
   (TOPIC_PAGE_DESIGN.md §Layout).
 - The topic's **Wikidata QID** is shown on the article side (AC4).
 - **Wikimedia Commons images** displayed in the article carry their **own** credit + license +
-  file-page link — the article text license does **not** cover its images. (In this build the
-  article body is fetched client-side and Commons figures render inline with their captions;
-  preserve the figure's source/credit link from the article HTML rather than stripping it.)
+  file-page link — the article text license does **not** cover its images. Preserve the
+  figure's source/credit link from the article HTML rather than stripping it.
 - Share-alike obligations attach to any **derivative article text** we publish. Our context
   notes are about the clip, not derivatives of the article text, so this primarily means: do
   not relicense or obscure the article's CC BY-SA status.
@@ -258,16 +230,14 @@ creators are credited.
 ### 5.2 Creator credit (reference, never host)
 
 The curated videos are **nonfree third-party works** — mostly YouTube and other platform
-embeds. They are not CC-licensed content, and wiki+'s obligation to credit their creators
-is not a CC BY-SA license requirement. It is a norm of honest attribution and product
-integrity: creators are **external people we reference and credit, never host** (VISION;
-ARCHITECTURE "embed, never host").
+embeds. Crediting their creators is a norm of honest attribution and product integrity, not a
+CC license requirement: creators are **external people we reference and credit, never host**
+(VISION; ARCHITECTURE "embed, never host").
 
-The **embedded player itself carries the creator's identity** (channel name, thumbnail,
-and platform controls). wiki+'s own chrome showing the creator's name/handle/platform is
-therefore a UX and editorial practice, **not a CC attribution requirement**. Showing it
-is good practice; whether it appears on every clip surface in every UI state is a
-**UX/space decision**, not a license obligation that must be enforced on every surface.
+The **embedded player itself carries the creator's identity** (channel name, thumbnail, and
+platform controls). wiki+'s own chrome showing the creator's name/handle/platform is good
+practice; whether it appears on every clip surface in every UI state is a **UX/space
+decision**, not a license obligation enforced on every surface.
 
 Good practice for any surface that has room for it: show **display name + handle +
 platform** (e.g. "Crash Course · @crashcourse · YouTube"). Platform is named in words
@@ -286,28 +256,24 @@ Additional norms that remain firm regardless of surface:
 > provider's oEmbed (the minimum credit, handle derivation, and the unresolved-state rule) is in
 > **§5.5 (Decision C10)**.
 
-### 5.3 License of wiki+ context notes — **Decision C5 (closes an ARCHITECTURE open question)**
+### 5.3 License of wiki+ context notes — **Decision C5**
 
 **Context notes (and the curator-authored stance/accuracy assessments) are released under
 CC BY-SA 4.0** — the same license as the surrounding Wikipedia content.
 
 - *Rationale:* share-alike keeps our editorial layer **compatible with and reusable alongside**
   the Wikipedia text it sits beside, matches the Wikimedia-adjacent ethos, and prevents a
-  curator's note from being enclosed. It is the "natural fit" ARCHITECTURE flagged.
+  curator's note from being enclosed.
 - *Attribution of notes:* a context note is attributable to its **curator/contributor** (the
-  wiki+ identity), distinct from the **creator** of the video — see §5.2. The note-license
-  agreement is the **curator's** act over **their own note**; it is **not** a creator
-  attribution and must never be conflated with crediting the video's creator. The creator
-  agreed to nothing here: we reference and credit them (§5.2); the curator licenses their note
-  (this section). The public realization of this attribution is the **"context by &lt;curator&gt;"**
-  line specified in **§5.4**.
+  wiki+ identity), distinct from the video's **creator** (§5.2). The note-license agreement is
+  the **curator's** act over **their own note**; the creator agreed to nothing here — we
+  reference and credit them (§5.2), the curator licenses their note (this section). The public
+  realization of this attribution is the **"context by &lt;curator&gt;"** line in **§5.4**.
 
-### 5.4 Public "context by &lt;curator&gt;" attribution — **Decision C7** (realizes §5.3 in public)
+### 5.4 Public "context by &lt;curator&gt;" attribution — **Decision C7**
 
-§5.3 said the build should be "ready to show 'context by &lt;curator&gt;'." With a real
-contributor identity now persisted, that attribution becomes **public, visible, and browsable**.
-This subsection fixes the editorial contract UX and Development implement against; it does not
-reopen §5.2/§5.3.
+The §5.3 curator attribution is **public, visible, and browsable**. This subsection is the
+editorial contract UX and Development implement against.
 
 - **Canonical microcopy.** The curator attribution on a curated clip reads exactly:
   **"context by &lt;username&gt;"** — lowercase "context by", followed by the curator's public
@@ -321,7 +287,7 @@ reopen §5.2/§5.3.
   and the **creator credit** are two separate, non-mergeable things, and a reader must never
   conflate "who made the video" with "who wrote the note":
   - **Creator credit (§5.2)** names the *video's maker* (display name + handle + platform) and
-    **links OUT** to that creator on their platform. It is unchanged by D3.
+    **links OUT** to that creator on their platform.
   - **Curator attribution (§5.3, this section)** names the *wiki+ curator who wrote the note* and
     **links IN** to that curator's wiki+ profile (`/contributor/<username>`).
   - **Direction is the editorial tell:** creator credit points *out* to the platform; curator
@@ -336,48 +302,43 @@ reopen §5.2/§5.3.
   **never** expose non-public profile data — in particular **email**, or any other private OAuth
   profile field — in the page, the read's return shape, or the client bundle. A public attribution
   page asserts "here is a curator and the clips they vouched for," not the person's contact
-  details. (This is the editorial basis for the spec's AC2.)
+  details.
 
-- **Legacy `@prototype` provenance label.** The seeded `@prototype` stub is a placeholder, not a
-  real curator with a voice or a browsable profile (C Decision D6; spec Decision 4). A clip
-  attributed to it must **not** show a linked "context by" attribution implying a real author.
+- **The `@prototype` provenance label.** The seeded `@prototype` stub is a placeholder, not a
+  real curator with a voice or a browsable profile. A clip attributed to it must **not** show a
+  linked "context by" attribution implying a real author.
   Instead it shows a **non-linked** provenance label, verbatim: **"seed clip · no curator"**. This
   is honest about provenance (it was seeded, not vouched for by a person), implies no real curator
   or voice, and carries **no link** (no dead or misleading profile link). It is plainly distinct
   from a real "context by &lt;username&gt;" attribution.
-- *Contributor agreement — required and captured (resolves the C5 "capture arrives with
-  persistence" carry-open):* a contributor must **affirmatively agree to release their context
-  note under CC BY-SA 4.0 at the moment they publish**. This is a **required precondition of
-  the write**, not a passive notice: publishing is blocked until the curator agrees, on both
-  the Promote ("Curate this clip") and Add-video modals.
+- *Contributor agreement — required and captured:* a contributor must **affirmatively agree to
+  release their context note under CC BY-SA 4.0 at the moment they publish**. This is a
+  **required precondition of the write**, not a passive notice: publishing is blocked until the
+  curator agrees, on both the Promote ("Curate this clip") and Add-video modals.
   - **Canonical microcopy (UX uses these strings verbatim on both modals):**
     - *License statement* (always visible at the submit control): **"Your context note will be
       released under CC BY-SA 4.0."**
     - *Required agreement act* (the checkbox label / equivalent affirmative control):
       **"I agree to release my context note under CC BY-SA 4.0."**
-  - **What the captured agreement must editorially bind (the standard behind AC7 / Decision
-    D1-1):** the persisted record must tie the agreement to **this note, by this contributor,
-    under this license version, at this time** — i.e. it captures (a) that the contributor
-    agreed, (b) the license identifier/version `CC-BY-SA-4.0` (a version string, not a bare
-    boolean, so a future license bump is expressible), and (c) the agreement timestamp, bound
-    to the clip and its contributor. A per-submit (per-note) capture is required; an
-    account-level "I agree to license all my contributions" toggle does **not** satisfy this
-    standard, because it would not bind the agreement to the specific note text and time. The
-    persisted *shape* (columns vs. a record) is Development's call; the *facts bound* are fixed
-    here.
-  - **On a future edit (forward note for D2 — not D1 scope):** a **material change to the note
-    text re-affirms the agreement** (a new note license act + timestamp), since the agreement
-    binds to the note as published. A trivial/typo fix or a stance/accuracy chip change that
-    leaves the note text substantively unchanged does **not** require re-affirmation. D2 sets
-    the edit mechanics; this is the standard's position so D2 need not reopen it.
+  - **What the captured agreement must editorially bind:** the persisted record must tie the
+    agreement to **this note, by this contributor, under this license version, at this time** —
+    capturing (a) that the contributor agreed, (b) the license identifier/version
+    `CC-BY-SA-4.0` (a version string, not a bare boolean, so a future license bump is
+    expressible), and (c) the agreement timestamp, bound to the clip and its contributor. A
+    per-submit (per-note) capture is required; an account-level "I agree to license all my
+    contributions" toggle does **not** satisfy this standard, because it would not bind the
+    agreement to the specific note text and time. The persisted *shape* is Development's call;
+    the *facts bound* are fixed here.
+  - **On an edit:** a **material change to the note text re-affirms the agreement** (a new note
+    license act + timestamp), since the agreement binds to the note as published. A trivial/typo
+    fix or a stance/accuracy chip change that leaves the note text substantively unchanged does
+    **not** require re-affirmation.
 
-### 5.5 Creator credit on oEmbed-resolved clips — **Decision C10** (applies §5.2 to add-by-link)
+### 5.5 Creator credit on oEmbed-resolved clips — **Decision C10**
 
-This subsection **applies §5.2** to a clip whose metadata is resolved from a provider's **oEmbed**
-on the add-by-link path (spec `docs/specs/add-link-metadata.md`, D-YouTube, AC2). It does **not**
-reopen §5.2; it answers the one question that path raises — *what is the minimum acceptable creator
-credit when oEmbed gives `author_name` + `author_url` but no guaranteed clean `@handle`* — so UX and
-Development do not have to guess at attribution adequacy.
+This subsection **applies §5.2** to a clip whose metadata is resolved from a provider's
+**oEmbed** on the add-by-link path. It sets the minimum acceptable creator credit when oEmbed
+gives `author_name` + `author_url` but no guaranteed clean `@handle`.
 
 - **Minimum acceptable creator credit is name + a working link.** §5.2 requires every curated clip
   to credit its creator. For an oEmbed-resolved clip (YouTube or TikTok) the **floor** is the real
@@ -389,39 +350,30 @@ Development do not have to guess at attribution adequacy.
 
 - **Handle derivation — derive, consistent with the candidate pipeline; the handle is a label, not
   an identifier.** oEmbed gives no guaranteed `@handle`. Derive `creator.handle` **the same way the
-  candidate pipeline already does** so both add paths label creators identically: from the author
-  name — `@` + `author_name` lowercased with spaces removed (`lib/candidates/youtube.ts:111`,
-  `` `@${channelTitle.replace(/\s+/g, "").toLowerCase()}` ``). This is **display sugar**, not an
-  identity key (ARCHITECTURE: the contributor/creator handle is "display only — non-unique"); a
-  rough-but-readable handle is acceptable, and handle normalization is a later refinement (spec Open
-  questions, "Handle quality"). The **name + `author_url` link is what carries the attribution
-  weight**, not the derived handle — so a derived handle is fine, and **omitting the handle and
-  showing name-only is also acceptable** when no sensible handle can be derived (the card credit
-  degrades to name + platform + outbound link, never an empty or fake handle). What is **not**
-  acceptable: a placeholder string standing in for a handle on a *resolved* clip (the literal
-  `"pasted"` handle the mock used — spec AC2 — must not appear).
+  candidate pipeline does** so both add paths label creators identically: `@` + `author_name`
+  lowercased with spaces removed (`lib/candidates/youtube.ts`). This is **display sugar**, not an
+  identity key (ARCHITECTURE: the handle is "display only — non-unique"); a rough-but-readable
+  handle is acceptable. The **name + `author_url` link carries the attribution weight**, not the
+  derived handle — so **omitting the handle and showing name-only is also acceptable** when no
+  sensible handle can be derived (the credit degrades to name + platform + outbound link, never an
+  empty or fake handle). A placeholder string standing in for a handle on a *resolved* clip is not
+  acceptable.
 
-- **Unresolved / placeholder credit must never masquerade as a real creator (AC4/AC5).** When
-  resolution fails (provider error, empty/malformed oEmbed, network failure, offline) and the
-  curator proceeds with an unresolved clip, the placeholder credit must be **clearly labeled as a
-  placeholder, not presented as a real creator**. This is the §6 honesty principle applied to credit
-  and the §7.1 tone register: a placeholder credit reads as *"creator not resolved,"* never as if a
-  real person were named. Concretely — a placeholder must **not** assert a fabricated `author_name`,
-  must **not** carry a fake outbound creator link (no dead or invented `creator.url`), and must
-  **not** claim "resolved via oEmbed" (spec AC3/AC4). It is the credit analogue of the §5.4
-  **"seed clip · no curator"** rule: an honest, non-linked, plainly-labeled stand-in is right; a
-  stand-in dressed up as a real credit is a trust violation. The exact placeholder copy/treatment is
-  UX's to specify (spec AC4/AC5); the **standard is that it must read as unresolved, never as a real
+- **Unresolved / placeholder credit must never masquerade as a real creator.** When resolution
+  fails (provider error, empty/malformed oEmbed, network failure, offline) and the curator proceeds
+  with an unresolved clip, the placeholder credit must be **clearly labeled as a placeholder, not
+  presented as a real creator**: it reads as *"creator not resolved,"* never as if a real person
+  were named. A placeholder must **not** assert a fabricated `author_name`, **not** carry a fake or
+  dead outbound `creator.url`, and **not** claim "resolved via oEmbed". It is the credit analogue of
+  the §5.4 **"seed clip · no curator"** rule: an honest, non-linked, plainly-labeled stand-in. The
+  exact copy is UX's to specify; the **standard is that it must read as unresolved, never as a real
   creator credit**.
 
-- **Embed-never-host + descriptive User-Agent — confirmed, no conflict.** Nothing in this standard
-  conflicts with the project principles the spec preserves (AC7, AC8). oEmbed is used for
-  **metadata only** — we populate name/handle/url/thumbnail-*reference* and still **embed by
-  reference, never host** (§5.2 "reference, never host"; ARCHITECTURE "embed, never host"). The
-  `thumbnail_url` is a referenced image URL, not a stored/redistributed asset. Any server-side oEmbed
-  fetch must send the **descriptive User-Agent** wiki+ already uses for Wikimedia fetches (§7's
-  "Wikimedia etiquette applies to our fetches"; ARCHITECTURE etiquette; spec AC8). These are
-  **confirmations** of existing principles — this subsection adds no new obligation beyond them.
+- **Embed-never-host + descriptive User-Agent.** oEmbed is used for **metadata only** — we populate
+  name/handle/url/thumbnail-*reference* and still **embed by reference, never host** (§5.2;
+  ARCHITECTURE "embed, never host"). The `thumbnail_url` is a referenced image URL, not a
+  stored/redistributed asset. Any server-side oEmbed fetch must send the **descriptive User-Agent**
+  wiki+ uses for Wikimedia fetches (§7; ARCHITECTURE etiquette).
 
 ---
 
@@ -438,14 +390,13 @@ standard:
   (`match_reason`): why it matched (e.g. *"Mentions 'light-dependent reactions' in
   description"*, *"YouTube search 'photosynthesis explained'"*). The "no context yet — a human
   hasn't reviewed this" message that makes the absence explicit and invites curation is asserted
-  **once per context** (in the set header / band / panel), not repeated on every card (issue #14
-  declutter); the candidate's own source is shown as a small text-labeled pill.
+  **once per context** (in the set header / band / panel), not repeated on every card; the
+  candidate's own source is shown as a small text-labeled pill.
 - A candidate is **visually unmistakable** from a curated clip: dashed (not solid) border, no
   solid offset shadow, desaturated/hatched thumbnail (AC15). The visual distinction is UX/Dev's
   to render; the **rule that the distinction must exist, and that chips/notes must be absent on
-  candidates, is the standard**. (The per-card "SUGGESTED" badge that earlier renderings used was
-  removed in #14 — the dashed container plus the once-per-context "Suggested · uncurated" headers
-  carry the signal — but the *requirement that candidates read as un-vouched-for* is unchanged.)
+  candidates, is the standard.** The dashed container plus the once-per-context
+  "Suggested · uncurated" header carry the signal.
 - A candidate becomes a curated clip only by **promotion**: a human writes the context note
   and sets stance + accuracy to this standard (then it earns its chips). Until then it is a
   suggestion, not an endorsement.
@@ -463,17 +414,13 @@ standard:
 
 ## 7. Abuse / spam / moderation policy
 
-Full enforcement (rate limits, login-gating, moderation tooling) lands with auth and
-persistence and is **Operations'/Development's to build**; this section sets the **policy**
-those mechanisms enforce. (ARCHITECTURE open question "Abuse/spam handling," addressed at the
-policy level here.)
+This section sets the **policy**; Operations/Development build the mechanisms (rate limits,
+login-gating, moderation tooling) that enforce it.
 
 - **Contribution is gated by login; reading is anonymous.** Curate / Add-video / write-a-note
   require a logged-in (OAuth/Wikimedia) identity (VISION non-goals; ARCHITECTURE §Auth). Login
   gating buys us **accountability** (an action ties to an identity), a **moderation signal**
-  (e.g. account age / edit count), and a natural **rate-limit subject**. (In the current
-  prototype these are UI entry points only — A7; the policy is stated for when persistence
-  lands.)
+  (e.g. account age / edit count), and a natural **rate-limit subject**.
 - **Removable content** (a curator/moderator may remove, or it may be rejected at submission):
   spam and self/affiliate promotion; clips with no genuine topical relevance; context notes
   that violate §1.2 (hype, personal attacks, unsupported curator claims, copied metadata);
@@ -485,21 +432,16 @@ policy level here.)
   contextualize them. Removal is for abuse, not for disagreement.
 - **Rate-limit posture (for Ops/Dev to implement):** per-identity write limits (Redis-backed)
   to blunt spam floods; a light **`vetted` hold** is available to queue a freshly added clip
-  for review before it shows as fully curated (the `clip.vetted` flag already exists in the
-  data model). MVP-appropriate; reputation/roles scale later (VISION "Possible future
-  directions").
+  for review before it shows as fully curated (§7.1). Reputation/roles scale later (VISION
+  "Possible future directions").
 - **Wikimedia etiquette applies to our fetches**, not just contributions: descriptive
   User-Agent, respect rate limits / `maxlag`, lazy caching (CLAUDE.md; ARCHITECTURE
   §Wikipedia integration) — abuse of the upstream APIs is also out of bounds.
 
 ### 7.1 The review-hold — the "held" third state (Decision C8)
 
-§7's posture ("a light `vetted` hold is **available** to queue a freshly added clip for
-review before it shows as fully curated") is realized as a workflow in milestone D5b (spec
-`docs/specs/vetted-review-hold.md`). This subsection is the **editorial contract** for what a
-held clip *means* and *reads as* — UX renders the weight, Dev/QA know what the state asserts.
-It does not reopen §7's posture (the hold exists; contribution is gated; reading is anonymous)
-or §6 (candidates).
+This subsection is the **editorial contract** for what a held clip *means* and *reads as* — UX
+renders the weight, Dev/QA know what the state asserts.
 
 **What "held" means editorially — the third clip-state.** A held clip is a **real curated
 clip whose vouch has not yet been confirmed**. A curator wrote a context note (§1) and set the
@@ -518,8 +460,7 @@ site's full vouch. It is a third state, and its trust weight sits **between** th
 So a held clip differs from **(a)** a fully-curated clip in *one* thing only — the vouch is
 unconfirmed, not the content — and from **(b)** a candidate in *almost everything* — a held
 clip has a human's full curation; a candidate has none. The reader must be able to tell all
-three apart, **from the text/marking, never color alone** (§4). This is the standard behind
-spec AC1/AC2.
+three apart, **from the text/marking, never color alone** (§4).
 
 **The held-state marking — canonical microcopy (UX uses verbatim; Dev derives from the held
 flag).** A held clip shows a short, text-labeled, non-alarming marking. It must read as
@@ -543,34 +484,31 @@ is not a candidate.
   the sole signal, gold is not a functional signal (CLAUDE.md). The marking is a *neutral
   status*, the register of §1.3 (a knowledgeable librarian: "this is still being checked").
 
-**Who may hold / who may approve — the accountability line (confirms spec Decision 3).** This
-split is the right editorial line and follows directly from §7's accountability rationale
-("login gating buys us accountability — an action ties to an identity") and §5.4's
-vouch-is-attributable principle:
+**Who may hold / who may approve — the accountability line.** This split follows from §7's
+accountability rationale ("login gating buys us accountability — an action ties to an
+identity") and §5.4's vouch-is-attributable principle:
 
 - **Hold** (move a clip into review, `vetted → held`) may be done by **a moderator/reviewer on
-  any clip**, **or by the clip's own curator on their own clip**. A curator holding their own
-  clip is the editorial parallel of §5.4/D2's "a curator may revise or retract **their own**
-  vouch" — pulling your own clip into review is a self-limiting act (you can only hold what you
-  authored), so it needs no privileged role.
+  any clip**, **or by the clip's own curator on their own clip**. Pulling your own clip into
+  review is a self-limiting act (you can only hold what you authored), so it needs no privileged
+  role.
 - **Approve** (confirm the vouch, `held → fully curated`) is **moderator/reviewer only — a
   curator may not approve, including their own held clip.** This is the load-bearing editorial
-  rule: **the vouch must be confirmed by someone other than the person who made it.** Approval
-  is the act of granting the site's full vouch; if a curator could clear their own hold, the
-  hold would assert nothing and the "reviewed" signal would be hollow. Independent confirmation
-  is exactly what makes the held → curated transition trustworthy. (A curator who has second
-  thoughts about their own held clip uses D2 edit/delete; *restoring* the full vouch is a
-  reviewer's call.)
+  rule: **the vouch must be confirmed by someone other than the person who made it.** If a
+  curator could clear their own hold, the hold would assert nothing and the "reviewed" signal
+  would be hollow. Independent confirmation is what makes the held → curated transition
+  trustworthy. (A curator who has second thoughts about their own held clip uses edit/delete;
+  *restoring* the full vouch is a reviewer's call.)
 
 **Held is a review pause, not a removal — keep the two editorially distinct.** A hold is
-**not** the §7 "removable content" abuse mechanism (that is milestone D5c). The two must never
-read as the same thing:
+**not** the §7 "removable content" abuse mechanism (§7.2). The two must never read as the same
+thing:
 
 - A **hold** is a **reversible review pause**, available for **any reason a reviewer (or the
   curator) wants a second look** — a fresh add a contributor is unsure of, a clip a reviewer
   wants to check before it carries the full vouch, a borderline note. It asserts **"not yet
-  confirmed,"** not "this is bad." A held clip stays visible (shown-but-marked, spec Decision
-  3b) and a moderator can flip it live at any time.
+  confirmed,"** not "this is bad." A held clip stays visible (shown-but-marked) and a moderator
+  can flip it live at any time.
 - **Removal** (§7 "Removable content") is for **abuse** — spam, promotion, hate/harassment,
   §1.2 violations, deceptive media — and is the §7 line "**removal is for abuse, not for
   disagreement.**" Removal is **not** the hold's job, and a held clip must **never** read as
@@ -581,14 +519,11 @@ read as the same thing:
 
 ### 7.2 The removal mechanism — soft-removal accountability + the reason vocabulary (Decision C9)
 
-§7's removable-content rule and §7.1's removal-vs-hold distinction are realized as a workflow in
-milestone D5c (spec `docs/specs/moderator-removal.md`). This subsection is the **editorial
-contract** for what a *removal* asserts and how it must be **accountable** — it does not reopen
-§7 (the removable list, the abuse-not-disagreement boundary) or §7.1 (removal ≠ hold). It records
-the two editorial calls D5c surfaced: the **soft-removal accountability posture** and the
-**removal-reason vocabulary**.
+This subsection is the **editorial contract** for what a *removal* asserts and how it must be
+**accountable**. It records two editorial calls: the **soft-removal accountability posture** and
+the **removal-reason vocabulary**.
 
-**The removable set is unchanged — §7 binds what removal is *for*.** D5c enforces the **§7
+**The removable set is §7 — §7 binds what removal is *for*.** Removal enforces the **§7
 removable list verbatim** (spam / self-affiliate promotion; no-genuine-relevance clips;
 §1.2-violating notes; hateful/harassing/illegal content; manipulated/deceptive media presented as
 genuine; copyright-circumventing embeds) and **nothing beyond it**. Removal is a **capability — a
@@ -606,13 +541,13 @@ implies an act that is **auditable and attributable** — *who* removed it, *whe
 *why* — so the moderation itself can be held to the same standard it enforces. The standard
 therefore requires removal to be a **soft removal / tombstone**, not a destructive erase: the clip
 **stops showing to readers**, but the row **persists** with the removal recorded against the
-removing moderator. This is **distinct from D2's owner hard-delete**: a curator deleting **their
+removing moderator. This is **distinct from the owner hard-delete**: a curator deleting **their
 own** clip is retracting *their own* vouch (no third party's work is touched, no accountability gap
 — a hard delete is right *there*), whereas a moderator removing *someone else's* work must leave a
-trace. The two acts therefore leave **different traces by design** — D2 erases, D5c tombstones —
-and must never be conflated.
+trace. The two acts leave **different traces by design** — owner delete erases, moderator removal
+tombstones — and must never be conflated.
 
-| | Owner delete (D2) | **Moderator removal (D5c)** |
+| | Owner delete | **Moderator removal** |
 |---|---|---|
 | Who acts | the clip's **own curator** | a **moderator**, on **any** clip |
 | On whose work | their **own** | **someone else's** (the point) — or own (trivial subset) |
@@ -621,9 +556,9 @@ and must never be conflated.
 | Why this trace | no third party's work touched | a privileged act on another's work must be **auditable + attributable** |
 
 **The removal-reason vocabulary — a small §7-aligned category set + optional free-text (Decision
-C9).** The optional removal reason (Decision 4 of the spec) is captured for the audit trail. The
-standard's recommendation is a **fixed, §7-aligned category set** plus an **optional free-text
-note** — *not* free-text alone and *not* a category alone:
+C9).** The optional removal reason is captured for the audit trail as a **fixed, §7-aligned
+category set** plus an **optional free-text note** — *not* free-text alone and *not* a category
+alone:
 
 - A **category set** keeps the audit trail consistent and (later) aggregable — a future moderation
   surface / Analytics read can report a **removal-reason distribution** ("which §7 categories
@@ -632,9 +567,9 @@ note** — *not* free-text alone and *not* a category alone:
 - **Optional free-text** alongside it lets a moderator record the specifics a category cannot
   ("affiliate links in the note to *vendor X*"), which is what makes the trace legible for a future
   appeal.
-- **Both optional, not required** (matching spec Decision 4): the facts that matter most — *who* +
-  *when* — are captured regardless; a removal with **no** reason is valid. Requiring a reason would
-  add friction to the confirm step for marginal MVP benefit.
+- **Both optional, not required:** the facts that matter most — *who* + *when* — are captured
+  regardless; a removal with **no** reason is valid. Requiring a reason would add friction to the
+  confirm step for marginal benefit.
 
 The **canonical category labels** — one per item on the §7 removable list, so the vocabulary *is*
 the §7 list, kept consistent by construction — are, verbatim (UX uses these strings; Dev encodes as
@@ -658,13 +593,12 @@ public "this was removed for X" notice). `other` exists so the set need never bl
 §7 removal that does not fit a category, while still steering moderators to the specific reason
 when one fits.
 
-**Removal stays editorially distinct from the hold (confirms §7.1).** Nothing here softens §7.1's
-line: a **removal** (abuse — takes the clip *down*, it stops showing) and a **D5b hold** (a
-reversible "not yet vouched" review pause — the clip *stays visible*, marked "in review") are
-**different acts with different meanings**. A held clip must **never** read as "removed," and a
-removed clip is **not** merely "held." They ride **independent** state (the hold's review-status vs.
-the removal tombstone); a moderator may *hold-then-remove*, but those are two distinct acts, never
-one.
+**Removal stays editorially distinct from the hold (§7.1).** A **removal** (abuse — takes the clip
+*down*, it stops showing) and a **hold** (a reversible "not yet vouched" review pause — the clip
+*stays visible*, marked "in review") are **different acts with different meanings**. A held clip
+must **never** read as "removed," and a removed clip is **not** merely "held." They ride
+**independent** state (the hold's review-status vs. the removal tombstone); a moderator may
+*hold-then-remove*, but those are two distinct acts, never one.
 
 ---
 
@@ -673,15 +607,15 @@ one.
 | ID | Decision | Why / impact |
 |---|---|---|
 | **C1** | Context note **~40–320 chars**, 1–3 sentences (soft cap 320). | UX sizes the card and writes a counter; Dev sets the field maxlength. |
-| **C2** | `stance` and `accuracy_flag` are **fixed controlled enums**, not free-form. | Resolves the ARCHITECTURE open question. Enables filtering, consistency, future AI-assist. Dev encodes as schema enums. |
-| **C3** | The accuracy **red group is split by label** (`opinion` vs `mixed`/`misleading`/`inaccurate`); same color, distinct text. | Closes the design doc's "red reads as error?" open note; satisfies the non-color rule (§4). |
-| **C4** | The provisional `primary-source` becomes the **`demonstration` stance** and the **`primary_source` accuracy** value. | A primary clip is *a kind of clip* (stance) and *a reliability mode* (accuracy); the mockup's "Demonstration · primary" + "Real footage" needs both. Dev updates `lib/data/types.ts`. |
-| **C5** | wiki+ **context notes are licensed CC BY-SA 4.0**; the contributor's agreement is a **required precondition of publishing** and is **captured per-submit** (license version + timestamp, bound to this note + contributor). The note-license agreement is the *curator's* act, distinct from *creator* credit (§5.2). | Closes the ARCHITECTURE open question and the "capture arrives with persistence" carry-open. UX uses the §5.3 canonical agreement strings (required control, not a passive line); Dev captures per D1-1 / AC7. |
-| **C6** | Stance/accuracy support an optional **free-form modifier** (≤24 chars) shown after the label, never filtered on. | Reproduces the mockup display strings ("Accurate · fast-paced") without breaking the enum. Dev adds `stance_modifier` / `accuracy_modifier` optional fields; UX renders "Label · modifier". |
-| **C7** | The §5.3 attribution is realized in public as **"context by &lt;username&gt;"** (verbatim), linking IN to the curator's wiki+ profile — **distinct** from the §5.2 creator credit, which links OUT to the platform. The public profile exposes **only** public identity (username + granted avatar), **never email**. A `@prototype` clip shows a non-linked **"seed clip · no curator"** label, no profile link. | Realizes §5.3 / §5.4 for the D3 public attribution + profile (spec #54). UX uses the canonical strings verbatim and keeps curator attribution visually/textually distinct from creator credit; Dev links "context by" to `/contributor/<username>`, suppresses the link for the `@prototype` stub, and ensures the profile read never selects/serializes email (AC2/AC6). |
-| **C8** | The §7 review-hold is defined as the **"held" third clip-state** (§7.1): a real curated clip — note + chips + curator intact — whose **vouch is not yet reviewer-confirmed**; distinct from a fully-curated clip (vouch confirmed) and a §6 candidate (no human behind it). Canonical marking microcopy, verbatim: eyebrow **"In review · not yet vouched"**; explainer **"A curator added this and wrote a note, but it hasn't passed review yet — weigh it accordingly."**; a11y name **"In review — not yet vouched for by a reviewer."** **Hold** = moderator (any clip) OR the curator (own clip); **approve** = moderator-only (no self-approve — the vouch is confirmed by someone other than its author). A hold is a **reversible review pause, not the §7 abuse removal** (that is D5c) — it must never read as "removed/bad." | Realizes §7's review-hold posture + §6's not-vouched-for language for D5b (spec `vetted-review-hold.md`). UX uses the canonical strings verbatim and keeps the held state distinct (by text, never color-alone — §4) from both a curated clip and a §6 candidate; Dev derives the marking from the held flag and gates approve on moderator-only / hold on moderator-or-own-curator server-side; the held marking carries no alarm/removal tone. |
-| **C9** | The §7 removal mechanism (§7.2) is a **soft removal / tombstone**: removing **someone else's** abusive work is **auditable + attributable** (who/when/optional-why persists; the clip stops showing, the row is kept) — **distinct** from D2's owner **hard-delete** of one's *own* clip. Removal enforces the **§7 removable list verbatim** and the **"abuse, not disagreement"** boundary (an honest `opinion`/`mixed`/`inaccurate` clip with a fair note is **not** removable; the mechanism never classifies by `accuracy_flag`). The optional **removal reason** is a **fixed §7-aligned category set + optional free-text** (both optional; a removal needs no reason): `spam` (**Spam**), `promotion` (**Self/affiliate promotion**), `off_topic` (**No genuine relevance**), `note_violation` (**Note violates the standard**), `hateful_or_illegal` (**Hateful, harassing, or illegal**), `deceptive_media` (**Deceptive / manipulated media**), `copyright` (**Copyright-circumventing embed**), `other` (**Other (see note)**). The reason is **audit metadata only — never shown to readers**. Removal stays distinct from the D5b hold (§7.1). | Realizes §7's removable-content rule for D5c (spec `moderator-removal.md`). UX uses the category labels verbatim if it prompts for a reason in the confirm step (optional), keeps Remove distinct from D2 Edit/Delete and D5b Hold/Approve, and never surfaces the reason to readers; Dev may encode the reason as the §7-category enum + optional free-text (or free-text — the captured fact is "an optional reason"), captures `removed_by` / `removed_at`, and never gates removal on the reason or on `accuracy_flag`. |
-| **C10** | Creator credit on an **oEmbed-resolved** add-by-link clip (§5.5) applies §5.2: the **minimum acceptable credit is real `author_name` (→ `creator.name`) + a working link to `author_url` (→ `creator.url`)** — name + outbound link, sufficient even with no clean `@handle`. **Handle is derived the same way as the candidate pipeline** (`@` + author name, lowercased, spaces removed — `lib/candidates/youtube.ts:111`) and is a **display label, not an identifier**; **name-only (omit handle) is also acceptable** when no sensible handle derives, but a **placeholder handle (e.g. `"pasted"`) on a resolved clip is not**. An **unresolved/placeholder credit must read as unresolved, never masquerade as a real creator** (no fabricated name, no fake/dead outbound link, no "resolved via oEmbed" claim — the credit analogue of §5.4's "seed clip · no curator"). **Embed-never-host + descriptive User-Agent are confirmed, not changed** (oEmbed = metadata only; thumbnail is a referenced URL; AC7/AC8). | Closes the issue-#64 creator-credit question for UX/Dev so they don't guess at attribution adequacy. UX renders name + outbound link as the floor and a clearly-labeled (non-linked) placeholder for the unresolved state; Dev maps `author_name → creator.name`, `author_url → creator.url`, derives the handle per the candidate pipeline (or omits it cleanly), and never emits the mock `"pasted"`/`"Pasted … clip"` strings on a resolved clip (spec AC2). |
+| **C2** | `stance` and `accuracy_flag` are **fixed controlled enums**, not free-form. | Enables filtering, consistency, future AI-assist. Dev encodes as schema enums. |
+| **C3** | The accuracy **red group is split by label** (`opinion` vs `mixed`/`misleading`/`inaccurate`); same color, distinct text. | Satisfies the non-color rule (§4). |
+| **C4** | `primary-source` is split into the **`demonstration` stance** and the **`primary_source` accuracy** value. | A primary clip is *a kind of clip* (stance) and *a reliability mode* (accuracy); "Demonstration · primary" + "Real footage" needs both. Dev defines both in `lib/data/types.ts`. |
+| **C5** | wiki+ **context notes are licensed CC BY-SA 4.0**; the contributor's agreement is a **required precondition of publishing** and is **captured per-submit** (license version + timestamp, bound to this note + contributor). The note-license agreement is the *curator's* act, distinct from *creator* credit (§5.2). | UX uses the §5.3 canonical agreement strings (required control, not a passive line); Dev captures per AC7. |
+| **C6** | Stance/accuracy support an optional **free-form modifier** (≤24 chars) shown after the label, never filtered on. | Allows display strings ("Accurate · fast-paced") without breaking the enum. Dev adds `stance_modifier` / `accuracy_modifier` optional fields; UX renders "Label · modifier". |
+| **C7** | The §5.3 attribution is realized in public as **"context by &lt;username&gt;"** (verbatim), linking IN to the curator's wiki+ profile — **distinct** from the §5.2 creator credit, which links OUT to the platform. The public profile exposes **only** public identity (username + granted avatar), **never email**. A `@prototype` clip shows a non-linked **"seed clip · no curator"** label, no profile link. | UX uses the canonical strings verbatim and keeps curator attribution visually/textually distinct from creator credit; Dev links "context by" to `/contributor/<username>`, suppresses the link for the `@prototype` stub, and ensures the profile read never selects/serializes email. |
+| **C8** | The §7 review-hold is defined as the **"held" third clip-state** (§7.1): a real curated clip — note + chips + curator intact — whose **vouch is not yet reviewer-confirmed**; distinct from a fully-curated clip (vouch confirmed) and a §6 candidate (no human behind it). Canonical marking microcopy, verbatim: eyebrow **"In review · not yet vouched"**; explainer **"A curator added this and wrote a note, but it hasn't passed review yet — weigh it accordingly."**; a11y name **"In review — not yet vouched for by a reviewer."** **Hold** = moderator (any clip) OR the curator (own clip); **approve** = moderator-only (no self-approve — the vouch is confirmed by someone other than its author). A hold is a **reversible review pause, not the §7 abuse removal** (§7.2) — it must never read as "removed/bad." | UX uses the canonical strings verbatim and keeps the held state distinct (by text, never color-alone — §4) from both a curated clip and a §6 candidate; Dev derives the marking from the held flag and gates approve on moderator-only / hold on moderator-or-own-curator server-side; the held marking carries no alarm/removal tone. |
+| **C9** | The §7 removal mechanism (§7.2) is a **soft removal / tombstone**: removing **someone else's** abusive work is **auditable + attributable** (who/when/optional-why persists; the clip stops showing, the row is kept) — **distinct** from the owner **hard-delete** of one's *own* clip. Removal enforces the **§7 removable list verbatim** and the **"abuse, not disagreement"** boundary (an honest `opinion`/`mixed`/`inaccurate` clip with a fair note is **not** removable; the mechanism never classifies by `accuracy_flag`). The optional **removal reason** is a **fixed §7-aligned category set + optional free-text** (both optional; a removal needs no reason): `spam` (**Spam**), `promotion` (**Self/affiliate promotion**), `off_topic` (**No genuine relevance**), `note_violation` (**Note violates the standard**), `hateful_or_illegal` (**Hateful, harassing, or illegal**), `deceptive_media` (**Deceptive / manipulated media**), `copyright` (**Copyright-circumventing embed**), `other` (**Other (see note)**). The reason is **audit metadata only — never shown to readers**. Removal stays distinct from the hold (§7.1). | UX uses the category labels verbatim if it prompts for a reason in the confirm step (optional), keeps Remove distinct from owner Edit/Delete and the Hold/Approve actions, and never surfaces the reason to readers; Dev may encode the reason as the §7-category enum + optional free-text (or free-text — the captured fact is "an optional reason"), captures `removed_by` / `removed_at`, and never gates removal on the reason or on `accuracy_flag`. |
+| **C10** | Creator credit on an **oEmbed-resolved** add-by-link clip (§5.5) applies §5.2: the **minimum acceptable credit is real `author_name` (→ `creator.name`) + a working link to `author_url` (→ `creator.url`)** — name + outbound link, sufficient even with no clean `@handle`. **Handle is derived the same way as the candidate pipeline** (`@` + author name, lowercased, spaces removed — `lib/candidates/youtube.ts`) and is a **display label, not an identifier**; **name-only (omit handle) is also acceptable** when no sensible handle derives, but a **placeholder handle on a resolved clip is not**. An **unresolved/placeholder credit must read as unresolved, never masquerade as a real creator** (no fabricated name, no fake/dead outbound link, no "resolved via oEmbed" claim — the credit analogue of §5.4's "seed clip · no curator"). **Embed-never-host + descriptive User-Agent** still hold (oEmbed = metadata only; thumbnail is a referenced URL). | UX renders name + outbound link as the floor and a clearly-labeled (non-linked) placeholder for the unresolved state; Dev maps `author_name → creator.name`, `author_url → creator.url`, derives the handle per the candidate pipeline (or omits it cleanly), and never emits a placeholder handle on a resolved clip. |
 
 ---
 
@@ -691,15 +625,14 @@ one.
   ~320-char soft cap) with a live counter and the §1 helper text; the two chips rendering the
   §2/§3 **Label** text (+ optional modifier) per §4; the CC BY-SA article line (§5.1) and
   creator credit (name + handle + platform, §5.2); the §5.3 **required** submit-time license
-  agreement using the canonical strings (license statement + agreement-act label, verbatim);
-  the
+  agreement using the canonical strings (license statement + agreement-act label, verbatim); the
   candidate treatment showing `match_reason` + "no context yet" and **no chips** (§6); and the
   **held third state** (§7.1) — a curated clip (note + chips + curator intact) marked with the
   verbatim **"In review · not yet vouched"** eyebrow (+ the explainer / a11y name strings),
   text-labeled and AA, distinct from both a fully-curated clip and a §6 candidate, with the
   reviewer-only **Hold** / **Approve** affordances (hold: moderator-or-own-curator; approve:
   moderator-only); and the **moderator-only Remove** affordance + confirm step (§7.2 / C9) —
-  visually/textually distinct from D2 Edit/Delete and D5b Hold/Approve, shown only to a moderator,
+  visually/textually distinct from Edit/Delete and Hold/Approve, shown only to a moderator,
   with the **optional** removal-reason capture using the C9 category labels verbatim (a reason is
   optional, never required) and **never** surfacing the reason to readers; and, for
   **add-by-link / oEmbed-resolved** clips (§5.5 / C10), render the floor credit — real creator
@@ -707,21 +640,21 @@ one.
   **clearly-labeled placeholder** credit for the unresolved/failed state that reads as *unresolved*
   (no fabricated name, no fake link, no "resolved via oEmbed" claim), distinct from a real credit.
 - **Development (schema + limits):** encode the §2 stance enum and §3 accuracy enum as the
-  controlled vocabulary in `lib/data/types.ts` (replacing the provisional sets), with a single
-  enum→label map driving chip text (§4); add optional `*_modifier` fields (C6); enforce the
-  note length (C1); ensure candidates carry no stance/accuracy/context (§6); render attribution
-  per §5; for the **held state** (§7.1) derive the marking from the clip's held flag (the
-  verbatim §7.1 strings), keep the note/chips/curator intact, and gate the two actions
-  server-side — **approve = moderator-only**, **hold = moderator OR the clip's own curator**; for
-  **removal** (§7.2 / C9) make it a **soft tombstone** (who/when/optional-why persist; the clip is
-  excluded from the read, never hard-deleted), **moderator-only** (no own-curator arm), encode the
-  optional reason as the C9 §7-category set + optional free-text (or free-text — the captured fact
-  is "an optional reason"), and **never** gate removal on the reason or on `accuracy_flag`; for
+  controlled vocabulary in `lib/data/types.ts`, with a single enum→label map driving chip text
+  (§4); add optional `*_modifier` fields (C6); enforce the note length (C1); ensure candidates
+  carry no stance/accuracy/context (§6); render attribution per §5; for the **held state**
+  (§7.1) derive the marking from the clip's held flag (the verbatim §7.1 strings), keep the
+  note/chips/curator intact, and gate the two actions server-side — **approve = moderator-only**,
+  **hold = moderator OR the clip's own curator**; for **removal** (§7.2 / C9) make it a **soft
+  tombstone** (who/when/optional-why persist; the clip is excluded from the read, never
+  hard-deleted), **moderator-only** (no own-curator arm), encode the optional reason as the C9
+  §7-category set + optional free-text (or free-text — the captured fact is "an optional
+  reason"), and **never** gate removal on the reason or on `accuracy_flag`; for
   **add-by-link / oEmbed-resolved** clips (§5.5 / C10) map `author_name → creator.name` and
   `author_url → creator.url` (the minimum credit), derive `creator.handle` per the candidate
-  pipeline (`lib/candidates/youtube.ts:111`) or omit it cleanly, **never emit the mock
-  `"pasted"`/`"Pasted … clip"` strings on a resolved clip** (spec AC2), and for an unresolved clip
-  use a placeholder credit that does not masquerade as a real creator (no fake `creator.url`).
+  pipeline (`lib/candidates/youtube.ts`) or omit it cleanly, **never emit a placeholder handle on
+  a resolved clip**, and for an unresolved clip use a placeholder credit that does not masquerade
+  as a real creator (no fake `creator.url`).
 - **Product (policy → roadmap/criteria):** the moderation policy (§7) and the licensing
   decision (§5.3) become roadmap items when auth/persistence land; the note standard (§1) is
   the **definition of "good curation"** Product/Analytics will later measure against.

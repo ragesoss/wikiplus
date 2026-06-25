@@ -180,43 +180,6 @@ gh label create "status: in-progress" -c C5DEF5 -d "A build session is working t
 gh label create "status: blocked"     -c D93F0B -d "Stuck — needs human input"
 ```
 
-## Bootstrap
+## What's next
 
-1. ✅ A root **`CLAUDE.md`** capturing shared conventions — **done**.
-2. ✅ **Role subagent definitions** (`.claude/agents/`) — **done**: `product-manager`, `ux-designer`,
-   `developer`, `qa-reviewer`, `operations`, `curation-editorial`. (Analytics deferred; its
-   metric-definition work sits in Product until launch.) Drafted one at a time, then reviewed as a set
-   for coherent ownership, clean hand-offs, and no gaps or overlaps.
-3. ✅ The **build-loop** for the core pipeline (Product → UX → Dev → QA & Review / UX evaluation → Ops),
-   whose explicit goal is the **completely-cloud, mobile-drivable cycle from a prompt to an updated
-   deployment** — **done**: the `/build-loop` skill (`.claude/skills/build-loop/SKILL.md`). Built as a
-   skill, not the deterministic **Workflow** tool, because that tool is local-terminal-only while the
-   loop must run in cloud/mobile sessions. It enforces the sequence by ordered, gated delegation to the
-   role subagents (an artifact gate per stage), runs autonomously from one prompt to a live deploy, and
-   pins Opus for the judgment-heavy roles.
-
-Everything else (more slash commands, analytics pipelines, ops runbooks) follows as the application
-itself comes into existence.
-
-### Lesson from 2026-06-14 (why step 3 is the priority)
-
-A cloud session handed the prototype-v1 build did the whole thing in one context — Product spec, the
-implementation, and design work all inline — with **no `qa-reviewer`, no UX evaluation**, and the
-design spec edited *after* implementation to match what shipped. Zero role subagents were spawned.
-The roles existed as files, but nothing made the orchestrator delegate to them, so it defaulted to
-solo execution and narrated role names in commit messages instead. That build was **rolled back**.
-
-Two contributing factors, both addressed:
-- **No enforcement.** Documented roles aren't self-enforcing. The fix is the build-loop above — now the
-  **`/build-loop` skill** — plus the **hard rule in `CLAUDE.md`** ("delegate; don't wear hats"). The
-  skill enforces the pipeline by ordered, gated delegation; the rule still holds whenever the loop isn't
-  used.
-- **Orchestrator model.** That session ran on **Sonnet 4.6**, not Opus. Model choice was not the root
-  cause (the missing enforcement was), but the meta-discipline of *resisting just-do-it and delegating*
-  is exactly the judgment a stronger orchestrator holds better. **Run the cloud orchestrator on Opus**,
-  and the `/build-loop` skill pins models per role (Opus across the board for the prototype build).
-
-> The client-side prototype is scaffolded (Next.js 15 / React 19 on **Node 24.16.0 LTS**) and live on
-> GitHub Pages; the production read-path is not. The **staging deploy target** for that read-path —
-> automate the single VPS vs. use a managed platform — is an open **Operations** decision; record it
-> in ARCHITECTURE.
+More slash commands, analytics pipelines, and ops runbooks follow as the application itself grows.

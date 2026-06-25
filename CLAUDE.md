@@ -11,19 +11,18 @@ with a human-written **context note** that separates factual content from the cr
 - `mockups/` — interactive HTML design mockups (open `mockups/inline-index.html`; reference
   Topic page: `mockups/inline-indigo-sync.html` curated, `inline-indigo-empty-v2.html` empty).
 - `.claude/agents/` — the role subagents that build & operate this project (see below).
-- The **Next.js 15 app** (`app/`, `components/`, `lib/`) — a **Node SSR server** (App Router; issue
-  #37) backed by **shared Postgres via Drizzle** (issue #45 — multi-user and durable). It is **live**
-  at <https://wikiplus.wikiedu.org> (a self-hosted Linode VPS, Docker Compose + Caddy). Push to `main`
+- The **Next.js 15 app** (`app/`, `components/`, `lib/`) — a **Node SSR server** (App Router) backed
+  by **shared Postgres via Drizzle** (multi-user and durable). It is **live** at
+  <https://wikiplus.wikiedu.org> (a self-hosted Linode VPS, Docker Compose + Caddy). Push to `main`
   auto-deploys via `.github/workflows/deploy.yml` (CI builds a standalone Docker image → GHCR → the
   box runs `docker compose pull && up`; the box never builds Next.js).
 - Work is tracked as **GitHub Issues** (<https://github.com/ragesoss/wikiplus/issues>) — one issue =
   one build-loop run; see *Issue pipeline* in `docs/AGENT_OPERATING_MODEL.md`.
 
 The production read-path (ISR/Redis + the Cloudflare edge cache) is **not yet built**; Server Actions
-and the shared DB are. All data access goes through the `DataStore` seam in `lib/data/` (now shared
-Postgres via Drizzle; the implementation is swapped in `lib/data/index.ts`). `docs/ARCHITECTURE.md`
-is the source of truth — see its **Prototype phase** section. **Use `yarn`** (matches the committed
-lockfile and CI).
+and the shared DB are. All data access goes through the `DataStore` seam (`lib/data/`; the
+implementation is selected in `lib/data/index.ts`). `docs/ARCHITECTURE.md` is the source of truth —
+see its **Prototype phase** section. **Use `yarn`** (matches the committed lockfile and CI).
 
 ## Read first
 
@@ -94,7 +93,7 @@ in the same PR so it never drifts:
 
 Commit the regenerated PNGs + `index.html` alongside the UI change.
 
-## Planned stack (see ARCHITECTURE)
+## Stack (see ARCHITECTURE)
 
 Next.js (App Router) + TypeScript, Tailwind, Postgres + Drizzle, Redis, Docker Compose + Caddy
 behind Cloudflare, Auth.js OAuth (Wikimedia for the MVP).
@@ -118,19 +117,26 @@ behind Cloudflare, Auth.js OAuth (Wikimedia for the MVP).
 - **Accessibility is baseline** — AA contrast, focus states, keyboard support, text-labeled
   signals (never color alone).
 
-## Comments & docs — no history cruft
+## Comments & docs — directives, not history
 
-Inline comments and the **timeless docs** (this file, `README.md`, and the `docs/` source-of-truth
-docs — `ARCHITECTURE.md`, `VISION.md`, `TOPIC_PAGE_DESIGN.md`, `VISUAL_IDENTITY.md`,
-`CURATION_STANDARD.md`) describe the **current state and design intentions** — what the code/design
-*is* and *why*. Do **not** narrate code history in them: no "used to / previously / formerly / no
-longer / renamed / removed in favor of," no "Iteration N / finding N / PR #N," no before→after value
-trails (e.g. "burnY 150→130 to trim the top space"). State the current value and the rationale; when
-something changed, just describe what it is now. Git history, commit messages, and the **per-build
-`docs/specs/` + `docs/design/` artifacts** are the legitimate record of how it got here — that
-exclusion is the point: those files may carry change history; timeless docs and comments may not.
-(Runtime-state language is fine: "ignore a superseded request," "the clip no longer shows after
-removal" describe behavior, not code history.)
+Inline comments and the **agent-guiding docs** — this file, `README.md`, the `docs/` source-of-truth
+docs (`ARCHITECTURE.md`, `VISION.md`, `TOPIC_PAGE_DESIGN.md`, `VISUAL_IDENTITY.md`,
+`CURATION_STANDARD.md`, `AGENT_OPERATING_MODEL.md`), the `.claude/agents/` charters, and the
+build-loop skill — must read as **timeless guidance for a fresh agent**: state what the code/design
+*is* now and the enduring *why*, as a positive directive.
+
+- **No code-history narration:** no "used to / previously / formerly / no longer / renamed / removed
+  in favor of," no "Iteration N / finding N / PR #N," no before→after value trails (e.g. "burnY
+  150→130 to trim the top space"). State the current value and rationale; if something changed, just
+  describe what it is now.
+- **Encode the fix as a directive, not a post-mortem.** When a problem prompts a doc update, write the
+  corrected rule — not what went wrong. Describing the wrong behavior adds noise focused on it and can
+  make it *more* likely; "commit the design spec before any code" beats recounting a build that didn't.
+
+Git history, commit messages, and the **per-build `docs/specs/` + `docs/design/` artifacts** are the
+legitimate record of how it got here — those may carry change history; the agent-guiding docs and
+comments may not. (Runtime-state language is fine: "ignore a superseded request," "the clip no longer
+shows after removal" describe behavior, not code history.)
 
 ## Commits
 

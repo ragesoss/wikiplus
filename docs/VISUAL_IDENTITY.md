@@ -1,22 +1,9 @@
 # wiki+ — Visual Identity: the Header Wordmark ("Daylight Projector")
 
-**Role:** UX / Design · **Status:** LOCKED prototype identity (design decision converged over
-~15 iterative rounds with the owner) — captured here to be **buildable** and **sign-off-ready**,
-not re-opened · **Phase:** prototype · **Canonical render:**
+**Role:** UX / Design · **Phase:** prototype · **Canonical render:**
 [`mockups/wordmark-projector-illuminate.html?solo=01`](../mockups/wordmark-projector-illuminate.html)
 — variant **`01` "Daylight — subtle glow."** The `buildScene()` function in that file is the
 source of truth for geometry, layering, and color values; this document formalizes it.
-
-> **Governance, read first (full detail in §9).** Both committed-identity tensions this direction
-> raised are now **resolved by the owner**, so no gating decision remains: (a) **gold** — the owner
-> has reclassified gold (`#E5AB28`) from "deliberately unused" to an **accent / tertiary color**, used
-> sparingly and in a lighter, desaturated form for the wordmark (§9.1); `CLAUDE.md` and
-> `TOPIC_PAGE_DESIGN.md` are updated to match. And (b) this **concentrates the committed
-> split-wordmark** described in `TOPIC_PAGE_DESIGN.md` into a single seam-aligned header lockup — but
-> per the owner this **preserves** the split by aligning the lockup across the wiki/plus divider
-> rather than abandoning it (§9.2). The Wikipedia **article body** is unaffected — the beam burns to
-> the content's *own* white and adds no chrome to the article — but the **header is new**. What
-> remains is documentation reconciliation and the Dev build (§10), not sign-off.
 
 ---
 
@@ -35,11 +22,6 @@ context onto the article below*. Everything in the beam's path is **burnt to pur
 one surface with no seam. With the interior all-white, **the entire light signal is carried by a
 single solid gold border** tracing the burnt region. Behind the aperture, **"pedia" persists** as
 the faintest dark ghost — Wikipedia is always the substrate; wiki+ never hides it.
-
-This document covers: the conceptual framing (§2), anatomy (§3), design tokens (§4), construction &
-rendering technique (§5), placement & responsive behavior incl. fallbacks (§6), accessibility (§7),
-do/don't (§8), and the **brand-rule & governance flags** plus open questions and the Dev hand-off
-(§9–§10).
 
 ---
 
@@ -65,12 +47,11 @@ right, and a beam of curation-light pouring down from the plus onto the page bel
 
 ### 2.2 The wordmark straddles the `wiki | plus` seam — the seam alignment *is* the split
 
-This **preserves and concentrates** the committed split-wordmark idea (in `TOPIC_PAGE_DESIGN.md`, the
-wordmark splits to label the two columns). The split is **not abandoned and not bolted on as separate
-column labels** — it is **carried by alignment**: the lockup straddles the page's actual wiki/plus
-divider, so **"Wiki" labels the source/article side and "+plus" labels the curation side *by
-position*.** The single header lockup therefore *is* the column labeling, by where it sits. (See §6
-for the load-bearing placement requirement and §9.2 for the resolved governance note.)
+The split (in `TOPIC_PAGE_DESIGN.md`, the wordmark labels the two columns) is **carried by
+alignment**: the lockup straddles the page's actual wiki/plus divider, so **"Wiki" labels the
+source/article side and "+plus" labels the curation side *by position*.** The single header lockup
+therefore *is* the column labeling, by where it sits. (See §6 for the load-bearing placement
+requirement.)
 
 - **LEFT — "Wiki," the encyclopedia/source.** Set in a faithful **Wikipedia serif (Georgia)** so it
   reads as "the encyclopedia." This is deliberately the same type voice the article side uses, and it
@@ -149,32 +130,10 @@ fully) washed out by the plus's bright contribution.
 
 ### 2.9 Photographic reference
 
-The "burn to white" was tuned against an **overexposure reference** — an LED key-visual in which
-colored bars read as *vividly colored* even though their centers are pure white. The principle we are
-reproducing: **a light source reads as its color via the colored bloom around a white-hot, clipped
-core.** That is why the gold lives at edges and rims, and the interiors clip to white.
-
-### 2.10 How we got here
-
-The direction converged across many iterative rounds. The working tree keeps only the locked mark
-(`wordmark-projector-illuminate.html`); the exploration files named below were pruned in the
-mockup-cleanup pass and live on in **git history**. The lineage is worth recording, because it
-explains why the final mark is so restrained:
-
-1. **Seam / negative-space studies** — `wordmark-01-butt-joint` … `wordmark-10-play-tile`,
-   `wordmark-negspace-*`: how "Wiki" and the plus block meet (butt joint, hinge, interlock, negative
-   space).
-2. **"pedia" reveal studies** — `wordmark-pedia-float / -glow / -lit`, `wordmark-wikipedia-reveal`:
-   the idea that "pedia" persists behind the plus, lit or floating.
-3. **An "LCD glow in fog" idea**, which became a **"tractor beam,"** which became a **projector
-   beam** (`wordmark-projector`, `-shine`, `-illuminate`).
-4. **The daylight burn-to-white** — the beam stops being a colored cone and becomes overexposed white.
-5. **The overexposure bloom** — color is pushed to the bloom/rim around a white-hot core (the §2.9
-   reference).
-6. **Gold rim following the plus** (not a circular glow) + **letter halation** over "pedia."
-7. **Finally:** the **all-white beam whose solid gold border alone carries the signal** — variant
-   `01`. (Variants `02`–`05` in the same file push more saturation; they are explorations only. **01
-   is locked.**)
+The "burn to white" follows an **overexposure principle** — in an LED key-visual, colored bars read
+as *vividly colored* even though their centers are pure white: **a light source reads as its color
+via the colored bloom around a white-hot, clipped core.** That is why the gold lives at edges and
+rims, and the interiors clip to white.
 
 ---
 
@@ -242,7 +201,7 @@ Notes for Dev:
 
 ### 4.2 Color
 
-**Existing brand tokens (unchanged — reused here):**
+**Brand tokens reused here:**
 
 | Token | Value | Use in the mark |
 |---|---|---|
@@ -250,7 +209,7 @@ Notes for Dev:
 | `--ink` | `#2C2C2C` | the zine block 2px border + the hard offset shadow |
 | (article ink) | `#1b1b1b` | the crisp "Wiki" serif |
 
-**New / wordmark-specific surface tokens:**
+**Wordmark-specific surface tokens:**
 
 | Proposed token | Value | Meaning |
 |---|---|---|
@@ -259,7 +218,7 @@ Notes for Dev:
 | `--pedia-ghost-brown` | `#6a5e46` @ `opacity .06`, `blur .8px` | the full faint "Wikipedia" backing word |
 | `--pedia-black` | `#000` @ `opacity ~.24`, `blur 1.45px` | the "pedia" halation ghost (the `o.pedia` value) |
 
-**The NEW gold tokens (the governance-flagged ones — see §9):**
+**Gold tokens:**
 
 | Proposed token | RGB | Hex (approx) | Role |
 |---|---|---|---|
@@ -267,12 +226,10 @@ Notes for Dev:
 | `--gold-fill` / `gold` | `rgb(255, 236, 178)` | **`#FFECB2`** | the **warmer** fill gold: only used *mixed toward white* in the aperture's radial core (`mix(gold,0.5)`, `mix(gold,0.22)`) |
 | `--bleed-warm-white` | `rgb(255, 252, 246)` | `#FFFCF6` | the tighter, near-white inner bleed "+" shape |
 
-**Relationship to the forbidden brand gold (`#E5AB28`) — state this explicitly:** our golds are in
-the **same hue family** but are **markedly lighter and more desaturated** (`#EECE87` / `#FFECB2` vs.
-`#E5AB28`). They never appear as a *fill* at full saturation; they live as a thin rim and an edge
-glow, and even the aperture core mixes them toward white. This is a deliberate softening so the mark
-reads as *overexposed daylight*, not as "brand gold." **It is still gold,** however — which is why
-§9 flags it for Product even though it is not the literal forbidden value.
+**Relationship to the brand gold accent (`#E5AB28`):** these golds are in the **same hue family** but
+are **markedly lighter and more desaturated** (`#EECE87` / `#FFECB2`). They never appear as a *fill*
+at full saturation; they live as a thin rim and an edge glow, and even the aperture core mixes them
+toward white, so the mark reads as *overexposed daylight* rather than as "brand gold."
 
 ### 4.3 Geometry, spacing & borders (variant 01)
 
@@ -295,9 +252,7 @@ Read from `buildScene()` at the mockup's canvas size (`cw` ≈ canvas width, hei
 | aperture rim stroke | width `3`, `rgb(238,206,135)` @ `0.85`, `blur .85`, **clipped to "+" interior** | gold at the edge, clipping to white inward |
 | aperture bleed | screen-blended, `blur 4px`; wider `#EECE87` @ `~0.46` + tighter `#FFFCF6` @ `0.92` | "+"-outline-shaped bleed onto the indigo |
 
-> The slope `tan = 0.6` and `fadeY = 150` are the **variant-01** values. Variants 02–05 share
-> `tan: 0.6`/`fadeY: 150` but differ in the gold values — and they are **not** the locked mark. Use
-> the §4.2 golds.
+> Use the §4.2 golds (the slope `tan = 0.6` and `fadeY = 150` are the variant-01 values).
 
 ### 4.4 Interactive color — three distinct roles, three colors
 
@@ -313,9 +268,8 @@ per role, and never collapses them:
   `#F7F7F7`, the cool header field `#FAFBFE`, the `#EEF0FB` active tint), where `sprout` fails
   (4.0–4.5:1). See `docs/design/chrome-link-green.md` for the computed table and the file list.
 - **Solid primary CTAs** (`bg-action` + white text — the contribute submit, moderator Approve,
-  not-found primary, the "Log in with Wikipedia" button) remain **`action #1F6F95`** (blue). The
-  action blue is reserved for solid button fills; recoloring CTAs to green is a possible future
-  change, not a current one.
+  not-found primary, the "Log in with Wikipedia" button) are **`action #1F6F95`** (blue). The
+  action blue is reserved for solid button fills.
 - **Wikipedia article-content links** stay **`--color-wikilink #3366cc`** — the faithful Wikipedia
   blue is never overridden (the "faithful Wikipedia look" principle, `CLAUDE.md`).
 
@@ -417,13 +371,11 @@ ends and the indigo block begins) **must be aligned to the page's actual wiki/pl
 the mark reads as labeling both columns: "Wiki" over the source/article column, "+plus" over the
 curation column. The split is delivered **by position**, not by drawing separate column labels.
 
-**Degradation, stated honestly:** when the columns **stack / reflow at narrow widths** (vertical-first
-layouts), there is **no side-by-side divider to align to.** At those tiers the lockup **keeps its own
-internal `wiki | +plus` split as a self-contained unit** — it still *shows* the source-vs-plus split in
-its own composition; it simply cannot align to a page divider that no longer exists. So the split is
-never lost: at Tier A it is *aligned to* the real divider; at narrower tiers it is *carried within* the
-lockup itself. (How the seam maps to the real column layout and at which breakpoint the columns stop
-sitting side-by-side is a Product/Dev reconciliation item — §10.1 #2, §10.2 #6.)
+**Degradation:** when the columns **stack / reflow at narrow widths** (vertical-first layouts), there
+is **no side-by-side divider to align to.** At those tiers the lockup **keeps its own internal
+`wiki | +plus` split as a self-contained unit** — it still shows the source-vs-plus split in its own
+composition. So the split is never lost: at Tier A it is *aligned to* the real divider; at narrower
+tiers it is *carried within* the lockup itself.
 
 ### 6.1 The core lockup that must survive everywhere
 
@@ -463,29 +415,27 @@ The whole mark is built on a **light/overexposure metaphor** — "daylight," "bu
 "fluorescent header." **It does not translate literally to a dark UI.** You cannot "overexpose to
 white" on a dark field without inverting the entire concept.
 
-wiki+ now ships the **zine-dark** skin (issue #119; design contract
-`docs/design/skin-system-zine-dark.md`, ARCHITECTURE "Skin system"). Its header resolution is the
-**flat Tier-C lockup with no descending beam, on every host and at every scroll state** — the indigo
-"+plus" block (keeping the brand-fill `#676EB4` with a white "+", the committed AA-large exemption
-§7.2) + a serif "Wiki" in a light ink `#ECEAF1` on the flat dark band. It hides the lit aperture +
-descending beam and does **not** attempt the burn-to-white projector. The header band is flat
-`--surface-2`, the page-top illumination falloff resolves to flat `--surface`, and the 2px chrome rule
-is a light line — a color + layer-visibility change only, with the scroll-transition behavior,
-geometry, and focus order unchanged. This holds for the **free-standing home hero** as well as the
-scroll-aware Topic / content-page hosts: the home header reads as a clean flat "off" lockup on a flat
-dark band — no beam, no white burn slab — at every width.
+In the **zine-dark** skin (design contract `docs/design/skin-system-zine-dark.md`, ARCHITECTURE
+"Skin system"), the header resolution is the **flat Tier-C lockup with no descending beam, on every
+host and at every scroll state** — the indigo "+plus" block (keeping the brand-fill `#676EB4` with a
+white "+", the AA-large exemption §7.2) + a serif "Wiki" in a light ink `#ECEAF1` on the flat dark
+band. It hides the lit aperture + descending beam and does **not** attempt the burn-to-white
+projector. The header band is flat `--surface-2`, the page-top illumination falloff resolves to flat
+`--surface`, and the 2px chrome rule is a light line — a color + layer-visibility change only, with
+the scroll-transition behavior, geometry, and focus order unchanged. This holds for the
+**free-standing home hero** as well as the scroll-aware Topic / content-page hosts: the home header
+reads as a clean flat "off" lockup on a flat dark band — no beam, no white burn slab — at every width.
 
 A true dark-theater inversion (e.g. a *spotlight in a dark room* re-derivation of the projector) is a
-**separate future design task, explicitly out of scope** — zine-dark deliberately uses the flat
-lockup rather than re-deriving the projector.
+**separate future design task, out of scope** — zine-dark deliberately uses the flat lockup rather
+than re-deriving the projector.
 
 The **`/about` orientation page** is itself a deliberate dark warm-theater room on both skins; in
 zine-dark its centerpiece **fixed art is exempt** (the warm-dark room, the projector, the lit lamp,
 the lit Topic-page miniature, and the warm "How it works" card keep their committed colours, insulated
 from the skin's global token re-points), while the mini-preview's title input and the article loading
 sweep get an intentional dark-readable treatment — so `/about` reads well as a dark page without
-inverting the theater. See `docs/design/skin-system-zine-dark.md` §7.1 and
-`docs/design/dark-mode-cleanup.md` (issue #156).
+inverting the theater. See `docs/design/skin-system-zine-dark.md` §7.1.
 
 ### 6.5 Static, not animated
 
@@ -580,73 +530,45 @@ pinned-player dock-in gate).
 
 ---
 
-## 9. Brand-rule & governance flags — RESOLVED BY OWNER
+## 9. Brand rules
 
-Two committed-identity rules were in tension with this direction; **both are now resolved by the
-owner** (§9.1, gold; §9.2, the split), so **no Product sign-off gates this direction.** What remains is
-documentation reconciliation and the Dev build (§10). They are recorded here for the trail.
+### 9.1 Gold is an accent / tertiary color
 
-### 9.1 RESOLVED — gold is now an accent / tertiary color
-
-The Indigo Press identity previously held gold (**`#E5AB28`**) as **"deliberately unused."** The owner
-has **reclassified gold as an accent / tertiary color** — permitted, used sparingly, never indigo's
-equal and never a functional signal color. `CLAUDE.md` and `TOPIC_PAGE_DESIGN.md` are updated to match.
-This wordmark is the first and principal use. How the design already keeps it disciplined:
+Gold (`#E5AB28`) is an accent / tertiary color — used sparingly, never indigo's equal and never a
+functional signal color. This wordmark is its principal use, kept disciplined:
 
 - The golds used (`#EECE87`, `#FFECB2`) are **lighter and desaturated**, not the brand gold, and never
   appear as a saturated fill — only as a thin rim and edge glow, mixed toward white.
 - The gold is **decorative, not functional** (§7.3) — it never competes with the chip color system.
 - It is confined to the **wordmark**, not introduced into the broader UI.
 
-So gold is now sanctioned as a restrained accent; the disciplines above are the standing usage rules
-(see also §8 Don'ts), not conditions awaiting approval.
-
-### 9.2 CONFIRMED — the split is preserved via seam alignment (not replaced, not bolted on)
+### 9.2 The split is preserved via seam alignment
 
 `TOPIC_PAGE_DESIGN.md` commits a **split wordmark** ("Wiki" over the article column, "+plus" over the
-plus column) and a two-world header. The owner has confirmed the direction: this treatment **preserves
-the split by aligning the single header lockup across the wiki/plus seam** (§2.2, §6.0). It neither
-*replaces* the split with an unrelated mark nor *coexists* with a separate set of column labels —
-instead it **concentrates the split into one seam-aligned lockup** whose internal seam lands on the
-page's real column divider, so "Wiki" labels the source/article column and "+plus" labels the curation
-column **by position.** This is consistent with the committed split wordmark in *both spirit and
-mechanics* (two worlds, source + plus layer, divider-aligned); it is a concentration of that idea, not
-a discarding of it.
+plus column) and a two-world header. This treatment **preserves the split by aligning the single
+header lockup across the wiki/plus seam** (§2.2, §6.0): its internal seam lands on the page's real
+column divider, so "Wiki" labels the source/article column and "+plus" labels the curation column
+**by position** — one seam-aligned lockup rather than two separate per-column labels.
 
-**Product action (documentation reconciliation, not a decision):** update the split-wordmark
-description in `TOPIC_PAGE_DESIGN.md` so it reflects the **seam-aligned header lockup** (one lockup
-straddling the column divider) rather than two separate per-column labels. The replace-vs-coexist
-question is **answered** — there is nothing to gate here. (Confirming exactly *how* the internal seam
-maps to the real column layout and breakpoints is a layout-mapping item, §10.1 #2 / §10.2 #6, not a
-brand decision.)
+### 9.3 The Wikipedia article side keeps its faithful look
 
-### 9.3 CONFIRMED — the Wikipedia article side keeps its faithful look
-
-To close the loop on the principle "the Wiki article side keeps a faithful Wikipedia look": **this
-treatment does not touch the article body.** The beam **burns to the content's own white** and stops
-at the content boundary; it adds **no border, no tint, no chrome** to the article. The only new
+This treatment **does not touch the article body.** The beam **burns to the content's own white** and
+stops at the content boundary; it adds **no border, no tint, no chrome** to the article. The only new
 surface is the **header**. The article-fidelity work (serif headings, citations, infobox, etc.)
-stands unchanged. **What is new is strictly the header treatment** — and with §9.1 (gold) and §9.2
-(the seam-aligned split) both resolved by the owner, the only follow-up is reconciling the
-`TOPIC_PAGE_DESIGN.md` split-wordmark wording (§9.2) and the Dev build (§10).
+stands unchanged.
 
 ---
 
-## 10. Open questions & next steps
+## 10. Adoption, responsive mapping & Dev hand-off
 
-### 10.1 Items for Product
+### 10.1 Adoption
 
-1. **Gold (§9.1) — RESOLVED.** The owner has reclassified gold as an accent / tertiary color; the
-   "no gold" wording in `CLAUDE.md` + `TOPIC_PAGE_DESIGN.md` is updated accordingly. No decision
-   remains here.
-2. **Split-wordmark reconciliation (§9.2) — RESOLVED, doc + layout follow-up.** The split is
-   **preserved via seam alignment** per the owner — not replaced, not bolted on. No replace-vs-coexist
-   decision is needed. Product to: (a) **update `TOPIC_PAGE_DESIGN.md`** so its split-wordmark wording
-   reflects the single seam-aligned header lockup (lockup straddling the column divider) rather than
-   two separate per-column labels; and (b) confirm with Dev **how the lockup's internal seam maps to
-   the real column layout/breakpoints** — i.e. at which width the columns stop sitting side-by-side and
-   the seam-alignment requirement (§6.0) hands off to the self-contained-split fallback (§6.3, §10.2 #6).
-3. **Scope of adoption — RESOLVED: the projector is the app's UNIVERSAL header.** The
+1. **Gold** is an accent / tertiary color (§9.1).
+2. **The split is preserved via seam alignment** (§9.2): one seam-aligned header lockup straddling the
+   column divider, not two separate per-column labels. The breakpoint at which side-by-side columns
+   stop and the seam-alignment requirement (§6.0) hands off to the self-contained-split fallback (§6.3)
+   is given in §10.2 #6.
+3. **The projector is the app's UNIVERSAL header.** The
    `HeaderProjector` lockup (via the `SiteHeader` host wrapper) is the **one** header for the whole
    app — not just home + Topic. **Every view gets it:** any new page/view, and any existing view
    redesigned, that does not yet use the projector header **should adopt `SiteHeader`** rather than
@@ -674,21 +596,19 @@ stands unchanged. **What is new is strictly the header treatment** — and with 
    logged in, the DB) from any other page. See `docs/specs/skin-toggle.md` +
    `docs/design/skin-toggle.md`.
 
-### 10.2 Open design questions (resolve with Product/Dev)
+### 10.2 Responsive mapping
 
-4. **Favicon / app-icon mark (Tier D) — RESOLVED.** The mark is the indigo "+" tile carrying a
+4. **Favicon / app-icon mark (Tier D).** The mark is the indigo "+" tile carrying a
    **hint of the white-hot aperture** (warm-white "+" knockout + thin gold rim), centered in the
-   square and legible at `16px`. Assets delivered: `app/icon.svg` (scalable favicon),
+   square and legible at `16px`. Assets: `app/icon.svg` (scalable favicon),
    `app/apple-icon.png` (180×180 apple-touch), and `app/favicon.ico` (legacy 16/32/48), all wired via
    the App Router metadata-file convention (which prefixes the emitted icon `<link href>` with
-   `basePath` automatically). Geometry mapping, the 16px legibility decisions, and the wiring details
-   are in `docs/design/favicon.md`.
-5. **Dark mode (§6.4) — RESOLVED for the zine-dark skin.** "No dark-mode projector; flat lockup only"
-   is now the **committed behavior** for the **zine-dark** skin (issue #119): it uses the flat Tier-C
-   lockup at every scroll state and hides the lit aperture + beam (§6.4). A true dark-theater
-   *spotlight* inversion remains a separate future design task (explicitly not built in #119).
-6. **Responsive breakpoints + seam-to-column mapping — RESOLVED.** The side-by-side ↔ stacked
-   handoff is the existing **`lg` (1024px)** Topic-grid breakpoint (`lg:grid-cols-[1fr_360px]`). At
+   `basePath` automatically). Geometry mapping and the 16px legibility decisions are in
+   `docs/design/favicon.md`.
+5. **Dark mode.** The zine-dark skin uses the flat Tier-C lockup at every scroll state and hides the
+   lit aperture + beam (§6.4); a true dark-theater *spotlight* inversion is a separate future task.
+6. **Responsive breakpoints + seam-to-column mapping.** The side-by-side ↔ stacked
+   handoff is the **`lg` (1024px)** Topic-grid breakpoint (`lg:grid-cols-[1fr_360px]`). At
    `≥ lg` the seam aligns to the **gutter centre** — the midpoint of the `gap-7` (28px) channel
    between the `1fr` article column and the `360px` rail — driven onto the lockup via the
    `projectionX`/`seamRatio` hook off the **measured** column geometry (a mount/resize probe, never a
@@ -720,7 +640,7 @@ stands unchanged. **What is new is strictly the header treatment** — and with 
 - A self-contained **`Wordmark` / `HeaderProjector`** component (bespoke Tailwind + inline SVG; no new
   font, no shadcn), implementing **variant 01** per §4–§5, with the **fallback tiers (§6)** behind
   size/context props (e.g. `variant="projector" | "lockup-lit" | "lockup-flat" | "glyph"`).
-- Pin the **new gold tokens** (§4.2) and surface tokens (§4.1/§4.2) in the Tailwind config / CSS
+- Pin the **gold tokens** (§4.2) and surface tokens (§4.1/§4.2) in the Tailwind config / CSS
   variables.
 - Wire the **accessibility model** (§7): `aria-label="wiki+"` on the container, decorative layers
   `aria-hidden`, font fallbacks, `forced-colors`/high-contrast → flat lockup.

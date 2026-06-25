@@ -1,11 +1,9 @@
 # wiki+ — Topic Page Design Direction
 
-The chosen design for the core Topic page, settled through the mockup rounds in `mockups/`.
-The reference mockup is **`mockups/inline-indigo-sync.html`** — the committed layout/interaction
-model with the committed **"Indigo Press" plus identity** (see *Plus visual identity* below).
-The structure, interaction model, and color system below are the committed direction; finer
-visual details will be refined during implementation. (`mockups/inline-neon-sync.html` is the
-earlier same-layout exploration that used a neon palette, kept for reference.)
+The design for the core Topic page. The reference mockup is **`mockups/inline-indigo-sync.html`** —
+the committed layout/interaction model with the committed **"Indigo Press" plus identity** (see
+*Plus visual identity* below). The structure, interaction model, and color system below are the
+committed direction; finer visual details are refined during implementation.
 
 ## The two worlds
 
@@ -24,15 +22,14 @@ The wordmark is **one seam-aligned lockup straddling the column divider** (not t
 per-column labels): a single `wiki | plus` mark whose internal seam — where the serif "Wiki" ends
 and the indigo "+" block begins — lands on the **real article↔plus column divider**, so the lockup
 labels the two columns *by position*: "Wiki" sits over the article column and "＋plus" over the plus
-rail because the seam is on the boundary between them. (Built #72 as the shared "Daylight Projector"
+rail because the seam is on the boundary between them. It is the shared "Daylight Projector"
 header — the same `HeaderProjector` lockup the landing page uses, with its seam driven onto the
 measured gutter centre at `≥ lg`; below `lg` the columns stack and the lockup carries its split
-within itself. See `VISUAL_IDENTITY.md` §6.0 and `docs/design/shared-header.md`.)
+within itself. See `VISUAL_IDENTITY.md` §6.0 and `docs/design/shared-header.md`.
 
 > **Implementation note (per ARCHITECTURE).** The article body is fetched and rendered
 > **client-side** from Wikipedia (sanitized), and its **wikilinks resolve to internal wiki+
-> topics** (`/topic/…`), not out to Wikipedia. The reference mockups render the article
-> statically and link externally — a mockup simplification, not the intended behavior.
+> topics** (`/topic/…`), not out to Wikipedia.
 
 ## Plus visual identity — "Indigo Press"
 
@@ -74,8 +71,7 @@ Each clip's accuracy/stance is shown as a **text-labeled chip** (never color alo
 - **Opinion / anecdotal / teaching-context / classroom** → red `#C44949`
 - **Stance** chip (Explainer / Short / Demonstration / Classroom …) → indigo `#676EB4`
 
-> Open: red for the opinion group is provisional — it carries a mild "caution/weigh-this" tone;
-> revisit if it reads as "error." Implementation should also confirm AA contrast for every chip.
+The red carries a mild "caution/weigh-this" tone, not "error." Every chip must meet AA contrast.
 
 ## Layout
 
@@ -85,15 +81,14 @@ A two-column layout from the top (article ~1fr, plus rail ~360px):
   article body sections with their real headings, wikilinks, figures, and (per the
   article-fidelity feature) the **Wikipedia infobox** float-right at the top — see *Two infoboxes*
   below.
-- **Right (plus rail, sticky):** the **wiki+ panel** (video / creator / curator counts + synced
-  status), then the **Table of Contents**, then the curated **section videos**. The rail is
+- **Right (plus rail, sticky):** the **wiki+ panel** (video / creator / curator counts), then the
+  **Table of Contents**, then the curated **section videos**. The rail is
   present and pinned from the very top.
 
 ### Two infoboxes — a naming disambiguation (do not conflate)
 
 The Topic page has **two distinct "infobox" objects**; they live in different columns, in different
-visual languages, and the docs name them distinctly (resolving the article-fidelity collision,
-`docs/design/article-fidelity.md` §4.3, spec B8):
+visual languages, and the docs name them distinctly:
 
 - **Wikipedia infobox** — the encyclopedia's *own* summary box (taxonomy, key facts, lead image),
   restored by the article-fidelity feature. It lives in the **left article column**, float-right at
@@ -105,21 +100,20 @@ visual languages, and the docs name them distinctly (resolving the article-fidel
   self-directed learner who will never curate is oriented and served before any counts or task
   framing. Below the value line sits a **state-variant counts/volume block** and a **primary
   Browse / Jump action** that scrolls to the videos (the non-curator's useful path), then a
-  **secondary, honestly-framed curation invite**. It has **three faces** (issue #60 coexistence —
-  see §"Three states") that reshape only the counts block: the videos / creators / curators
+  **secondary, honestly-framed curation invite**. It has **three faces** (see §"Three states")
+  that reshape only the counts block: the videos / creators / curators
   numerals (fully-curated); the same three numerals **plus a `{V} curated · {M} suggested to weigh
   in` two-count line** (mixed); or, at 0 curated, a dashed "provisional" volume block ("{N} videos
   found to weigh in — none vouched for yet") (empty). The curation invite explains the task (watch
   → vouch → write a note) and is always **secondary**, never the headline; it is a teal `＋ Curate
   a video` at 0 curated and a white `＋ Add a video` once the topic has content. The panel carries
   **no "synced" status and no per-panel source provenance** — those are internal plumbing for a
-  reader (the once-per-context unvetted/source signal lives in the General band + rail set header,
-  #14). On a store-read failure it still shows the value line plus an honest "couldn't load stats"
+  reader (the once-per-context unvetted/source signal lives in the General band + rail set header).
+  On a store-read failure it still shows the value line plus an honest "couldn't load stats"
   line (no skeleton, no write button). It is **Indigo Press** (indigo header block, hardbox border +
   offset shadow). Reference mockup: **`mockups/plus-overview-A-value-first.html`** (Direction A,
   "value-first masthead"); full contract in `docs/design/plus-overview-redesign.md`. Implemented in
-  `components/topic/Infobox.tsx` (the filename is retained; its doc-facing name is **the wiki+
-  panel**).
+  `components/topic/Infobox.tsx`; its doc-facing name is **the wiki+ panel**.
 
 They **cannot collide**: at `lg+` they are in separate grid columns (the Wikipedia infobox floats
 *within* the article column, the wiki+ panel is the right rail beyond the grid gap); below `lg` the
@@ -133,7 +127,7 @@ don't map to a specific section. It is the **only** place plus content reaches i
 column, and is styled like a video-platform search row — **thumbnail-forward**, a quick visual
 overview, horizontally scrollable.
 
-**Curated and suggested content coexist here, curated always first (issue #60).** When a topic has
+**Curated and suggested content coexist here, curated always first.** When a topic has
 both curated general clips and general suggestions, the strip is one scroll row read left→right:
 **every curated clip first** (full curated chrome, never capped — curation is the priority content),
 then an inline **`Suggested · uncurated`** divider, then the **general suggestions capped at a
@@ -143,7 +137,7 @@ suggestions are **never interleaved**. The band heading is **`＋ General`** whe
 leads (mixed + fully-curated) and **`＋ Suggested videos`** only at 0 curated. See §"Three states"
 below for the full model.
 
-**Curated-tile anatomy (issue #63).** A curated General tile carries the same trust signals the
+**Curated-tile anatomy.** A curated General tile carries the same trust signals the
 section-anchored rail card does, so a reader can weigh it where they meet it first. Top-to-bottom:
 thumbnail → held marking (only when held) → caption → creator handle · platform → **stance +
 accuracy chips** → a **2-line context-note preview** → `context by <curator>` → upvote → owner/
@@ -157,7 +151,7 @@ preview is a hook only: the **full, untruncated note lives in the opened player*
 tile thumbnail is already the click-to-open affordance (no separate "read more" control). Candidate
 tiles are unaffected — they carry no note and no chips (CURATION §6).
 
-**Curated player anatomy (issue #63).** On **desktop (`≥ lg`)**, opening a curated clip — General
+**Curated player anatomy.** On **desktop (`≥ lg`)**, opening a curated clip — General
 **or** section-anchored — opens the blocking `PlayerModal`, which renders a **curation block beneath
 the video frame**: creator credit (links out) → held marking (only when held) → **stance + accuracy
 chips** → the **full context-note text** → `context by <curator>` (links in to the curator profile;
@@ -171,7 +165,7 @@ viewport-fit dock that shows the credit + chips with the full note one tap away.
 **content** is identical across both surfaces: it is the single shared `CurationBlock` source of
 truth, so the note never forks between the modal and the dock.
 
-**Logged-out reader model (issue #71).** The Topic view distinguishes a **logged-out reader** from a
+**Logged-out reader model.** The Topic view distinguishes a **logged-out reader** from a
 **signed-in curator** along one axis (`signedIn`). Browsing reads as reading: a logged-out reader's
 tiles carry the trust signals that help weigh a clip but **no per-tile action control**, and the
 invitation to participate relocates into the player, where it lands after the reader has watched.
@@ -183,10 +177,10 @@ invitation to participate relocates into the player, where it lands after the re
 - **Candidate tiles (rail + General strip):** watch-only — thumbnail (opens the pinned player /
   link-out per the embed split), match reason, source pill, caption, and creator credit; **no Curate
   / Not relevant buttons**. The dashed/unvetted visual language is unchanged.
-- **The two player CTAs** (logged-out only): the candidate **`PinnedPlayer`** gains a **"Curate this
+- **The two player CTAs** (logged-out only): the candidate **`PinnedPlayer`** carries a **"Curate this
   video"** button routing into the curate flow for that candidate; the curated **`PlayerModal`**
-  gains a softer topic-level **"Log in to curate videos for this topic"** join nudge inside its
-  curation block. Both route through the existing `curate` login gate.
+  carries a softer topic-level **"Log in to curate videos for this topic"** join nudge inside its
+  curation block. Both route through the `curate` login gate.
 - **Signed in:** every surface is unchanged — the upvote toggle, candidate Curate / Not relevant, and
   owner/moderator rows stay exactly where they are, and the players gain no CTA.
 
@@ -199,7 +193,7 @@ Curated videos divide into two buckets:
 
 The **TOC shows a per-entry video count** (a "General" entry first, then each section with a
 badge for how many videos are anchored there). Sections with no videos still appear as a normal
-wiki TOC entry. **A row carries DUAL counts (issue #60 coexistence):** where a section (or the
+wiki TOC entry. **A row carries DUAL counts:** where a section (or the
 General row) has both curated clips and suggestions, it shows **both** a **solid indigo `{c}`**
 curated badge **and** a **dashed-outline violet `~{s}`** suggested badge, curated-first (matching
 the body order). A row with only curated content shows the solid badge; only suggestions, the
@@ -215,11 +209,10 @@ The article and the plus rail are **scroll-synchronized**:
   the pairing (section marker + active card + TOC entry).
 - Scrolling the **plus rail** scrolls the article to that anchor.
 
-Anchoring is at **section granularity** in the mockup; tightening it to a specific phrase/span
-("the inline text") is a candidate refinement for implementation. The exact sync mechanics
+Anchoring is at **section granularity**. The exact sync mechanics
 (thresholds, easing, mobile single-column fallback) are an implementation-phase detail.
 
-## Three states: empty / mixed / fully-curated (issue #60 coexistence)
+## Three states: empty / mixed / fully-curated
 
 A Topic page is **not** an all-or-nothing flip between "empty" and "curated." It derives **three
 states** from two independent facts — the curated-clip count and the *remaining* (deduped)
@@ -232,7 +225,7 @@ suggestion count — and **renders both content types when they co-occur**:
 - **fully-curated** (≥1 curated, 0 remaining suggestions) — only curated content; **no** suggestion
   chrome anywhere (no divider, no "see more", no unvetted set header, no dashed/suggested counts).
 
-**Derived `fully-curated` vs. the curator-set "marked complete" (issue #159).** The three states
+**Derived `fully-curated` vs. the curator-set "marked complete".** The three states
 above are **automatically derived** from the counts — `fully-curated` is reached *only* when the
 candidate pool is empty (≥1 curated + 0 remaining suggestions), as a consequence of the pool, not a
 curator's choice; it cannot apply at zero curated videos. Separately, a curator can mark a topic
@@ -263,13 +256,12 @@ coexistence — only relocated and overflow-collapsed.
 (suggested→curated, deduped out via `curatedVideoKeys()`) and leaves every other suggestion's
 identity, order, and on-screen position untouched — **no re-run of the candidate pipeline
 (`suggestCandidates`), no reshuffle, no re-fetch**. Ordering is a **stable sort/filter over the
-already-derived `liveCandidates`** (the candidate-pipeline effect deliberately excludes `clips` from
-its deps). An optional, `prefers-reduced-motion`-gated cross-fade on the newly-curated tile is
+already-derived `liveCandidates`**. An optional, `prefers-reduced-motion`-gated cross-fade on the newly-curated tile is
 polish over an already-stable layout; the stability is the contract, not the animation.
 
-**Where the unvetted signal/counts live in mixed (rescoped, once-per-context).** The #14
-once-per-context discipline holds — **no per-card "SUGGESTED" badge** — but the copy is reworded to
-introduce the suggestion *subset*: the **wiki+ panel** carries the `{V} curated · {M} suggested`
+**Where the unvetted signal/counts live in mixed (once-per-context).** The once-per-context
+discipline holds — **no per-card "SUGGESTED" badge** — and the copy introduces the suggestion
+*subset*: the **wiki+ panel** carries the `{V} curated · {M} suggested`
 two-count line (the volume signal for the topic); the **TOC** rows carry dual `{c}` + `~{s}` counts;
 the **General-band divider** and the **rail `CandidateSetHeader`** ("The suggested videos below…")
 introduce the suggestions to their right/below, not "this whole topic is unvetted." In
@@ -283,9 +275,8 @@ candidates** plus prominent paths to curate. Crucially, the empty state must als
 who will **never** curate: the **wiki+ panel leads with the plus-side value and a Browse path to
 the suggested videos** (see *Two infoboxes* and `docs/design/plus-overview-redesign.md`), so
 curation framing stays a secondary invitation rather than the empty state's headline. Reference
-mockups: the page layout is **`mockups/inline-indigo-empty-v2.html`**; the redesigned wiki+ panel
-is **`mockups/plus-overview-A-value-first.html`** (`inline-indigo-empty.html` is the earlier v1
-iteration, kept for history).
+mockups: the page layout is **`mockups/inline-indigo-empty-v2.html`**; the wiki+ panel
+is **`mockups/plus-overview-A-value-first.html`**.
 
 - **Auto-suggestion is multi-platform by design.** The General bar is populated automatically with
   candidates from a video search for the topic — **YouTube and TikTok** (and potentially other
@@ -308,8 +299,8 @@ iteration, kept for history).
 - **Unvetted treatment.** Candidates are unmistakably distinct from curated clips: dashed (not
   solid) borders, no solid offset shadow, a desaturated/hatched thumbnail. No stance/accuracy chips
   yet. TOC badges show suggestion counts in a dashed/outline style, distinct from curated counts.
-  - *The unvetted / auto-suggested signal reads **once per context**, never once per card (issue
-    #14 declutter).* It lives in exactly three places: the **wiki+ panel** (the dashed empty-state
+  - *The unvetted / auto-suggested signal reads **once per context**, never once per card.* It
+    lives in exactly three places: the **wiki+ panel** (the dashed empty-state
     volume block — "{N} videos found to weigh in — none vouched for yet … unreviewed suggestions";
     the word *unreviewed/suggested* carries the unvetted meaning in text, and the panel names no
     source — see `docs/design/plus-overview-redesign.md`), the **General band header** ("Suggested
@@ -319,13 +310,13 @@ iteration, kept for history).
     reviewed these. Curate one to vouch for it."). There is **no per-card "SUGGESTED" badge** and
     **no repeated "Auto-suggested" / "no context yet" block** — the dashed container plus the
     once-per-context headers already carry the signal.
-    - *In the **mixed** state these three locations are **rescoped** to introduce the suggestion
-      subset, not the whole topic (issue #60):* the wiki+ panel shows `{V} curated · {M} suggested
-      to weigh in` (the panel count IS the rescoped signal); the General-band signal becomes the inline
-      `Suggested · uncurated` **divider** after the curated group (the band's own `<h2>` is now
-      `＋ General`); and the rail `CandidateSetHeader` rewords to "**The suggested videos below**
+    - *In the **mixed** state these three locations introduce the suggestion
+      subset, not the whole topic:* the wiki+ panel shows `{V} curated · {M} suggested
+      to weigh in` (the panel count IS the signal); the General-band signal is the inline
+      `Suggested · uncurated` **divider** after the curated group (the band's own `<h2>` is
+      `＋ General`); and the rail `CandidateSetHeader` reads "**The suggested videos below**
       are auto-found from {sources} — no context notes yet, not reviewed by a human. Curate one to
-      vouch for it." Its gate is now "≥1 rail suggestion" (independent of curated count), so it sits
+      vouch for it." Its gate is "≥1 rail suggestion" (independent of curated count), so it sits
       **between** the curated rail group and the suggestion rail group.
   - *Per-card, a candidate keeps only genuine per-clip **information**:* a **compact single-line
     match reason** (why *this* clip matched, e.g. *Mentions "light-dependent reactions" in
@@ -347,26 +338,23 @@ iteration, kept for history).
 ## The pinned candidate player (in-app preview)
 
 Curated clips play in a **blocking, focus-trapping modal on desktop** (`PlayerModal` / `ModalShell`).
-That is wrong for *evaluating* auto-suggested candidates, which is a triage loop: watch, compare
-against the article, promote or dismiss, then watch the next. So **candidate** videos use a different
-surface — a **persistent, non-modal pinned player** that keeps playing while the reader keeps reading
-and lets a second click swap what's playing. (Full spec: `docs/design/pinned-player.md`; issue #10.)
+Evaluating auto-suggested candidates is a triage loop — watch, compare against the article, promote
+or dismiss, then watch the next — so **candidate** videos use a different
+surface: a **persistent, non-modal pinned player** that keeps playing while the reader keeps reading
+and lets a second click swap what's playing. (Full spec: `docs/design/pinned-player.md`.)
 
 On **mobile (`< lg`)** there is no such split: **both** curated and candidate clips play in the **one
 unified mobile player** (§"The unified mobile video player"), so the triage loop and the curated
 viewing experience share a single surface on the small screen. The desktop split below applies at
 `≥ lg`.
 
-- **Desktop candidate dock, this run.** At `≥ lg`, only **YouTube** candidates (with an `embedUrl`)
+- **Desktop candidate dock.** At `≥ lg`, only **YouTube** candidates (with an `embedUrl`)
   open the pinned player; curated clips keep the blocking modal; **non-YouTube** candidates and
-  YouTube candidates **with no `embedUrl`** keep the existing **new-tab** behavior
-  (`window.open(watchUrl)`). A fast-follow flips desktop curated playback onto the unified player too
-  (and absorbs the wide-viewport vertical-clip width cap, issue #70); the component is already built
-  `kind`/`signedIn`-parameterized so that is a routing change, not a redesign.
+  YouTube candidates **with no `embedUrl`** open in a **new tab** (`window.open(watchUrl)`).
 - **Standard position + size (desktop `≥ lg`).** A fixed dock in the **bottom-left** corner
   (`bottom/left: 1rem`), width capped at `min(380px, calc(100vw − 2rem))`; vertical 9:16 Shorts are
-  height-capped (`min(60vh, 460px)`) and the dock narrows to that frame. Bottom-**left** is deliberate
-  — the sticky plus rail and every candidate's **Promote / Not relevant** controls live on the right,
+  height-capped (`min(60vh, 460px)`) and the dock narrows to that frame. Bottom-**left** is deliberate:
+  the sticky plus rail and every candidate's **Curate / Not relevant** controls live on the right,
   so docking left keeps them visible and operable while the player is open (no overlap, no layout
   shift). On **mobile** the candidate plays in the unified mobile dock instead (below).
 - **Persistent + single instance.** `position: fixed`, survives scroll (iframe never re-mounts), one
@@ -380,25 +368,25 @@ viewing experience share a single surface on the small screen. The desktop split
   no match reason inside the dock. Below the frame is the **action row**, so a reader can decide on the
   clip where they watched it: signed in, the candidate's two actions — **Curate** (primary, brand fill)
   and **Not relevant** (secondary) — using the same labels and weight as the on-card controls. Logged
-  out, the action row is a single full-width **"Curate this video"** CTA (issue #71); a logged-out
+  out, the action row is a single full-width **"Curate this video"** CTA; a logged-out
   dismiss is gated, not shown in the dock.
 - **Accessibility model (non-modal).** The dock is a **labeled landmark** (`<section
   aria-label="Video preview">`), **not** a dialog: no `aria-modal`, **no focus trap**, no backdrop. It
   **does not steal focus on open** (no autofocus) and does not block the page. Dismiss is keyboard
   reachable with the project's visible focus ring; on keyboard dismiss focus returns sensibly (reuse
   the General-band-heading focus pattern), never dropped to `<body>`. Any dock-in motion is gated by
-  the existing `prefers-reduced-motion` signal. All chrome is **white-on-`ink`** (AA, no gold) and the
+  `prefers-reduced-motion`. All chrome is **white-on-`ink`** (AA, no gold) and the
   Close control is signaled by its **word**, never color alone.
 
 ## The unified mobile video player
 
 On **mobile (`< lg`)**, **every** video — curated or candidate — plays in **one** non-modal, movable,
-viewport-fit player, `MobilePlayerDock`. It generalizes the candidate dock above into a single
+viewport-fit player, `MobilePlayerDock`. It is one shared
 component: the frame, Close, the park toggle, and the maximize behavior are **identical for every
 clip**; only what the two inline reveals show differs by `(kind: curated | candidate) × (signedIn)`.
-(Full spec: `docs/design/mobile-player-slim.md`; the preserved invariants are
-`docs/design/unified-player-mobile.md` + `docs/design/mobile-player-launch.md`; issues #120, #135,
-#123.) The viewport is read **at play time**: a play click on a narrow viewport opens this dock; on a
+(Full spec: `docs/design/mobile-player-slim.md`; invariants in
+`docs/design/unified-player-mobile.md` + `docs/design/mobile-player-launch.md`.) The viewport is
+read **at play time**: a play click on a narrow viewport opens this dock; on a
 wide viewport it opens the desktop modal/pinned dock above. An open dock stays in its surface across a
 breakpoint crossing — only the next play re-evaluates — so a rehost never interrupts playback.
 
@@ -438,7 +426,7 @@ breakpoint crossing — only the next play re-evaluates — so a rehost never in
   the iframe (`allowFullScreen` stays). Rotate-to-maximize is **automatic CSS**: turning the phone
   landscape grows the **same `<section>` and the same iframe** to fill the viewport (`fixed inset-0`) —
   a 16:9 clip fills the landscape width, a 9:16 clip fills the full height upright; rotating back
-  restores the slim dock. This is deliberate: we embed third-party iframes and control only the
+  restores the slim dock. A CSS maximize is right because we embed third-party iframes and control only the
   container, not the inner `<video>`; **iPhone Safari has no Fullscreen API for an arbitrary
   element/iframe**, and programmatic native fullscreen requires a user gesture an `orientationchange`
   is not — so a CSS maximize is fully controlled, identical cross-platform, and testable.
@@ -460,7 +448,7 @@ These map onto the `clip` entity in [`ARCHITECTURE.md`](ARCHITECTURE.md):
 - `creator` (handle, name, platform, followers/avatar), `context` note, `stance`, `accuracy`,
   `orientation` (vertical/horizontal), `thumbnail`, `embed_url`, `watch_url` — drive the cards.
 - Topic-level counts (videos / creators / curators) feed the wiki+ panel (the right-rail
-  counts/sync element; see *Two infoboxes*).
+  counts element; see *Two infoboxes*).
 
 ## Open refinements (deferred to implementation)
 

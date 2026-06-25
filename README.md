@@ -23,5 +23,6 @@ operated by AI agents** in distinct roles.
   core Topic page (Wiki article + ＋plus rail, synced; "Indigo Press" identity on the WikiEdu
   palette). Reference mockup: `mockups/inline-indigo-sync.html`.
 
-> Status: **pre-build.** This repository currently contains the vision and specification
-> only. No application code yet.
+> Status: **prototype, live.** A Next.js app on shared Postgres runs at
+> <https://wikiplus.wikiedu.org> (push to `main` auto-deploys to a self-hosted VPS). See
+> `docs/ARCHITECTURE.md` for what's built vs. still deferred.
