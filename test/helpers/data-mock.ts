@@ -105,6 +105,9 @@ export function buildDataMock() {
     getTopicByTitle: (title: string) => local.getTopicByTitle(title),
     upsertTopic: (t: Parameters<typeof local.upsertTopic>[0]) =>
       local.upsertTopic(t),
+    // Issue #159: set/clear the "marked complete" flag (reference impl over localStorage).
+    setTopicClosedToSuggestions: (qid: string, closed: boolean) =>
+      local.setTopicClosedToSuggestions(qid, closed),
     listClips: (qid: string) => local.listClips(qid),
     listCandidates: (qid: string) => local.listCandidates(qid),
     suggestCandidates: (input: Parameters<typeof runCandidatePipeline>[0]) =>

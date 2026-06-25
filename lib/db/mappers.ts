@@ -113,6 +113,9 @@ export function rowToTopic(row: TopicRow): Topic {
     qid: row.wikidataQid,
     title: row.title,
     description: row.description ?? undefined,
+    // Issue #159: the curator-set "marked complete" flag. NOT NULL in the DB (default false), so it
+    // is always a concrete boolean here — the Topic page reads it to derive `suppressSuggestions`.
+    closedToSuggestions: row.closedToSuggestions,
   };
 }
 

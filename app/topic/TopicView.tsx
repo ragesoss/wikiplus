@@ -72,6 +72,11 @@ import {
 const HEAD = 56;
 const READ = 120;
 
+// Issue #159: the sessionStorage key for the per-viewer "show suggestions anyway" override, keyed
+// by topic QID so it is per-topic (AC13). Session-local + client-only — never the DB, never the
+// cached read-path HTML (the skin-toggle posture).
+const overrideKey = (qid: string) => `wikiplus.suggestions-override.${qid}`;
+
 type FetchState = "loading" | "ready" | "error";
 
 export function TopicView() {
@@ -185,6 +190,22 @@ export function TopicView() {
   );
   const [reviewNotice, setReviewNotice] = useState<
     null | { reason: "generic" | "limited"; verb: "hold" | "approve" }
+  >(null);
+  // ── "Marked complete" / closed to suggestions (issue #159; design topic-complete.md). ──────
+  // The per-viewer "show suggestions anyway" OVERRIDE: session-local, per-topic, client-only —
+  // NEVER the DB, NEVER read-path HTML variance (the skin-toggle posture, §4 / §5.1). It lives in
+  // `sessionStorage` keyed by QID and is READ AFTER MOUNT (the first SSR/loading frame renders the
+  // suppressed default — the honest default for a complete topic — then reveals if the viewer had
+  // overridden earlier in the session; a one-tick reveal is acceptable and never flashes wrong
+  // CONTENT, only adds chrome — design §5.1 note). `null` while not-yet-read; a boolean once read.
+  const [viewerOverride, setViewerOverride] = useState<boolean | null>(null);
+  // A mark/un-mark write in flight — the per-topic double-submit guard + the foot button's busy
+  // word (§2.3). A boolean (one topic per page) rather than a Set (the per-clip guards' shape).
+  const [markingComplete, setMarkingComplete] = useState(false);
+  // The reason-aware non-blocking notice when a mark/un-mark is rolled back (§2.3), mirroring the
+  // dismiss/upvote/review notice surfaces. `null` = none; the `verb` names which copy to show.
+  const [completeNotice, setCompleteNotice] = useState<
+    null | { reason: "generic" | "limited"; verb: "mark" | "unmark" }
   >(null);
   // Store-read error floor (design §"read failure"): a clip/dismissal read can now fail.
   const [storeError, setStoreError] = useState(false);
@@ -392,6 +413,51 @@ export function TopicView() {
     };
   }, [qid]);
 
+  // ── Per-viewer override: read after mount, keyed by QID (issue #159; design §4 / §5.1). ──────
+  // Session-local + client-only (sessionStorage), so it NEVER varies the cached read-path HTML
+  // (the skin-toggle posture) and never persists past the session / across devices. Read AFTER the
+  // QID resolves (the suppressed default is the honest first frame for a complete topic). Keyed by
+  // QID so an override on topic A never reveals suggestions on topic B (AC13). A new topic (qid
+  // change) re-reads its own key — the override does not leak across topics in the same SPA session.
+  useEffect(() => {
+    if (!qid) {
+      setViewerOverride(null);
+      return;
+    }
+    if (typeof window === "undefined") {
+      setViewerOverride(false);
+      return;
+    }
+    try {
+      setViewerOverride(
+        window.sessionStorage.getItem(overrideKey(qid)) === "1"
+      );
+    } catch {
+      // sessionStorage unavailable (privacy mode / SSR) → treat as no override (suppressed default).
+      setViewerOverride(false);
+    }
+  }, [qid]);
+
+  // Toggle the per-viewer override for THIS topic (§4.2): flip the session-local state + persist to
+  // sessionStorage so it survives an in-session reload but never the DB. Instant, in-place — the
+  // page re-derives `suppressSuggestions` and the suppressed chrome reappears / hides for this
+  // viewer only (AC12/AC15). Never affects the stored default or any other viewer (AC14).
+  const toggleOverride = useCallback(() => {
+    if (!qid) return;
+    setViewerOverride((prev) => {
+      const next = prev !== true;
+      try {
+        if (typeof window !== "undefined") {
+          if (next) window.sessionStorage.setItem(overrideKey(qid), "1");
+          else window.sessionStorage.removeItem(overrideKey(qid));
+        }
+      } catch {
+        /* sessionStorage unavailable — the in-memory flip still drives this session's reveal */
+      }
+      return next;
+    });
+  }, [qid]);
+
   // The STABLE identity of the visible clip set — the comma-joined ids in render order. The
   // voted-state hydration keys off THIS, not the whole `clips` array: an optimistic upvote toggle
   // mutates a clip's `upvotes` count (a new `clips` array ref) but NOT the id set, so it must not
@@ -582,20 +648,44 @@ export function TopicView() {
   // in the curate path) and the candidate-pipeline effect deliberately excludes `clips` from
   // its deps, so no re-run / re-fetch / reshuffle happens on curation (AC9/AC10 — the bar).
   const hasCurated = clips.length > 0;
-  const hasSuggestions = liveCandidates.length > 0;
+
+  // ── "Marked complete" suppression derivation (issue #159; design §5.1). ──────────────────────
+  // `suppressSuggestions` is the ONE seam: true when the topic is marked complete AND this viewer
+  // has not overridden. When true, we feed the suggestion-bearing children an EMPTY suggestion set
+  // (zero `generalCandidates`/`sectionCandidates`, zero suggested TOC counts) so EVERY suggestion-
+  // chrome surface collapses via the existing zero-suggestion code paths — no new conditional in
+  // each component (AC5–AC10). The REAL candidate pipeline / `liveCandidates` is UNCHANGED (it still
+  // computes the true count for the §4.4 "is there anything to reveal" gate and for an override
+  // flip). Curated content is never suppressed (AC11) — only the suggestion layer.
+  //
+  // The override is read after mount (`viewerOverride === null` until then); the suppressed default
+  // is the honest first frame for a complete topic, then it reveals if this viewer had overridden.
+  const closedToSuggestions = topic?.closedToSuggestions ?? false;
+  const suppressSuggestions = closedToSuggestions && viewerOverride !== true;
+  // The presentation candidate set: empty when suppressing, else the real remaining suggestions.
+  // Suppression-bearing children read THIS; the real `liveCandidates` stays the underlying truth.
+  const shownCandidates = suppressSuggestions ? [] : liveCandidates;
+  const hasSuggestions = shownCandidates.length > 0;
+  // §4.4: does the topic have ≥1 UNDERLYING suggestion (as if the flag were off)? Gates the
+  // indicator's override path — never offer a reveal that would show nothing.
+  const hasUnderlyingSuggestions = liveCandidates.length > 0;
 
   const stats = useMemo(() => deriveStats(clips), [clips]);
 
   // ── Anchored clips/candidates grouped by section slug. ──
   const generalClips = useMemo(() => clips.filter((c) => c.general), [clips]);
   const sectionClips = useMemo(() => clips.filter((c) => !c.general), [clips]);
+  // Issue #159: derive over `shownCandidates` (= [] when suppressing, else `liveCandidates`), so a
+  // complete topic feeds the General band + rail an empty suggestion set and all suggestion chrome
+  // collapses via the existing zero-suggestion paths (§5.1). When not complete (or overridden) this
+  // is exactly `liveCandidates` — unchanged behavior.
   const generalCandidates = useMemo(
-    () => liveCandidates.filter((c) => c.general),
-    [liveCandidates]
+    () => shownCandidates.filter((c) => c.general),
+    [shownCandidates]
   );
   const sectionCandidates = useMemo(
-    () => liveCandidates.filter((c) => !c.general),
-    [liveCandidates]
+    () => shownCandidates.filter((c) => !c.general),
+    [shownCandidates]
   );
 
   // ── TOC entries: ＋ band row first, then sections with DUAL counts (issue #60 §5.2). ──
@@ -1148,6 +1238,57 @@ export function TopicView() {
   const openAdd = useCallback(() => {
     requireLogin({ gate: "add", action: () => setAddOpen(true) });
   }, [requireLogin]);
+
+  // ── Mark / un-mark complete (issue #159 / design §2.3 — clones the optimistic write posture). ──
+  // OPTIMISTIC-WITH-ROLLBACK (mirroring `runDismiss`/`runUpvote`): flip `closedToSuggestions` in the
+  // in-memory `topic` IMMEDIATELY so the page re-derives `suppressSuggestions` live (suppression
+  // turns on/off with no reload — AC1/AC2), fire the role-gated Server Action in the background, and
+  // on failure ROLL BACK the flip + show a non-blocking polite notice. THREE-ARM catch identical to
+  // the other writes: `isAuthRequired` → the expired-session gate; `isRateLimited` → the calm limit
+  // notice; else the generic red line. A per-topic in-flight guard (`markingComplete`) blocks a
+  // double-submit. The control is signed-in-only (the affordance gate), but the SECURITY control is
+  // the server-side curator re-check inside `setTopicClosedToSuggestionsAction` (it rejects a
+  // logged-out caller regardless of the button — AC4).
+  const toggleComplete = useCallback(() => {
+    if (!qid || !topic) return;
+    if (markingComplete) return; // double-submit guard (§2.3)
+    const wasClosed = topic.closedToSuggestions;
+    const willClose = !wasClosed;
+    setCompleteNotice(null);
+    setMarkingComplete(true);
+    // Optimistic flip: re-derive immediately (the suppression turns on/off live).
+    setTopic((prev) => (prev ? { ...prev, closedToSuggestions: willClose } : prev));
+    void (async () => {
+      try {
+        const updated = await store.setTopicClosedToSuggestions(qid, willClose);
+        // Reconcile to the server's authoritative topic (the flag is the only field that changed).
+        setTopic((prev) =>
+          prev
+            ? { ...prev, closedToSuggestions: updated.closedToSuggestions }
+            : prev
+        );
+      } catch (err) {
+        // Roll back the optimistic flip to the pre-click truth (the page re-derives back).
+        setTopic((prev) =>
+          prev ? { ...prev, closedToSuggestions: wasClosed } : prev
+        );
+        // Three-arm catch (mutually exclusive). The rollback above already ran.
+        if (isAuthRequired(err)) showExpiredGate();
+        else if (isRateLimited(err))
+          setCompleteNotice({
+            reason: "limited",
+            verb: willClose ? "mark" : "unmark",
+          });
+        else
+          setCompleteNotice({
+            reason: "generic",
+            verb: willClose ? "mark" : "unmark",
+          });
+      } finally {
+        setMarkingComplete(false);
+      }
+    })();
+  }, [qid, topic, markingComplete, showExpiredGate]);
 
   // ── Persist a curated clip (issue #52 / D1, AC1–AC5). ──────────────────────────────────
   // The two modals (Promote / Add) hand the assembled clip + the CC BY-SA consent up here; the
@@ -1710,10 +1851,23 @@ export function TopicView() {
                 <Infobox
                   hasCurated={hasCurated}
                   stats={stats}
-                  suggestionCount={liveCandidates.length}
+                  /* Issue #159: feed the SUPPRESSED count (`shownCandidates`), so a complete topic's
+                     mixed two-count line + the empty dashed volume block both drop via the existing
+                     zero-suggestion paths (AC10). The underlying count rides `hasUnderlyingSuggestions`. */
+                  suggestionCount={shownCandidates.length}
                   storeError={storeError}
                   candidatesLoading={candidatesLoading}
                   onBrowse={browseVideos}
+                  /* Issue #159 (§2/§3/§4): the curator control (signed-in only), the status indicator
+                     (every viewer when complete), and the per-viewer override + add path. */
+                  signedIn={signedIn}
+                  closedToSuggestions={closedToSuggestions}
+                  marking={markingComplete}
+                  onToggleComplete={toggleComplete}
+                  hasUnderlyingSuggestions={hasUnderlyingSuggestions}
+                  overridden={viewerOverride === true}
+                  onToggleOverride={toggleOverride}
+                  onAdd={openAdd}
                 />
                 <Toc
                   entries={tocEntries}
@@ -1731,8 +1885,21 @@ export function TopicView() {
           when it resolves. Shows while `!storeReady`, matching the plus-aside skeleton above. */}
       {!storeReady && <PlusBandSkeleton />}
 
-      {/* General / Suggested band — full bleed (the one crossover). */}
-      {storeReady && (
+      {/* General / Suggested band — full bleed (the one crossover). Issue #159 (design §6.3,
+          preferred option 1): on a COMPLETE + zero-video topic the band is OMITTED entirely — with
+          no curated clips and suppressed suggestions there is nothing for it to present, and the
+          wiki+ panel's status indicator already carries the add path; a near-plain article + a calm
+          panel note is the target (AC18). The omission applies ONLY while suppressing AND there is
+          nothing to present (no curated clips, no shown suggestions, no in-flight search); in EVERY
+          non-suppressing case the band renders exactly as before (its own empty/mixed/fully-curated
+          faces — including the genuine empty "No videos found" zero face — are untouched). */}
+      {storeReady &&
+        !(
+          suppressSuggestions &&
+          !hasCurated &&
+          !hasSuggestions &&
+          !candidatesLoading
+        ) && (
         <GeneralStrip
           topicTitle={canonicalTitle}
           generalClips={generalClips}
@@ -1851,6 +2018,31 @@ export function TopicView() {
         </div>
       )}
 
+      {/* Mark-complete notice (issue #159 / design §2.3). NON-BLOCKING + POLITE (role="status"
+          aria-live="polite"). After it shows, the optimistic flip is already rolled back (the page
+          re-derived back to the pre-click state); this line names why. REASON-AWARE, mirroring the
+          upvote/dismiss/review surfaces: "limited" = the CALM (non-red, ink-on-bg2, border-l-4
+          border-brand) D5a rate-limit notice; "generic" = the polite red failure, verb-specific. */}
+      {completeNotice && (
+        <div className="mx-auto max-w-[1200px] px-5">
+          <p
+            role="status"
+            aria-live="polite"
+            className={
+              completeNotice.reason === "limited"
+                ? "rounded-md border-l-4 border-brand bg-surface-2 px-3 py-2 text-sm text-ink-plus"
+                : "rounded-md bg-red-50 px-3 py-2 text-sm text-red-700"
+            }
+          >
+            {completeNotice.reason === "limited"
+              ? AUTH_COPY.rateLimit.notice
+              : completeNotice.verb === "mark"
+                ? "Couldn't mark this topic complete — please try again."
+                : "Couldn't reopen this topic — please try again."}
+          </p>
+        </div>
+      )}
+
       {/* Reader: article body sections (left) + the sticky rail (right). */}
       <div className="mx-auto max-w-[1200px] px-5 pb-16">
         <div className="grid grid-cols-1 gap-7 lg:grid-cols-[1fr_360px]">
@@ -1965,11 +2157,13 @@ export function TopicView() {
                 issue #60 §7.4/§7.5). The loading line shows whenever a candidate fetch is in
                 flight AND no rail suggestions have resolved yet — in MIXED as well as empty;
                 it sits AFTER the curated group, so curated cards are never disturbed. */}
-            {candidatesLoading && sectionCandidates.length === 0 && (
-              <p className="text-sm text-muted" aria-live="polite">
-                Looking for suggestions…
-              </p>
-            )}
+            {!suppressSuggestions &&
+              candidatesLoading &&
+              sectionCandidates.length === 0 && (
+                <p className="text-sm text-muted" aria-live="polite">
+                  Looking for suggestions…
+                </p>
+              )}
             {/* The honest "no suggestions" line — the legitimate settled-empty (b) copy
                 (topic-loading-states §4, §6). The SINGLE load-bearing gate: it renders ONLY
                 when the plus side has GENUINELY settled empty — the five-condition rule. This
@@ -1983,19 +2177,23 @@ export function TopicView() {
                   - `!hasCurated` + zero in both candidate pools: genuinely empty.
                 With curated clips present a zero suggestion count reads as fully-curated — no
                 suggestion chrome (§7.5). */}
-            {shouldShowEmptySuggestions({
-              storeReady,
-              storeError,
-              candidatesLoading,
-              hasCurated,
-              sectionCandidatesCount: sectionCandidates.length,
-              generalCandidatesCount: generalCandidates.length,
-            }) && (
-              <p className="text-sm text-muted">
-                No suggestions for this topic yet — use &lsquo;Find more&rsquo;
-                above to add the first video.
-              </p>
-            )}
+            {/* Issue #159: suppressed on a complete topic (no override) — this line points at
+                'Find more' suggestion chrome that is deliberately hidden; the calm complete-topic
+                rail is empty here, and the wiki+ panel's status indicator carries the add path. */}
+            {!suppressSuggestions &&
+              shouldShowEmptySuggestions({
+                storeReady,
+                storeError,
+                candidatesLoading,
+                hasCurated,
+                sectionCandidatesCount: sectionCandidates.length,
+                generalCandidatesCount: generalCandidates.length,
+              }) && (
+                <p className="text-sm text-muted">
+                  No suggestions for this topic yet — use &lsquo;Find more&rsquo;
+                  above to add the first video.
+                </p>
+              )}
           </aside>
         </div>
       </div>

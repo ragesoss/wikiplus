@@ -16,6 +16,7 @@ import {
   removeClipAction,
   reviewClipAction,
   setSkinPreferenceAction,
+  setTopicClosedToSuggestionsAction,
   toggleUpvoteAction,
   updateClipAction,
   upsertTopicAction,
@@ -47,6 +48,12 @@ const clientStore: DataStore = {
   getTopic: (qid) => getTopicAction(qid),
   getTopicByTitle: (title) => getTopicByTitleAction(title),
   upsertTopic: (topic) => upsertTopicAction(topic),
+  // Issue #159: set/clear "marked complete". The client forwards the QID + the target boolean; the
+  // boundary (`setTopicClosedToSuggestionsAction`) resolves the signed-in curator and gates the
+  // write CURATOR-only (reject a logged-out caller). The host's optimistic-with-rollback toggle
+  // calls this — never a client role flag.
+  setTopicClosedToSuggestions: (qid, closed) =>
+    setTopicClosedToSuggestionsAction(qid, closed),
   listClips: (topicQid) => listClipsAction(topicQid),
   // Seeded/fallback candidates are not DB rows (ARCHITECTURE: candidates are computed +
   // cached, only promote/dismiss persists). The server returns []; the live pipeline below

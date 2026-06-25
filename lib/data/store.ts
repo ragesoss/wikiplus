@@ -54,6 +54,18 @@ export interface DataStore {
   getTopicByTitle(title: string): Promise<Topic | null>;
   upsertTopic(topic: Topic): Promise<Topic>;
 
+  /**
+   * Set/clear a topic's "marked complete" / `closed_to_suggestions` flag (issue #159). Persists the
+   * boolean on the `topic` row and returns the updated `Topic`. The CURATOR role-gate (any signed-in
+   * contributor; reject a logged-out caller) lives in the Server Action (`setTopicClosedToSuggestions`
+   * — mirroring the other gated writes); this store method only writes the flag it is handed. It
+   * touches NO other topic field and NO clip/candidate (suppression is a presentation derivation over
+   * the unchanged candidate pipeline — it never dismisses or rules out a candidate). Throws if the
+   * topic does not exist (the topic must already be in the store — the curator control only renders
+   * on a resolved topic).
+   */
+  setTopicClosedToSuggestions(qid: string, closed: boolean): Promise<Topic>;
+
   /** Curated clips for a topic. Empty ⇒ the page renders the empty/uncurated state. */
   listClips(topicQid: string): Promise<Clip[]>;
   /**

@@ -232,6 +232,21 @@ suggestion count — and **renders both content types when they co-occur**:
 - **fully-curated** (≥1 curated, 0 remaining suggestions) — only curated content; **no** suggestion
   chrome anywhere (no divider, no "see more", no unvetted set header, no dashed/suggested counts).
 
+**Derived `fully-curated` vs. the curator-set "marked complete" (issue #159).** The three states
+above are **automatically derived** from the counts — `fully-curated` is reached *only* when the
+candidate pool is empty (≥1 curated + 0 remaining suggestions), as a consequence of the pool, not a
+curator's choice; it cannot apply at zero curated videos. Separately, a curator can mark a topic
+**complete (closed to suggestions)** — an explicit, persisted topic-level flag
+(`topic.closed_to_suggestions`) that **suppresses the suggestion layer by default for every viewer,
+even when the derived state is `empty` or `mixed`** (so the page reads like `fully-curated`, and a
+complete topic with zero curated videos reads as a near-plain article with a calm plus-side note —
+the *complete + zero-video minimal render*). It is **orthogonal** to the derived model: it does not
+rename or change the three states, only suppresses their suggestion presentation; with the flag off,
+the derived behavior is exactly as defined here. Any viewer (including logged-out) can opt back in
+for themselves with a session-local "show suggestions anyway" override. See
+[`docs/specs/topic-complete.md`](specs/topic-complete.md) and
+[`docs/design/topic-complete.md`](design/topic-complete.md).
+
 **Priority + ordering (owner-fixed).** Curated content always sorts and renders **before**
 suggestions — in the General band (curated group → `Suggested · uncurated` divider → capped
 suggestion group → `See N more`) and within a section's rail (curated `ClipCard`s → one-time
