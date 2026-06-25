@@ -4,6 +4,7 @@ import type {
   Clip,
   ContributorClip,
   PublicContributor,
+  RecentCurationsPage,
   Topic,
   TopicWithStats,
   UpvoteToggle,
@@ -211,6 +212,31 @@ export interface DataStore {
    * to exactly this contributor's `curatorId` — a clip curated by anyone else is excluded.
    */
   listClipsByContributor(contributorId: number): Promise<ContributorClip[]>;
+
+  /**
+   * The cross-topic RECENT-CURATIONS feed read (issue #160 / `/recent`, design §3.4). The global,
+   * cursor-paginated analog of `listClipsByContributor`: every curated clip across ALL topics,
+   * joined to its parent topic for the title + QID (the existing `ContributorClip` shape — NO model
+   * change, §2), NEWEST FIRST. It is an ANONYMOUS read (no auth gate, like `listClips`); the feed is
+   * browsable logged-out (§6).
+   *
+   * Ordering + cursor (the recency key, §3.4): ordered by `created_at DESC, id DESC` — the
+   * authoritative persisted creation/curation timestamp (the same field `listClipsByContributor`
+   * orders by; `Clip.curatedAt` is decorative). The page is a STABLE keyset over `(createdAt, id)`,
+   * NEVER an offset (an offset drifts as new curations arrive — dupes/gaps; see
+   * `lib/data/recent-cursor.ts`). `cursor` (opaque) ⇒ return strictly-older items; absent ⇒ start
+   * from the head. `limit` defaults to `RECENT_PAGE_DEFAULT`. The result carries `nextCursor` (the
+   * last item's encoded cursor when a full page came back, else `null` ⇒ exhausted, the end marker).
+   *
+   * Visibility (§3.4 / OQ resolution): only PUBLIC, VOUCHED clips appear — the same predicate the
+   * topic read uses (`removed_at IS NULL`), PLUS held clips EXCLUDED (`vetted = true`). The feed is
+   * the site's public "best recent curations" shopfront; a held clip is not yet the site's vouch, so
+   * unlike the topic page it does not appear here. (Removed clips never appear, like every read.)
+   */
+  listRecentCurations(input?: {
+    cursor?: string | null;
+    limit?: number;
+  }): Promise<RecentCurationsPage>;
 
   // ── Upvotes (issue #55 / D4 — a persisted, one-per-user, toggleable signal). ────────
   /**

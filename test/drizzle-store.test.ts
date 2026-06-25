@@ -171,6 +171,97 @@ describe("multi-user sharing (AC11) + interim stub attribution (AC13)", () => {
   });
 });
 
+describe("recent-curations feed — listRecentCurations (issue #160)", () => {
+  beforeEach(async () => {
+    await store.upsertTopic({ qid: "Q11982", title: "Photosynthesis" });
+    await store.upsertTopic({ qid: "Q146", title: "Cat" });
+  });
+
+  // Add N clips across two topics so the feed is genuinely cross-topic. Returns the clips in
+  // insertion order (oldest→newest). createdAt may tie within a fast test; the (createdAt, id)
+  // keyset + the id-desc tiebreak still gives a total, stable order.
+  async function addN(n: number) {
+    const out = [];
+    for (let i = 0; i < n; i++) {
+      out.push(
+        await store.addClip({
+          ...clip0(),
+          topicQid: i % 2 === 0 ? "Q11982" : "Q146",
+          caption: `clip ${i}`,
+        })
+      );
+    }
+    return out;
+  }
+
+  it("returns curated clips across ALL topics, newest first, with topicTitle for the link", async () => {
+    const added = await addN(3);
+    const page = await store.listRecentCurations({});
+    expect(page.items).toHaveLength(3);
+    // Newest first — the last inserted is first.
+    expect(page.items[0].id).toBe(added[2].id);
+    expect(page.items[2].id).toBe(added[0].id);
+    // Cross-topic + the parent title rides along for the jump-to-topic link.
+    const titles = new Set(page.items.map((c) => c.topicTitle));
+    expect(titles).toEqual(new Set(["Photosynthesis", "Cat"]));
+    // A small set is exhausted in one page → no further cursor (the end marker).
+    expect(page.nextCursor).toBeNull();
+  });
+
+  it("EXCLUDES held clips (vetted=false) and removed clips (the public vouched shopfront)", async () => {
+    const [a, b, c] = await addN(3);
+    await store.setClipVetted(b.id, false); // held → excluded
+    await store.removeClip(c.id, 1, null); // removed → excluded
+    const page = await store.listRecentCurations({});
+    expect(page.items.map((x) => x.id)).toEqual([a.id]);
+  });
+
+  it("pages by a STABLE cursor with NO dupes and NO gaps", async () => {
+    const added = await addN(5);
+    const expectedNewestFirst = [...added].reverse().map((c) => c.id);
+
+    const p1 = await store.listRecentCurations({ limit: 2 });
+    expect(p1.items.map((c) => c.id)).toEqual(expectedNewestFirst.slice(0, 2));
+    expect(p1.nextCursor).not.toBeNull();
+
+    const p2 = await store.listRecentCurations({ cursor: p1.nextCursor, limit: 2 });
+    expect(p2.items.map((c) => c.id)).toEqual(expectedNewestFirst.slice(2, 4));
+
+    const p3 = await store.listRecentCurations({ cursor: p2.nextCursor, limit: 2 });
+    expect(p3.items.map((c) => c.id)).toEqual(expectedNewestFirst.slice(4));
+    // The last short page exhausts the feed → nextCursor null (the end marker).
+    expect(p3.nextCursor).toBeNull();
+
+    // Concatenated pages reproduce the full ordered set exactly — no dupes, no gaps.
+    const all = [...p1.items, ...p2.items, ...p3.items].map((c) => c.id);
+    expect(all).toEqual(expectedNewestFirst);
+    expect(new Set(all).size).toBe(all.length);
+  });
+
+  it("a clip curated AFTER a page boundary does not dupe/shift already-returned items", async () => {
+    const added = await addN(3);
+    const p1 = await store.listRecentCurations({ limit: 2 });
+    // A new curation lands at the HEAD between page loads — the offset-drift hazard.
+    await store.addClip({ ...clip0(), topicQid: "Q11982", caption: "newest" });
+    // Paging past the cursor returns only items strictly OLDER than the boundary — the new head
+    // clip is never re-served on page 2, and the oldest original clip is not skipped.
+    const p2 = await store.listRecentCurations({ cursor: p1.nextCursor });
+    expect(p2.items.map((c) => c.id)).toEqual([added[0].id]);
+  });
+
+  it("an empty / exhausted feed returns [] with a null cursor", async () => {
+    const page = await store.listRecentCurations({});
+    expect(page.items).toEqual([]);
+    expect(page.nextCursor).toBeNull();
+  });
+
+  it("ignores a malformed cursor (degrades to the head, never throws)", async () => {
+    const added = await addN(2);
+    const page = await store.listRecentCurations({ cursor: "not-a-real-cursor" });
+    expect(page.items.map((c) => c.id)).toEqual([added[1].id, added[0].id]);
+  });
+});
+
 describe("seedDatabase (AC10 — non-empty for everyone, idempotent)", () => {
   it("seeds the three demo topics + the curated Photosynthesis clips", async () => {
     const inserted = await seedDatabase(h.db);

@@ -144,7 +144,20 @@ export default function HomePage() {
           — recency-ordered + filtered to videos ≥ 1 by one grouped aggregate, §4/§4.1) drives the
           redesigned TopicCard; the three section-level state strings are unchanged (§6.1). ── */}
       <section className="mx-auto mt-4 max-w-5xl border-t border-hardbox/15 px-4 pb-12 pt-10 sm:pt-14">
-        <h2 className="mt-3 text-xl font-bold text-ink-plus sm:text-2xl">Recently curated</h2>
+        {/* The section heading + the in-context bridge to the cross-topic /recent feed (issue #160,
+            design §5.2 secondary entry): this section shows recently-curated TOPICS; the feed shows
+            recently-curated CLIPS — complementary. A text-forward link in the action-blue link tone,
+            the word carries the meaning (the → is decorative). */}
+        <div className="mt-3 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+          <h2 className="text-xl font-bold text-ink-plus sm:text-2xl">Recently curated</h2>
+          <Link
+            href="/recent"
+            aria-label="See all recent curations"
+            className="text-sm font-bold text-link hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-link"
+          >
+            See all recent curations <span aria-hidden>→</span>
+          </Link>
+        </div>
 
         <div className="mt-6">
           {loadError ? (

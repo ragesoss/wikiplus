@@ -398,6 +398,70 @@ export async function homeReady(page: Page): Promise<void> {
   await page.waitForTimeout(300);
 }
 
+// ── Recent-curations feed setups (issue #160 / `/recent`, design §10). ──────────────────────────
+// The feed's data is the `listRecentCurations` Server Action POST to the `/recent` route itself
+// (the GET that delivers the document must still pass through — only the POST is the read). Stall it
+// for the loading face, abort it for the error face; the populated/empty faces use the seeded DB
+// through the normal POST. Registered LAST (after applyStub) so the handler wins.
+
+/** Stall the feed read (the `/recent` Server Action POST) so the initial loading skeletons hold. */
+async function stallRecentLoading(page: Page): Promise<void> {
+  await page.route("**/recent**", (route) => {
+    if (route.request().method() === "POST") return; // hang the feed read action
+    return route.continue();
+  });
+}
+
+/** Ready for the loading scene: the header + the polite "Loading recent curations…" status. */
+async function recentLoadingReady(page: Page): Promise<void> {
+  await homeReady(page);
+  await page.locator('[aria-busy="true"]').first().waitFor({ timeout: 8000 });
+  await page.waitForTimeout(300);
+}
+
+/** Fail the feed read (abort the `/recent` POST) so the initial-error panel renders. */
+async function failRecentRead(page: Page): Promise<void> {
+  await page.route("**/recent**", (route) => {
+    if (route.request().method() === "POST") return route.abort();
+    return route.continue();
+  });
+}
+
+/** Ready for the error scene: the header + the "Couldn't load the feed" heading. */
+async function recentErrorReady(page: Page): Promise<void> {
+  await homeReady(page);
+  await page.getByText("Couldn't load the feed").waitFor({ timeout: 8000 });
+  await page.waitForTimeout(300);
+}
+
+/** Ready for a populated feed: the header + the first item's play affordance settled. */
+async function recentPopulatedReady(page: Page): Promise<void> {
+  await homeReady(page);
+  await page.getByRole("button", { name: /^Play:/ }).first().waitFor({ timeout: 8000 });
+  await page.waitForTimeout(300);
+}
+
+/** Play the first feed clip (mount the embed iframe) for the `recent-feed-playing` capture. */
+async function playFirstRecentClip(page: Page): Promise<void> {
+  await page.getByRole("button", { name: /^Play:/ }).first().click();
+  await page.locator("iframe").first().waitFor({ timeout: 5000 }).catch(() => {});
+  await page.waitForTimeout(300);
+}
+
+/** Scroll the feed track to its end so the end-of-feed marker ("You're all caught up.") is in view.
+ *  Repeatedly activates "Show more" (the keyboard fallback) until it is gone, then settles. */
+async function scrollRecentToEnd(page: Page): Promise<void> {
+  await recentPopulatedReady(page);
+  for (let i = 0; i < 12; i++) {
+    const more = page.getByRole("button", { name: "Show more curations" });
+    if ((await more.count()) === 0) break;
+    await more.first().click().catch(() => {});
+    await page.waitForTimeout(200);
+  }
+  await page.getByText("You're all caught up.").waitFor({ timeout: 8000 }).catch(() => {});
+  await page.waitForTimeout(300);
+}
+
 /** Wait for the About centerpiece to be SETTLED (docs/design/about-projector-warmup.md §6). The
  *  page plays a one-shot "projector warm-up" intro on load; the baseline must capture the SETTLED
  *  final state, never a mid-intro frame. Two independent guards (belt-and-braces): force reduced
@@ -1047,6 +1111,98 @@ export const SCENES: Scene[] = [
     stub: "plain",
     ready: homeReady,
     clip: "fullPage",
+  },
+
+  // ── Recent-curations feed (issue #160 / `/recent`, design §10) ──────────────────────────────────
+  // The cross-topic feed of recently-curated clips: full-viewport snap-scroll, click-to-play, all
+  // states. Framed "viewport" (one full-viewport item/panel below the slim header) rather than
+  // "fullPage" — the snap track is a fixed-height internal scroller, so the live viewport is the
+  // shot. Populated/playing/landscape/vertical render against the seeded curated DB; loading/error
+  // use the stall/abort setups; empty uses the no-curations `empty` stub (Cat seeds zero clips).
+  {
+    id: "recent-feed-populated",
+    focus: true,
+    group: "Recent feed",
+    label: "Recent feed — populated (top of feed)",
+    note: "The normal feed: a full-viewport item with the video stage + the reused CurationBlock trust layer, jump-to-topic link, and read-only upvote count. Logged-out AND logged-in (the same feed; only the header auth differs).",
+    route: "/recent",
+    stub: "curated",
+    ready: recentPopulatedReady,
+    clip: "viewport",
+  },
+  {
+    id: "recent-feed-populated-landscape",
+    group: "Recent feed",
+    label: "Recent feed — 16:9 clip (letterbox)",
+    note: "A landscape (16:9) clip letterboxed in the stage on a black backing — never cropped or distorted (§2.3).",
+    route: "/recent",
+    stub: "curated",
+    ready: recentPopulatedReady,
+    clip: "viewport",
+  },
+  {
+    id: "recent-feed-populated-vertical",
+    group: "Recent feed",
+    label: "Recent feed — 9:16 clip (vertical)",
+    note: "A vertical (9:16) clip height-capped + centred on black, letterboxed L/R when the stage is wider (§2.3).",
+    route: "/recent",
+    stub: "curated",
+    ready: recentPopulatedReady,
+    clip: "viewport",
+  },
+  {
+    id: "recent-feed-playing",
+    group: "Recent feed",
+    label: "Recent feed — playing (embed mounted)",
+    note: "After click-to-play: the poster replaced in place by the embed iframe (single active player). The curation panel is unchanged — the trust layer travels with the clip.",
+    route: "/recent",
+    stub: "curated",
+    ready: recentPopulatedReady,
+    prepare: playFirstRecentClip,
+    clip: "viewport",
+  },
+  {
+    id: "recent-feed-loading",
+    group: "Recent feed",
+    label: "Recent feed — loading (initial skeletons)",
+    note: "The first page loading: the polite status + skeleton item placeholders (black stage + light note-card silhouette). Never a blank page or spinner-forever.",
+    route: "/recent",
+    stub: "curated",
+    setup: stallRecentLoading,
+    ready: recentLoadingReady,
+    clip: "viewport",
+  },
+  {
+    id: "recent-feed-empty",
+    group: "Recent feed",
+    label: "Recent feed — empty (no curations yet)",
+    note: "The read succeeded with zero items (the fresh-site bootstrap): the 'No curations yet' panel sending the reader to find a topic — the honest path (you curate ON a topic).",
+    route: "/recent",
+    stub: "empty",
+    ready: homeReady,
+    clip: "viewport",
+  },
+  {
+    id: "recent-feed-error",
+    group: "Recent feed",
+    label: "Recent feed — error (read failed)",
+    note: "The initial read threw: the honest 'Couldn't load the feed' panel with a Try-again button — never hung on loading.",
+    route: "/recent",
+    stub: "curated",
+    setup: failRecentRead,
+    ready: recentErrorReady,
+    clip: "viewport",
+  },
+  {
+    id: "recent-feed-end",
+    group: "Recent feed",
+    label: "Recent feed — end-of-feed marker",
+    note: "The quiet end marker when the cursor is exhausted: 'You're all caught up.' + a Back-to-top button, so the reader is never stranded at the bottom.",
+    route: "/recent",
+    stub: "curated",
+    ready: recentPopulatedReady,
+    prepare: scrollRecentToEnd,
+    clip: "viewport",
   },
 ];
 

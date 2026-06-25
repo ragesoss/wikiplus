@@ -6,6 +6,7 @@ import type {
   ContributorClip,
   Platform,
   PublicContributor,
+  RecentCurationsPage,
   Topic,
   TopicWithStats,
   UpvoteToggle,
@@ -505,6 +506,20 @@ export async function listClipsByContributorAction(
   contributorId: number
 ): Promise<ContributorClip[]> {
   return store().listClipsByContributor(contributorId);
+}
+
+// ── Recent-curations feed (issue #160 / `/recent`) ───────────────────────────────────────
+// One cross-topic, cursor-paginated, newest-first READ — ANONYMOUS, no `requireContributor` gate
+// (like `listClips`/`listClipsByContributor`): the feed is browsable logged-out (§6). It returns
+// VOUCHED, non-removed clips only (held excluded — §3.4), as `ContributorClip`s joined to their
+// parent topic for the jump-to-topic link. The `/recent` route is a DYNAMIC (uncached) render
+// (`export const dynamic = "force-dynamic"`): a global chronological list changes on every
+// curation, so it does NOT sit on the (future) static/ISR shell — see ARCHITECTURE "/recent".
+export async function listRecentCurationsAction(input?: {
+  cursor?: string | null;
+  limit?: number;
+}): Promise<RecentCurationsPage> {
+  return store().listRecentCurations(input);
 }
 
 // ── Upvotes (issue #55 / D4 — a persisted, one-per-user, toggleable signal) ──────────────

@@ -204,6 +204,26 @@ export interface ContributorClip extends Clip {
   topicTitle: string;
 }
 
+/** Default page size for the recent-curations feed (`listRecentCurations` — issue #160 / §3.4). */
+export const RECENT_PAGE_DEFAULT = 12;
+
+/**
+ * One page of the cross-topic recent-curations feed (`/recent`, issue #160 / design §3.4). The
+ * items are the existing `ContributorClip` shape — a curated `Clip` carried out of its topic, plus
+ * the parent `topicTitle` for the jump-to-topic link (the feed needs NO new per-item field; §2). The
+ * feed is the global, cursor-paginated analog of `listClipsByContributor`, newest-first.
+ *
+ * `nextCursor` is an OPAQUE, STABLE keyset cursor over `(createdAt, id)` (never an offset — an
+ * offset drifts as new curations arrive between page loads; a keyset cursor is stable, so paging
+ * back through history has no dupes and no gaps). `null` ⇒ the feed is exhausted (the end-of-feed
+ * marker). The cursor's encoding is a Development detail (`lib/data/recent-cursor.ts`); a caller
+ * only round-trips the string back into the next `listRecentCurations({ cursor })` call.
+ */
+export interface RecentCurationsPage {
+  items: ContributorClip[];
+  nextCursor: string | null;
+}
+
 /**
  * An auto-suggested, unvetted candidate (empty state). By CURATION §6 it carries
  * NO stance, NO accuracy, NO context note — only a match reason. Promotion turns
