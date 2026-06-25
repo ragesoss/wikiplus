@@ -6,6 +6,7 @@ import {
 } from "@/lib/db/drizzle-store";
 import { seedDatabase } from "@/lib/db/seed";
 import { seedClips } from "@/lib/data/seed";
+import { encodeRecentCursor } from "@/lib/data/recent-cursor";
 import type { Clip } from "@/lib/data/types";
 import { makeTestDb, type TestDb } from "./helpers/pglite-db";
 
@@ -259,6 +260,74 @@ describe("recent-curations feed — listRecentCurations (issue #160)", () => {
     const added = await addN(2);
     const page = await store.listRecentCurations({ cursor: "not-a-real-cursor" });
     expect(page.items.map((c) => c.id)).toEqual([added[1].id, added[0].id]);
+  });
+
+  // ── Adversarial cursor robustness (QA security review, issue #160). A WELL-FORMED cursor whose
+  //    contents are forged must reach the SQL keyset without throwing, without injecting, and
+  //    without leaking rows the visibility predicate excludes. These probe the production code path:
+  //    `decodeRecentCursor` ACCEPTS a string `i` and ANY string `t` (it validates the *types*, not
+  //    that `t` is a valid date or `i` a numeric string), and the DrizzleDataStore then coerces
+  //    `new Date(cursor.t)` / `Number(cursor.i)` — so a hostile value reaches the bound query param.
+  //
+  //    DEFECT (issue #160, routed to Development): the documented contract is "a forged/stale cursor
+  //    never throws and degrades to the head of the feed" (recent-cursor.ts + the seam doc), but two
+  //    well-formed-but-forged cursors THROW out of `listRecentCurations` instead of degrading:
+  //      (1) a non-date `t` → `new Date("garbage")` = Invalid Date → the pglite/drizzle param
+  //          serializer throws `RangeError: Invalid time value` BEFORE the DB; and
+  //      (2) a non-numeric string `i` → `Number(...)` = NaN → Postgres rejects with
+  //          `invalid input syntax for type integer: "NaN"`.
+  //    It fails CLOSED (no data leak, no SQL injection — the value is correctly parameterized; the
+  //    feed surfaces an error state, never the server crashing), so severity is LOW–MEDIUM, but it
+  //    violates the stated "never throw / degrade to head" invariant in the issue's security AC.
+  //    These are pinned with `it.fails` so the suite stays green AND they flip to RED (alerting QA)
+  //    the moment Development hardens the decode (validate `t` is a real date + `i` a finite int, or
+  //    null the cursor) — at which point they should become ordinary `it(...)` assertions.
+  it.fails(
+    "DEFECT: a forged string-id cursor (Number(i) = NaN) THROWS instead of degrading to the head",
+    async () => {
+      await addN(3);
+      const forged = encodeRecentCursor({
+        t: "2026-06-25T12:00:00.000Z",
+        i: "c_forged_string",
+      });
+      // Contract: should resolve to a safe page; CURRENTLY throws (invalid integer "NaN").
+      await store.listRecentCurations({ cursor: forged });
+    }
+  );
+
+  it.fails(
+    "DEFECT: a forged non-date `t` cursor (Invalid Date) THROWS instead of degrading to the head",
+    async () => {
+      await addN(3);
+      const forged = encodeRecentCursor({ t: "garbage-not-a-date", i: 999999 });
+      // Contract: should resolve to a safe page; CURRENTLY throws (RangeError: Invalid time value).
+      await store.listRecentCurations({ cursor: forged });
+    }
+  );
+
+  it("a SQL-injection-shaped cursor value is bound as data, never executed (no DROP TABLE)", async () => {
+    const added = await addN(2);
+    // The `t` is a parameterized value via drizzle's sql`` — a classic injection payload is treated
+    // as DATA, never interpolated/executed. (It is also a non-date string, so per the DEFECT above
+    // the coercion path currently throws; we assert here only that the table is NOT dropped — i.e.
+    // there is no SQL injection — by confirming the data survives a subsequent head read.)
+    const forged = encodeRecentCursor({ t: "2026'); DROP TABLE clip;--", i: 1 });
+    await store.listRecentCurations({ cursor: forged }).catch(() => {});
+    // The clip table still exists + is intact: a fresh head read returns the two live clips.
+    const head = await store.listRecentCurations({});
+    expect(head.items.map((c) => c.id).sort()).toEqual(
+      [added[0].id, added[1].id].sort()
+    );
+  });
+
+  it("a huge `limit` is honored as a page size, not an error (no resource blowup on the small set)", async () => {
+    const added = await addN(3);
+    const page = await store.listRecentCurations({ limit: 1_000_000 });
+    expect(page.items).toHaveLength(3);
+    expect(page.nextCursor).toBeNull();
+    expect(page.items.map((c) => c.id)).toEqual(
+      [...added].reverse().map((c) => c.id)
+    );
   });
 });
 
