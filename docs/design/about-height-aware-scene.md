@@ -143,10 +143,13 @@ existing per-tier *layout* of the poster:
 **Key point for Dev:** the existing Tailwind `lg:block` / `lg:hidden` split on the two stage `<div>`s
 encodes *width only*. The new gate must AND-in the height condition. Because Tailwind has no built-in
 `min-height` screen variant wired here, the gate is implemented in JS (§4), not a CSS class swap — the
-component chooses which single stage subtree to render. The `<main>`'s per-tier layout classes
-(`xl:block`, `xl:absolute` on the card, etc.) are **unchanged**; they only ever take visible effect
-when the full scene is the one rendered, and are inert in the fallback (the card simply stacks above
-the lone miniature, the same flow the < lg fallback already uses).
+component chooses which single stage subtree to render. The per-tier layout classes (`xl:block` on the
+section, `xl:absolute` on the card, etc.) are **bound to that same `fullScene` boolean**: they are
+applied only when the full scene renders and dropped in the fallback, so the card always stacks above
+the lone miniature there (the same flow the < lg fallback uses) regardless of width. This binding is
+load-bearing — the `xl:` classes are width-only media queries, so without it a ≥ xl-wide but short
+viewport would flip the card to its absolute overlay while the in-flow lone miniature renders beneath
+it, and the card would obscure the miniature.
 
 ---
 

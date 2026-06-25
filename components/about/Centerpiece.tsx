@@ -276,33 +276,51 @@ export function Centerpiece({
 
   const powerLabel = on ? POWER_LABEL_ON : POWER_LABEL_OFF;
 
+  // The poster's overlay layout is bound to the full scene, not to width alone. The `xl:` overlay
+  // classes (absolute card upper-left, `xl:block` section) are correct ONLY when the full poster
+  // scene renders — they position the card against the scene's projector-lower-left / miniature-
+  // upper-right composition. When the fallback renders (the viewport is too narrow OR wide-but-short),
+  // the graphic is the centered lone miniature, so the card must STAY STACKED above it at every
+  // width: applying the overlay there would drop the absolute card on top of the in-flow miniature.
+  // Both gates therefore share `fullScene` — when it is false the layout is stacked regardless of
+  // width. `relative` is kept always (the full-scene overlay needs it; it is inert when stacked).
+  const sectionLayout = fullScene
+    ? "relative flex flex-col gap-10 xl:block"
+    : "relative flex flex-col gap-10";
+  const cardLayout = fullScene
+    ? "mx-auto w-full max-w-[560px] xl:absolute xl:left-[2.5%] xl:top-[3%] xl:z-20 xl:mx-0 xl:w-[510px] xl:max-w-none"
+    : "mx-auto w-full max-w-[560px]";
+
   return (
-    // ≥ xl the section is the poster's positioning context (relative; card absolutely overlaid);
-    // below xl it is a stacked column (card first, graphic below).
+    // The full scene is the poster's positioning context (relative; card absolutely overlaid at ≥ xl,
+    // stacked lg…xl); the fallback is always a stacked column (card first, lone miniature below) at
+    // every width. The `fullScene` gate (height-aware) drives the layout choice, not width alone.
     <section
       aria-label="What wiki+ is"
       data-about-intro={introState}
-      className={`relative flex flex-col gap-10 xl:block${stateClass}`}
+      className={`${sectionLayout}${stateClass}`}
     >
       {/* The picture's meaning in words (for a screen-reader user) — the decorative graphics convey
           it visually; this gives the same thesis. */}
       <p className="sr-only">{SCENE_DESCRIPTION}</p>
 
-      {/* ── The ONE "How it works" card — first in flow (top when stacked); at ≥ xl it is overlaid on
-          the scene's upper-left, composed into the room (real-font readable, never scaled; z above the
-          beam so the copy stays crisp even where the beam passes behind it). It is wide here so it
-          stays short enough to leave the projector room below it. ── */}
-      <HowItWorks className="mx-auto w-full max-w-[560px] xl:absolute xl:left-[2.5%] xl:top-[3%] xl:z-20 xl:mx-0 xl:w-[510px] xl:max-w-none" />
+      {/* ── The ONE "How it works" card — first in flow (top when stacked); in the full poster scene at
+          ≥ xl it is overlaid on the scene's upper-left, composed into the room (real-font readable,
+          never scaled; z above the beam so the copy stays crisp even where the beam passes behind it).
+          It is wide here so it stays short enough to leave the projector room below it. In the fallback
+          it stays stacked above the lone miniature at every width (the overlay classes are gated off). ── */}
+      <HowItWorks className={cardLayout} />
 
-      {/* ── The graphic — the in-flow block that sizes the poster at ≥ xl; below xl it stacks under
-          the card. The height-aware gate (docs/design/about-height-aware-scene.md) renders EXACTLY
-          ONE of the two stage subtrees: the full poster scene when the viewport is ≥ lg wide AND
-          ≥ 820px tall, the miniature-alone fallback otherwise (too narrow OR too short). It is a
-          render-gate (not CSS visibility), so the fallback truly has no projector/beam/power-button
-          nodes in the DOM — the a11y contract (§4.2/§5.2). Width is part of the JS query
-          (`min-width:1024`); the stage subtrees carry no CSS width gate. The `<main>`'s per-tier
-          layout classes (the xl: overlay vs stacked) only take effect when the full scene is the one
-          rendered. ── */}
+      {/* ── The graphic — the in-flow block that sizes the poster at ≥ xl in the full scene; otherwise
+          it stacks under the card. The height-aware gate (docs/design/about-height-aware-scene.md)
+          renders EXACTLY ONE of the two stage subtrees: the full poster scene when the viewport is
+          ≥ lg wide AND ≥ 820px tall, the miniature-alone fallback otherwise (too narrow OR too short).
+          It is a render-gate (not CSS visibility), so the fallback truly has no projector/beam/power-
+          button nodes in the DOM — the a11y contract (§4.2/§5.2). Width is part of the JS query
+          (`min-width:1024`); the stage subtrees carry no CSS width gate. The same `fullScene` boolean
+          also drives the section/card layout above (the xl: overlay applies ONLY in the full scene),
+          so the absolute card and the full poster always render together — the overlay can never land
+          on the in-flow lone miniature of the fallback. ── */}
       <div className="w-full">
         {fullScene ? (
           // ≥ lg AND ≥ 820 tall — the poster scene (projector lower-left + beam + miniature
