@@ -6,6 +6,9 @@ import {
 } from "@/lib/db/drizzle-store";
 import { seedDatabase } from "@/lib/db/seed";
 import { seedClips } from "@/lib/data/seed";
+import { encodeRecentCursor } from "@/lib/data/recent-cursor";
+import { clip as clipTbl, topic as topicTbl } from "@/lib/db/schema";
+import { eq as eqOp } from "drizzle-orm";
 import type { Clip } from "@/lib/data/types";
 import { makeTestDb, type TestDb } from "./helpers/pglite-db";
 
@@ -168,6 +171,245 @@ describe("multi-user sharing (AC11) + interim stub attribution (AC13)", () => {
 
   it("listCandidates is [] server-side (candidates are computed/cached, not DB rows)", async () => {
     expect(await store.listCandidates("Q1")).toEqual([]);
+  });
+});
+
+describe("recent-curations feed — listRecentCurations (issue #160)", () => {
+  beforeEach(async () => {
+    await store.upsertTopic({ qid: "Q11982", title: "Photosynthesis" });
+    await store.upsertTopic({ qid: "Q146", title: "Cat" });
+  });
+
+  // Add N clips across two topics so the feed is genuinely cross-topic. Returns the clips in
+  // insertion order (oldest→newest). createdAt may tie within a fast test; the (createdAt, id)
+  // keyset + the id-desc tiebreak still gives a total, stable order.
+  async function addN(n: number) {
+    const out = [];
+    for (let i = 0; i < n; i++) {
+      out.push(
+        await store.addClip({
+          ...clip0(),
+          topicQid: i % 2 === 0 ? "Q11982" : "Q146",
+          caption: `clip ${i}`,
+        })
+      );
+    }
+    return out;
+  }
+
+  it("returns curated clips across ALL topics, newest first, with topicTitle for the link", async () => {
+    const added = await addN(3);
+    const page = await store.listRecentCurations({});
+    expect(page.items).toHaveLength(3);
+    // Newest first — the last inserted is first.
+    expect(page.items[0].id).toBe(added[2].id);
+    expect(page.items[2].id).toBe(added[0].id);
+    // Cross-topic + the parent title rides along for the jump-to-topic link.
+    const titles = new Set(page.items.map((c) => c.topicTitle));
+    expect(titles).toEqual(new Set(["Photosynthesis", "Cat"]));
+    // A small set is exhausted in one page → no further cursor (the end marker).
+    expect(page.nextCursor).toBeNull();
+  });
+
+  it("shows the PUBLIC DERIVED upvote count (seed baseline + real votes), like the topic page (D1/§6.2)", async () => {
+    // A clip with a frozen seed baseline of 5 that then accrues one real vote should read 6 in the
+    // feed — the SAME derived total `listClips` (the topic page) surfaces. Mapping via `rowToClip`
+    // alone would undercount to the baseline; the feed must derive like the topic read.
+    const c = await store.addClip({ ...clip0(), topicQid: "Q11982", upvotes: 5 });
+    await store.toggleUpvote(c.id); // one real clip_vote (stub voter) → derived = 5 + 1
+    const page = await store.listRecentCurations({});
+    const got = page.items.find((x) => x.id === c.id);
+    expect(got?.upvotes).toBe(6);
+    // Parity with the topic page's derived count for the same clip.
+    const onTopic = (await store.listClips("Q11982")).find((x) => x.id === c.id);
+    expect(got?.upvotes).toBe(onTopic?.upvotes);
+  });
+
+  it("a never-seeded, never-voted clip shows NO count figure (undefined — matches the topic page)", async () => {
+    const c = await store.addClip({ ...clip0(), topicQid: "Q11982", upvotes: undefined });
+    const page = await store.listRecentCurations({});
+    expect(page.items.find((x) => x.id === c.id)?.upvotes).toBeUndefined();
+  });
+
+  it("EXCLUDES held clips (vetted=false) and removed clips (the public vouched shopfront)", async () => {
+    const [a, b, c] = await addN(3);
+    await store.setClipVetted(b.id, false); // held → excluded
+    await store.removeClip(c.id, 1, null); // removed → excluded
+    const page = await store.listRecentCurations({});
+    expect(page.items.map((x) => x.id)).toEqual([a.id]);
+  });
+
+  it("pages by a STABLE cursor with NO dupes and NO gaps", async () => {
+    const added = await addN(5);
+    const expectedNewestFirst = [...added].reverse().map((c) => c.id);
+
+    const p1 = await store.listRecentCurations({ limit: 2 });
+    expect(p1.items.map((c) => c.id)).toEqual(expectedNewestFirst.slice(0, 2));
+    expect(p1.nextCursor).not.toBeNull();
+
+    const p2 = await store.listRecentCurations({ cursor: p1.nextCursor, limit: 2 });
+    expect(p2.items.map((c) => c.id)).toEqual(expectedNewestFirst.slice(2, 4));
+
+    const p3 = await store.listRecentCurations({ cursor: p2.nextCursor, limit: 2 });
+    expect(p3.items.map((c) => c.id)).toEqual(expectedNewestFirst.slice(4));
+    // The last short page exhausts the feed → nextCursor null (the end marker).
+    expect(p3.nextCursor).toBeNull();
+
+    // Concatenated pages reproduce the full ordered set exactly — no dupes, no gaps.
+    const all = [...p1.items, ...p2.items, ...p3.items].map((c) => c.id);
+    expect(all).toEqual(expectedNewestFirst);
+    expect(new Set(all).size).toBe(all.length);
+  });
+
+  it("a clip curated AFTER a page boundary does not dupe/shift already-returned items", async () => {
+    const added = await addN(3);
+    const p1 = await store.listRecentCurations({ limit: 2 });
+    // A new curation lands at the HEAD between page loads — the offset-drift hazard.
+    await store.addClip({ ...clip0(), topicQid: "Q11982", caption: "newest" });
+    // Paging past the cursor returns only items strictly OLDER than the boundary — the new head
+    // clip is never re-served on page 2, and the oldest original clip is not skipped.
+    const p2 = await store.listRecentCurations({ cursor: p1.nextCursor });
+    expect(p2.items.map((c) => c.id)).toEqual([added[0].id]);
+  });
+
+  it("an empty / exhausted feed returns [] with a null cursor", async () => {
+    const page = await store.listRecentCurations({});
+    expect(page.items).toEqual([]);
+    expect(page.nextCursor).toBeNull();
+  });
+
+  it("ignores a malformed cursor (degrades to the head, never throws)", async () => {
+    const added = await addN(2);
+    const page = await store.listRecentCurations({ cursor: "not-a-real-cursor" });
+    expect(page.items.map((c) => c.id)).toEqual([added[1].id, added[0].id]);
+  });
+
+  // ── Adversarial cursor robustness (QA security review, issue #160 / DEF-1). A WELL-FORMED cursor
+  //    whose CONTENTS are forged must NEVER throw, never inject, never leak rows the visibility
+  //    predicate excludes — the contract (recent-cursor.ts + the seam doc): "a forged/stale cursor
+  //    never throws and the read degrades safely." DEF-1 hardened two value-level hazards:
+  //      (1) a non-date `t` → `decodeRecentCursor` nulls the WHOLE cursor → a plain head read; and
+  //      (2) a non-numeric string `i` (with a real `t`) → the Drizzle keyset coerces `Number(i)` =
+  //          NaN, so it DROPS the id-tiebreak branch and uses the `created_at < t` boundary alone —
+  //          a safe keyset that never sends NaN to Postgres. Neither reaches the bound param badly.
+  it("a forged string-id cursor (Number(i)=NaN) drops the id tiebreak safely, no throw", async () => {
+    const added = await addN(3);
+    // A real `t` in the FUTURE (newer than every just-created clip) with a non-numeric `i`: the
+    // tiebreak is dropped, the `created_at < t` boundary holds, so all clips return — no throw.
+    const forged = encodeRecentCursor({ t: "2999-01-01T00:00:00.000Z", i: "c_forged_string" });
+    const page = await store.listRecentCurations({ cursor: forged });
+    expect(page.items.map((c) => c.id)).toEqual(
+      [...added].reverse().map((c) => c.id)
+    );
+  });
+
+  it("a forged non-date `t` cursor (would be Invalid Date) decodes to null → head read, no throw", async () => {
+    const added = await addN(3);
+    const forged = encodeRecentCursor({ t: "garbage-not-a-date", i: 999999 });
+    const page = await store.listRecentCurations({ cursor: forged });
+    // The whole cursor is nulled → a plain head read of the full newest-first set.
+    expect(page.items.map((c) => c.id)).toEqual(
+      [...added].reverse().map((c) => c.id)
+    );
+  });
+
+  it("a SQL-injection-shaped cursor value is bound as data, never executed (no DROP TABLE)", async () => {
+    const added = await addN(2);
+    // The injection payload is a non-date `t`, so `decodeRecentCursor` nulls the cursor and the read
+    // degrades to a head read — the payload never reaches the query at all. (Even if it did, the
+    // value is parameterized via drizzle's sql`` and bound as DATA, never interpolated/executed.) We
+    // assert the table is intact: a head read still returns the two live clips.
+    const forged = encodeRecentCursor({ t: "2026'); DROP TABLE clip;--", i: 1 });
+    await store.listRecentCurations({ cursor: forged });
+    const head = await store.listRecentCurations({});
+    expect(head.items.map((c) => c.id).sort()).toEqual(
+      [added[0].id, added[1].id].sort()
+    );
+  });
+
+  it("LEGITIMATE pagination across a SAME-TIMESTAMP batch still has no dupes/gaps (the id-tiebreak branch is load-bearing and NOT dropped for a real numeric cursor)", async () => {
+    // DEF-1 fix correctness guard: the keyset now DROPS the id-tiebreak branch when `Number(i)` is
+    // not integer-coercible. That must fire ONLY for a forged string `i` — for a real production
+    // cursor (`i` is the numeric serial PK) the tiebreak MUST stay, or a tied-`created_at` batch
+    // would dupe/gap. Force the worst case: several clips with the IDENTICAL `created_at`, so the
+    // id tiebreak is the ONLY thing giving a total order, then page through them one at a time.
+    const ts = new Date("2026-06-20T08:00:00.000Z");
+    const topicRow = await h.db
+      .select({ id: topicTbl.id })
+      .from(topicTbl)
+      .where(eqOp(topicTbl.wikidataQid, "Q11982"))
+      .limit(1);
+    const base = clip0();
+    const insertedIds: number[] = [];
+    for (let k = 0; k < 4; k++) {
+      const r = await h.db
+        .insert(clipTbl)
+        .values({
+          topicId: topicRow[0].id,
+          platform: base.platform,
+          platformLabel: base.platformLabel,
+          orientation: base.orientation,
+          watchUrl: base.watchUrl,
+          caption: `tied ${k}`,
+          creatorHandle: base.creator.handle,
+          creatorName: base.creator.name,
+          creatorPlatform: base.creator.platform,
+          general: base.general,
+          contextNote: base.contextNote,
+          stance: base.stance,
+          accuracyFlag: base.accuracyFlag,
+          vetted: true,
+          createdAt: ts,
+          updatedAt: ts,
+        })
+        .returning({ id: clipTbl.id });
+      insertedIds.push(r[0].id);
+    }
+    // Newest-first total order across the tie = id DESC (the tiebreaker).
+    const expected = [...insertedIds].sort((a, b) => b - a).map(String);
+
+    // Page one-at-a-time through the whole tied batch; every cursor here is a REAL numeric-id cursor,
+    // so the id-tiebreak branch is exercised (never dropped). Concatenation must reproduce the set
+    // exactly — no dupe, no gap — proving the tiebreak survives the DEF-1 refactor.
+    const collected: string[] = [];
+    let cursor: string | null | undefined = undefined;
+    for (let guard = 0; guard < 10; guard++) {
+      const page = await store.listRecentCurations({ cursor, limit: 1 });
+      collected.push(...page.items.map((c) => c.id));
+      cursor = page.nextCursor;
+      if (cursor === null) break;
+    }
+    expect(collected).toEqual(expected);
+    expect(new Set(collected).size).toBe(collected.length); // no dupes
+  });
+
+  // ── DEF-1b (QA re-verify of fix round 1). `clip.id` is a Postgres `serial` (int4, max
+  //    2_147_483_647). A forged integer `i` BEYOND int4 range would pass a plain `Number.isInteger`
+  //    guard (JS has no int4 notion) and, if kept, bind against the int4 column → Postgres `value
+  //    "<n>" is out of range for type integer` (22003). `decodeRecentCursor` now bounds a numeric
+  //    `i` to int4 range, so an overflowing `i` nulls the WHOLE cursor → a plain head read; the
+  //    oversized value never reaches the bound query param. (The string-`i` keyset path is unchanged.)
+  it("a forged OVERFLOWING integer-id cursor decodes to null → head read, no throw (DEF-1b)", async () => {
+    const added = await addN(2);
+    const forged = encodeRecentCursor({
+      t: "2999-01-01T00:00:00.000Z",
+      i: 9_999_999_999_999, // > int4 max (2_147_483_647)
+    });
+    const page = await store.listRecentCurations({ cursor: forged });
+    // Degrades to the head: the full newest-first set, not a 22003 error.
+    expect(page.items.map((c) => c.id)).toEqual(
+      [...added].reverse().map((c) => c.id)
+    );
+  });
+
+  it("a huge `limit` is honored as a page size, not an error (no resource blowup on the small set)", async () => {
+    const added = await addN(3);
+    const page = await store.listRecentCurations({ limit: 1_000_000 });
+    expect(page.items).toHaveLength(3);
+    expect(page.nextCursor).toBeNull();
+    expect(page.items.map((c) => c.id)).toEqual(
+      [...added].reverse().map((c) => c.id)
+    );
   });
 });
 

@@ -11,6 +11,7 @@ import {
   listClipsAction,
   listClipsByContributorAction,
   listCuratedTopicsAction,
+  listRecentCurationsAction,
   listTopicsAction,
   recordDismissalAction,
   removeClipAction,
@@ -90,6 +91,10 @@ const clientStore: DataStore = {
     getContributorByUsernameAction(username),
   listClipsByContributor: (contributorId) =>
     listClipsByContributorAction(contributorId),
+  // Recent-curations feed (issue #160) — anonymous, cursor-paginated, like the other reads. The
+  // client passes the opaque cursor + limit straight through; the boundary applies the visibility
+  // predicate + keyset paging server-side.
+  listRecentCurations: (input) => listRecentCurationsAction(input),
   // Upvotes (issue #55 / D4). The toggle forwards the clip id only — the boundary resolves the
   // contributor (the seam's `contributorId` param is server-internal, unused here). `votedClipIds`
   // is the per-viewer voted-state read; the host calls it ONLY in the authenticated session (it is

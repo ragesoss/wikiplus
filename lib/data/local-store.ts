@@ -7,10 +7,13 @@ import type {
   Clip,
   ContributorClip,
   PublicContributor,
+  RecentCurationsPage,
   Topic,
   TopicWithStats,
   UpvoteToggle,
 } from "./types";
+import { RECENT_PAGE_DEFAULT } from "./types";
+import { decodeRecentCursor, encodeRecentCursor } from "./recent-cursor";
 
 const TOPICS_KEY = "wikiplus.topics";
 const CLIPS_KEY = "wikiplus.clips";
@@ -273,6 +276,57 @@ export class LocalStorageDataStore implements DataStore {
         topicTitle:
           topics.find((t) => t.qid === c.topicQid)?.title ?? c.topicQid,
       }));
+  }
+
+  // ── Recent-curations feed (issue #160 / `/recent`) — reference parallel of the Drizzle keyset. ──
+  // The global, cursor-paginated, newest-first feed across ALL topics. The reference impl derives it
+  // over the in-memory clip set: filter to VISIBLE (not removed AND not held — the §3.4 shopfront
+  // predicate: `!isRemoved && !held`), join each clip to its topic title, sort newest-first by
+  // `(createdAt, id)`, then slice a keyset page. The cursor is the SAME opaque `(t, i)` keyset the
+  // DrizzleDataStore emits (the reference `id` is the `c_xxxx` string, compared lexically as the
+  // tiebreaker within this store) so the seam contract round-trips identically in non-DB tests.
+  async listRecentCurations(input?: {
+    cursor?: string | null;
+    limit?: number;
+  }): Promise<RecentCurationsPage> {
+    const limit =
+      input?.limit && input.limit > 0 ? input.limit : RECENT_PAGE_DEFAULT;
+    const cursor = decodeRecentCursor(input?.cursor);
+    const topics = read<Topic>(TOPICS_KEY);
+
+    // newest-first total order: createdAt desc, then id desc (the same-timestamp tiebreaker).
+    const ordered = read<Clip>(CLIPS_KEY)
+      .filter((c) => !isRemoved(c) && !c.held)
+      .sort((a, b) => {
+        const t = b.createdAt.localeCompare(a.createdAt);
+        return t !== 0 ? t : b.id.localeCompare(a.id);
+      });
+
+    // Keyset: keep only items STRICTLY OLDER than the cursor in that order (createdAt < t, or equal
+    // createdAt with id < i) — the dupe/gap-free boundary, parallel to the SQL keyset.
+    const after = cursor
+      ? ordered.filter((c) => {
+          if (c.createdAt < cursor.t) return true;
+          if (c.createdAt > cursor.t) return false;
+          return c.id < String(cursor.i);
+        })
+      : ordered;
+
+    const pageRows = after.slice(0, limit);
+    const hasMore = after.length > limit;
+    // The stored `c.upvotes` is carried as-is, mirroring this reference impl's `listClips` — the
+    // DB-derived PUBLIC count (seed baseline + distinct `clip_vote` rows, the D1/§6.2 parity) lives
+    // in the DrizzleDataStore; the reference impl has no separate vote table, so the clip's own
+    // count IS its figure on both reads (reference parity).
+    const items: ContributorClip[] = pageRows.map((c) => ({
+      ...c,
+      topicTitle: topics.find((t) => t.qid === c.topicQid)?.title ?? c.topicQid,
+    }));
+    const last = hasMore ? pageRows[pageRows.length - 1] : undefined;
+    const nextCursor = last
+      ? encodeRecentCursor({ t: last.createdAt, i: last.id })
+      : null;
+    return { items, nextCursor };
   }
 
   // ── Sticky dismissals (issue #45). Ported from lib/candidates/dismissals.ts so the

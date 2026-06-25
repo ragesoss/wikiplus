@@ -10,6 +10,7 @@ import {
   inArray,
   isNull,
   ne,
+  or,
   sql,
 } from "drizzle-orm";
 import type { DataStore } from "@/lib/data/store";
@@ -19,10 +20,16 @@ import type {
   Clip,
   ContributorClip,
   PublicContributor,
+  RecentCurationsPage,
   Topic,
   TopicWithStats,
   UpvoteToggle,
 } from "@/lib/data/types";
+import { RECENT_PAGE_DEFAULT } from "@/lib/data/types";
+import {
+  decodeRecentCursor,
+  encodeRecentCursor,
+} from "@/lib/data/recent-cursor";
 import { STUB_HANDLE } from "@/lib/curation/curator-attribution";
 import { getDb, type Db } from "./client";
 import {
@@ -483,6 +490,88 @@ export class DrizzleDataStore implements DataStore {
       ...rowToClip(r.clip, r.topicQid),
       topicTitle: r.topicTitle,
     }));
+  }
+
+  // ── Recent-curations feed (issue #160 / `/recent`) ─────────────────────────────────
+  async listRecentCurations(input?: {
+    cursor?: string | null;
+    limit?: number;
+  }): Promise<RecentCurationsPage> {
+    const limit =
+      input?.limit && input.limit > 0 ? input.limit : RECENT_PAGE_DEFAULT;
+    const cursor = decodeRecentCursor(input?.cursor);
+
+    // Visibility predicate (§3.4 / OQ-2): the cross-topic public shopfront shows only VOUCHED,
+    // non-removed clips. `removed_at IS NULL` matches every read; `vetted = true` EXCLUDES held
+    // clips (the topic read shows held-but-marked because the curator/moderator is in context — the
+    // feed is the site's vouch, so a not-yet-vouched clip does not appear here).
+    const visible = and(isNull(clip.removedAt), eq(clip.vetted, true));
+
+    // Keyset boundary (§3.4): strictly OLDER than the cursor in the `(created_at desc, id desc)`
+    // order — `created_at < t OR (created_at = t AND id < i)`. This is the dupe/gap-free stable
+    // page boundary an offset cannot give (an offset shifts as new curations land at the head).
+    // `cursor.t` is already validated to be a real date (decodeRecentCursor), so `new Date(t)` is
+    // never an Invalid Date here. `cursor.i` is the numeric serial PK in production; coerce it and
+    // INCLUDE the id-tiebreak branch only when it is integer-coercible. A non-numeric string `i`
+    // (a forged or cross-store cursor — `Number(i)` would be NaN, which Postgres rejects as an
+    // invalid integer) DROPS the tiebreak branch and uses the `created_at < t` boundary alone —
+    // a safe degrade that never sends NaN to the query (DEF-1).
+    const idTiebreak = Number(cursor?.i);
+    const where = cursor
+      ? and(
+          visible,
+          Number.isInteger(idTiebreak)
+            ? or(
+                sql`${clip.createdAt} < ${new Date(cursor.t)}`,
+                and(
+                  sql`${clip.createdAt} = ${new Date(cursor.t)}`,
+                  sql`${clip.id} < ${idTiebreak}`
+                )
+              )
+            : sql`${clip.createdAt} < ${new Date(cursor.t)}`
+        )
+      : visible;
+
+    // Fetch `limit + 1` to learn whether a FURTHER page exists WITHOUT a second COUNT query: if a
+    // full `limit + 1` came back, there is more (the +1 row is the next page's head → emit a
+    // cursor); otherwise the feed is exhausted (`nextCursor: null`, the end marker).
+    const rows = await this.db
+      .select({ clip, topicQid: topic.wikidataQid, topicTitle: topic.title })
+      .from(clip)
+      .innerJoin(topic, eq(clip.topicId, topic.id))
+      .where(where)
+      .orderBy(desc(clip.createdAt), desc(clip.id))
+      .limit(limit + 1);
+
+    const hasMore = rows.length > limit;
+    const pageRows = hasMore ? rows.slice(0, limit) : rows;
+    // D1 / §6.2 count parity: surface the SAME PUBLIC derived count the topic page shows — the
+    // frozen seed baseline (`clip.upvotes`) PLUS the count of distinct real `clip_vote` rows — using
+    // the SAME helper `listClips` uses, so a feed item never undercounts a clip that accrued votes.
+    // This is the PUBLIC TOTAL only; the PER-VIEWER "have I voted" state is deliberately NOT computed
+    // here (it stays off this read — the read-path principle + the logged-out model: the feed shows
+    // social proof, never the interactive toggle). The derive-to-`undefined`-when-zero rule mirrors
+    // `listClips` so a never-seeded, never-voted clip renders no figure (matching the topic page).
+    const counts = await this.voteCountsForClips(pageRows.map((r) => r.clip.id));
+    const items: ContributorClip[] = pageRows.map((r) => {
+      const derived = (r.clip.upvotes ?? 0) + (counts.get(r.clip.id) ?? 0);
+      return {
+        ...rowToClip(r.clip, r.topicQid),
+        upvotes: derived > 0 || r.clip.upvotes != null ? derived : undefined,
+        topicTitle: r.topicTitle,
+      };
+    });
+    // The cursor is the LAST emitted item's `(createdAt, id)` — the boundary the next call pages
+    // strictly past. Only emit it when a further page exists, so `nextCursor === null` is the
+    // single, honest "exhausted" signal the feed's end marker keys on (§3.4 / §4.4).
+    const last = hasMore ? pageRows[pageRows.length - 1] : undefined;
+    const nextCursor = last
+      ? encodeRecentCursor({
+          t: last.clip.createdAt.toISOString(),
+          i: last.clip.id,
+        })
+      : null;
+    return { items, nextCursor };
   }
 
   // ── Sticky dismissals (shared + durable — AC5) ─────────────────────────────────────

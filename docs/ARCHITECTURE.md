@@ -954,7 +954,8 @@ build on additively.
 - **The read / write / client-Wikipedia flow (the central invariant is unchanged — the server never
   calls Wikipedia, AC8):**
   - **Reads (server-DB):** `listTopics`, `listCuratedTopics`, `getTopic`, `getTopicByTitle`,
-    `listClips`, the persisted `dismissedKeys` — Server Actions → `DrizzleDataStore` → Postgres.
+    `listClips`, `listClipsByContributor`, `listRecentCurations`, the persisted `dismissedKeys` —
+    Server Actions → `DrizzleDataStore` → Postgres.
   - **Recently-curated read (issue #126).** The homepage "Recently curated" grid reads
     **`listCuratedTopics()`** — a method DISTINCT from `listTopics()` (which stays the unfiltered,
     no-stats `Topic[]` other callers depend on). It returns `TopicWithStats[]` (topic +
@@ -984,6 +985,49 @@ build on additively.
       which `/about` forces the pool empty so the miniature shows the fallback — pinning the About
       baseline to the committed poster (no churn as the seeded curations change) without any
       test-only branch in the client component.
+  - **Recent-curations read (issue #160 / `/recent`).** The cross-topic feed at `/recent` reads
+    **`listRecentCurations({ cursor?, limit })`** — the global, cursor-paginated analog of
+    `listClipsByContributor`: every curated clip across **all** topics, joined to its parent topic
+    for the title + QID (the existing `ContributorClip` shape — **no data-model change**), **newest
+    first**. Anonymous like the other reads (the feed is browsable logged-out). Two contracts:
+    - **Recency key + stable keyset cursor.** Ordered by `created_at desc, id desc` — the
+      authoritative persisted creation/curation timestamp (the same field `listClips` /
+      `listClipsByContributor` order by; **`Clip.curatedAt` is a decorative relative label, never the
+      orderable field**). The page is a **stable `(createdAt, id)` keyset cursor, never an offset** —
+      an offset drifts as new curations arrive at the head between page loads (dupes/gaps), whereas a
+      keyset pins the boundary to a concrete `(createdAt, id)` so paging back through history has no
+      dupes and no gaps. The cursor is an **opaque** base64url `{ t, i }` (`lib/data/recent-cursor.ts`);
+      the client only round-trips it. A **forged/stale cursor degrades safely, never throws**: the
+      decode value-validates `t` (a non-date nulls the whole cursor → a plain head read) and `i` (a
+      non-integer *number* nulls it), and the keyset additionally drops the id-tiebreak branch when
+      `i` is not integer-coercible — so a hostile value never reaches the bound query param as an
+      Invalid Date or a `Number→NaN`. `nextCursor === null` ⇒ exhausted (the end-of-feed marker). The
+      read fetches `limit + 1` to learn "is there more?" without a second COUNT. `RECENT_PAGE_DEFAULT
+      = 12`. **No schema/migration:** `clip.created_at` (and the serial `clip.id` tiebreaker) already
+      exist — the feed is a new query over existing columns.
+    - **Visibility — vouched only.** Only **public, vouched** clips appear: the same `removed_at IS
+      NULL` predicate every read uses, **plus held clips excluded** (`vetted = true`). Unlike the
+      topic page (which shows a held clip *marked* because the curator/moderator is in context), the
+      cross-topic feed is the site's public "best recent curations" shopfront, so a not-yet-vouched
+      (held) clip does not surface there. The reference `LocalStorageDataStore` derives the same
+      newest-first, held/removed-excluded, keyset-paged shape over its in-memory clip set (parity).
+    - **Count parity (§6.2).** Each feed clip carries the **same PUBLIC derived upvote count the
+      topic page shows** — the frozen seed baseline (`clip.upvotes`) **plus** `COUNT(distinct
+      clip_vote)` — via the SAME `voteCountsForClips` helper `listClips` uses, so a feed item never
+      undercounts a clip that accrued real votes. This is the **public total only**; the per-viewer
+      "have I voted" state is deliberately **not** computed on this read (it stays off the read path —
+      the feed shows social proof, never the interactive toggle).
+  - **`/recent` is a dynamic (uncached) render — explicitly NOT on the (future) static/ISR shell.** A
+    global chronological list changes on **every** curation, so it does not fit the cacheable
+    per-topic ISR shell (whose cache key is a topic, revalidated on that topic's writes). The route
+    sets **`export const dynamic = "force-dynamic"`** so it is never statically cached — every request
+    renders fresh and a new curation appears at the head immediately (freshness-on-every-curation).
+    This is consistent with the prototype today (per-request Node SSR; the production ISR/Redis read
+    path is not built yet). **Future scaling (deferred, not built now):** a short-TTL cache or a
+    dedicated cursor API for the feed — consistent with *read path is the scale lever* — but no
+    speculative caching infra is built for `/recent` in this issue. **Entry point:** the home page's
+    "Recently curated" section carries a **"See all recent curations →"** link to `/recent` (the
+    section shows recently-curated *topics*; the feed shows recently-curated *clips* — complementary).
   - **Writes (server-DB):** `upsertTopic`, `addClip`, `recordDismissal` — same path, **auth-gated as
     of issue C** (rejected when anonymous; attributed to the real signed-in contributor). **As of
     issue #53 / D2 `updateClip` / `deleteClip` are also boundary actions** (`updateClipAction` /
