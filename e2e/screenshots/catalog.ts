@@ -492,6 +492,53 @@ async function articleExpandSection(page: Page, name: RegExp): Promise<void> {
   await page.waitForTimeout(400); // let the reveal lay out + the overflow observers flag the table
 }
 
+// ── Marked complete / closed to suggestions (issue #159) ──
+// The curator mark/un-mark control lives at the foot of the ＋plus panel and renders SIGNED-IN only,
+// so these scenes run the signed-in arm and drive the complete state THROUGH the real control (a UI
+// click that persists via the role-gated Server Action). Idempotent: if the topic is already marked
+// complete (a prior scene in the same seeded DB), the control reads "Reopen to suggestions" and we
+// skip the click — the page is already in the suppressed complete state either way.
+
+/** Mark the topic complete via the curator control, then wait for the status indicator. REOPEN-FIRST
+ *  for determinism: if a prior scene left this topic complete (shared seeded DB, no per-scene reset),
+ *  reopen it first so the subsequent mark always produces a fresh, captured complete state. Leaves
+ *  the page in the suppressed complete state (the default view). */
+async function markComplete(page: Page): Promise<void> {
+  await topicReady(page);
+  const reopen = page.getByRole("button", {
+    name: /Reopen this topic to suggestions/i,
+  });
+  if (await reopen.count()) {
+    await reopen.first().click();
+    await page
+      .getByRole("button", { name: /Mark this topic complete/i })
+      .first()
+      .waitFor({ timeout: 8000 });
+  }
+  await page
+    .getByRole("button", { name: /Mark this topic complete/i })
+    .first()
+    .click();
+  // The status indicator ("Marked complete") confirms the suppressed complete state is rendered.
+  await page.getByText(/Marked complete/i).first().waitFor({ timeout: 8000 });
+  await page.waitForTimeout(250);
+}
+
+/** Mark complete, then activate the per-viewer override so the normal suggestion presentation is
+ *  revealed for this session (the "overridden" capture — suggestions reappear in place). */
+async function markCompleteOverridden(page: Page): Promise<void> {
+  await markComplete(page);
+  await page
+    .getByRole("button", { name: /Show suggestions for this topic/i })
+    .first()
+    .click();
+  await page
+    .getByRole("button", { name: /Hide suggestions again/i })
+    .first()
+    .waitFor({ timeout: 8000 });
+  await page.waitForTimeout(250);
+}
+
 // ── Unified mobile dock (issue #120) ──
 // On a mobile viewport (< lg) BOTH curated and candidate playback route into the one
 // `MobilePlayerDock`, a `<section aria-label="Video player">` (distinct from the desktop
@@ -776,6 +823,76 @@ export const SCENES: Scene[] = [
     stub: "empty",
     ready: topicReady,
     clip: SEL_GENERAL,
+  },
+
+  // ── Topic · marked complete (issue #159) ──
+  // A curator-set topic flag that suppresses the suggestion layer by default. The control + the
+  // status indicator live in the ＋plus panel; the override is the indicator's path (a). These
+  // scenes drive the complete state THROUGH the real UI (signed-in `markComplete`), so the shots
+  // show the genuinely persisted, suppressed state.
+  //
+  // DB-STATE NOTE for the capture run (Operations): `markComplete` writes the persisted flag via the
+  // role-gated Server Action against the shared seeded Postgres, which has no per-scene reset
+  // (e2e/global-setup.ts seeds once for the suite). To keep these self-contained, each complete
+  // scene REOPENS the topic at the START of its `prepare` first (a no-op the first time), then marks
+  // it complete for the capture — so the captured state is deterministic regardless of a prior
+  // scene's writes, and a topic left complete only affects a LATER scene on the SAME topic. Run a
+  // FULL refresh (`--all`) or these as a `--scene topic-complete-*` subset; if a later same-topic
+  // baseline scene drifts to the suppressed look, reopen the topic once (any signed-in curator) or
+  // re-seed. Pinned to a lean viewport/skin subset (full-page desktop evidence).
+  {
+    id: "topic-complete-overview",
+    skins: ["light", "zine-dark"],
+    group: "Topic · marked complete",
+    label: "＋plus panel — marked complete (indicator + curator control)",
+    note: "A complete fully-curated topic: the calm 'Marked complete' indicator atop the panel body and the signed-in curator 'Reopen to suggestions' control at the foot.",
+    route: "/topic/Photosynthesis/",
+    stub: "curated",
+    auth: ["in"],
+    prepare: markComplete,
+    viewports: ["desktop", "tablet"],
+    clip: SEL_OVERVIEW,
+    focus: true,
+  },
+  {
+    id: "topic-complete-suppressed",
+    group: "Topic · marked complete",
+    label: "Topic — complete, suppressed (full page)",
+    note: "A complete topic reads as a near-plain article: curated content (if any) plus the calm panel note; no candidate tiles, no 'Suggested · uncurated' divider/header, no dashed TOC counts.",
+    route: "/topic/Photosynthesis/",
+    stub: "curated",
+    auth: ["in"],
+    viewports: ["desktop"],
+    prepare: markComplete,
+    clip: "fullPage",
+    focus: true,
+  },
+  {
+    id: "topic-complete-zero-video",
+    skins: ["light", "zine-dark"],
+    group: "Topic · marked complete",
+    label: "Topic — complete + zero curated videos (minimal render)",
+    note: "Complete with no curated videos: a near-plain article + a calm panel note carrying both opt-in paths (Show suggestions anyway · Add a video). The General band is omitted — not blank, not broken (AC18).",
+    route: "/topic/Cellular_respiration/",
+    stub: "suggestions",
+    auth: ["in"],
+    viewports: ["desktop"],
+    prepare: markComplete,
+    clip: "fullPage",
+    focus: true,
+  },
+  {
+    id: "topic-complete-overridden",
+    group: "Topic · marked complete",
+    label: "Topic — complete, per-viewer override ON (suggestions revealed)",
+    note: "After 'Show suggestions anyway': the normal derived state reappears in place for this viewer; the indicator's button now reads 'Hide suggestions again'. Session-local, never changes the stored default (AC12).",
+    route: "/topic/Cellular_respiration/",
+    stub: "suggestions",
+    auth: ["in"],
+    viewports: ["desktop"],
+    prepare: markCompleteOverridden,
+    clip: "fullPage",
+    focus: true,
   },
 
   // ── Topic · loading & states (topic-loading-states §8, AC3 evidence) ──

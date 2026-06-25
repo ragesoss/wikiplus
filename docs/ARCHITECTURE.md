@@ -132,6 +132,16 @@ Keyed on stable identifiers, normalized, minimal.
   - `article_index` — cached **lightweight** article data the server needs: the lead (for the
     shell + SEO) and the section list/headings (for matching candidates and the TOC). The full
     article HTML is **not** stored — it's fetched client-side (see *Article rendering*).
+  - `closed_to_suggestions` (boolean, `NOT NULL DEFAULT false`) — an explicit, **curator-set**
+    "marked complete" flag (issue #159). When `true`, the Topic page suppresses all auto-suggestion
+    chrome **by default** for every viewer and renders only curated content — a curator's "I've
+    finished this topic" judgment. **Distinct from the derived `fully-curated` state** (see
+    *Candidate suggestion & the empty state* and `TOPIC_PAGE_DESIGN.md` §"Three states"): that state
+    is computed in `TopicView` from the counts and never stored, holds only at ≥1 curated clip + 0
+    remaining suggestions, and changes as the candidate pool changes; this flag is stored, holds even
+    when suggestions exist, and is allowed at zero curated videos. Set/cleared by **any signed-in
+    curator** via a role-gated Server Action (no moderation lock, no ownership restriction; a
+    logged-out reader cannot set it). No `marked_by`/`marked_at` audit columns — a plain boolean.
   - `created_at`, `updated_at`
 - **clip** (a curated, contextualized social video)
   - `id`
@@ -508,6 +518,21 @@ derivation in `TopicView` (`hasCurated` + `hasSuggestions`), not a storage chang
 remain computed/cached and never stored as rows, and the no-churn invariant is a stable
 sort/filter over the already-derived `liveCandidates` (no pipeline re-run on curation). (Product
 behavior in [`TOPIC_PAGE_DESIGN.md`](TOPIC_PAGE_DESIGN.md) §"Three states".)
+
+A curator can additionally **mark a topic complete** (`topic.closed_to_suggestions`, issue #159) to
+suppress the suggestion layer **by default for every viewer**, independent of the derived state. The
+suppression is the **same pure-presentation posture**: `TopicView` derives a single boolean
+`suppressSuggestions = topic.closedToSuggestions && !viewerOverride` and, when true, feeds the
+suggestion-bearing children an **empty** candidate set — so every suggestion-chrome surface (General
++ rail candidate tiles, the "Suggested · uncurated" divider/header, "See N more", dashed TOC counts,
+the wiki+ panel suggestion volume) collapses via the **existing zero-suggestion code paths**, with no
+parallel "suppressed" branch. The **candidate pipeline and `liveCandidates` are unchanged** (the true
+remaining count is still computed — for the "is there anything to reveal" gate and an override flip);
+suppression touches only the *presentation*, never storage (no `dismissed_candidate` writes). The
+per-viewer **override** ("show suggestions anyway") is session-local + client-only (a `sessionStorage`
+key per topic QID, read after mount), so it never varies the cached read-path HTML and never persists
+to the DB — the same read-path posture as the skin toggle. (Product behavior + the complete + zero-
+video minimal render in [`TOPIC_PAGE_DESIGN.md`](TOPIC_PAGE_DESIGN.md) §"Three states".)
 
 - **Auto-suggestion is multi-platform by design; YouTube-only in the MVP.** Build the candidate
   pipeline **platform-agnostic** (a pluggable source interface) so additional platforms slot in.
