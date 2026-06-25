@@ -226,6 +226,70 @@ describe("Marked complete — default suppression (mixed: curated + suggestions)
       ).toBeTruthy()
     );
   });
+
+  it("AC8 — no dashed/suggested ('~{s}') TOC counts while suppressed; curated counts unaffected (AC11)", async () => {
+    render(<TopicView />);
+    await waitFor(() => expect(band()).not.toBeNull());
+    await new Promise((r) => setTimeout(r, 50));
+    const toc = screen.getByRole("navigation", { name: /Table of contents/i });
+    // AC8 — every dashed suggested badge carries the sr-only " suggested, unvetted" word; with
+    // suggestions suppressed (fed an empty set) the gate `suggested > 0` is false on every row, so
+    // none render. The badge text would also show the `~{s}` numeral — neither is present.
+    expect(within(toc).queryByText(/suggested, unvetted/i)).toBeNull();
+    expect(within(toc).queryByText(/^~\d+$/)).toBeNull();
+    // AC11 — the curated count badge for the General row still renders (the curated clip is there):
+    // its sr-only word is " curated", proving only the SUGGESTED layer was suppressed, not curated.
+    expect(within(toc).getAllByText(/^\s*curated\s*$/i).length).toBeGreaterThan(0);
+  });
+
+  it("AC8/AC12 — the dashed suggested TOC count reappears for this viewer after override", async () => {
+    const user = userEvent.setup();
+    render(<TopicView />);
+    await waitFor(() => expect(band()).not.toBeNull());
+    await new Promise((r) => setTimeout(r, 50));
+    const toc = screen.getByRole("navigation", { name: /Table of contents/i });
+    expect(within(toc).queryByText(/suggested, unvetted/i)).toBeNull();
+    await user.click(
+      screen.getByRole("button", { name: /Show suggestions for this topic/i })
+    );
+    // After the override, the underlying suggestions present again — so the dashed `~{s}` badge
+    // (with its " suggested, unvetted" sr-only word) reappears for this viewer.
+    await waitFor(() =>
+      expect(within(toc).queryAllByText(/suggested, unvetted/i).length).toBeGreaterThan(0)
+    );
+  });
+
+  it("AC13 — the override is session-local (sessionStorage, QID-keyed) and never a DB write", async () => {
+    const user = userEvent.setup();
+    // Spy on the persisted-flag write: the override must NEVER call it (it is a pure client reveal).
+    const setFlag = vi.spyOn(store, "setTopicClosedToSuggestions");
+    render(<TopicView />);
+    await waitFor(() => expect(band()).not.toBeNull());
+    await new Promise((r) => setTimeout(r, 50));
+
+    await user.click(
+      screen.getByRole("button", { name: /Show suggestions for this topic/i })
+    );
+    await waitFor(() => expect(bandCandcards()).toBeGreaterThan(0));
+
+    // Session-local: written under a QID-scoped sessionStorage key, NOT the DB.
+    expect(window.sessionStorage.getItem(`wikiplus.suggestions-override.${QID}`)).toBe("1");
+    expect(setFlag).not.toHaveBeenCalled();
+    // Per-topic (AC13): a DIFFERENT topic B's key is untouched — overriding A never reveals B.
+    expect(
+      window.sessionStorage.getItem("wikiplus.suggestions-override.Q-other")
+    ).toBeNull();
+
+    // Reversible (AC15) clears the key rather than persisting an "off" — still no DB write.
+    await user.click(
+      screen.getByRole("button", { name: /Hide suggestions again/i })
+    );
+    await waitFor(() => expect(bandCandcards()).toBe(0));
+    expect(
+      window.sessionStorage.getItem(`wikiplus.suggestions-override.${QID}`)
+    ).toBeNull();
+    expect(setFlag).not.toHaveBeenCalled();
+  });
 });
 
 describe("Marked complete — logged-out viewer", () => {
