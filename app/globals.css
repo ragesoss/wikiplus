@@ -1164,6 +1164,19 @@ figure.wikifig .credit {
   inset: 0;
   pointer-events: none;
   overflow: hidden;
+  /* The sweep's two gradient stops are routed through tokens so the colour (not the geometry/timing)
+     can be re-themed per skin in ONE place. The light defaults are the DAYLIGHT golds verbatim — the
+     warm edge (--gold-rim #EECE87 family) and the burn-to-white crest — so the light render is
+     byte-identical. The zine-dark skin re-points the SAME tokens to a cool light-ink wash (below): a
+     warm gold daylight glow is a light-theme idea, so on dark the sweep reads as the page illuminating
+     into view in the neutral plus ink, not a stray light-theme artifact. The `-plus` variant sets a
+     touch-stronger crest (its own surface, §3.2). */
+  --scan-edge: rgb(238 206 135 / 0.42);
+  --scan-crest: rgb(255 252 246 / 0.65);
+}
+.projector-scan-plus {
+  --scan-edge: rgb(238 206 135 / 0.5);
+  --scan-crest: rgb(255 252 246 / 0.78);
 }
 .projector-scan::before {
   content: "";
@@ -1176,9 +1189,9 @@ figure.wikifig .credit {
   background: linear-gradient(
     100deg,
     transparent 0%,
-    rgb(238 206 135 / 0.42) 28%,
-    rgb(255 252 246 / 0.65) 50%,
-    rgb(238 206 135 / 0.42) 72%,
+    var(--scan-edge) 28%,
+    var(--scan-crest) 50%,
+    var(--scan-edge) 72%,
     transparent 100%
   );
   filter: blur(8px);
@@ -1187,17 +1200,6 @@ figure.wikifig .credit {
      not a projection). Slower + softer than any header animation (§3.2). */
   animation: wikiplus-projector-scan 1.8s ease-in-out infinite;
   will-change: transform;
-}
-/* The plus variant's scan is a touch stronger — this is the plus side's own surface (§3.2). */
-.projector-scan-plus::before {
-  background: linear-gradient(
-    100deg,
-    transparent 0%,
-    rgb(238 206 135 / 0.5) 28%,
-    rgb(255 252 246 / 0.78) 50%,
-    rgb(238 206 135 / 0.5) 72%,
-    transparent 100%
-  );
 }
 
 /* Pinned candidate player dock-in (design §8 / AC12): a short, subtle appear
@@ -1384,7 +1386,14 @@ figure.wikifig .credit {
   padding: 0;
   margin: 0;
   width: 100%;
-  color: #000;
+  /* The mini page is the LIT Wikipedia article ground (faithful white page the projector lights up),
+     so its serif title is faithful near-black article ink on both skins. Routed through a token
+     (rather than a hardcoded #000) so the centerpiece's one reading control is correct on dark: the
+     dark skin restores the mini page to true white (.about-theater-field --color-content-white above),
+     so the title stays the same near-black serif on white. The token's value is #000 on both skins
+     (the ground is white under both), so the light render is byte-identical. */
+  --about-title-ink: #000;
+  color: var(--about-title-ink);
   outline: none; /* at rest; focus-visible restores a ring on the wrapper below */
 }
 .about-title-input:hover {
@@ -1393,7 +1402,10 @@ figure.wikifig .credit {
   text-underline-offset: 5px;
 }
 .about-title-block:has(.about-title-input:focus-visible) {
-  outline: 3px solid var(--color-brand);
+  /* The site-default keyboard ring (light = --color-brand #676EB4; lifts to #9097d8 on dark for a
+     clear cue on the dark theater). --color-focus-ring's light value IS the brand indigo, so the
+     light render is byte-identical and this harmonizes the cue with every other focus ring in the app. */
+  outline: 3px solid var(--color-focus-ring);
   outline-offset: 2px;
 }
 .about-title-input:focus,
@@ -1832,6 +1844,11 @@ figure.wikifig .credit {
   --color-content-white: #16161d;
   --color-content-white-2: #16161d; /* the falloff midpoint flattens too, so all three illum stops resolve to --surface — a flat dark field, no white→grey beam */
   --color-header-field: #1e1e27; /* the flat header band (no cool fluorescent field) */
+  --projector-burn-bg: #1e1e27; /* the beam interior + below-burn fill flatten to the dark band, so
+     no white slab paints under the burn line. On the home host the whole Tier-A band is hidden (the
+     flat-lockup flip below), so this is belt-and-braces there; on the scroll-aware Topic host the beam
+     fades to opacity 0, so the burn-bg is masked — flattening it keeps any partial-progress frame
+     free of a white slab. The light skin keeps the #FFFFFF default (this re-point is dark-scoped). */
 
   /* Faithful Wikipedia DARK-mode article palette (spec §5). Tracks MediaWiki Vector dark mode. */
   --color-ink-article: #e8e6e3; /* body ink (≈14.6:1 on --article-bg, AAA) */
@@ -1874,6 +1891,21 @@ figure.wikifig .credit {
 /* The text-link green affordance lifts via the re-pointed --color-link token (above) for free —
    `text-link` resolves to it. */
 
+/* The /about projector-theater centerpiece is EXEMPT (spec §7.1) and that exemption is ENFORCED in
+   code here (spec §4.2): the skin globally re-points --color-content-white → #16161d (to flatten the
+   header's burn-to-white falloff to the dark page), but the centerpiece's FIXED ART reads
+   --color-content-white directly for its intentional WHITE pixels — the lit lamp "+" aperture core,
+   the mini Topic-page background, and the white clip / play-triangle / overview fills. Re-asserting
+   --color-content-white: #ffffff within the theater field returns every one of those to its committed
+   white in a SINGLE declaration, so the lit lamp "+" and the lit article miniature stay pure white on
+   dark instead of collapsing to the near-black page field. The off-state aperture "+" needs no value
+   (it reads --color-aperture-off / --color-lens-off-* tokens this skin does not re-point — its
+   dark-plus-by-geometry holds). The light skin already has --color-content-white: #ffffff, and the
+   light /about is itself a dark theater, so this is a no-op on light. */
+[data-skin="zine-dark"] .about-theater-field {
+  --color-content-white: #ffffff;
+}
+
 /* The /about projector-theater centerpiece is EXEMPT (spec §7.1): it is fixed warm-theater art on a
    light warm card, not chrome. Re-assert the committed brand hues for accent text WITHIN the theater
    field so the dark-skin text lifts above do not wash out the warm-card copy. (The theater's surface
@@ -1893,6 +1925,24 @@ figure.wikifig .credit {
 }
 [data-skin="zine-dark"] .about-theater-field .text-accred {
   color: var(--color-accred);
+}
+
+/* ── The article loading sweep (spec §5) — a COOL light-ink wash on dark, not warm daylight gold. ──
+   Re-point ONLY the scan colour tokens; the keyframe, 1.8s timing, `screen` blend, blur, and the
+   reduced-motion static-band fallback are untouched (they read these same tokens, so the static band
+   inherits the recolour for free). `screen` over the dark skeleton LIGHTENS, so the light-ink crest
+   brightens the bars as it passes — the "illuminating into view" read, in the neutral plus ink
+   (#eceaf1 family) instead of gold. The crest alpha is kept high enough to be clearly perceptible
+   over the dark skeleton (--surface-2 #1e1e27) yet stay a soft sweep, never an opaque bar. No gold on
+   dark in the loading cue (spec §8 / VI §7.3). The light skin keeps the daylight golds (the tokens'
+   defaults on .projector-scan), so the light loading state is byte-identical. */
+[data-skin="zine-dark"] .projector-scan {
+  --scan-edge: rgb(236 234 241 / 0.1);
+  --scan-crest: rgb(236 234 241 / 0.18);
+}
+[data-skin="zine-dark"] .projector-scan-plus {
+  --scan-edge: rgb(236 234 241 / 0.1);
+  --scan-crest: rgb(236 234 241 / 0.24);
 }
 
 /* The citation popover reads as a FRAMED part of the page on dark (a hair above the field), so it
@@ -1930,6 +1980,25 @@ figure.wikifig .credit {
 [data-skin="zine-dark"] .header-shared .projector-flatlockup {
   opacity: 1;
 }
+
+/* ── The HOME header treatment (spec §3) — the same FLAT "off" lockup, reaching the home host. ──────
+   The home host is the non-scroll-aware `variant="projector"` render: a `.header-projector` that is
+   NOT inside `header.header-shared`. It has no flat-slim layer and renders the LIT lockup with a
+   beam (its "+" is a transparent knockout, not a drawn white "+"), so hiding only the glow would leave
+   a transparent-cut block over the dark page. Instead reuse the committed forced-colors fallback path
+   verbatim: flip the Tier-A block off and reveal the already-shipped, already-correct flat Tier-C
+   lockup (the solid indigo "+plus" block with a DRAWN white "+", serif "Wiki" themed via
+   --wordmark-wiki-ink). This hides the descending beam, the lit-aperture glow, AND the burn-to-white
+   slab (all live in .tier-a) in one layer-visibility change, with no DOM/geometry/behavior change —
+   the §2.2 invariants hold, exactly like the @media (forced-colors: active) flip. Scoped off
+   .header-projector so it never touches the .header-shared Topic host (handled above). */
+[data-skin="zine-dark"] .header-projector:not(.header-shared .header-projector) .tier-a {
+  display: none;
+}
+[data-skin="zine-dark"] .header-projector:not(.header-shared .header-projector) .tier-c {
+  display: block;
+}
+
 /* The wordmark's serif "Wiki" ink flips to the light plus ink on the dark band; the "+plus" block
    keeps the brand-fill indigo with white "+" (AA-large, spec §6.1). The flat lockup paints its
    structural ink from the --wordmark-* vars (set on the HeaderProjector below). */

@@ -352,6 +352,17 @@ rule). The skin changes only the **treatment**, never the host or the geometry:
 - **Search field + auth:** the in-chrome `--color-link` green affordance becomes `--accent-sprout`;
   the search field border/focus uses `--hardbox-border` / `--focus-ring`; the auth trigger's
   `currentColor`-based ring adapts for free.
+- **Per host — the home host included.** The scroll-aware hosts (Topic, content `page`) carry
+  `.header-shared` and an always-present `.projector-flatlockup`, so hiding `.projector-litlockup` /
+  `.projector-beamfade` reveals the flat card directly. The **home host** is different: it is a
+  non-scroll-aware `variant="projector"` render that does **not** carry `.header-shared` and renders
+  no `.projector-flatlockup` layer — so the dark skin reaches the home header by hiding the home
+  beam + lit-aperture glow (scoped to the home Tier-A projector, not via `.header-shared`) and
+  presenting the same flat indigo "+plus" + light-ink "Wiki" lockup. The home Tier-A beam's
+  burn-to-background surface (`--projector-burn-bg`, `#FFFFFF` by default and **not** otherwise
+  re-pointed) is re-pointed to the flat dark band colour under the skin so no white slab paints below
+  the burn line. The result is a single flat dark band carrying the flat lockup at every width, no
+  beam — the same "off" read as the Topic slim state, realizing VI §6.4 for the home host.
 
 Because the flat Tier-C path is already the forced-colors and the always-present-card path, the dark
 header is a **color + layer-visibility** change only — no change to the scroll-transition behavior,
@@ -390,9 +401,23 @@ states/responsive behavior are unchanged. For the dark skin, each surface's stat
   literal `bg-white`/`text-ink` surfaces — they route through `--surface*`/`--ink-plus` and adopt
   `SiteHeader` if they have not (the universal-header rule). **`/about`** (the projector theater
   centerpiece) is a special case: it is an *intentional dark warm-theater illustration already*,
-  with its own committed `--color-theater-*` palette. **Decision:** `/about`'s centerpiece scene is
-  **exempt** from the skin (it is fixed art, not chrome); only its surrounding page chrome/header
-  follows the skin. State this so Dev does not re-theme the warm-up animation.
+  with its own committed `--color-theater-*` palette — `/about` is a dark page on *both* skins.
+  **Decision:** `/about`'s centerpiece **fixed art is exempt** from the dark skin — the warm-dark
+  room, the projector body, the lit lamp, the lit Topic-page miniature, and the warm "How it works"
+  card all keep their committed colours so the scene reads identically under both skins. This
+  exemption is **enforced**, not merely asserted: because the dark skin re-points *global* tokens the
+  centerpiece reads (notably `--color-content-white`), the centerpiece is insulated from those
+  re-points (re-assert `--color-content-white: #ffffff` within the `.about-theater-field` scope) so
+  the lit lamp "+" and the lit white miniature stay white rather than collapsing into the dark field.
+  The one centerpiece element that is a **reading control rather than fixed art — the mini-preview
+  title input (`.about-title-input`)** — reads an ink token (not a hardcoded `#000`) so its
+  near-black serif title stays legible on the (white) lit miniature on both skins, and its
+  focus-visible ring uses the shared `--focus-ring`. The article **loading sweep** (`.projector-scan`)
+  is the one centerpiece-adjacent treatment that *is* re-coloured on dark: its warm daylight gold
+  becomes a cool light-ink wash so it reads as the dark page illuminating into view (keyframes/timing
+  and the reduced-motion static-band fallback unchanged). Dev does **not** re-theme the warm-up
+  animation or invert the theater into a charcoal page. (Resolved per issue #156; full contract in
+  `docs/design/dark-mode-cleanup.md`.)
 
 ### 7.2 Responsive (mobile / tablet / desktop)
 
