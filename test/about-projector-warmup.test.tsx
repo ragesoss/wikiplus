@@ -486,6 +486,46 @@ describe("height-aware gate — the full scene needs ≥ lg wide AND ≥ 820px t
     ).toBeGreaterThanOrEqual(1);
   });
 
+  // Issue #166: the card's `xl:` overlay classes and the section's `xl:block` are correct ONLY for the
+  // full poster scene (which parks the miniature off to the right). They must be GATED on `fullScene`,
+  // not on width alone — otherwise on a ≥ xl-wide BUT < 820-tall viewport (the width MQ passes, the
+  // height gate fails → the fallback renders) the absolute card overlays and obscures the in-flow lone
+  // miniature. Assert the layout is the STACKED form (no `xl:absolute`/`xl:block`) when the fallback
+  // renders, regardless of width.
+  it("wide-but-short fallback → card stays stacked (no xl: overlay classes) — issue #166", async () => {
+    setMatchMedia({ reduce: false, fullScene: false });
+    const { container } = render(<Centerpiece />);
+    await act(async () => {});
+    const section = container.querySelector("section[aria-label]")!;
+    // The section is a stacked flex column, NOT the xl: overlay context.
+    expect(section).toHaveClass("flex");
+    expect(section).not.toHaveClass("xl:block");
+    // The card must carry only the stacked classes — none of the absolute-overlay positioning that
+    // would drop it on top of the centered fallback miniature.
+    const card = container.querySelector(".how-it-works-card")!;
+    expect(card).not.toBeNull();
+    expect(card).not.toHaveClass("xl:absolute");
+    expect(card).not.toHaveClass("xl:left-[2.5%]");
+    expect(card).not.toHaveClass("xl:max-w-none");
+    // It keeps the stacked reading-measure classes.
+    expect(card).toHaveClass("mx-auto");
+    expect(card).toHaveClass("max-w-[560px]");
+  });
+
+  it("full scene → section + card carry the xl: overlay layout classes", async () => {
+    setMatchMedia({ reduce: false, fullScene: true });
+    const { container } = render(<Centerpiece />);
+    await act(async () => {});
+    const section = container.querySelector("section[aria-label]")!;
+    // The full scene IS the xl: overlay positioning context.
+    expect(section).toHaveClass("xl:block");
+    // The card carries the absolute-overlay classes (correct only here, where the miniature is parked
+    // off to the right in the scaled scene).
+    const card = container.querySelector(".how-it-works-card")!;
+    expect(card).toHaveClass("xl:absolute");
+    expect(card).toHaveClass("xl:max-w-none");
+  });
+
   it("the two gates are independent — reduced motion does not change WHICH stage renders (§4.4)", async () => {
     // Reduced motion ON but wide-AND-tall → still the full scene (motion gates appearance, not layout).
     setMatchMedia({ reduce: true, fullScene: true });
