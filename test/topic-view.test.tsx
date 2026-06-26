@@ -186,15 +186,14 @@ describe("TopicView — empty state (AC14, AC16, AC20)", () => {
     });
   });
 
-  it("renders the empty ＋plus panel (volume + browse) when the store has no clips (AC20)", async () => {
+  it("renders the empty ＋plus card (volume block) when the store has no clips (AC20)", async () => {
     render(<TopicView />);
-    // The redesigned panel shows the dashed volume panel with 'uncurated videos' label,
-    // then the primary Browse scroll button (plus-overview-redesign §6.1).
+    // The card shows the dashed volume panel with the 'uncurated videos' label. There is no
+    // Browse/Jump scroll button and no curate button (design overview-card-cleanup.md §3.2/§3.3).
     await screen.findByText("uncurated videos");
     expect(
-      screen.getByRole("button", { name: "Browse suggested videos" })
-    ).toBeInTheDocument();
-    // No curate button — secondary block removed.
+      screen.queryByRole("button", { name: /Browse suggested videos/i })
+    ).toBeNull();
     expect(screen.queryByRole("button", { name: "＋ Curate a video" })).toBeNull();
   });
 

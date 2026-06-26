@@ -10,9 +10,8 @@ import type { ArticleSection } from "@/lib/data/types";
 // first, matching the body order). A solid indigo `{c}` is the curated count; a
 // dashed-outline violet `~{s}` is the suggested (unvetted) count. Each badge carries
 // an `sr-only` word ("curated" / "suggested, unvetted") so the meaning is in the
-// accessible name, never color/border-style alone (AC12/AC15). A zero-on-both SECTION
-// row shows the muted "no video" text badge; the band/General row conveys its own
-// emptiness in the band.
+// accessible name, never color/border-style alone (AC12/AC15). A row with neither a
+// curated nor a suggested video shows just its title — no trailing badge.
 export interface TocEntry {
   slug: string; // "__general" for the band row
   title: string;
@@ -63,12 +62,11 @@ export function Toc({
                   {isBand ? "＋ General" : e.title}
                 </span>
                 {/* The badge cluster (§5.2): curated-first, then suggested. Both render
-                    where a row has both; either alone where a row has only one. A
-                    zero-on-both SECTION row gets the muted "no video" text badge so the
-                    absence of a curated video is an explicit, text-labeled signal — never
-                    silence, never color alone (article-fidelity #27 D5; AC15). The
-                    ＋General band row conveys its own emptiness in the band itself. */}
-                {hasCurated || hasSuggested ? (
+                    where a row has both; either alone where a row has only one. A row with
+                    NEITHER a curated nor a suggested video shows just its title — no trailing
+                    badge (the TOC is article navigation with optional video counts; a per-row
+                    "no video" label is unnecessary). */}
+                {(hasCurated || hasSuggested) && (
                   <span className="flex shrink-0 items-center gap-1">
                     {hasCurated && (
                       <span
@@ -89,12 +87,6 @@ export function Toc({
                       </span>
                     )}
                   </span>
-                ) : (
-                  !isBand && (
-                    <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide text-muted">
-                      no video
-                    </span>
-                  )
                 )}
               </a>
             </li>
