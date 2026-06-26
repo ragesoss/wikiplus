@@ -30,8 +30,10 @@ offset shadow), echoing the hero's video-then-card pattern per tile:
   - **Caption** (bold ink, 2-line clamp).
   - **`@creator · platform`** (muted, one line).
   - **Stance + accuracy chips + the upvote tag** — one inline row (unchanged chips/upvote).
-  - **Curator note — kept BORDERED** (2px `hardbox`, `surface-2` fill) as the emphasised key info.
-    2-line clamp. No "Curator note" eyebrow (the border + the curator badge signal it — compact).
+  - **Curator note — the plus-rail's quote treatment** (a left indigo bar `border-l-4 border-brand`
+    over a tinted `surface-2` fill + the "Curator note" eyebrow), so the General strip and the plus
+    rail read consistently in their basic styling. 2-line clamp; the curator credit is the corner
+    badge (§2.1).
   - The standard owner Edit/Delete, ReviewRow, and "★ Make hero" controls follow (unchanged, still
     gated), below the note.
 
