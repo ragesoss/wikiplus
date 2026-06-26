@@ -82,7 +82,7 @@
   {
     "id": "topic-complete-overview",
     "group": "Topic · marked complete",
-    "label": "＋plus panel — marked complete (indicator + curator control)",
+    "label": "＋plus card — marked complete (thin cap + counts + Reopen)",
     "viewport": "desktop",
     "auth": "in",
     "skin": "light",
@@ -92,7 +92,7 @@
   {
     "id": "topic-complete-overview",
     "group": "Topic · marked complete",
-    "label": "＋plus panel — marked complete (indicator + curator control)",
+    "label": "＋plus card — marked complete (thin cap + counts + Reopen)",
     "viewport": "desktop",
     "auth": "in",
     "skin": "zine-dark",
@@ -102,7 +102,7 @@
   {
     "id": "topic-complete-overview",
     "group": "Topic · marked complete",
-    "label": "＋plus panel — marked complete (indicator + curator control)",
+    "label": "＋plus card — marked complete (thin cap + counts + Reopen)",
     "viewport": "tablet",
     "auth": "in",
     "skin": "light",
@@ -112,7 +112,7 @@
   {
     "id": "topic-complete-overview",
     "group": "Topic · marked complete",
-    "label": "＋plus panel — marked complete (indicator + curator control)",
+    "label": "＋plus card — marked complete (thin cap + counts + Reopen)",
     "viewport": "tablet",
     "auth": "in",
     "skin": "zine-dark",
@@ -132,7 +132,7 @@
   {
     "id": "topic-complete-zero-video",
     "group": "Topic · marked complete",
-    "label": "Topic — complete + zero curated videos (minimal render)",
+    "label": "Topic — complete + zero curated videos (band omitted, rail toggle)",
     "viewport": "desktop",
     "auth": "in",
     "skin": "light",
@@ -142,7 +142,7 @@
   {
     "id": "topic-complete-zero-video",
     "group": "Topic · marked complete",
-    "label": "Topic — complete + zero curated videos (minimal render)",
+    "label": "Topic — complete + zero curated videos (band omitted, rail toggle)",
     "viewport": "desktop",
     "auth": "in",
     "skin": "zine-dark",

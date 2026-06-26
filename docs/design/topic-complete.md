@@ -256,6 +256,11 @@ logged-out viewers (AC16). It is the skin-toggle posture, scoped tighter.
 
 ### 4.1 Where it lives + its form
 
+> **Superseded (placement only):** the toggle now lives in the **plus rail** — see
+> [`complete-toggle-rail.md`](complete-toggle-rail.md) (which supersedes both this §4.1 and the General
+> strip's trailing-item placement in `overview-card-cleanup.md` §4). The label/aria copy, brand-fill
+> treatment, gate, and override mechanics in this section are unchanged; only the surface moved.
+
 The override is the **(a) path inside the status indicator** (§3.3) — it does not float elsewhere. It
 is a bordered toggle button in the same control language as §2, but **brand-tinted to read as the
 primary path** of the indicator's two-path row (the override is the one any viewer can take):
