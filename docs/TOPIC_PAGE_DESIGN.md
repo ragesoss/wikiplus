@@ -290,13 +290,14 @@ complete topic with zero curated videos reads as a near-plain article with a min
 It is **orthogonal** to the derived model: it does not rename or change the three states, only
 suppresses their suggestion presentation; with the flag off, the derived behavior is exactly as
 defined here. Any viewer (including logged-out) can opt back in for themselves with a session-local
-**"show suggestions anyway"** reveal — the **trailing item in the General strip's scroll row** (to
-the right of the curated videos), which also carries the calm "marked complete" note; when complete
-with zero curated videos, a minimal band holds just that toggle. The signed-in curator's mark/reopen
-control lives at the foot of the trimmed ＋plus Overview card (a thin indigo cap, no wordmark text,
-no Browse/Jump button). See [`docs/specs/topic-complete.md`](specs/topic-complete.md),
+**"show suggestions anyway"** reveal — a **card in the plus rail**, after the last curated rail card
+(or the rail's first item when there are none), which also carries the calm "marked complete" note.
+A complete topic with zero General-overview curated videos **omits the General band** (it has nothing
+to show); the reveal's home is the rail. The signed-in curator's mark/reopen control lives at the foot
+of the trimmed ＋plus Overview card (a thin indigo cap, no wordmark text, no Browse/Jump button). See
+[`docs/specs/topic-complete.md`](specs/topic-complete.md),
 [`docs/design/topic-complete.md`](design/topic-complete.md), and
-[`docs/design/overview-card-cleanup.md`](design/overview-card-cleanup.md).
+[`docs/design/complete-toggle-rail.md`](design/complete-toggle-rail.md).
 
 **Priority + ordering (owner-fixed).** Curated content always sorts and renders **before**
 suggestions — in the General band (curated group → `Suggested · uncurated` divider → capped

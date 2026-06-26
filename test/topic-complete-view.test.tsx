@@ -12,13 +12,13 @@ import type { Clip } from "@/lib/data/types";
 //               viewer; AC11: curated content still renders.
 //   - AC12/AC15: the per-viewer "Show suggestions anyway" override reveals suggestions in place and
 //               is reversible.
-//   - The reader-facing completion signal + the reveal live in the General strip's TRAILING TOGGLE
-//     (design overview-card-cleanup.md) — the honest "Marked complete" copy + the show/hide button —
-//     NOT in the wiki+ Overview card.
+//   - The reader-facing completion signal + the reveal live in the PLUS RAIL (design
+//     complete-toggle-rail.md) — the honest "Marked complete" copy + the show/hide button — after the
+//     curated rail cards, NOT in the General strip and NOT in the wiki+ Overview card.
 //   - AC4/AC16: a signed-in curator sees the mark/un-mark control (card foot); a logged-out viewer
 //               sees no mutating control but can still override.
-//   - A complete + zero-curated topic renders a MINIMAL band holding just the toggle (not an omitted
-//     band) so the reveal always has a home; the article stays calm.
+//   - A complete + zero-curated topic OMITS the General band (it would carry only suppressed
+//     suggestion chrome); the reveal toggle lives in the rail, and the article stays calm.
 //
 // Harness mirrors test/coexistence.test.tsx: it drives the UNCURATED seed topic (Cellular
 // respiration, Q189603) with the SAME general-matching YouTube captions that test proves produce
@@ -160,6 +160,33 @@ function band(): HTMLElement | null {
 function bandCandcards(): number {
   return band()?.querySelectorAll(".candcard").length ?? 0;
 }
+// The plus rail is the only labelled `complementary` region ("wiki+ … videos"); the Overview-card
+// aside carries no accessible name, so the name filter resolves the rail unambiguously.
+function rail(): HTMLElement {
+  return screen.getByRole("complementary", { name: /wiki\+/i });
+}
+
+// A SECTION-anchored curated clip (NOT general) → it lands in the plus rail as a ClipCard, so the
+// relocated toggle has a "last curated rail card" to sit after (AC2).
+function sectionClip(): Omit<Clip, "id" | "createdAt"> {
+  return {
+    topicQid: QID,
+    platform: "youtube",
+    platformLabel: "YouTube",
+    orientation: "horizontal",
+    watchUrl: "https://www.youtube.com/watch?v=section1",
+    embedUrl: "https://www.youtube-nocookie.com/embed/section1",
+    caption: "A curated glycolysis clip",
+    creator: { handle: "@teacher", name: "Teacher", platform: "youtube" },
+    general: false,
+    sectionSlug: "glycolysis",
+    sectionLabel: "Glycolysis",
+    stance: "explainer",
+    accuracyFlag: "accurate",
+    contextNote: "A clear look at glycolysis.",
+    curatedBy: "@teacher",
+  };
+}
 
 describe("Marked complete — default suppression (mixed: curated + suggestions)", () => {
   beforeEach(async () => {
@@ -190,22 +217,24 @@ describe("Marked complete — default suppression (mixed: curated + suggestions)
     expect(screen.queryByText(/\d+ curated ·/i)).toBeNull();
   });
 
-  it("the completion signal + reveal live in the strip's trailing toggle, not the card", async () => {
+  it("AC1 — the completion signal + reveal live in the plus rail, not the band or the Overview card", async () => {
     render(<TopicView />);
-    // "Marked complete" + the honest body line now live in the strip's trailing toggle card.
+    // "Marked complete" + the honest body line live in the RAIL's toggle card.
     await waitFor(() =>
-      expect(within(band()!).getByText(/Marked complete/i)).toBeTruthy()
+      expect(within(rail()).getByText(/Marked complete/i)).toBeTruthy()
     );
     expect(
-      within(band()!).getByText(
+      within(rail()).getByText(
         /A curator marked this complete, so suggestions are hidden/i
       )
     ).toBeTruthy();
-    // The reveal toggle (any viewer) is present.
+    // The reveal toggle (any viewer) is present — in the rail.
     expect(
-      screen.getByRole("button", { name: /Show suggestions for this topic/i })
+      within(rail()).getByRole("button", { name: /Show suggestions for this topic/i })
     ).toBeTruthy();
-    // The signal lives ONLY in the band now — it is not duplicated in the Overview card.
+    // NOT in the General band (the band is the video showcase, no complete-state control).
+    expect(within(band()!).queryByText(/Marked complete/i)).toBeNull();
+    // The signal is not duplicated — only the rail (the Overview card carries no status notice).
     expect(screen.getAllByText(/Marked complete/i)).toHaveLength(1);
   });
 
@@ -300,6 +329,100 @@ describe("Marked complete — default suppression (mixed: curated + suggestions)
   });
 });
 
+describe("Marked complete — toggle placement in the rail (AC2)", () => {
+  beforeEach(async () => {
+    // A SECTION-anchored curated clip → a ClipCard in the rail; mark complete so the toggle renders.
+    await store.addClip(sectionClip());
+    await store.setTopicClosedToSuggestions(QID, true);
+  });
+
+  it("AC2 — the toggle card follows the last curated rail ClipCard in DOM order", async () => {
+    render(<TopicView />);
+    // The curated section clip's curator-note text is the rail ClipCard's stable visible anchor.
+    await waitFor(() =>
+      expect(within(rail()).getByText(/A clear look at glycolysis/i)).toBeTruthy()
+    );
+    const railEl = rail();
+    const curatedCard = within(railEl).getByText(/A clear look at glycolysis/i);
+    const toggleBtn = within(railEl).getByRole("button", {
+      name: /Show suggestions for this topic/i,
+    });
+    // The toggle FOLLOWS the curated rail card (AC2 — "after the last curated video").
+    expect(
+      curatedCard.compareDocumentPosition(toggleBtn) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+  });
+
+  // AC6 edge — the orchestrator-flagged "only SECTION clips, no general curated video" suppressed
+  // case. `generalClips.length === 0` (the section clip is `general:false`), so the band-omission
+  // guard `suppressSuggestions && generalClips.length === 0` fires: the band must be OMITTED (it would
+  // carry only suppressed suggestion chrome) while the rail's curated ClipCard + toggle still render.
+  it("AC6 — only section curated clips (zero general) + suppressed: the General band is omitted, the rail keeps its card + toggle", async () => {
+    render(<TopicView />);
+    await waitFor(() =>
+      expect(within(rail()).getByText(/A clear look at glycolysis/i)).toBeTruthy()
+    );
+    // Give the suppressed candidate pipeline a tick — it must not resurrect the band.
+    await new Promise((r) => setTimeout(r, 50));
+    expect(band()).toBeNull(); // band OMITTED (no general curated video, suggestions suppressed)
+    expect(
+      within(rail()).getByRole("button", { name: /Show suggestions for this topic/i })
+    ).toBeTruthy(); // the rail toggle is still the reveal's home
+  });
+
+  // The matching keep-path: overriding at zero-general/only-section-clips lifts suppression and the
+  // band reappears with its (general-matching) candidate tiles — proving omission is purely the
+  // suppressed-empty guard, never a permanent removal.
+  it("AC12 — overriding at only-section-clips reveals the General band (with its suggestion tiles) in place", async () => {
+    const user = userEvent.setup();
+    render(<TopicView />);
+    await waitFor(() =>
+      expect(
+        within(rail()).getByRole("button", { name: /Show suggestions for this topic/i })
+      ).toBeTruthy()
+    );
+    expect(band()).toBeNull();
+    await user.click(
+      within(rail()).getByRole("button", { name: /Show suggestions for this topic/i })
+    );
+    await waitFor(() => expect(band()).not.toBeNull());
+    await waitFor(() => expect(bandCandcards()).toBeGreaterThan(0));
+  });
+});
+
+// AC7 — a complete topic with ZERO underlying suggestions shows the toggle NOWHERE (it never promises
+// a reveal it can't deliver). The harness here returns zero YouTube items, so `liveCandidates` is
+// empty → `hasUnderlyingSuggestions` is false → the rail gate `closedToSuggestions &&
+// hasUnderlyingSuggestions` is false. This is the orchestrator-flagged AC7 surface (previously
+// untested through TopicView).
+describe("Marked complete + ZERO underlying suggestions — no toggle anywhere (AC7)", () => {
+  beforeEach(async () => {
+    // Override the default suggesting mock: zero candidate items → nothing to reveal.
+    mockYtSearch([]);
+    await store.addClip(generalClip()); // a curated video so the band still renders (fully-curated)
+    await store.setTopicClosedToSuggestions(QID, true);
+  });
+
+  it("AC7 — no reveal toggle in the rail, the band, or anywhere; no 'Marked complete' card", async () => {
+    render(<TopicView />);
+    // The curated band renders (fully-curated), proving the page mounted past the suppressed pipeline.
+    await waitFor(() => expect(band()).not.toBeNull());
+    await new Promise((r) => setTimeout(r, 50));
+    // No underlying suggestion to reveal → the toggle is omitted EVERYWHERE.
+    expect(
+      screen.queryByRole("button", { name: /Show suggestions for this topic/i })
+    ).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: /Hide suggestions again/i })
+    ).toBeNull();
+    // The rail toggle CARD (its honest "Marked complete" framing) is not rendered either.
+    expect(screen.queryByText(/A curator marked this complete, so suggestions are hidden/i)).toBeNull();
+    // No band candidate tiles (suppressed AND none exist anyway).
+    expect(bandCandcards()).toBe(0);
+  });
+});
+
 describe("Marked complete — logged-out viewer", () => {
   beforeEach(async () => {
     signedIn = false;
@@ -322,42 +445,43 @@ describe("Marked complete — logged-out viewer", () => {
   });
 });
 
-describe("Marked complete + zero curated videos — minimal render (AC18)", () => {
+describe("Marked complete + zero curated videos — band omitted, rail toggle (AC6/AC8)", () => {
   beforeEach(async () => {
     // No curated clip added — Q189603 is the uncurated seed topic. Mark complete.
     await store.setTopicClosedToSuggestions(QID, true);
   });
 
-  it("renders a minimal band holding just the toggle (no candidate tiles), article stays calm (AC8)", async () => {
+  it("omits the General band entirely; the reveal toggle is the rail's first item; the article stays calm", async () => {
     render(<TopicView />);
-    await waitFor(() => expect(band()).not.toBeNull());
+    // The rail toggle is the reveal's home (the rail's first item — there are no curated cards).
+    await waitFor(() =>
+      expect(
+        within(rail()).getByRole("button", { name: /Show suggestions for this topic/i })
+      ).toBeTruthy()
+    );
+    // Give the (suppressed) candidate pipeline a tick — it must NOT resurrect the band.
     await new Promise((r) => setTimeout(r, 50));
-    // The minimal band carries the toggle card but NO candidate tiles / suggestion bootstrap chrome.
-    expect(within(band()!).getByText(/Marked complete/i)).toBeTruthy();
-    expect(bandCandcards()).toBe(0);
-    expect(within(band()!).queryByText("＋ Suggested videos")).toBeNull();
-    expect(within(band()!).queryByText("uncurated")).toBeNull();
-    expect(
-      screen.getByRole("button", { name: /Show suggestions for this topic/i })
-    ).toBeTruthy();
-    // A finished topic offers no "add more": the curator find-more (＋ Add video) is suppressed in
-    // the minimal band, even for a signed-in curator (they reopen first to add).
+    // The band is OMITTED (no near-empty shell, no minimal band, no candidate tiles / bootstrap chrome).
+    expect(band()).toBeNull();
+    expect(within(rail()).getByText(/Marked complete/i)).toBeTruthy();
+    // A finished topic offers no "add more": no ＋ Add video anywhere, even for a signed-in curator.
     expect(screen.queryByRole("button", { name: /Add video/i })).toBeNull();
     // The article column still renders normally.
     expect(screen.getByText(/Lead text here/i)).toBeTruthy();
   });
 
-  it("the override reveals the band in place even at zero curated videos", async () => {
+  it("AC12 — the override reveals the band (and its suggestions) in place even at zero curated videos", async () => {
     const user = userEvent.setup();
     render(<TopicView />);
     await waitFor(() =>
       expect(
-        screen.getByRole("button", { name: /Show suggestions for this topic/i })
+        within(rail()).getByRole("button", { name: /Show suggestions for this topic/i })
       ).toBeTruthy()
     );
     await user.click(
-      screen.getByRole("button", { name: /Show suggestions for this topic/i })
+      within(rail()).getByRole("button", { name: /Show suggestions for this topic/i })
     );
+    // Override on → suppression lifts → the band reappears with its general candidate tiles.
     await waitFor(() => expect(band()).not.toBeNull());
     await waitFor(() => expect(bandCandcards()).toBeGreaterThan(0));
   });
@@ -373,5 +497,23 @@ describe("Not marked complete — baseline unchanged", () => {
     expect(
       screen.getByRole("button", { name: /Mark this topic complete/i })
     ).toBeTruthy();
+  });
+
+  // AC8 — read-path parity: a not-complete topic carries NO reveal toggle anywhere (the toggle is a
+  // complete-only surface, gated on `closedToSuggestions`). Strengthens the "no regression" check by
+  // asserting the button and its honest framing are absent in both the band and the rail.
+  it("AC8 — a not-complete topic renders no reveal toggle (button or framing) anywhere", async () => {
+    render(<TopicView />);
+    await waitFor(() => expect(band()).not.toBeNull());
+    await waitFor(() => expect(bandCandcards()).toBeGreaterThan(0));
+    expect(
+      screen.queryByRole("button", { name: /Show suggestions for this topic/i })
+    ).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: /Hide suggestions again/i })
+    ).toBeNull();
+    expect(
+      screen.queryByText(/A curator marked this complete, so suggestions are hidden/i)
+    ).toBeNull();
   });
 });

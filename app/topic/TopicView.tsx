@@ -29,6 +29,7 @@ import { EditModal } from "@/components/topic/EditModal";
 import type { ClipEditFormPatch } from "@/components/topic/curate-clip";
 import type { SubmitOutcome } from "@/components/topic/useCurateSubmit";
 import { GeneralStrip } from "@/components/topic/GeneralStrip";
+import { CompleteToggleCard } from "@/components/topic/CompleteToggleCard";
 import { Infobox } from "@/components/topic/Infobox";
 import { PlusAsideSkeleton, PlusBandSkeleton } from "@/components/topic/PlusSkeleton";
 import { PinnedPlayer, type PinnedClip } from "@/components/topic/PinnedPlayer";
@@ -1940,28 +1941,23 @@ export function TopicView() {
           when it resolves. Shows while `!storeReady`, matching the plus-aside skeleton above. */}
       {!storeReady && <PlusBandSkeleton />}
 
-      {/* General / Suggested band — full bleed (the one crossover). On a COMPLETE + zero-curated
-          topic that STILL has an underlying suggestion to reveal, the band is KEPT and renders its
-          minimal face: the scroll row holds just the "show suggestions anyway" toggle (design
-          overview-card-cleanup.md §4.3), so the reveal always has a home right where the videos live.
-          The band is OMITTED only when there is TRULY nothing to present — suppressing, no curated
-          clips, no shown suggestions, no in-flight search, AND no underlying suggestion to offer the
-          toggle (a genuinely empty complete topic → a near-plain article). In every non-suppressing
-          case the band renders exactly as before (its own empty/mixed/fully-curated faces — including
-          the genuine empty "No videos found" zero face — are untouched). */}
+      {/* General / Suggested band — full bleed (the one crossover). It is OMITTED on a marked-complete
+          topic that, with suggestions suppressed for this viewer, has NO General-overview curated
+          video: the band would carry only suppressed suggestion chrome, and the "show suggestions
+          anyway" reveal lives in the plus rail (below), not here (design complete-toggle-rail.md §5).
+          In every non-suppressing case — and whenever the band has General curated videos — it renders
+          exactly as before (its own empty/mixed/fully-curated faces, including the genuine "No videos
+          found" zero face, untouched). */}
       {storeReady &&
-        !(
-          suppressSuggestions &&
-          !hasCurated &&
-          !hasSuggestions &&
-          !candidatesLoading &&
-          !hasUnderlyingSuggestions
-        ) && (
+        !(suppressSuggestions && generalClips.length === 0) && (
         <GeneralStrip
           topicTitle={canonicalTitle}
           generalClips={generalClips}
           generalCandidates={generalCandidates}
-          loading={candidatesLoading}
+          /* A suppressed (marked-complete, not-overridden) band shows NO suggestion chrome at all —
+             including the candidate-loading skeleton — so the loading signal is gated off when
+             suppressing (design complete-toggle-rail.md §5). */
+          loading={suppressSuggestions ? false : candidatesLoading}
           prefersReduced={prefersReduced.current}
           onPlay={playClip}
           onPlayCandidate={playCandidate}
@@ -1999,18 +1995,11 @@ export function TopicView() {
           onSetHero={setHero}
           onClearHero={clearHero}
           settingHero={settingHero}
-          /* Marked-complete (design overview-card-cleanup.md §4). `suppressed` (= complete AND this
+          /* Marked-complete (design complete-toggle-rail.md §5). `suppressed` (= complete AND this
              viewer hasn't overridden) hides the curator find-more controls — a finished topic offers
              no "add more". The reader-facing completion signal + the per-viewer "show suggestions
-             anyway" reveal are the strip's TRAILING row item: `complete` drives its presence,
-             `hasUnderlyingSuggestions` gates it (never a reveal that shows nothing), `onToggleOverride`
-             flips the same session-local, per-topic, client-only override (the strip derives the
-             reveal's on/off label from `complete && !suppressed`). */
+             anyway" reveal are NOT here: they live as a card in the plus rail (below). */
           suppressed={suppressSuggestions}
-          complete={closedToSuggestions}
-          overridden={viewerOverride === true}
-          hasUnderlyingSuggestions={hasUnderlyingSuggestions}
-          onToggleOverride={toggleOverride}
         />
       )}
 
@@ -2211,6 +2200,20 @@ export function TopicView() {
                 }}
               />
             ))}
+            {/* Marked-complete "show suggestions anyway" reveal (design complete-toggle-rail.md). It
+                sits in the rail AFTER the curated section ClipCards — or, when there are none, as the
+                rail's first item (same DOM position). When this viewer overrides, the revealed
+                suggestion set (CandidateSetHeader + cards) appears below it, so the toggle reads as the
+                divider between curated and revealed. Shown iff the topic is complete AND has ≥1
+                underlying suggestion to reveal (never a reveal that shows nothing — topic-complete §4.4);
+                its label/treatment follows the per-viewer override, and activating it flips the same
+                session-local, per-topic, client-only override the band/TOC re-derive from. */}
+            {closedToSuggestions && hasUnderlyingSuggestions && (
+              <CompleteToggleCard
+                overridden={viewerOverride === true}
+                onToggle={toggleOverride}
+              />
+            )}
             {/* #14 AC5 / issue #60 §2.2/§5.3: the one-time "unvetted set" header introduces
                 the rail suggestion subset ONCE. Its gate is now "≥1 rail suggestion" — NOT
                 `mode === "empty"` — so it sits BETWEEN the curated group and the suggestion

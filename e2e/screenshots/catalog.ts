@@ -567,9 +567,9 @@ async function articleExpandSection(page: Page, name: RegExp): Promise<void> {
  *  left this topic complete (shared seeded DB, no per-scene reset), reopen it first so the subsequent
  *  mark always produces a fresh, captured complete state. The confirm signal is the foot control
  *  flipping to "Reopen to suggestions" — present for any signed-in curator on a complete topic
- *  regardless of whether suggestions exist (the reader-facing "Marked complete" note now lives only
- *  in the strip's trailing toggle, which is absent on a fully-curated complete topic). Leaves the
- *  page in the suppressed complete state (the default view). */
+ *  regardless of whether suggestions exist (the reader-facing "Marked complete" note lives in the plus
+ *  rail's toggle card, which is absent on a fully-curated complete topic). Leaves the page in the
+ *  suppressed complete state (the default view). */
 async function markComplete(page: Page): Promise<void> {
   await topicReady(page);
   const reopen = page.getByRole("button", {
@@ -895,12 +895,13 @@ export const SCENES: Scene[] = [
     clip: SEL_GENERAL,
   },
 
-  // ── Topic · marked complete (design overview-card-cleanup.md, revising #159) ──
+  // ── Topic · marked complete (design complete-toggle-rail.md, revising #159) ──
   // A curator-set topic flag that suppresses the suggestion layer by default. The trimmed ＋plus
   // Overview card carries the signed-in curator mark/reopen control at its foot; the reader-facing
-  // "marked complete" note + the per-viewer "show suggestions anyway" reveal are the trailing item in
-  // the General strip's scroll row. These scenes drive the complete state THROUGH the real UI
-  // (signed-in `markComplete`), so the shots show the genuinely persisted, suppressed state.
+  // "marked complete" note + the per-viewer "show suggestions anyway" reveal are a card in the plus
+  // rail (after the last curated rail card, or the rail's first item when there are none). These
+  // scenes drive the complete state THROUGH the real UI (signed-in `markComplete`), so the shots show
+  // the genuinely persisted, suppressed state.
   //
   // DB-STATE NOTE for the capture run (Operations): `markComplete` writes the persisted flag via the
   // role-gated Server Action against the shared seeded Postgres, which has no per-scene reset
@@ -929,7 +930,7 @@ export const SCENES: Scene[] = [
     id: "topic-complete-suppressed",
     group: "Topic · marked complete",
     label: "Topic — complete, suppressed (full page)",
-    note: "A complete topic reads as a near-plain article: curated content stays; no candidate tiles, no 'Suggested · uncurated' divider/header, no dashed TOC counts. The reader-facing 'marked complete' note + the reveal toggle are the trailing item at the end of the General strip's scroll row.",
+    note: "A complete topic reads as a near-plain article: curated content stays; no candidate tiles, no 'Suggested · uncurated' divider/header, no dashed TOC counts. The reader-facing 'marked complete' note + the reveal toggle are a card in the plus rail, after the last curated rail card.",
     route: "/topic/Photosynthesis/",
     stub: "curated",
     auth: ["in"],
@@ -942,8 +943,8 @@ export const SCENES: Scene[] = [
     id: "topic-complete-zero-video",
     skins: ["light", "zine-dark"],
     group: "Topic · marked complete",
-    label: "Topic — complete + zero curated videos (minimal band)",
-    note: "Complete with no curated videos: a near-plain article + a MINIMAL General band whose scroll row holds just the 'Show suggestions anyway' toggle card (and, signed-in, the quiet ＋ Add video). The Overview card dials down to its cap + Reopen. Not blank, not broken.",
+    label: "Topic — complete + zero curated videos (band omitted, rail toggle)",
+    note: "Complete with no curated videos: a near-plain article with the General band OMITTED (it would carry only suppressed suggestion chrome). The 'Show suggestions anyway' toggle card is the plus rail's first item. The Overview card dials down to its cap + Reopen. Not blank, not broken.",
     route: "/topic/Cellular_respiration/",
     stub: "suggestions",
     auth: ["in"],
@@ -956,7 +957,7 @@ export const SCENES: Scene[] = [
     id: "topic-complete-overridden",
     group: "Topic · marked complete",
     label: "Topic — complete, per-viewer override ON (suggestions revealed)",
-    note: "After 'Show suggestions anyway': the normal derived state reappears in place for this viewer; the strip's trailing toggle now reads 'Hide suggestions again'. Session-local, never changes the stored default.",
+    note: "After 'Show suggestions anyway': the normal derived state reappears in place for this viewer; the rail's toggle card now reads 'Hide suggestions again', sitting between the curated cards and the revealed suggestion set. Session-local, never changes the stored default.",
     route: "/topic/Cellular_respiration/",
     stub: "suggestions",
     auth: ["in"],
