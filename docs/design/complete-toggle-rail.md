@@ -73,11 +73,13 @@ border-l-brand` accent rule + the `2px 2px 0 hardbox-offset` offset shadow. A ve
 - The strip **no longer renders** the completion toggle, its "Marked complete" card, or the
   **minimal-band** face that existed only to host the lone toggle at zero curated videos.
 - On a complete topic with **zero General-overview curated videos and suppressed suggestions, the
-  General band is omitted** (it has nothing to show) rather than rendered as a near-empty shell — the
-  reveal now has its home in the rail. The band still renders normally whenever it has General curated
-  videos (or a candidate fetch is in flight).
-- The strip's `suppressed` behavior is **unchanged**: on a complete topic the curator find-more cluster
-  (Search-platform links + ＋ Add video) stays hidden — a finished topic offers no "add more".
+  General band is omitted** (it would carry only suppressed suggestion chrome) rather than rendered as a
+  near-empty shell — the reveal now has its home in the rail. The band still renders normally whenever
+  it has General curated videos.
+- A **suppressed** band shows **no suggestion chrome at all** — the curator find-more cluster
+  (Search-platform links + ＋ Add video) stays hidden (a finished topic offers no "add more"), **and**
+  the candidate-loading skeleton is gated off (a "looking for suggestions" signal contradicts a topic
+  whose suggestions are suppressed).
 
 ## 6. Behavior (unchanged mechanics — `topic-complete.md` §4.2)
 
