@@ -556,17 +556,20 @@ async function articleExpandSection(page: Page, name: RegExp): Promise<void> {
   await page.waitForTimeout(400); // let the reveal lay out + the overflow observers flag the table
 }
 
-// ── Marked complete / closed to suggestions (issue #159) ──
-// The curator mark/un-mark control lives at the foot of the ＋plus panel and renders SIGNED-IN only,
-// so these scenes run the signed-in arm and drive the complete state THROUGH the real control (a UI
-// click that persists via the role-gated Server Action). Idempotent: if the topic is already marked
-// complete (a prior scene in the same seeded DB), the control reads "Reopen to suggestions" and we
-// skip the click — the page is already in the suppressed complete state either way.
+// ── Marked complete / closed to suggestions (design overview-card-cleanup.md, revising #159) ──
+// The curator mark/un-mark control lives at the foot of the ＋plus Overview card and renders
+// SIGNED-IN only, so these scenes run the signed-in arm and drive the complete state THROUGH the real
+// control (a UI click that persists via the role-gated Server Action). Idempotent: if the topic is
+// already marked complete (a prior scene in the same seeded DB), the control reads "Reopen to
+// suggestions" and we skip the click — the page is already in the suppressed complete state either way.
 
-/** Mark the topic complete via the curator control, then wait for the status indicator. REOPEN-FIRST
- *  for determinism: if a prior scene left this topic complete (shared seeded DB, no per-scene reset),
- *  reopen it first so the subsequent mark always produces a fresh, captured complete state. Leaves
- *  the page in the suppressed complete state (the default view). */
+/** Mark the topic complete via the curator control. REOPEN-FIRST for determinism: if a prior scene
+ *  left this topic complete (shared seeded DB, no per-scene reset), reopen it first so the subsequent
+ *  mark always produces a fresh, captured complete state. The confirm signal is the foot control
+ *  flipping to "Reopen to suggestions" — present for any signed-in curator on a complete topic
+ *  regardless of whether suggestions exist (the reader-facing "Marked complete" note now lives only
+ *  in the strip's trailing toggle, which is absent on a fully-curated complete topic). Leaves the
+ *  page in the suppressed complete state (the default view). */
 async function markComplete(page: Page): Promise<void> {
   await topicReady(page);
   const reopen = page.getByRole("button", {
@@ -583,8 +586,11 @@ async function markComplete(page: Page): Promise<void> {
     .getByRole("button", { name: /Mark this topic complete/i })
     .first()
     .click();
-  // The status indicator ("Marked complete") confirms the suppressed complete state is rendered.
-  await page.getByText(/Marked complete/i).first().waitFor({ timeout: 8000 });
+  // The foot control flipping to "Reopen to suggestions" confirms the persisted complete state.
+  await page
+    .getByRole("button", { name: /Reopen this topic to suggestions/i })
+    .first()
+    .waitFor({ timeout: 8000 });
   await page.waitForTimeout(250);
 }
 
@@ -653,7 +659,7 @@ async function revealMobileSearch(page: Page): Promise<void> {
 const SEL_HEADER = "header.header-shared";
 const SEL_GENERAL = "#general-band";
 const SEL_TOC = 'nav[aria-label="Table of contents"]';
-const SEL_OVERVIEW = '.plus-card:has-text("on this topic")'; // the ＋plus Infobox header is unique
+const SEL_OVERVIEW = '[data-testid="plus-overview"]'; // the ＋plus Overview card (Infobox) root
 const SEL_PLAYER_MODAL = '[role="dialog"][aria-label="Video player"]';
 const SEL_PINNED = 'section[aria-label="Video preview"]';
 // The unified mobile dock (issue #120) — distinct from the desktop PinnedPlayer's "Video preview".
@@ -889,11 +895,12 @@ export const SCENES: Scene[] = [
     clip: SEL_GENERAL,
   },
 
-  // ── Topic · marked complete (issue #159) ──
-  // A curator-set topic flag that suppresses the suggestion layer by default. The control + the
-  // status indicator live in the ＋plus panel; the override is the indicator's path (a). These
-  // scenes drive the complete state THROUGH the real UI (signed-in `markComplete`), so the shots
-  // show the genuinely persisted, suppressed state.
+  // ── Topic · marked complete (design overview-card-cleanup.md, revising #159) ──
+  // A curator-set topic flag that suppresses the suggestion layer by default. The trimmed ＋plus
+  // Overview card carries the signed-in curator mark/reopen control at its foot; the reader-facing
+  // "marked complete" note + the per-viewer "show suggestions anyway" reveal are the trailing item in
+  // the General strip's scroll row. These scenes drive the complete state THROUGH the real UI
+  // (signed-in `markComplete`), so the shots show the genuinely persisted, suppressed state.
   //
   // DB-STATE NOTE for the capture run (Operations): `markComplete` writes the persisted flag via the
   // role-gated Server Action against the shared seeded Postgres, which has no per-scene reset
@@ -908,8 +915,8 @@ export const SCENES: Scene[] = [
     id: "topic-complete-overview",
     skins: ["light", "zine-dark"],
     group: "Topic · marked complete",
-    label: "＋plus panel — marked complete (indicator + curator control)",
-    note: "A complete fully-curated topic: the calm 'Marked complete' indicator atop the panel body and the signed-in curator 'Reopen to suggestions' control at the foot.",
+    label: "＋plus card — marked complete (thin cap + counts + Reopen)",
+    note: "The trimmed Overview card on a complete topic: a thin text-less indigo cap, the counts grid, and the signed-in curator 'Reopen to suggestions' control at the foot. No status notice, no Show-suggestions/Add-a-video buttons, no Jump-to-videos.",
     route: "/topic/Photosynthesis/",
     stub: "curated",
     auth: ["in"],
@@ -922,7 +929,7 @@ export const SCENES: Scene[] = [
     id: "topic-complete-suppressed",
     group: "Topic · marked complete",
     label: "Topic — complete, suppressed (full page)",
-    note: "A complete topic reads as a near-plain article: curated content (if any) plus the calm panel note; no candidate tiles, no 'Suggested · uncurated' divider/header, no dashed TOC counts.",
+    note: "A complete topic reads as a near-plain article: curated content stays; no candidate tiles, no 'Suggested · uncurated' divider/header, no dashed TOC counts. The reader-facing 'marked complete' note + the reveal toggle are the trailing item at the end of the General strip's scroll row.",
     route: "/topic/Photosynthesis/",
     stub: "curated",
     auth: ["in"],
@@ -935,8 +942,8 @@ export const SCENES: Scene[] = [
     id: "topic-complete-zero-video",
     skins: ["light", "zine-dark"],
     group: "Topic · marked complete",
-    label: "Topic — complete + zero curated videos (minimal render)",
-    note: "Complete with no curated videos: a near-plain article + a calm panel note carrying both opt-in paths (Show suggestions anyway · Add a video). The General band is omitted — not blank, not broken (AC18).",
+    label: "Topic — complete + zero curated videos (minimal band)",
+    note: "Complete with no curated videos: a near-plain article + a MINIMAL General band whose scroll row holds just the 'Show suggestions anyway' toggle card (and, signed-in, the quiet ＋ Add video). The Overview card dials down to its cap + Reopen. Not blank, not broken.",
     route: "/topic/Cellular_respiration/",
     stub: "suggestions",
     auth: ["in"],
@@ -949,7 +956,7 @@ export const SCENES: Scene[] = [
     id: "topic-complete-overridden",
     group: "Topic · marked complete",
     label: "Topic — complete, per-viewer override ON (suggestions revealed)",
-    note: "After 'Show suggestions anyway': the normal derived state reappears in place for this viewer; the indicator's button now reads 'Hide suggestions again'. Session-local, never changes the stored default (AC12).",
+    note: "After 'Show suggestions anyway': the normal derived state reappears in place for this viewer; the strip's trailing toggle now reads 'Hide suggestions again'. Session-local, never changes the stored default.",
     route: "/topic/Cellular_respiration/",
     stub: "suggestions",
     auth: ["in"],

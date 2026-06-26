@@ -233,7 +233,13 @@ export function GeneralStrip({
     <section
       ref={bandRef}
       id="general-band"
-      aria-label={hasCurated ? "General overview videos" : "Suggested videos"}
+      aria-label={
+        hasCurated
+          ? "General overview videos"
+          : minimalCompleteBand
+            ? "Videos"
+            : "Suggested videos"
+      }
       className="my-7 border-y-2 border-hardbox bg-brand text-white"
     >
       <div className="mx-auto max-w-[1200px] px-5 py-4">

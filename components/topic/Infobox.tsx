@@ -94,7 +94,7 @@ export function Infobox({
   if (!hasBody) return null;
 
   return (
-    <div className="plus-card overflow-hidden">
+    <div className="plus-card overflow-hidden" data-testid="plus-overview">
       {/* Header — a thin solid brand cap, no text (overview-card-cleanup §3.1). It marks the card as a
           plus-side element by color + the hardbox language; the brand WORDMARK's home is the universal
           projector header (VI §10.1), so the card needs no "＋plus" text. Decorative → aria-hidden. */}
