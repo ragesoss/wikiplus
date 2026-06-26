@@ -368,8 +368,10 @@ describe("#96 fix round — no seam line, no scroll jitter (scroll-aware hosts)"
   });
 
   it("opts the collapsing-header document scroller out of scroll anchoring", () => {
+    // The opt-out sits on a selector LIST (the root `html:has(...)` AND its `body`), so allow
+    // the rest of the selector list (`[^{}]*`) before the rule body.
     expect(css).toMatch(
-      /html:has\(header\.header-shared\)\s*\{[^}]*overflow-anchor:\s*none/
+      /html:has\(header\.header-shared\)[^{}]*\{[^}]*overflow-anchor:\s*none/
     );
   });
 
