@@ -39,10 +39,11 @@ Dashboard** brand palette so wiki+ reads as part of that brand world. Defining t
 - **Light, editorial cards** — white/very-light panels with **2px ink (`#2C2C2C`) borders and
   solid offset drop-shadows**, big numerals for counts, chunky count tags, color-blocked panels,
   and bold oversized display headings on plus blocks.
-- **Indigo-dominant**; gold is an accent only. The ＋plus header label, the **wiki+ panel** (see
+- **Indigo-dominant**; gold is the sparing accent. The ＋plus header label, the **wiki+ panel** (see
   *Two infoboxes*), and the General band are **indigo `#676EB4`** color-blocks; count numerals/tags
-  are indigo. Gold (`#E5AB28`) is a tertiary accent reserved for the header wordmark (see
-  `VISUAL_IDENTITY.md`), never a color-block or a functional signal.
+  are indigo. Gold (`#E5AB28`) is the highlight accent (the header wordmark, the hero marker — see
+  `VISUAL_IDENTITY.md`): it may carry functional emphasis where it earns prominence, but is never a
+  color-block fill and never the sole carrier of a signal (pair it with text or shape — the AA rule).
 - **Brand fonts**: headings **Source Sans Pro**, body **Open Sans** (the dashboard's fonts).
   The Wiki side keeps its serif Wikipedia look — the two type systems reinforce the two worlds.
 
@@ -58,9 +59,11 @@ Dashboard** brand palette so wiki+ reads as part of that brand world. Defining t
 | Inks | `#2C2C2C` / `#595959` / `#717171` |
 | Light bg / borders | `#F7F7F7` · `#F0F1F3` / `#D9D9D9` |
 
-Gold (`#E5AB28`) is the palette's **accent / tertiary** color: used sparingly — and in a lighter,
-desaturated form — for the header wordmark (see `VISUAL_IDENTITY.md`); it is never indigo's equal,
-never a color-block fill, and never a functional signal color.
+Gold (`#E5AB28`) is the palette's **accent / highlight** color: used sparingly — in a lighter,
+desaturated form for the header wordmark (see `VISUAL_IDENTITY.md`), and at full strength for small
+functional accents that earn prominence (e.g. the hero marker). It stays subordinate to indigo's
+dominant brand color, is never a color-block fill, and never the sole carrier of a signal (pair it
+with text or shape — the AA rule).
 
 ### Fact-vs-opinion signal (chips)
 
@@ -152,15 +155,18 @@ both curated general clips and general suggestions, the strip is one scroll row 
 then an inline **`Suggested · uncurated`** divider, then the **general suggestions capped at a
 single named default (`GENERAL_SUGGESTION_DEFAULT = 8`)** with a trailing **`See N more`** control
 that toggles only the suggestion overflow (a pure slice — no re-fetch/re-order). Curated and
-suggestions are **never interleaved**. The band heading is **`＋ General`** whenever curated content
-leads (mixed + fully-curated) and **`＋ Suggested videos`** only at 0 curated. See §"Three states"
-below for the full model.
+suggestions are **never interleaved**. In curated states the band **leads with the video itself** —
+no visible heading or count pill (the volume lives in the ＋plus overview card); an `sr-only` "General
+videos" heading preserves heading navigation and the region's accessible name. Only the **empty** state
+(0 curated) shows a visible heading — **`＋ Suggested videos`** + the `UNCURATED` pill + the unvetted
+subtitle (the once-per-context unvetted signal). See §"Three states" below for the full model.
 
 **Curated-tile anatomy.** A curated General tile carries the same trust signals the
 section-anchored rail card does, so a reader can weigh it where they meet it first. Top-to-bottom:
-thumbnail → held marking (only when held) → caption → creator handle · platform → **stance +
-accuracy chips** → a **2-line context-note preview** → `context by <curator>` → upvote → owner/
-reviewer manage rows. The chips are the standard fact-vs-opinion chips (see §"Fact-vs-opinion
+thumbnail → held marking (only when held) → caption → creator handle · platform → a single row of
+**stance + accuracy chips followed by the upvote** (the upvote rides the chips row as a chip-height
+outline **tag** — an action beside the filled signal chips, matched to their height) → a **2-line
+context-note preview** → `context by <curator>` → owner/reviewer manage rows. The chips are the standard fact-vs-opinion chips (see §"Fact-vs-opinion
 signal" and `lib/curation/labels.ts` for their labels/colors — not restated here); they carry their
 own AA-safe fills, so the indigo band behind them never touches the chip text. The note preview is
 **clamped to two lines on a white panel with a 2px ink border** so its small body text clears AA
@@ -182,12 +188,14 @@ states"), never per card.
 
 **The hero — one prominent must-watch clip (issue #158).** A curator may mark **one** curated
 **general** clip as the topic's **hero**: a curator's "start here" signal for readers. The hero renders
-**prominently at the front of the strip** — a full-width bordered card on a white panel (so its body
-text + note clear AA over the indigo band), with a **large thumbnail beside the metadata
-(horizontal on ≥ sm, stacked on narrow)** rather than the uniform `w-44` tile — **above** the scroll
-row of the remaining (peer) curated tiles + suggestions. It carries a **text-labeled "★ Hero" marker**
-(the word carries the meaning — never color alone, never gold) and **every standard trust signal**
-(chips, the context-note, `context by`, upvote, the held marking if held, owner/reviewer rows):
+**prominently at the front of the strip** — the **video bleeds** (a uniform 16:9 frame flush to the
+band's content-box left edge, and its top/bottom when the hero is the band's first/last element, with
+no card padding or border around it), and the **curation info is its own card docked to the video's
+side** (right on ≥ sm, **below** on narrow), floating on the indigo on a white panel (so its body text
++ note clear AA), **not overlapping** the video — **above** the scroll row of the remaining (peer)
+curated tiles + suggestions. The card carries a **gold ★ marker** in its upper-right (its shape + the
+region's accessible label carry the meaning — never color alone) and **every standard trust signal**
+(chips + the upvote tag, the context-note, `context by`, the held marking if held, owner/reviewer rows):
 **prominence is placement only**, not a change to the clip's data or vouch. **At most one hero per
 topic** — set/cleared by **any signed-in curator** via the **"★ Make hero" / "Unmark hero"** control
 on curated general tiles (signed-in only; the server-side curator re-check is the security control,

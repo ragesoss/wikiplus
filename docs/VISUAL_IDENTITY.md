@@ -473,14 +473,23 @@ which shapes how it's marked up.
   meaningful UI, not decoration). This is by design: §2.6's "the gold carries the signal" is an
   *aesthetic* signal (light intensity), **not** a UI state — see §7.3.
 
-### 7.3 Not color alone / the gold is decorative, never functional
+### 7.3 Never by color alone (the AA rule); the *wordmark's* gold is decorative
 
-The gold beam-border looks like it "carries the signal," and in the *metaphor* it does — but it
-**carries no product information.** It does not indicate state, status, accuracy, stance, or
-interactivity. The product's actual signals (fact-vs-opinion chips, sync status, etc.) live elsewhere
-and are already text-labeled (`TOPIC_PAGE_DESIGN.md` §"Fact-vs-opinion signal"). **Rule:** the
-wordmark's gold must **never** be reused to encode a functional state, precisely because it is
-decorative and because gold is otherwise reserved/avoided in the UI.
+Two distinct things, kept separate:
+
+- **The accessibility rule (always holds):** no product signal — state, status, accuracy, stance,
+  interactivity — may rest on **color alone**. Every signal pairs its color with a **non-color
+  carrier**: a text label and/or a distinct shape/glyph. The fact-vs-opinion chips are text-labeled
+  (`TOPIC_PAGE_DESIGN.md` §"Fact-vs-opinion signal"); the hero marker is a star *shape* plus the
+  region's accessible label, not a bare color.
+- **Gold is available as a functional accent.** Gold (`#E5AB28`) may carry functional emphasis where
+  it earns prominence — the hero marker is the standing example — provided it satisfies the rule
+  above (color reinforces a text/shape carrier, never replaces it) and stays the sparing accent to
+  indigo's dominant brand color.
+- **The *wordmark's* gold is decorative, specifically.** The beam-border / glow / aperture gold is an
+  *aesthetic* light-intensity signal, not a UI state — so it carries no product information and is
+  exempt from text-contrast requirements (§7.2). That is a property of the wordmark treatment, not a
+  ban on gold elsewhere.
 
 ### 7.4 Reduced / no motion
 

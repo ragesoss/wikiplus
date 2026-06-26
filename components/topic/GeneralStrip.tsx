@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { GENERAL_SUGGESTION_DEFAULT } from "@/lib/candidates";
 import type { Candidate, Clip } from "@/lib/data/types";
-import { pluralize } from "@/lib/format";
 import { CandidateActions, SeeMoreButton } from "./CandidateBits";
 import { AccuracyChip, StanceChip } from "./Chips";
 import { ContextByLink } from "./ContextByLink";
@@ -169,6 +168,14 @@ export function GeneralStrip({
   // band a zero suggestion count simply reads as fully-curated — no suggestion chrome.
   const showZero = !loading && !hasSuggestions && !hasCurated;
 
+  // Hero full-bleed margins (design §2.2): the hero `<article>` breaks out of the band container's
+  // px-5 / py-4 with negative margins so the video reaches the band's content-box edges. It bleeds to
+  // the TOP when nothing renders above it (logged-out: no find-more toolbar, and the curated heading
+  // is sr-only), and to the BOTTOM when it is the band's last element (no peer / suggestion / loading
+  // row follows). Used only inside the hero block.
+  const heroBleedTop = !signedIn;
+  const heroBleedBottom = !hasPeers && !hasSuggestions && !showLoading;
+
   // §3: the "See N more" overflow over the General suggestion pool. A PURE display slice
   // over the already-ordered `generalCandidates` — never a re-fetch/re-order. `expanded`
   // is local UI state independent of the candidate list, so curating/dismissing a
@@ -198,36 +205,31 @@ export function GeneralStrip({
       className="my-7 border-y-2 border-hardbox bg-brand text-white"
     >
       <div className="mx-auto max-w-[1200px] px-5 py-4">
-        <div className="flex flex-wrap items-center gap-3">
-          {/* §5.3: exactly one `<h2>` per state — `＋ General` in mixed/fully-curated (the band
-              leads with curated general clips), `＋ Suggested videos` only in empty. */}
-          <h2 className="plus-disp text-2xl font-bold sm:text-3xl">
-            ＋ {hasCurated ? "General" : "Suggested videos"}
-          </h2>
-          {!hasCurated && (
+        {/* Curated states lead with the video itself — no visible heading or count pill (the volume
+            already lives in the ＋plus overview card). An sr-only `<h2>` keeps heading navigation and
+            the region's accessible name. The EMPTY state keeps its visible `＋ Suggested videos`
+            heading + the UNCURATED pill + the unvetted subtitle — that line is the once-per-context
+            unvetted signal (required, not chrome); the transient "Finding videos…" tag rides it. */}
+        {hasCurated ? (
+          <h2 className="sr-only">General videos</h2>
+        ) : (
+          <div className="flex flex-wrap items-center gap-3">
+            <h2 className="plus-disp text-2xl font-bold sm:text-3xl">
+              ＋ Suggested videos
+            </h2>
             <span className="border-2 border-white px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide">
               uncurated
             </span>
-          )}
-          {/* Reader-first calm (#164): drop the curated-state descriptive subtitle (it adds
-              words, not signal). The empty-state subtitle stays — "— auto-found candidates,
-              not yet vetted" IS the once-per-context unvetted signal in the empty band. */}
-          {!hasCurated && (
             <span className="text-sm text-white/80">
               — auto-found candidates, not yet vetted
             </span>
-          )}
-          {/* The curated `N video` count pill (mixed + fully-curated); the transient
-              "Finding videos…" loading tag. The empty band states the KIND once and
-              defers the volume to the ＋plus panel (#14 AC6). */}
-          {(hasCurated || showLoading) && (
-            <span className="border-2 border-hardbox bg-surface-raised px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-brand">
-              {showLoading && !hasCurated
-                ? "Finding videos…"
-                : pluralize(generalClips.length, "video")}
-            </span>
-          )}
-        </div>
+            {showLoading && (
+              <span className="border-2 border-hardbox bg-surface-raised px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-brand">
+                Finding videos…
+              </span>
+            )}
+          </div>
+        )}
 
         {/* Find-more cluster (§7.2/§7.3): the full cluster (Search TikTok / Search YouTube /
             ＋ Add video) in empty + mixed; only the quiet "＋ Add video" in fully-curated (the
@@ -284,45 +286,74 @@ export function GeneralStrip({
           </div>
         ))}
 
-        {/* ── Hero block (issue #158) — the one prominent must-watch clip, at the FRONT of the band,
-            above the uniform scroll row. A full-width bordered card on a WHITE (surface-raised) fill
-            so its small body text + note clear AA over the indigo band (the same reason the tile note
-            panel is white). Horizontal on ≥ sm (large thumbnail left, metadata right); stacks on
-            narrow (thumbnail above), still visibly larger than a peer tile. Reuses every standard
-            trust signal — chips, note, context-by, upvote, held marking, owner/reviewer rows — so
-            prominence is placement only. The "★ Hero" eyebrow carries the meaning in WORDS (never
-            color, never gold). The region is labeled so AT announces it as the lead video. */}
+        {/* ── Hero block (issue #158, redesigned — design `general-hero-layout.md`). The one prominent
+            must-watch clip at the FRONT of the band: the VIDEO bleeds (a uniform 16:9 frame flush to
+            the band's content-box left edge, and its top/bottom when the hero is the band's first/last
+            element — no white card padding/border around it), and the curation info is its OWN card
+            docked to the video's side (right on ≥ sm, below on narrow), floating on the indigo, NOT
+            overlapping. The card is white so its small text clears AA over the band. It reuses every
+            trust signal — chips + inline upvote tag, note, context-by, held marking, owner/reviewer
+            rows — so prominence is placement only. The gold ★ marker sits in the card's upper-right
+            (its meaning carried by the star shape + the region's accessible label — never color
+            alone). `-mx-5` (+ conditional `-mt-4`/`-mb-4`) breaks the article out of the band's
+            padding without disturbing the other band states. */}
         {heroClip && (
           <article
             aria-label={`Hero video: ${heroClip.caption}`}
-            className={`mt-4 border-2 border-hardbox bg-surface-raised text-ink-plus${curatedFade}`}
+            className={`-mx-5 flex flex-col sm:flex-row sm:items-center${
+              heroBleedTop ? " -mt-4" : " mt-4"
+            }${heroBleedBottom ? " -mb-4" : ""}${curatedFade}`}
           >
-            <div className="flex flex-col gap-4 p-3 sm:flex-row sm:p-4">
-              <div className="sm:w-64 sm:shrink-0 lg:w-72">
-                <VideoThumb
-                  video={heroClip}
-                  variant="card"
-                  onPlay={() => onPlay(heroClip)}
-                />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="plus-sans text-[11px] font-bold uppercase tracking-widest text-violet">
-                  <span aria-hidden>★</span> Hero
-                </p>
+            {/* The video — full-bleed left (and top/bottom when first/last). Uniform 16:9, no own
+                border; the band + the card's seam frame it. Click-to-play facade (unchanged). */}
+            <div className="sm:basis-[60%] sm:shrink-0">
+              <VideoThumb
+                video={heroClip}
+                variant="hero"
+                onPlay={() => onPlay(heroClip)}
+              />
+            </div>
+            {/* The curation card — its own card docked beside the video (`sm:pr-5` restores the right
+                gutter so it aligns with page content); below the video on narrow (a 2px top seam,
+                full width, no offset shadow). The article's `sm:items-center` floats the (shorter)
+                card centred against the taller video without overlapping it. */}
+            <div className="min-w-0 sm:flex-1 sm:pr-5">
+              <div className="w-full border-t-2 border-hardbox bg-surface-raised p-4 text-ink-plus sm:max-w-[400px] sm:border-2 sm:shadow-[4px_4px_0_var(--color-hardbox-offset)]">
                 {heroClip.held && (
-                  <p className="mt-1.5">
+                  <p className="mb-2">
                     <HeldPill />
                   </p>
                 )}
-                <p className="mt-1 text-base font-bold leading-snug text-ink-plus sm:text-lg">
-                  {heroClip.caption}
-                </p>
+                {/* Card header: title + the gold ★ hero marker upper-right (a flex row so the marker
+                    never overlaps the wrapping title). The ★'s meaning is the region's aria-label +
+                    the star shape; gold reinforces (never color alone). */}
+                <div className="flex items-start gap-2.5">
+                  <p className="min-w-0 flex-1 text-base font-bold leading-snug text-ink-plus sm:text-lg">
+                    {heroClip.caption}
+                  </p>
+                  <svg
+                    viewBox="0 0 24 24"
+                    aria-hidden
+                    className="mt-0.5 h-5 w-5 shrink-0 fill-gold-accent"
+                  >
+                    <path d="M12 2l2.94 5.96 6.58.96-4.76 4.64 1.12 6.56L12 17.98l-5.88 3.1 1.12-6.56L2.48 9.92l6.58-.96z" />
+                  </svg>
+                </div>
                 <p className="mt-0.5 truncate text-[12px] text-muted">
                   {heroClip.creator.handle} · {heroClip.platformLabel}
                 </p>
-                <div className="mt-2 flex flex-wrap gap-1.5">
+                {/* Chips + the inline upvote tag — one matched-height row. */}
+                <div className="mt-2 flex flex-wrap items-center gap-1.5">
                   <StanceChip stance={heroClip.stance} modifier={heroClip.stanceModifier} />
                   <AccuracyChip flag={heroClip.accuracyFlag} modifier={heroClip.accuracyModifier} />
+                  <UpvoteControl
+                    count={heroClip.upvotes ?? 0}
+                    voted={votedClip?.(heroClip) ?? false}
+                    signedIn={signedIn}
+                    surface="light"
+                    appearance="tag"
+                    onActivate={() => onUpvote?.(heroClip)}
+                  />
                 </div>
                 {heroClip.contextNote ? (
                   <div className="mt-2 border-2 border-hardbox bg-surface-2 px-2.5 py-2">
@@ -334,18 +365,9 @@ export function GeneralStrip({
                     </p>
                   </div>
                 ) : null}
-                <p className="mt-1 truncate text-[12px]">
+                <p className="mt-1.5 truncate text-[12px]">
                   <ContextByLink curatedBy={heroClip.curatedBy} surface="light" />
                 </p>
-                <div className="mt-1.5">
-                  <UpvoteControl
-                    count={heroClip.upvotes ?? 0}
-                    voted={votedClip?.(heroClip) ?? false}
-                    signedIn={signedIn}
-                    surface="light"
-                    onActivate={() => onUpvote?.(heroClip)}
-                  />
-                </div>
                 {/* Owner-only Edit/Delete (mirrors the tile). */}
                 {(ownsClip?.(heroClip) ?? false) && (
                   <div
@@ -443,9 +465,18 @@ export function GeneralStrip({
                       `ClipCard` uses — their own dark fills + 2px ink border carry the contrast, so
                       the indigo band behind them never touches the chip text (no re-tint — §7.2).
                       `flex-wrap` so a long pair stacks to two rows within the `w-44` tile (§9). */}
-                  <div className="mt-1.5 flex flex-wrap gap-1.5">
+                  <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
                     <StanceChip stance={clip.stance} modifier={clip.stanceModifier} />
                     <AccuracyChip flag={clip.accuracyFlag} modifier={clip.accuracyModifier} />
+                    {/* D4 §5 / design §2.3: the upvote rides the chips row as a chip-height tag. */}
+                    <UpvoteControl
+                      count={clip.upvotes ?? 0}
+                      voted={votedClip?.(clip) ?? false}
+                      signedIn={signedIn}
+                      surface="indigo"
+                      appearance="tag"
+                      onActivate={() => onUpvote?.(clip)}
+                    />
                   </div>
                   {/* #63 §3.1 (AC1 preview): the 2-line context-note PREVIEW, on a WHITE panel + 2px
                       ink border so its small body text clears AA over the indigo `#676EB4` band
@@ -469,16 +500,6 @@ export function GeneralStrip({
                   <p className="mt-0.5 truncate text-[11px]">
                     <ContextByLink curatedBy={clip.curatedBy} surface="indigo" />
                   </p>
-                  {/* D4 §5: the interactive upvote control on the General tile. */}
-                  <div className="mt-1">
-                    <UpvoteControl
-                      count={clip.upvotes ?? 0}
-                      voted={votedClip?.(clip) ?? false}
-                      signedIn={signedIn}
-                      surface="indigo"
-                      onActivate={() => onUpvote?.(clip)}
-                    />
-                  </div>
                   {/* D3 §9.2: owner-only Edit/Delete on the General tile. */}
                   {owned && (
                     <div

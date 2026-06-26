@@ -48,7 +48,7 @@ function candidates(n: number): Candidate[] {
 }
 
 describe("GeneralStrip — fully-curated (AC3/AC8)", () => {
-  it("renders general overview tiles with a video count", () => {
+  it("renders general overview tiles under an sr-only heading (no visible '＋ General' / count)", () => {
     render(
       <GeneralStrip
         topicTitle="Photosynthesis"
@@ -60,9 +60,11 @@ describe("GeneralStrip — fully-curated (AC3/AC8)", () => {
         onAdd={vi.fn()}
       />
     );
-    expect(screen.getByText("＋ General")).toBeInTheDocument();
-    // grammatical count at 1 (defect N3): "1 video", not "1 videos"
-    expect(screen.getByText("1 video")).toBeInTheDocument();
+    // Curated states lead with the video itself: the heading is sr-only and the count pill is gone
+    // (the volume lives in the ＋plus overview card).
+    expect(screen.getByText("General videos")).toBeInTheDocument();
+    expect(screen.queryByText("＋ General")).toBeNull();
+    expect(screen.queryByText("1 video")).toBeNull();
     expect(screen.getByText("Overview clip")).toBeInTheDocument();
     expect(screen.getByRole("list")).toBeInTheDocument();
   });
@@ -215,9 +217,10 @@ describe("GeneralStrip — mixed state (AC2/AC4)", () => {
     expect(screen.getByText("Suggested overview")).toBeInTheDocument();
   });
 
-  it("heads the band '＋ General' (not 'Suggested videos') in mixed (§5.3)", () => {
+  it("heads the band with an sr-only 'General videos' (not 'Suggested videos') in mixed (§5.3)", () => {
     setup();
-    expect(screen.getByText("＋ General")).toBeInTheDocument();
+    expect(screen.getByText("General videos")).toBeInTheDocument();
+    expect(screen.queryByText("＋ General")).toBeNull();
     expect(screen.queryByText("＋ Suggested videos")).toBeNull();
   });
 
@@ -391,8 +394,10 @@ describe("GeneralStrip — loading face (design §5.4 / AC2/AC11)", () => {
     );
     // The curated clip renders regardless of the in-flight candidate fetch.
     expect(screen.getByText("Overview clip")).toBeInTheDocument();
-    // The band reads as curated ("＋ General"), not the empty "Finding videos…" face.
-    expect(screen.getByText("＋ General")).toBeInTheDocument();
+    // The band reads as curated (the sr-only "General videos" heading), not the empty
+    // "Finding videos…" face.
+    expect(screen.getByText("General videos")).toBeInTheDocument();
+    expect(screen.queryByText("Finding videos…")).toBeNull();
   });
 });
 

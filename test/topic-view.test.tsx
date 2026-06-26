@@ -154,8 +154,8 @@ describe("TopicView — curated state (AC1, AC2, AC3, AC4, AC7, AC20)", () => {
   it("derives the infobox counts from the seeded clips (AC7) and renders the General strip (AC8)", async () => {
     render(<TopicView />);
     expect(await screen.findByText("Videos")).toBeInTheDocument();
-    // "＋ General" appears in BOTH the TOC and the General strip header — expected.
-    expect(screen.getAllByText("＋ General").length).toBeGreaterThanOrEqual(2);
+    // "＋ General" appears in the TOC; the General-band heading is now sr-only ("General videos").
+    expect(screen.getAllByText("＋ General").length).toBeGreaterThanOrEqual(1);
     // 13 seeded curated Photosynthesis clips → infobox Videos count is derived.
     const videosBlock = screen.getByText("Videos").closest("div")!;
     expect(within(videosBlock).getByText("13")).toBeInTheDocument();

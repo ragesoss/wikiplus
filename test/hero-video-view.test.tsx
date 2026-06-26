@@ -61,12 +61,14 @@ describe("GeneralStrip — hero rendering (AC6/AC7/AC8)", () => {
     expect(screen.getByText("A peer clip")).toBeInTheDocument();
   });
 
-  it("AC6 — renders the hero prominently with a text-labeled marker, at the front", () => {
+  it("AC6 — renders the hero prominently with a labeled marker, at the front", () => {
     renderStrip({ heroClipId: "hero1" });
     const block = screen.getByRole("article", { name: "Hero video: The hero clip" });
     expect(block).toBeInTheDocument();
-    // The marker carries the meaning in WORDS, not color alone.
-    expect(within(block).getByText("Hero")).toBeInTheDocument();
+    // The marker's meaning is carried by the region's accessible name (above) + the star SHAPE
+    // (a gold ★ icon) — never color alone, and there is no "Hero" word.
+    expect(within(block).queryByText("Hero")).toBeNull();
+    expect(block.querySelector("svg.fill-gold-accent")).not.toBeNull();
     expect(within(block).getByText("The hero clip")).toBeInTheDocument();
   });
 
