@@ -127,6 +127,25 @@ don't map to a specific section. It is the **only** place plus content reaches i
 column, and is styled like a video-platform search row — **thumbnail-forward**, a quick visual
 overview, horizontally scrollable.
 
+**The thumbnail carries the tile — the reader-first calm bar.** The plus side is a serious,
+reader-serving knowledge tool, never an ad-driven page; its reader surfaces stay **video-forward and
+low-clutter**. The thumbnail is the dominant element on every General-strip tile (a true 16:9 frame
+that scales with the tile width), with text and chrome kept minimal around it — most of what a
+video-hungry visitor (especially logged-out) wants is the picture. **Suggested (unvetted candidate)
+tiles are notably larger and the most minimal** — thumbnail + caption + creator credit, nothing more;
+**curated tiles grow modestly and keep every trust signal** (the guardrail below). Tiles stay a
+**uniform landscape frame** so the scroll row reads as an even band. This is a standing direction
+refined across passes, not a one-time trim.
+
+> **Guardrail — curation info is the value, never sacrificed for calm.** Curated clips always keep
+> their context notes, fact-vs-opinion chips, and curator credit. Calm comes from larger thumbnails,
+> trimming non-signal chrome, and not showing curator-only tools to readers who can't use them —
+> never from cutting a curated trust signal.
+
+**Curator-only tools recede for readers.** The **Find more** cluster on the band (Search TikTok /
+Search YouTube / ＋ Add video) is a **curator** discovery aid (＋ Add video requires login). It renders
+**only when signed in**; a logged-out reader never sees it, keeping their band calm and reader-first.
+
 **Curated and suggested content coexist here, curated always first.** When a topic has
 both curated general clips and general suggestions, the strip is one scroll row read left→right:
 **every curated clip first** (full curated chrome, never capped — curation is the priority content),
@@ -145,11 +164,21 @@ reviewer manage rows. The chips are the standard fact-vs-opinion chips (see §"F
 signal" and `lib/curation/labels.ts` for their labels/colors — not restated here); they carry their
 own AA-safe fills, so the indigo band behind them never touches the chip text. The note preview is
 **clamped to two lines on a white panel with a 2px ink border** so its small body text clears AA
-over the indigo `#676EB4` band (the same white-panel treatment the held pill and candidate
-match-line use) — small note body text is **never** placed directly on the bare indigo band. The
+over the indigo `#676EB4` band (the same white-panel treatment the held pill uses) — small note body
+text is **never** placed directly on the bare indigo band. The
 preview is a hook only: the **full, untruncated note lives in the opened player**, and the whole
-tile thumbnail is already the click-to-open affordance (no separate "read more" control). Candidate
-tiles are unaffected — they carry no note and no chips (CURATION §6).
+tile thumbnail is already the click-to-open affordance (no separate "read more" control). The curated
+tile's thumbnail grows modestly with the band (the calm bar above); all of its trust signals stay.
+
+**Candidate-tile anatomy.** A suggested (candidate) General tile is deliberately the most minimal,
+thumbnail-forward tile: **large thumbnail → 1–2 line caption → `@handle · platform` creator credit**,
+plus the signed-in Curate / Not relevant controls — and **nothing else**. It carries **no note and no
+chips** (CURATION §6) and **no per-tile match-reason line**: the per-clip "Why suggested" reason is
+genuine information but not tile chrome, so it lives **one tap away in the opened player** (the mobile
+player's *See context* reveal), not on the tile. The platform is already named on the thumbnail's
+corner tag. The dashed/desaturated unvetted treatment is unchanged; the once-per-context unvetted
+*signal* lives in the band header / `Suggested · uncurated` divider / rail set-header (§"Three
+states"), never per card.
 
 **Curated player anatomy.** On **desktop (`≥ lg`)**, opening a curated clip — General
 **or** section-anchored — opens the blocking `PlayerModal`, which renders a **curation block beneath
@@ -175,8 +204,9 @@ invitation to participate relocates into the player, where it lands after the re
   honestly pluralized); a clip with **count 0 shows no figure**. Muted-ink on the light rail card,
   white on the indigo band (no underline — that is the control's actionable cue).
 - **Candidate tiles (rail + General strip):** watch-only — thumbnail (opens the pinned player /
-  link-out per the embed split), match reason, source pill, caption, and creator credit; **no Curate
-  / Not relevant buttons**. The dashed/unvetted visual language is unchanged.
+  link-out per the embed split), caption, creator credit, and (in the rail) a source pill; **no
+  per-tile match-reason line** (the "Why suggested" reason lives one tap away in the player) and **no
+  Curate / Not relevant buttons**. The dashed/unvetted visual language is unchanged.
 - **The two player CTAs** (logged-out only): the candidate **`PinnedPlayer`** carries a **"Curate this
   video"** button routing into the curate flow for that candidate; the curated **`PlayerModal`**
   carries a softer topic-level **"Log in to curate videos for this topic"** join nudge inside its
@@ -291,9 +321,11 @@ is **`mockups/plus-overview-A-value-first.html`**.
   - *MVP limitation (pragmatic, not a design choice):* only **YouTube** auto-suggestion is wired up
     at first, because TikTok lacks an easily-accessible search API (see ARCHITECTURE). TikTok
     auto-suggestion switches on when it becomes practical — the design already accommodates it.
-- **Manual source paths (always available).** A **"Search TikTok"** button (and possibly other
-  source buttons) **launches TikTok (web/app) in a new window** for a manual search — useful
-  regardless of auto-suggestion, and the interim way TikTok content gets in.
+- **Manual source paths (signed-in curators).** The **Find more** cluster — a **"Search TikTok"**
+  button (and possibly other source buttons) that **launches TikTok (web/app) in a new window** for a
+  manual search — is a curator discovery aid shown **only when signed in** (alongside ＋ Add video). It
+  is the interim way TikTok content gets in; a logged-out reader doesn't see it, keeping their band
+  calm and reader-first.
 - **"Add video" (logged-in only).** Paste a **YouTube or TikTok share link** for a clip that
   auto-suggestion missed; we resolve its embed/metadata and start a curation.
 - **Unvetted treatment.** Candidates are unmistakably distinct from curated clips: dashed (not
@@ -318,18 +350,21 @@ is **`mockups/plus-overview-A-value-first.html`**.
       are auto-found from {sources} — no context notes yet, not reviewed by a human. Curate one to
       vouch for it." Its gate is "≥1 rail suggestion" (independent of curated count), so it sits
       **between** the curated rail group and the suggestion rail group.
-  - *Per-card, a candidate keeps only genuine per-clip **information**:* a **compact single-line
-    match reason** (why *this* clip matched, e.g. *Mentions "light-dependent reactions" in
-    description*) and a small **text-labeled source pill** (e.g. `YOUTUBE`) reading the candidate's
-    own source — the multi-source hook so a mixed YouTube/TikTok set reads correctly without a
-    redesign.
+  - *Per-card, a candidate tile is thumbnail-forward and minimal* (see §"The General strip" →
+    *Candidate-tile anatomy*): the large thumbnail, a 1–2 line caption, the creator credit, and — in
+    the rail — a small **text-labeled source pill** (e.g. `YOUTUBE`) reading the candidate's own source
+    (the multi-source hook so a mixed YouTube/TikTok set reads correctly without a redesign). The
+    per-clip **match reason** (why *this* clip matched, e.g. *Mentions "light-dependent reactions" in
+    description*) is genuine information but **not tile chrome** — it lives one tap away in the opened
+    player, never on the card.
   - *The General band states the kind of content once and **defers the volume count** — no "N
     candidates" label; the topic-wide count lives once, in the wiki+ panel.*
 - **Curation entry points.** For a **signed-in** curator every candidate carries **Curate** (opens
   "Curate this clip" — write the context note, set stance + accuracy, confirm the section; publishing
   turns it into a vetted curated clip) and **Not relevant** (rules it out). These on-card controls are
-  a secondary path for triaging without opening the player (judging by caption + match reason +
-  thumbnail, or batch-dismissing obvious mismatches); the **in-player action row** carries the same two
+  a secondary path for triaging without opening the player (judging by caption + thumbnail, or
+  batch-dismissing obvious mismatches; the per-clip match reason is in the player); the **in-player
+  action row** carries the same two
   actions as the primary path once a clip is open (see §"The pinned candidate player"). Browsing is anonymous;
   **curating or adding a video requires login**. A **logged-out** reader sees watch-only candidate
   tiles (no Curate / Not relevant) and meets the curate invitation in the player instead — see
