@@ -487,8 +487,12 @@ export function GeneralStrip({
             simply reads as fully-curated. */}
         {showZero && (
           <p className="mt-4 max-w-prose text-sm leading-relaxed text-white">
-            No videos found for this topic yet. Try a manual search below, or add
-            one by link.
+            {/* The line must not point at controls the viewer can't see (#164): a logged-out
+                reader has no Find-more cluster, so it would dangle "try a manual search below".
+                Honest + reader-first for them; the actionable line stays for a signed-in curator. */}
+            {signedIn
+              ? "No videos found for this topic yet. Try a manual search below, or add one by link."
+              : "No videos found for this topic yet — check back as people curate this topic."}
           </p>
         )}
       </div>

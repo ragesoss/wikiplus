@@ -123,6 +123,17 @@ describe("GeneralStrip — empty / Suggested (AC1, AC16, AC18)", () => {
     expect(screen.queryByText(/\d+\s+candidates?/)).toBeNull();
   });
 
+  // #164 (AC5 / the adversarial trap): trimming the curated-state subtitle must NOT also
+  // remove the EMPTY-state "— auto-found candidates, not yet vetted" line — that text IS the
+  // once-per-context unvetted signal in the empty band (a required signal, not chrome). It
+  // must still render here, in words.
+  it("KEEPS the empty-state 'auto-found candidates, not yet vetted' unvetted subtitle (#164 AC5)", () => {
+    setup();
+    expect(
+      screen.getByText("— auto-found candidates, not yet vetted")
+    ).toBeInTheDocument();
+  });
+
   // #14 AC1 / #60 §5.3: no per-tile "SUGGESTED" badge. In the empty band there is also no
   // "Suggested · uncurated" divider (the band header is the once-per-context signal).
   it("renders NO per-tile 'SUGGESTED' badge and no inline divider in empty (#14 AC1)", () => {
@@ -230,6 +241,17 @@ describe("GeneralStrip — mixed state (AC2/AC4)", () => {
     setup();
     expect(screen.getByRole("link", { name: /Search YouTube/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Add video/ })).toBeInTheDocument();
+  });
+
+  // #164 (AC5 / the adversarial trap, other arm): in a CURATED band the descriptive
+  // subtitle is trimmed (it added words, not signal) — AND the empty-state unvetted line
+  // must NOT bleed into the curated band (it belongs ONLY to the empty state).
+  it("renders NO descriptive subtitle in a curated band (#164 AC5)", () => {
+    setup();
+    expect(screen.queryByText(/quick visual overview/)).toBeNull();
+    expect(
+      screen.queryByText(/auto-found candidates, not yet vetted/)
+    ).toBeNull();
   });
 });
 
@@ -393,6 +415,26 @@ describe("GeneralStrip — zero-results face (design §5.2 / AC2 zero case)", ()
     // #14 AC6: the band does not show a candidate count, even at zero.
     expect(screen.queryByText(/\d+\s+candidates?/)).toBeNull();
     expect(screen.getByRole("link", { name: /Search YouTube/ })).toBeInTheDocument();
+  });
+
+  it("logged out: the honest line does NOT point at the hidden Find-more controls (#164)", () => {
+    render(
+      <GeneralStrip
+        topicTitle="Obscurium"
+        generalClips={[]}
+        generalCandidates={[]}
+        loading={false}
+        onPlay={vi.fn()}
+        onPromote={vi.fn()}
+        onDismiss={vi.fn()}
+        onAdd={vi.fn()}
+      />
+    );
+    expect(screen.getByText(/No videos found for this topic yet/)).toBeInTheDocument();
+    // The dangling "try a manual search below" must NOT show (those controls are hidden).
+    expect(screen.queryByText(/manual search below/)).toBeNull();
+    expect(screen.queryByRole("link", { name: /Search YouTube/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Add video/ })).toBeNull();
   });
 });
 
