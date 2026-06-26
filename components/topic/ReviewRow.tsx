@@ -47,7 +47,7 @@ export function ReviewRow({
   onApprove?: (clip: Clip) => void;
   /** D5c (issue #59): open the RemoveConfirmDialog for this clip (moderator only — design §4.3). */
   onRemove?: (clip: Clip) => void;
-  /** "rail" = ClipCard sizing; "tile" = the narrow w-44 GeneralStrip tile (smaller text/padding). */
+  /** "rail" = ClipCard sizing; "tile" = the narrow GeneralStrip curated tile (smaller text/padding). */
   size?: "rail" | "tile";
 }) {
   if (!canHold && !canApprove && !canRemove) return null;
