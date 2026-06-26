@@ -326,7 +326,7 @@ export function GeneralStrip({
                   />
                 </div>
                 {heroClip.contextNote ? (
-                  <div className="mt-2 border-2 border-hardbox bg-surface-2 px-2.5 py-2">
+                  <div className="mt-2 border-l-4 border-brand bg-surface-2 py-2 pl-3 pr-2">
                     <p className="text-[10px] font-bold uppercase tracking-wide text-violet">
                       Curator note
                     </p>
