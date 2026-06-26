@@ -155,15 +155,18 @@ both curated general clips and general suggestions, the strip is one scroll row 
 then an inline **`Suggested · uncurated`** divider, then the **general suggestions capped at a
 single named default (`GENERAL_SUGGESTION_DEFAULT = 8`)** with a trailing **`See N more`** control
 that toggles only the suggestion overflow (a pure slice — no re-fetch/re-order). Curated and
-suggestions are **never interleaved**. The band heading is **`＋ General`** whenever curated content
-leads (mixed + fully-curated) and **`＋ Suggested videos`** only at 0 curated. See §"Three states"
-below for the full model.
+suggestions are **never interleaved**. In curated states the band **leads with the video itself** —
+no visible heading or count pill (the volume lives in the ＋plus overview card); an `sr-only` "General
+videos" heading preserves heading navigation and the region's accessible name. Only the **empty** state
+(0 curated) shows a visible heading — **`＋ Suggested videos`** + the `UNCURATED` pill + the unvetted
+subtitle (the once-per-context unvetted signal). See §"Three states" below for the full model.
 
 **Curated-tile anatomy.** A curated General tile carries the same trust signals the
 section-anchored rail card does, so a reader can weigh it where they meet it first. Top-to-bottom:
-thumbnail → held marking (only when held) → caption → creator handle · platform → **stance +
-accuracy chips** → a **2-line context-note preview** → `context by <curator>` → upvote → owner/
-reviewer manage rows. The chips are the standard fact-vs-opinion chips (see §"Fact-vs-opinion
+thumbnail → held marking (only when held) → caption → creator handle · platform → a single row of
+**stance + accuracy chips followed by the upvote** (the upvote rides the chips row as a chip-height
+outline **tag** — an action beside the filled signal chips, matched to their height) → a **2-line
+context-note preview** → `context by <curator>` → owner/reviewer manage rows. The chips are the standard fact-vs-opinion chips (see §"Fact-vs-opinion
 signal" and `lib/curation/labels.ts` for their labels/colors — not restated here); they carry their
 own AA-safe fills, so the indigo band behind them never touches the chip text. The note preview is
 **clamped to two lines on a white panel with a 2px ink border** so its small body text clears AA
@@ -185,12 +188,14 @@ states"), never per card.
 
 **The hero — one prominent must-watch clip (issue #158).** A curator may mark **one** curated
 **general** clip as the topic's **hero**: a curator's "start here" signal for readers. The hero renders
-**prominently at the front of the strip** — a full-width bordered card on a white panel (so its body
-text + note clear AA over the indigo band), with a **large thumbnail beside the metadata
-(horizontal on ≥ sm, stacked on narrow)** rather than the uniform `w-44` tile — **above** the scroll
-row of the remaining (peer) curated tiles + suggestions. It carries a **text-labeled "★ Hero" marker**
-(its shape + the region's accessible label carry the meaning — never color alone) and **every standard trust signal**
-(chips, the context-note, `context by`, upvote, the held marking if held, owner/reviewer rows):
+**prominently at the front of the strip** — the **video bleeds** (a uniform 16:9 frame flush to the
+band's content-box left edge, and its top/bottom when the hero is the band's first/last element, with
+no card padding or border around it), and the **curation info is its own card docked to the video's
+side** (right on ≥ sm, **below** on narrow), floating on the indigo on a white panel (so its body text
++ note clear AA), **not overlapping** the video — **above** the scroll row of the remaining (peer)
+curated tiles + suggestions. The card carries a **gold ★ marker** in its upper-right (its shape + the
+region's accessible label carry the meaning — never color alone) and **every standard trust signal**
+(chips + the upvote tag, the context-note, `context by`, the held marking if held, owner/reviewer rows):
 **prominence is placement only**, not a change to the clip's data or vouch. **At most one hero per
 topic** — set/cleared by **any signed-in curator** via the **"★ Make hero" / "Unmark hero"** control
 on curated general tiles (signed-in only; the server-side curator re-check is the security control,
