@@ -1,5 +1,6 @@
 import { relations, sql } from "drizzle-orm";
 import {
+  type AnyPgColumn,
   boolean,
   index,
   integer,
@@ -57,6 +58,32 @@ export const topic = pgTable("topic", {
   closedToSuggestions: boolean("closed_to_suggestions")
     .notNull()
     .default(false),
+  // ── Hero clip — one prominent must-watch video per topic (issue #158). ──────────────────────
+  // A nullable REFERENCE to the topic's hero clip (`clip.id`); `NULL` ≙ no hero. This is the chosen
+  // representation over a clip-level `hero` boolean BECAUSE the at-most-one-per-topic invariant is
+  // then STRUCTURAL: a single column holds one value, so two heroes are unrepresentable, and setting
+  // a new hero is one atomic `UPDATE topic SET hero_clip_id = …` that REPLACES the prior — no
+  // clear-then-set transaction, no partial unique index, no race window (a clip-level boolean would
+  // need both). It mirrors the curator-set topic-level `closed_to_suggestions` flag precedent.
+  //
+  // `ON DELETE SET NULL` (the `curator_id`/`removed_by` posture): a deleted (owner hard-delete) or
+  // moderator-removed hero clip clears the reference automatically — no dangling/broken hero, no
+  // orphan cleanup. NULLABLE + additive + non-destructive, so every existing/new topic lands with no
+  // hero when the column lands (the feature ships green with no topic affected until a curator marks
+  // one). ELIGIBILITY (curated + GENERAL only, this run) is enforced at the write boundary
+  // (`DrizzleDataStore.setTopicHero`): a candidate is structurally ineligible (it is not a `clip`
+  // row, so the FK cannot reference it), and a section-anchored clip is rejected server-side — the
+  // hero stays a whole-topic clip rendered prominently at the FRONT of the General strip. The
+  // designation RIDES THE TOPIC READ (`heroClipId` on the loaded `Topic`), so prominence is the same
+  // for every viewer and the cached read path does NO per-user work (logged-out parity by
+  // construction). Set/cleared by ANY signed-in curator via the curator-gated `setTopicHeroAction`
+  // (no moderation lock, no ownership restriction; a logged-out reader cannot set it).
+  // The thunk return type is annotated `AnyPgColumn` to break the topic↔clip circular-FK type
+  // inference cycle (topic.hero_clip_id → clip.id, clip.topic_id → topic.id) — drizzle's documented
+  // fix for a self/mutual reference. It does not change the emitted SQL.
+  heroClipId: integer("hero_clip_id").references((): AnyPgColumn => clip.id, {
+    onDelete: "set null",
+  }),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
@@ -75,7 +102,9 @@ export const clip = pgTable("clip", {
   id: serial("id").primaryKey(),
   topicId: integer("topic_id")
     .notNull()
-    .references(() => topic.id, { onDelete: "cascade" }),
+    // `AnyPgColumn` return annotation breaks the topic↔clip circular-FK type inference cycle (the
+    // other half is topic.hero_clip_id → clip.id, issue #158); it does not change the emitted SQL.
+    .references((): AnyPgColumn => topic.id, { onDelete: "cascade" }),
 
   // ── Media / platform fields (VideoBase) ───────────────────────────────────────
   platform: text("platform").notNull(), // youtube | tiktok | instagram | other

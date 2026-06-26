@@ -83,6 +83,23 @@ export interface Topic {
    * the store always carries a definite boolean; treat an absent value as `false`.
    */
   closedToSuggestions?: boolean;
+  /**
+   * Hero clip — the one prominent "must-watch" video per topic (issue #158). The stringified id of
+   * the topic's hero `Clip` (matching `Clip.id`), or `undefined` when no hero is set. Persisted as a
+   * nullable `topic.hero_clip_id` FK → `clip.id` (`ON DELETE SET NULL`): a topic-level REFERENCE, not
+   * a clip-level boolean, so the at-most-one-per-topic invariant is STRUCTURAL (one column → one
+   * value) and setting a new hero is one atomic UPDATE that replaces the prior. ELIGIBILITY is
+   * curated + GENERAL clips only, enforced server-side (`setTopicHero`); a candidate is structurally
+   * ineligible (not a clip row). The hero RIDES THIS TOPIC READ, so the strip marks a clip as the
+   * hero by comparing `clip.id === heroClipId` — the prominence is identical for every viewer and the
+   * cached read path does no per-user work (logged-out parity). Set/cleared by any signed-in curator.
+   *
+   * OPTIONAL on the type so a topic CREATED/UPSERTED by a caller need not specify it (it defaults to
+   * NULL via the column). A deleted/removed hero clip clears the reference (`ON DELETE SET NULL`), and
+   * the host treats a `heroClipId` that resolves to no visible general clip as "no hero" (no dangling
+   * hero block).
+   */
+  heroClipId?: string;
 }
 
 /**

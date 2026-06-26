@@ -116,6 +116,10 @@ export function rowToTopic(row: TopicRow): Topic {
     // Issue #159: the curator-set "marked complete" flag. NOT NULL in the DB (default false), so it
     // is always a concrete boolean here — the Topic page reads it to derive `suppressSuggestions`.
     closedToSuggestions: row.closedToSuggestions,
+    // Issue #158: the hero clip reference. Nullable in the DB (`hero_clip_id`); stringified to match
+    // `Clip.id` (the app uses string ids), or `undefined` when no hero is set. The strip compares
+    // each general clip's id to this to render the prominent hero.
+    heroClipId: row.heroClipId != null ? String(row.heroClipId) : undefined,
   };
 }
 

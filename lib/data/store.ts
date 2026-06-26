@@ -67,6 +67,20 @@ export interface DataStore {
    */
   setTopicClosedToSuggestions(qid: string, closed: boolean): Promise<Topic>;
 
+  /**
+   * Set or clear a topic's HERO clip (issue #158). Persists `topic.hero_clip_id` and returns the
+   * updated `Topic`. Pass a clip id to mark that clip the hero (REPLACING any prior hero in one
+   * atomic write — the at-most-one invariant is structural: a single column holds one value); pass
+   * `null` to clear the hero. The CURATOR role-gate (any signed-in contributor; reject a logged-out
+   * caller) lives in the Server Action (`setTopicHeroAction` — mirroring the other gated writes);
+   * this store method enforces ELIGIBILITY and persists. ELIGIBILITY (curated + GENERAL only, this
+   * run): when setting, the target clip must exist, belong to THIS topic, and be a `general`
+   * (whole-topic) clip — else it throws (a section-anchored clip is rejected; a candidate is
+   * structurally ineligible — it is not a clip row). It touches NO other topic field and NO clip.
+   * Throws if the topic does not exist.
+   */
+  setTopicHero(qid: string, clipId: string | null): Promise<Topic>;
+
   /** Curated clips for a topic. Empty ⇒ the page renders the empty/uncurated state. */
   listClips(topicQid: string): Promise<Clip[]>;
   /**

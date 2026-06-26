@@ -193,6 +193,36 @@ export async function setTopicClosedToSuggestionsAction(
   return result;
 }
 
+// ── Hero clip (issue #158 — one prominent must-watch clip per topic) ──────────────────────────
+// Set or clear the topic-level `hero_clip_id` reference (the user-facing "mark as hero" / "unmark").
+// A CURATION act available to ANY signed-in curator (the same bar as adding/curating/marking
+// complete — no moderation lock, no ownership restriction); a logged-out reader cannot set or clear
+// it (AC4). Pass a clip id to mark that clip the hero (REPLACING any prior hero atomically — the
+// at-most-one invariant is structural, AC3); pass `null` to clear.
+//
+// THE SECURITY CONTROL IS HERE, not the affordance: the on-tile control renders only when signed-in,
+// but that is an affordance gate — this action re-checks the signed-in curator SERVER-SIDE via
+// `requireContributor()` FIRST and REJECTS an anonymous/expired caller before any DB write, so a
+// direct boundary invocation with no session changes nothing (AC4). ELIGIBILITY (curated + GENERAL
+// only) is enforced in the store (`setTopicHero`), which rejects a section-anchored clip server-side
+// (AC11) — a candidate is structurally ineligible (not a clip row). It slots into the same
+// gate→limit→write contract as the other gated writes (recorded in `write_event` as `hero`), so a
+// mark/unmark flood is bounded. It is NON-destructive and fully reversible.
+export async function setTopicHeroAction(
+  qid: string,
+  clipId: string | null
+): Promise<Topic> {
+  // GATE FIRST (AC4): reject an unauthenticated mark/unmark before any DB write.
+  const { contributorId } = await requireContributor();
+  // LIMIT SECOND (issue #57 / D5a — the gate→limit→write contract): reject + write nothing if this
+  // identity is over its per-window cap. Pure-read check; the event is recorded after the write.
+  const db = getDb();
+  await checkWriteRateLimit(db, contributorId);
+  const result = await store().setTopicHero(qid, clipId);
+  await recordWriteEvent(db, contributorId, "hero");
+  return result;
+}
+
 // ── Clips ──────────────────────────────────────────────────────────────────────────────
 export async function listClipsAction(topicQid: string): Promise<Clip[]> {
   return store().listClips(topicQid);

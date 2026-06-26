@@ -1,0 +1,2 @@
+ALTER TABLE "topic" ADD COLUMN "hero_clip_id" integer;--> statement-breakpoint
+ALTER TABLE "topic" ADD CONSTRAINT "topic_hero_clip_id_clip_id_fk" FOREIGN KEY ("hero_clip_id") REFERENCES "public"."clip"("id") ON DELETE set null ON UPDATE no action;

@@ -61,6 +61,10 @@ export function GeneralStrip({
   onHold,
   onApprove,
   onRemove,
+  heroClipId,
+  onSetHero,
+  onClearHero,
+  settingHero = false,
   bandRef,
 }: {
   topicTitle: string;
@@ -123,11 +127,39 @@ export function GeneralStrip({
   onApprove?: (clip: Clip) => void;
   /** D5c (issue #59): open the Remove confirm on a General clip (host's setRemoveFor). */
   onRemove?: (clip: Clip) => void;
+  /**
+   * Issue #158: the topic's hero clip id (`topic.heroClipId`), or undefined when no hero is set. The
+   * matching general clip renders prominently at the FRONT of the strip (the hero block), removed
+   * from the uniform scroll row. It rides the topic read, so the prominence is the same for every
+   * viewer (logged-out parity). A `heroClipId` that matches no visible general clip ⇒ no hero block.
+   */
+  heroClipId?: string;
+  /** Issue #158: mark a curated GENERAL clip as the hero (host's optimistic-with-rollback). Shown on
+   *  peer tiles only when signed-in (the affordance gate; the Server Action is the security control). */
+  onSetHero?: (clip: Clip) => void;
+  /** Issue #158: clear the topic's hero (host's optimistic-with-rollback). The hero block's control. */
+  onClearHero?: () => void;
+  /** Issue #158: a hero mark/unmark write is in flight → the activated control shows a busy word and
+   *  is disabled (the visual flip is optimistic, so the busy word is brief). */
+  settingHero?: boolean;
   bandRef?: (el: HTMLElement | null) => void;
 }) {
   // ── The three-state derivation (issue #60 §0). Two independent facts; no `mode`. ──
   const hasCurated = generalClips.length > 0;
   const hasSuggestions = generalCandidates.length > 0;
+
+  // ── Hero split (issue #158). The hero is the general clip whose id matches `topic.heroClipId`,
+  // pulled OUT of the uniform scroll row and rendered prominently at the FRONT of the band. A
+  // `heroClipId` that resolves to no visible general clip (cleared / deleted / removed) ⇒ no hero
+  // block (`heroClip` is undefined), and the band renders exactly as before. `peerClips` are the
+  // remaining general clips (never re-ordered) for the uniform scroll row.
+  const heroClip = heroClipId
+    ? generalClips.find((c) => c.id === heroClipId)
+    : undefined;
+  const peerClips = heroClip
+    ? generalClips.filter((c) => c.id !== heroClip.id)
+    : generalClips;
+  const hasPeers = peerClips.length > 0;
   // Runtime suggestion-region faces (design §5.4 / §5.2): loading skeleton, the honest
   // zero line, or the populated/capped group. The loading + zero faces apply ONLY to the
   // suggestion region and NEVER disturb the curated group (AC10 / §7.4/§7.5).
@@ -252,15 +284,137 @@ export function GeneralStrip({
           </div>
         ))}
 
+        {/* ── Hero block (issue #158) — the one prominent must-watch clip, at the FRONT of the band,
+            above the uniform scroll row. A full-width bordered card on a WHITE (surface-raised) fill
+            so its small body text + note clear AA over the indigo band (the same reason the tile note
+            panel is white). Horizontal on ≥ sm (large thumbnail left, metadata right); stacks on
+            narrow (thumbnail above), still visibly larger than a peer tile. Reuses every standard
+            trust signal — chips, note, context-by, upvote, held marking, owner/reviewer rows — so
+            prominence is placement only. The "★ Hero" eyebrow carries the meaning in WORDS (never
+            color, never gold). The region is labeled so AT announces it as the lead video. */}
+        {heroClip && (
+          <article
+            aria-label={`Hero video: ${heroClip.caption}`}
+            className={`mt-4 border-2 border-hardbox bg-surface-raised text-ink-plus${curatedFade}`}
+          >
+            <div className="flex flex-col gap-4 p-3 sm:flex-row sm:p-4">
+              <div className="sm:w-64 sm:shrink-0 lg:w-72">
+                <VideoThumb
+                  video={heroClip}
+                  variant="card"
+                  onPlay={() => onPlay(heroClip)}
+                />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="plus-sans text-[11px] font-bold uppercase tracking-widest text-violet">
+                  <span aria-hidden>★</span> Hero
+                </p>
+                {heroClip.held && (
+                  <p className="mt-1.5">
+                    <HeldPill />
+                  </p>
+                )}
+                <p className="mt-1 text-base font-bold leading-snug text-ink-plus sm:text-lg">
+                  {heroClip.caption}
+                </p>
+                <p className="mt-0.5 truncate text-[12px] text-muted">
+                  {heroClip.creator.handle} · {heroClip.platformLabel}
+                </p>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  <StanceChip stance={heroClip.stance} modifier={heroClip.stanceModifier} />
+                  <AccuracyChip flag={heroClip.accuracyFlag} modifier={heroClip.accuracyModifier} />
+                </div>
+                {heroClip.contextNote ? (
+                  <div className="mt-2 border-2 border-hardbox bg-surface-2 px-2.5 py-2">
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-violet">
+                      Curator note
+                    </p>
+                    <p className="mt-0.5 line-clamp-4 text-[13px] leading-snug text-ink2">
+                      {heroClip.contextNote}
+                    </p>
+                  </div>
+                ) : null}
+                <p className="mt-1 truncate text-[12px]">
+                  <ContextByLink curatedBy={heroClip.curatedBy} surface="light" />
+                </p>
+                <div className="mt-1.5">
+                  <UpvoteControl
+                    count={heroClip.upvotes ?? 0}
+                    voted={votedClip?.(heroClip) ?? false}
+                    signedIn={signedIn}
+                    surface="light"
+                    onActivate={() => onUpvote?.(heroClip)}
+                  />
+                </div>
+                {/* Owner-only Edit/Delete (mirrors the tile). */}
+                {(ownsClip?.(heroClip) ?? false) && (
+                  <div
+                    role="group"
+                    aria-label="Manage your curated clip"
+                    className="mt-2 flex flex-wrap gap-1.5"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => onEdit?.(heroClip)}
+                      aria-label={`Edit your curation: ${heroClip.caption}`}
+                      className="border-2 border-hardbox bg-surface-raised px-2 py-1 text-[11px] font-bold text-ink-plus hover:shadow-[2px_2px_0_var(--color-hardbox-offset)]"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onDelete?.(heroClip)}
+                      aria-label={`Delete your curation: ${heroClip.caption}`}
+                      className="border-2 border-accred bg-surface-raised px-2 py-1 text-[11px] font-bold text-accred hover:bg-accred hover:text-white"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                )}
+                {/* Reviewer Hold/Approve + moderator Remove (mirrors the tile). */}
+                <ReviewRow
+                  clip={heroClip}
+                  canHold={canHold?.(heroClip) ?? false}
+                  canApprove={canApprove?.(heroClip) ?? false}
+                  canRemove={canRemove?.(heroClip) ?? false}
+                  inFlight={reviewInFlight?.(heroClip) ?? false}
+                  onHold={onHold}
+                  onApprove={onApprove}
+                  onRemove={onRemove}
+                  size="tile"
+                />
+                {/* Issue #158: the curator Unmark-hero control — signed-in only (affordance gate; the
+                    Server Action is the security control). A quiet secondary action; the WORD states
+                    what tapping does. Busy word + disabled while a hero write is in flight. */}
+                {signedIn && onClearHero && (
+                  <div className="mt-2">
+                    <button
+                      type="button"
+                      onClick={onClearHero}
+                      disabled={settingHero}
+                      aria-label="Unmark this video as the topic's hero"
+                      className="inline-flex min-h-[44px] items-center border-2 border-hardbox bg-surface-raised px-2.5 py-1 text-[12px] font-bold text-ink-plus hover:shadow-[2px_2px_0_var(--color-hardbox-offset)] disabled:cursor-default disabled:opacity-60"
+                    >
+                      {settingHero ? "Clearing…" : "Unmark hero"}
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </article>
+        )}
+
         {/* The one horizontally-scrollable row: curated group FIRST (uncapped), then the
             divider (mixed only), then the capped suggestion group + "See N more". */}
-        {(hasCurated || hasSuggestions || showLoading) && (
+        {(hasPeers || hasSuggestions || showLoading) && (
           // `relative` makes the <ul> a containing block for the absolute overlays inside the cards
           // (thumbnail wash, brand wash, play circle, badge), so overflow-x clips them instead of
           // letting them escape the scroller and expand the document width beyond the viewport on mobile.
           <ul role="list" className="relative mt-4 flex gap-3 overflow-x-auto pb-2">
-            {/* Curated group (§2.1 — always first, never capped). Full Indigo-Press chrome. */}
-            {generalClips.map((clip) => {
+            {/* Curated group (§2.1 — always first, never capped). Full Indigo-Press chrome. The hero
+                clip (issue #158) is pulled out into the prominent block above; `peerClips` is the
+                remaining general clips in their existing order. */}
+            {peerClips.map((clip) => {
               const owned = ownsClip?.(clip) ?? false;
               return (
                 <li
@@ -362,6 +516,24 @@ export function GeneralStrip({
                     onRemove={onRemove}
                     size="tile"
                   />
+                  {/* Issue #158: the curator "★ Make hero" control on a peer General tile — signed-in
+                      only (the affordance gate; the Server Action is the security control). Every peer
+                      tile here is a general clip, so eligibility holds. Marking replaces any prior hero
+                      (the at-most-one invariant is structural). Busy + disabled while a hero write is
+                      in flight. The WORD carries the action; the ★ is decorative. */}
+                  {signedIn && onSetHero && (
+                    <div className="mt-1.5">
+                      <button
+                        type="button"
+                        onClick={() => onSetHero(clip)}
+                        disabled={settingHero}
+                        aria-label={`Mark as this topic's hero video: ${clip.caption}`}
+                        className="inline-flex min-h-[44px] items-center border-2 border-hardbox bg-surface-raised px-2 py-1 text-[11px] font-bold text-ink-plus hover:shadow-[2px_2px_0_var(--color-hardbox-offset)] disabled:cursor-default disabled:opacity-60"
+                      >
+                        {settingHero ? "Setting…" : <><span aria-hidden>★</span> Make hero</>}
+                      </button>
+                    </div>
+                  )}
                 </li>
               );
             })}

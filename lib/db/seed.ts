@@ -101,7 +101,27 @@ export async function seedDatabase(db: Db): Promise<boolean> {
     })
     .filter((r): r is NonNullable<typeof r> => r !== null);
   if (clipRows.length > 0) {
-    await db.insert(clip).values(clipRows);
+    const inserted = await db
+      .insert(clip)
+      .values(clipRows)
+      .returning({ id: clip.id, watchUrl: clip.watchUrl });
+    // ── Seed a HERO (issue #158) for the curated Photosynthesis demo. ─────────────────────────
+    // The fixture carries one topic with a hero set so the prominent General-strip block + the
+    // signed-in mark/unmark control are exercised in tests and captured in the screenshot baseline.
+    // The hero is the first GENERAL seed clip (the Crash Course intro — a fitting "start here"),
+    // matched by its stable `watchUrl` so it survives any re-ordering of the seed array.
+    const heroSeed = seedClips.find((c) => c.general);
+    const heroQid = heroSeed?.topicQid;
+    const heroTopicId = heroQid ? qidToId.get(heroQid) : undefined;
+    const heroRow = heroSeed
+      ? inserted.find((r) => r.watchUrl === heroSeed.watchUrl)
+      : undefined;
+    if (heroRow && heroTopicId !== undefined) {
+      await db
+        .update(topic)
+        .set({ heroClipId: heroRow.id })
+        .where(eq(topic.id, heroTopicId));
+    }
   }
 
   // NOTE: seeded mock CANDIDATES (lib/data/seed.ts `seedCandidates`) are intentionally NOT

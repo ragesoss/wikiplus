@@ -860,7 +860,7 @@ export const SCENES: Scene[] = [
     skins: ["light", "zine-dark"],
     group: "General Strip",
     label: "General Strip — curated",
-    note: "Human-curated clips (Photosynthesis).",
+    note: "Human-curated clips (Photosynthesis), led by the prominent hero (issue #158); the signed-in shot shows the ★ Make hero / Unmark hero control.",
     route: "/topic/Photosynthesis/",
     stub: "curated",
     ready: topicReady,
