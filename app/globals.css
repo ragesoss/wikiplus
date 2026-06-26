@@ -98,7 +98,8 @@
 
      Gold #E5AB28 stays a SPARING accent here (the thin eyebrow rule only — never a fill, never a
      signal — VISUAL_IDENTITY §9.1), and is distinct from the wordmark daylight golds above. */
-  --color-gold-accent: #e5ab28; /* the thin 2px eyebrow rule (§A card + §B section) — accent only */
+  --color-gold-accent: #e5ab28; /* brand gold as a functional accent — the thin 2px eyebrow rule
+     (§A card + §B section) and the hero ★ marker; paired with a shape/label, never color alone. */
 
   /* Projector body shading (the angled "on" mini-LED projector, §2.2). */
   --color-indigo-light: #7d83c4; /* lit faces / barrel highlight */

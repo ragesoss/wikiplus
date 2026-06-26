@@ -30,6 +30,7 @@ export function UpvoteControl({
   signedIn,
   surface,
   onActivate,
+  appearance = "inline",
 }: {
   /** The DISPLAYED derived total (seed baseline + distinct votes — Decision 2). Always shown. */
   count: number;
@@ -41,7 +42,20 @@ export function UpvoteControl({
   surface: "light" | "indigo";
   /** Activate handler — the host's optimistic toggle (signed in) or gate route (logged out). */
   onActivate: () => void;
+  /**
+   * Presentation. `inline` (default) is the borderless text control used on the rail card + the
+   * legacy band tone. `tag` renders a chip-height OUTLINE pill so the upvote can sit inline with the
+   * Stance/Accuracy chips on the General hero + curated tiles — same height as a chip, but white-fill
+   * (an action) not a colored signal fill. State semantics are identical in both appearances.
+   */
+  appearance?: "inline" | "tag";
 }) {
+  const tag = appearance === "tag";
+  // The chip-height outline pill (matches `Chips.tsx`'s box: border-2 hardbox, px-2 py-0.5, 10px bold
+  // uppercase). White `surface-raised` fill + ink text reads as an ACTION beside the filled signal
+  // chips; the ▲/△ glyph is violet. AA: ink on white (and on the indigo band the white pill clears it).
+  const tagBase =
+    "inline-flex items-center gap-1 border-2 border-hardbox bg-surface-raised px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-ink-plus";
   // ── Logged-out branch (#71 §4): a STATIC READ-ONLY count label, NOT a control. ──
   // A clip with no upvotes shows nothing (no "0 upvotes" — §4.1); otherwise a plain `<span>`
   // carrying the honest "N upvotes" noun. No `role`/`tabindex`/`aria-pressed`/`onClick`/button
@@ -49,6 +63,20 @@ export function UpvoteControl({
   // `voted`/`onActivate` are unused here.
   if (!signedIn) {
     if (count <= 0) return null;
+    if (tag) {
+      // Static figure styled as a tag — inline with the chips at chip height, but NOT a control
+      // (a plain <span>, never announced as a button — #71 §4.2). Visible "▲ N"; the honest noun
+      // is sr-only so AT still hears "N upvotes".
+      return (
+        <span className={tagBase}>
+          <span aria-hidden className="text-[11px] leading-none text-violet">
+            ▲
+          </span>
+          <span aria-hidden>{count}</span>
+          <span className="sr-only">{readonlyUpvoteCount(count)}</span>
+        </span>
+      );
+    }
     // The decorative filled `▲` is a typographic bullet matching the upvote family — NOT the
     // outline `△` (the control's "not-voted" shape, which would imply an actionable toggle, §4.2).
     // Tone: muted ink on the light card, white on the indigo band — quiet figure, never the
@@ -71,6 +99,27 @@ export function UpvoteControl({
   const accessibleName = upvoteAccessibleName(state, count);
   // Filled (▲) when voted, outline (△) otherwise — a SHAPE difference, not only color (§4.2/§9).
   const glyph = state === "voted" ? "▲" : "△";
+
+  if (tag) {
+    // Interactive tag toggle — identical state model to the inline control (aria-pressed + the ▲/△
+    // SHAPE + the visible "Voted" word; never color-alone), shaped as the chip-height outline pill so
+    // it sits in the chips row. The hover offset-shadow + the global focus ring give the affordance.
+    return (
+      <button
+        type="button"
+        aria-pressed={voted}
+        aria-label={accessibleName}
+        onClick={onActivate}
+        className={`${tagBase} hover:shadow-[2px_2px_0_var(--color-hardbox-offset)]`}
+      >
+        <span aria-hidden className="text-[11px] leading-none text-violet">
+          {glyph}
+        </span>
+        <span aria-hidden>{count}</span>
+        {state === "voted" && <span aria-hidden>· {VOTED_LABEL}</span>}
+      </button>
+    );
+  }
 
   // Tone per surface. On light: the deep-violet `#5248AF` (the existing `--color-violet` token,
   // the design's AA-safe deep indigo) clears WCAG AA (≈5.9:1 on white) at 10–11px (§4.4 / §9.3) —

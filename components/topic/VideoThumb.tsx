@@ -30,8 +30,9 @@ export function VideoThumb({
   onPlay,
 }: {
   video: ThumbVideo;
-  /** "card" = rail card, "strip" = uniform search tile, "inline" = inline candidate. */
-  variant?: "card" | "strip" | "inline";
+  /** "card" = rail card, "strip" = uniform search tile, "inline" = inline candidate,
+   *  "hero" = the full-bleed General hero (uniform 16:9, no own border — the band/card frames it). */
+  variant?: "card" | "strip" | "inline" | "hero";
   candidate?: boolean;
   /** Called for YouTube clips (parent opens the player modal). */
   onPlay?: () => void;
@@ -40,11 +41,12 @@ export function VideoThumb({
   const isYouTube = video.platform === "youtube" && !!video.thumbnailUrl;
 
   const aspect =
-    variant === "strip"
-      ? // Thumbnail-forward General strip (TOPIC_PAGE_DESIGN §"The General strip"): a true
-        // 16:9 frame that scales with the tile width, so the picture is the dominant
-        // element. `w-full` is added below; the tile widths (curated/candidate) live in
-        // GeneralStrip. Uniform landscape for every strip tile keeps the scroll row even.
+    variant === "strip" || variant === "hero"
+      ? // Thumbnail-forward General strip + hero (TOPIC_PAGE_DESIGN §"The General strip"): a true
+        // 16:9 frame that scales with the column width, so the picture is the dominant element.
+        // `w-full` is added below; the tile/hero widths live in GeneralStrip. Uniform landscape
+        // for every strip tile keeps the scroll row even; the hero uses the same uniform 16:9 so
+        // the docked curation card layout is stable regardless of the clip's orientation.
         "aspect-video"
       : video.orientation === "vertical"
         ? variant === "inline"
@@ -69,9 +71,12 @@ export function VideoThumb({
       type="button"
       onClick={activate}
       aria-label={action}
-      className={`group relative block overflow-hidden border-2 border-hardbox ${aspect} ${
-        variant === "strip" ? "w-full" : ""
-      }`}
+      className={`group relative block overflow-hidden ${aspect} ${
+        // The hero bleeds: the indigo band + the docked curation card frame it, so the thumbnail
+        // itself carries NO border (avoids a doubled border at the band edge). Every other variant
+        // keeps the 2px Indigo-Press frame. Strip + hero fill their column width.
+        variant === "hero" ? "" : "border-2 border-hardbox"
+      } ${variant === "strip" || variant === "hero" ? "w-full" : ""}`}
     >
       {showImg ? (
         // eslint-disable-next-line @next/next/no-img-element
