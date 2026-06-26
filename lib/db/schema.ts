@@ -364,6 +364,47 @@ export const clipVote = pgTable(
 );
 
 /**
+ * One contributor watching one topic (issue #162 — the wiki+-side watchlist join). The personal
+ * "follow this topic" relation behind the topic-page watch toggle + the `/watchlist` feed: a
+ * signed-in user's own list of topics, stored by us (Wikipedia-watchlist sync is an explicit
+ * future, not this). It is a pure JOIN — `(contributor_id, topic_id)` + `watched_at` — with NO
+ * payload of its own; the watched topics it points at carry everything.
+ *
+ * ONE-PER-PAIR is a DB INVARIANT, not app logic: the `unique(contributor_id, topic_id)` constraint
+ * makes a duplicate watch collide on the constraint regardless of races, so a racing double-add lands
+ * watched (one row, never doubled) — the same DB-enforced-uniqueness pattern as `clip_vote_identity`
+ * / `dismissed_candidate_identity`. Both FKs CASCADE on delete: a removed contributor's watches go
+ * with them, and a deleted topic drops its watch rows (a watch against a gone topic is meaningless).
+ * `watched_at` is recency metadata (newest-followed-first is a future affordance; the FEED orders by
+ * the CURATIONS' recency, not the watch time). Reads are per-viewer + off the cached topic read path
+ * (the `clip_vote` voted-state posture): an anonymous topic load does zero watch work.
+ */
+export const watchlist = pgTable(
+  "watchlist",
+  {
+    id: serial("id").primaryKey(),
+    contributorId: integer("contributor_id")
+      .notNull()
+      // Cascade: a removed contributor's watches go with them (the `clip_vote` posture).
+      .references(() => contributor.id, { onDelete: "cascade" }),
+    topicId: integer("topic_id")
+      .notNull()
+      // Cascade: a deleted topic drops its watch rows (a watch against a gone topic is meaningless).
+      .references(() => topic.id, { onDelete: "cascade" }),
+    watchedAt: timestamp("watched_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    // The one-per-pair enforcement: a single (contributor, topic) row at most. This unique index
+    // also serves the per-viewer `isWatching` lookup and the feed's watched-topic membership join.
+    unique("watchlist_identity").on(t.contributorId, t.topicId),
+    // The feed's hot path filters by the viewer's `contributor_id`; a plain index covers it.
+    index("watchlist_contributor_idx").on(t.contributorId),
+  ]
+);
+
+/**
  * The per-identity write rate-limit ledger (issue #57 / D5a — Decision 1). One row per COUNTED
  * gated write by a signed-in contributor; the limiter's window check is a
  * `COUNT(... WHERE contributor_id = ? AND created_at > now() - W)` over this table — NOT a Redis
@@ -409,6 +450,7 @@ export const writeEvent = pgTable(
 export const topicRelations = relations(topic, ({ many }) => ({
   clips: many(clip),
   dismissals: many(dismissedCandidate),
+  watches: many(watchlist),
 }));
 
 export const clipRelations = relations(clip, ({ one, many }) => ({
@@ -425,6 +467,18 @@ export const contributorRelations = relations(contributor, ({ many }) => ({
   clips: many(clip),
   votes: many(clipVote),
   writeEvents: many(writeEvent),
+  watches: many(watchlist),
+}));
+
+export const watchlistRelations = relations(watchlist, ({ one }) => ({
+  contributor: one(contributor, {
+    fields: [watchlist.contributorId],
+    references: [contributor.id],
+  }),
+  topic: one(topic, {
+    fields: [watchlist.topicId],
+    references: [topic.id],
+  }),
 }));
 
 export const writeEventRelations = relations(writeEvent, ({ one }) => ({
@@ -472,3 +526,4 @@ export type ContributorRow = typeof contributor.$inferSelect;
 export type DismissedCandidateRow = typeof dismissedCandidate.$inferSelect;
 export type ClipVoteRow = typeof clipVote.$inferSelect;
 export type WriteEventRow = typeof writeEvent.$inferSelect;
+export type WatchlistRow = typeof watchlist.$inferSelect;

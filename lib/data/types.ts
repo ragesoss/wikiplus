@@ -259,6 +259,23 @@ export interface RecentCurationsPage {
 }
 
 /**
+ * One page of the WATCHLIST feed (`/watchlist`, issue #162). The SAME shape as `RecentCurationsPage`
+ * — the items are the existing `ContributorClip` (no per-item model change; the feed UI is #160's,
+ * reused) and `nextCursor` is the SAME opaque `(createdAt, id)` keyset cursor — but scoped to the
+ * curations on the viewer's WATCHED topics, newest first. It carries ONE extra field:
+ *
+ * `watchedTopicCount` — how many topics the viewer watches. It distinguishes the two empty states the
+ * design requires (`docs/design/watchlist.md` §3.4/§3.5) WITHOUT a second round-trip: `items` empty
+ * AND `watchedTopicCount === 0` ⇒ "you're not watching any topics yet" (go find some); `items` empty
+ * AND `watchedTopicCount > 0` ⇒ "nothing new on your topics yet" (you follow topics, but none has a
+ * vouched curation). It rides every page (cheap — one COUNT over the small per-user watch set); the
+ * view reads it only on the initial page to pick the empty panel.
+ */
+export interface WatchlistCurationsPage extends RecentCurationsPage {
+  watchedTopicCount: number;
+}
+
+/**
  * An auto-suggested, unvetted candidate (empty state). By CURATION §6 it carries
  * NO stance, NO accuracy, NO context note — only a match reason. Promotion turns
  * it into a Clip.

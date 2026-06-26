@@ -9,10 +9,13 @@ import {
   getTopicByTitleAction,
   holdClipAction,
   listClipsAction,
+  isWatchingAction,
   listClipsByContributorAction,
   listCuratedTopicsAction,
   listRecentCurationsAction,
   listTopicsAction,
+  listWatchlistCurationsAction,
+  setWatchAction,
   recordDismissalAction,
   removeClipAction,
   reviewClipAction,
@@ -101,6 +104,19 @@ const clientStore: DataStore = {
   // client passes the opaque cursor + limit straight through; the boundary applies the visibility
   // predicate + keyset paging server-side.
   listRecentCurations: (input) => listRecentCurationsAction(input),
+  // Watchlist (issue #162) — a per-user follow + the watchlist feed. The client forwards only the
+  // topic QID / cursor; the auth-gated boundary resolves the contributor (the seam's `contributorId`
+  // params are server-internal, unused here). `addWatch`/`removeWatch` route to the one gated
+  // `setWatchAction(qid, watch)`; `isWatching` + `listWatchlistCurations` are the per-viewer reads the
+  // host calls ONLY in the authenticated session (gated — a logged-out call rejects, so the topic
+  // page guards on the session and the /watchlist route renders the login gate).
+  addWatch: (qid) => setWatchAction(qid, true),
+  removeWatch: (qid) => setWatchAction(qid, false),
+  isWatching: (qid) => isWatchingAction(qid),
+  listWatchlistCurations: (input) =>
+    listWatchlistCurationsAction(
+      input ? { cursor: input.cursor, limit: input.limit } : undefined
+    ),
   // Upvotes (issue #55 / D4). The toggle forwards the clip id only — the boundary resolves the
   // contributor (the seam's `contributorId` param is server-internal, unused here). `votedClipIds`
   // is the per-viewer voted-state read; the host calls it ONLY in the authenticated session (it is

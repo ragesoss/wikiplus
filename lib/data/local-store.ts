@@ -11,6 +11,7 @@ import type {
   Topic,
   TopicWithStats,
   UpvoteToggle,
+  WatchlistCurationsPage,
 } from "./types";
 import { RECENT_PAGE_DEFAULT } from "./types";
 import { decodeRecentCursor, encodeRecentCursor } from "./recent-cursor";
@@ -21,6 +22,7 @@ const CANDIDATES_KEY = "wikiplus.candidates";
 const DISMISSED_KEY = "wikiplus.dismissed_candidates";
 const VOTES_KEY = "wikiplus.clip_votes";
 const SKIN_PREF_KEY = "wikiplus.skin_preference";
+const WATCHLIST_KEY = "wikiplus.watchlist";
 
 function read<T>(key: string): T[] {
   if (typeof window === "undefined") return [];
@@ -354,6 +356,81 @@ export class LocalStorageDataStore implements DataStore {
       ? encodeRecentCursor({ t: last.createdAt, i: last.id })
       : null;
     return { items, nextCursor };
+  }
+
+  // ── Watchlist (issue #162) — reference parallel of the Drizzle watch join + feed. ──────────────
+  // The localStorage store is a single-browser, single-"user" reference impl with no real
+  // `contributor` identity (the per-user `watchlist` table + the auth gate are exercised against the
+  // real DrizzleDataStore / pglite). Here a watch is just the set of watched topic QIDs in one
+  // per-browser key, so `contributorId` is ignored and the feed scopes to that set. This keeps the
+  // seam contract satisfiable in non-DB tests with the SAME shape the production path returns.
+  private watchedQids(): string[] {
+    return read<string>(WATCHLIST_KEY);
+  }
+
+  async addWatch(topicQid: string): Promise<void> {
+    const set = new Set(this.watchedQids());
+    set.add(topicQid);
+    write(WATCHLIST_KEY, [...set]);
+  }
+
+  async removeWatch(topicQid: string): Promise<void> {
+    write(
+      WATCHLIST_KEY,
+      this.watchedQids().filter((q) => q !== topicQid)
+    );
+  }
+
+  async isWatching(topicQid: string): Promise<boolean> {
+    return this.watchedQids().includes(topicQid);
+  }
+
+  // The watchlist feed: the SAME newest-first keyset over the in-memory clip set as
+  // `listRecentCurations`, scoped to clips whose topic is in the watched set (issue #162). Reuses the
+  // visible (`!isRemoved && !held`) predicate + the `(createdAt, id)` keyset + the opaque cursor, so
+  // the reference impl round-trips identically to the production path. Carries `watchedTopicCount` so
+  // the view tells the two empty states apart (no topics watched vs. watched-but-no-curations).
+  async listWatchlistCurations(input?: {
+    cursor?: string | null;
+    limit?: number;
+    contributorId?: number;
+  }): Promise<WatchlistCurationsPage> {
+    const watched = new Set(this.watchedQids());
+    const watchedTopicCount = watched.size;
+    if (watchedTopicCount === 0) {
+      return { items: [], nextCursor: null, watchedTopicCount: 0 };
+    }
+    const limit =
+      input?.limit && input.limit > 0 ? input.limit : RECENT_PAGE_DEFAULT;
+    const cursor = decodeRecentCursor(input?.cursor);
+    const topics = read<Topic>(TOPICS_KEY);
+
+    const ordered = read<Clip>(CLIPS_KEY)
+      .filter((c) => !isRemoved(c) && !c.held && watched.has(c.topicQid))
+      .sort((a, b) => {
+        const t = b.createdAt.localeCompare(a.createdAt);
+        return t !== 0 ? t : b.id.localeCompare(a.id);
+      });
+
+    const after = cursor
+      ? ordered.filter((c) => {
+          if (c.createdAt < cursor.t) return true;
+          if (c.createdAt > cursor.t) return false;
+          return c.id < String(cursor.i);
+        })
+      : ordered;
+
+    const pageRows = after.slice(0, limit);
+    const hasMore = after.length > limit;
+    const items: ContributorClip[] = pageRows.map((c) => ({
+      ...c,
+      topicTitle: topics.find((t) => t.qid === c.topicQid)?.title ?? c.topicQid,
+    }));
+    const last = hasMore ? pageRows[pageRows.length - 1] : undefined;
+    const nextCursor = last
+      ? encodeRecentCursor({ t: last.createdAt, i: last.id })
+      : null;
+    return { items, nextCursor, watchedTopicCount };
   }
 
   // ── Sticky dismissals (issue #45). Ported from lib/candidates/dismissals.ts so the

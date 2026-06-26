@@ -8,6 +8,7 @@ import type {
   Topic,
   TopicWithStats,
   UpvoteToggle,
+  WatchlistCurationsPage,
 } from "./types";
 
 // The `DataStore` interface — the data-access seam. `./index.ts` is the single place that
@@ -263,6 +264,48 @@ export interface DataStore {
     cursor?: string | null;
     limit?: number;
   }): Promise<RecentCurationsPage>;
+
+  // ── Watchlist (issue #162 — a per-user, wiki+-side list of followed topics). ─────────
+  /**
+   * Add a topic to the signed-in contributor's watchlist (issue #162). IDEMPOTENT: re-watching an
+   * already-watched topic is a no-op, not a duplicate row / error (the `(contributor, topic)` unique
+   * constraint). The auth-gated `setWatchAction` resolves the session and passes `contributorId`; the
+   * client facade passes only the topic QID — `contributorId` is server-internal (optional only for
+   * the store-level tests + the reference impl). A watch against an unknown topic is a no-op (there is
+   * no topic row to reference); a topic the reader is viewing always exists in the store.
+   */
+  addWatch(topicQid: string, contributorId?: number): Promise<void>;
+  /**
+   * Remove a topic from the contributor's watchlist (issue #162). IDEMPOTENT: un-watching a
+   * not-watched topic is a no-op. Same auth-gating / `contributorId` posture as `addWatch`.
+   */
+  removeWatch(topicQid: string, contributorId?: number): Promise<void>;
+  /**
+   * Does this contributor watch this topic (issue #162)? The PER-VIEWER state behind the topic-page
+   * watch toggle — resolved in the ALREADY-AUTHENTICATED client session (the `votedClipIds` posture),
+   * never baked into the cached topic read, so an anonymous load does ZERO watch work. The auth-gated
+   * `isWatchingAction` resolves the viewer; a logged-out caller resolves to `false` (no per-user query
+   * — the host only calls it when signed in). `contributorId` is server-internal (optional for tests).
+   */
+  isWatching(topicQid: string, contributorId?: number): Promise<boolean>;
+  /**
+   * The WATCHLIST feed (issue #162 / `/watchlist`): the cross-topic, cursor-paginated, newest-first
+   * curation feed of #160, SCOPED to the curations on the viewer's WATCHED topics. It REUSES the same
+   * `(created_at, id)` keyset ordering + opaque cursor + the vouched-only visibility predicate
+   * (`removed_at IS NULL` AND `vetted = true`) as `listRecentCurations` — the ONLY difference is the
+   * watched-topic-set filter (the feed is not rebuilt; see `docs/ARCHITECTURE.md` "Watchlist feed").
+   *
+   * It is a PER-VIEWER, login-gated read: the auth-gated `listWatchlistCurationsAction` resolves the
+   * session and passes `contributorId`; the client facade passes only the opaque cursor + limit. The
+   * page additionally carries `watchedTopicCount` so the view distinguishes the two empty states (no
+   * topics watched vs. watched-but-no-curations) with no second round-trip. `contributorId` is
+   * server-internal (optional only for the store-level tests + the reference impl).
+   */
+  listWatchlistCurations(input?: {
+    cursor?: string | null;
+    limit?: number;
+    contributorId?: number;
+  }): Promise<WatchlistCurationsPage>;
 
   // ── Upvotes (issue #55 / D4 — a persisted, one-per-user, toggleable signal). ────────
   /**
