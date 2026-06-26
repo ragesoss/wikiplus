@@ -178,12 +178,15 @@ body {
 /* Scroll-aware headers (Topic + content pages, host="topic"/"page") collapse their sticky band
    height as `p` tracks scrollY (#96). That continuously changes the header's IN-FLOW height, which
    reflows the page beneath it — and the browser's scroll anchoring then nudges scrollY to keep the
-   reflowed content visually stable, which re-drives the collapse: a feedback loop that lands scrollY
-   short of the real offset and makes the whole page jitter ~1px back and forth at unstable points.
-   Opt the document scroller out of scroll anchoring on exactly those pages, so scrollY is the sole,
-   stable input to the transition. Home (a non-collapsing `div` header, not `header.header-shared`)
+   reflowed content visually stable, which re-drives the collapse: a feedback loop that makes the
+   whole page jitter ~1px back and forth at unstable scroll points just below the top. Opt the
+   document scroller out of scroll anchoring on exactly those pages, so scrollY is the sole, stable
+   input to the transition. The opt-out must sit on BOTH the root element AND `body`: for the
+   document (root) scroller Chromium reads `overflow-anchor: none` off `body`, and the root element
+   alone does not stop the nudge. Home (a non-collapsing `div` header, not `header.header-shared`)
    keeps anchoring. */
-html:has(header.header-shared) {
+html:has(header.header-shared),
+html:has(header.header-shared) body {
   overflow-anchor: none;
 }
 
