@@ -107,9 +107,11 @@ behind Cloudflare, Auth.js OAuth (Wikimedia for the MVP).
 - **Wikimedia etiquette** (descriptive User-Agent, rate limits, lazy cache) + **CC BY-SA**
   attribution on every article view.
 - **Plus identity = "Indigo Press"** on the Wiki Education Dashboard palette: `brand #676EB4`,
-  `sprout #2A8270`, `action #1F6F95`, `ink #2C2C2C`; **gold `#E5AB28` is an accent / tertiary
-  color** — used sparingly (e.g. the header wordmark), never indigo's equal and never a functional
-  signal color. The Wiki article side keeps a faithful Wikipedia look.
+  `sprout #2A8270`, `action #1F6F95`, `ink #2C2C2C`, **gold `#E5AB28`**. Indigo is the dominant
+  brand color; **gold is the accent / highlight** — used sparingly (the header wordmark, the hero
+  marker), it may carry functional emphasis where it earns prominence, but it is never a color-block
+  fill and never the *sole* carrier of a signal (pair it with text or shape — the AA rule below). The
+  Wiki article side keeps a faithful Wikipedia look.
 - **The projector header is universal** — the `HeaderProjector` mark via the `SiteHeader` host
   wrapper is the app's one header. Every view gets it: any new view, or any old view being
   redesigned, that doesn't yet use the projector header should adopt `SiteHeader` (matching or new

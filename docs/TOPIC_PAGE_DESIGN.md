@@ -39,10 +39,11 @@ Dashboard** brand palette so wiki+ reads as part of that brand world. Defining t
 - **Light, editorial cards** — white/very-light panels with **2px ink (`#2C2C2C`) borders and
   solid offset drop-shadows**, big numerals for counts, chunky count tags, color-blocked panels,
   and bold oversized display headings on plus blocks.
-- **Indigo-dominant**; gold is an accent only. The ＋plus header label, the **wiki+ panel** (see
+- **Indigo-dominant**; gold is the sparing accent. The ＋plus header label, the **wiki+ panel** (see
   *Two infoboxes*), and the General band are **indigo `#676EB4`** color-blocks; count numerals/tags
-  are indigo. Gold (`#E5AB28`) is a tertiary accent reserved for the header wordmark (see
-  `VISUAL_IDENTITY.md`), never a color-block or a functional signal.
+  are indigo. Gold (`#E5AB28`) is the highlight accent (the header wordmark, the hero marker — see
+  `VISUAL_IDENTITY.md`): it may carry functional emphasis where it earns prominence, but is never a
+  color-block fill and never the sole carrier of a signal (pair it with text or shape — the AA rule).
 - **Brand fonts**: headings **Source Sans Pro**, body **Open Sans** (the dashboard's fonts).
   The Wiki side keeps its serif Wikipedia look — the two type systems reinforce the two worlds.
 
@@ -58,9 +59,11 @@ Dashboard** brand palette so wiki+ reads as part of that brand world. Defining t
 | Inks | `#2C2C2C` / `#595959` / `#717171` |
 | Light bg / borders | `#F7F7F7` · `#F0F1F3` / `#D9D9D9` |
 
-Gold (`#E5AB28`) is the palette's **accent / tertiary** color: used sparingly — and in a lighter,
-desaturated form — for the header wordmark (see `VISUAL_IDENTITY.md`); it is never indigo's equal,
-never a color-block fill, and never a functional signal color.
+Gold (`#E5AB28`) is the palette's **accent / highlight** color: used sparingly — in a lighter,
+desaturated form for the header wordmark (see `VISUAL_IDENTITY.md`), and at full strength for small
+functional accents that earn prominence (e.g. the hero marker). It stays subordinate to indigo's
+dominant brand color, is never a color-block fill, and never the sole carrier of a signal (pair it
+with text or shape — the AA rule).
 
 ### Fact-vs-opinion signal (chips)
 
@@ -186,7 +189,7 @@ states"), never per card.
 text + note clear AA over the indigo band), with a **large thumbnail beside the metadata
 (horizontal on ≥ sm, stacked on narrow)** rather than the uniform `w-44` tile — **above** the scroll
 row of the remaining (peer) curated tiles + suggestions. It carries a **text-labeled "★ Hero" marker**
-(the word carries the meaning — never color alone, never gold) and **every standard trust signal**
+(its shape + the region's accessible label carry the meaning — never color alone) and **every standard trust signal**
 (chips, the context-note, `context by`, upvote, the held marking if held, owner/reviewer rows):
 **prominence is placement only**, not a change to the clip's data or vouch. **At most one hero per
 topic** — set/cleared by **any signed-in curator** via the **"★ Make hero" / "Unmark hero"** control
