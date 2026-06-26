@@ -67,6 +67,10 @@ export function GeneralStrip({
   onClearHero,
   settingHero = false,
   suppressed = false,
+  complete = false,
+  overridden = false,
+  hasUnderlyingSuggestions = false,
+  onToggleOverride,
   bandRef,
 }: {
   topicTitle: string;
@@ -152,6 +156,26 @@ export function GeneralStrip({
    * for that viewer.
    */
   suppressed?: boolean;
+  /**
+   * Is the topic marked complete (`closedToSuggestions`) — drives the reader-facing completion signal
+   * + the per-viewer "show suggestions anyway" REVEAL, which live here as the TRAILING item in the
+   * scroll row (design overview-card-cleanup.md §4), NOT in the wiki+ Overview card. Default false so a
+   * not-complete topic renders byte-for-byte as before. (`suppressed === complete && !overridden`, so
+   * the reveal's on/off label is derived as `complete && !suppressed`.)
+   */
+  complete?: boolean;
+  /** Has THIS viewer overridden the suppression for this session (suggestions showing for them) —
+   *  drives the reveal toggle's label/treatment (`suppressed === complete && !overridden`). */
+  overridden?: boolean;
+  /**
+   * Does the topic have ≥1 underlying suggestion (computed as if the flag were off, regardless of
+   * suppression)? With `complete`, gates the reveal toggle: when there is nothing to reveal it is
+   * omitted (the toggle never promises a reveal it can't deliver).
+   */
+  hasUnderlyingSuggestions?: boolean;
+  /** Toggle the per-viewer "show suggestions anyway" override (host's client-only, session-local,
+   *  per-topic reveal — instant in-place, never a DB write). */
+  onToggleOverride?: () => void;
   bandRef?: (el: HTMLElement | null) => void;
 }) {
   // ── The three-state derivation (issue #60 §0). Two independent facts; no `mode`. ──
@@ -174,10 +198,22 @@ export function GeneralStrip({
   // zero line, or the populated/capped group. The loading + zero faces apply ONLY to the
   // suggestion region and NEVER disturb the curated group (AC10 / §7.4/§7.5).
   const showLoading = loading;
-  // The honest zero line shows only when there are no suggestions AND nothing is loading
-  // AND there are no curated clips either (empty state with no results). In a curated
-  // band a zero suggestion count simply reads as fully-curated — no suggestion chrome.
-  const showZero = !loading && !hasSuggestions && !hasCurated;
+  // ── Marked-complete reveal (design overview-card-cleanup.md §4). The reader-facing completion
+  // signal + the per-viewer "show suggestions anyway" toggle live HERE as the TRAILING item in the
+  // scroll row — to the RIGHT of the curated videos, adding no vertical height. Shown only when the
+  // topic is complete AND there is an underlying suggestion to reveal (the toggle never promises a
+  // reveal it can't deliver). The reveal's label follows `overridden` (off → "Show suggestions
+  // anyway"; on → "Hide suggestions again"). When complete with ZERO curated videos and suggestions
+  // suppressed, the band renders a MINIMAL face: the empty-state suggestion bootstrap (the
+  // "＋ Suggested videos" header) is suppressed and the row holds just the toggle.
+  const showCompleteToggle = complete && hasUnderlyingSuggestions;
+  const minimalCompleteBand =
+    suppressed && !hasCurated && !hasSuggestions && !showLoading;
+  // The honest zero line shows only when there are no suggestions AND nothing is loading AND there
+  // are no curated clips either (empty state with no results). In a curated band a zero suggestion
+  // count simply reads as fully-curated — no suggestion chrome. On a COMPLETE topic the toggle card
+  // (not a misleading "no videos found" line) carries the state, so the zero line is suppressed.
+  const showZero = !loading && !hasSuggestions && !hasCurated && !complete;
 
   // Hero top-bleed (design general-hero-layout.md §2.2): the hero `<article>` breaks out of the
   // centered header container (`-mx-5`) and bleeds to the band's TOP edge (`-mt-4` cancels the header
@@ -220,7 +256,13 @@ export function GeneralStrip({
     <section
       ref={bandRef}
       id="general-band"
-      aria-label={hasCurated ? "General overview videos" : "Suggested videos"}
+      aria-label={
+        hasCurated
+          ? "General overview videos"
+          : minimalCompleteBand
+            ? "Videos"
+            : "Suggested videos"
+      }
       className="my-7 border-y-2 border-hardbox bg-brand text-white"
     >
       {/* Header region — centered to the content column; top padding only when it carries visible
@@ -233,7 +275,10 @@ export function GeneralStrip({
             the region's accessible name. The EMPTY state keeps its visible `＋ Suggested videos`
             heading + the UNCURATED pill + the unvetted subtitle — that line is the once-per-context
             unvetted signal (required, not chrome); the transient "Finding videos…" tag rides it. */}
-        {hasCurated ? (
+        {hasCurated || minimalCompleteBand ? (
+          // Curated band — and the COMPLETE minimal band (zero curated, suppressed) — lead with an
+          // sr-only heading: no visible "＋ Suggested videos" bootstrap on a complete topic; the
+          // trailing toggle card carries the state (overview-card-cleanup §4.3).
           <h2 className="sr-only">General videos</h2>
         ) : (
           <div className="flex flex-wrap items-center gap-3">
@@ -401,9 +446,13 @@ export function GeneralStrip({
           the FULL band width via `.general-scroller` (not the centered column), starting at the content
           column's left edge, scrolling into the full width, with its scrollbar flush at the band's
           bottom (no indigo beneath it). Curated cards first, then the divider (mixed only), then the
-          capped suggestion cards + "See N more". `relative` keeps it a containing block for the cards'
-          absolute thumbnail overlays. */}
-      {(hasPeers || hasSuggestions || showLoading || showCuratorTools) && (
+          capped suggestion cards + "See N more", and the marked-complete reveal toggle last. `relative`
+          keeps it a containing block for the cards' absolute thumbnail overlays. */}
+      {(hasPeers ||
+        hasSuggestions ||
+        showLoading ||
+        showCuratorTools ||
+        showCompleteToggle) && (
         <ul role="list" className="general-scroller relative flex items-start gap-2 overflow-x-auto">
             {/* Curator find-more controls — the LEADING item in the scroll row (before the videos),
                 so they're always visible right after the hero without horizontal scrolling, never sit
@@ -682,6 +731,45 @@ export function GeneralStrip({
               </li>
             )}
 
+            {/* Marked-complete reveal (overview-card-cleanup §4.2): the TRAILING item — to the right
+                of the videos, the same kind of slot as "See N more". A compact WHITE card (so its
+                small text clears AA on the indigo band) with a brand left rule; it stretches to the
+                row height, so it adds no vertical space. The eyebrow + body line carry the honest
+                framing in WORDS (a curator's judgment); the button toggles the per-viewer,
+                session-local reveal. Stays the row's last item in both states — when overridden,
+                after the revealed suggestions. Shown iff `complete && hasUnderlyingSuggestions` (never
+                a reveal that shows nothing — §4.3). */}
+            {showCompleteToggle && (
+              <li role="listitem" className="flex shrink-0 items-stretch">
+                <div
+                  className="flex w-48 flex-col justify-center gap-2 border-2 border-hardbox bg-surface-raised p-3 text-ink-plus shadow-[2px_2px_0_var(--color-hardbox-offset)]"
+                  style={{ borderLeftWidth: 4, borderLeftColor: "var(--color-brand)" }}
+                >
+                  <p className="plus-sans text-[11px] font-bold uppercase tracking-wide text-ink-plus">
+                    <span aria-hidden>✓</span> Marked complete
+                  </p>
+                  <p className="plus-body text-[12px] leading-snug text-ink2">
+                    A curator marked this complete, so suggestions are hidden.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={onToggleOverride}
+                    aria-label={
+                      overridden
+                        ? "Hide suggestions again — return to the complete view"
+                        : "Show suggestions for this topic in this session"
+                    }
+                    className={
+                      overridden
+                        ? "inline-flex min-h-[44px] items-center justify-center border-2 border-hardbox bg-surface-raised px-2.5 py-1 text-[12px] font-bold text-ink-plus hover:shadow-[2px_2px_0_var(--color-hardbox-offset)]"
+                        : "inline-flex min-h-[44px] items-center justify-center border-2 border-hardbox bg-brand px-2.5 py-1 text-[12px] font-bold text-white hover:shadow-[2px_2px_0_var(--color-hardbox-offset)]"
+                    }
+                  >
+                    {overridden ? "Hide suggestions again" : "Show suggestions anyway"}
+                  </button>
+                </div>
+              </li>
+            )}
           </ul>
         )}
 

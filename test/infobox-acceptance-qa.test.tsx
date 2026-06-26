@@ -1,82 +1,65 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import { Infobox } from "@/components/topic/Infobox";
 import type { TopicStats } from "@/lib/data/types";
 
-// QA acceptance matrix for the ＋plus overview panel redesign (issue #16, design spec
-// docs/design/plus-overview-redesign.md). Independent verification on top of the author's
-// toc-infobox.test.tsx component tests: this file locks the verbatim microcopy, proves the
-// removed strings are gone in EVERY state, confirms the §10 Browse handler fires (the curate
-// button is removed), and checks the §9 a11y contract (accessible names, no competing heading).
-// It maps each issue "Done when" criterion to a passing assertion.
+// QA acceptance matrix for the ＋plus Overview card after the cleanup (design
+// overview-card-cleanup.md). The card is a quiet stats card: a thin indigo cap with NO wordmark
+// text (AC1), the counts/volume block, and (signed-in) the curator mark/reopen control. It carries
+// NO "Marked complete" notice, NO "Show suggestions"/"Add a video" buttons (AC2), and NO
+// Browse/Jump scroll button in any state (AC3). This locks the verbatim microcopy that stays, and
+// proves the removed surfaces are gone in EVERY state.
 
 const stats: TopicStats = { videos: 14, creators: 9, curators: 6, synced: "2h ago" };
 const zero: TopicStats = { videos: 0, creators: 0, curators: 0 };
 
-// Verbatim strings the panel must render.
 const EMPTY_UNCURATED = "uncurated videos";
 const ERROR_LINE =
   "Couldn't load this topic's video stats. The article is unaffected.";
 
-// The strings that must be GONE everywhere. None of these may appear in ANY state.
+// Strings that must be GONE everywhere — including the retired card header wordmark + the dropped
+// Browse/Jump labels.
 const REMOVED = [
   /suggestions synced/i,
-  /synced .*shown/i,
   /Be the first to curate/i,
-  /auto-suggestion/i,
-  /just now/i,
-  /Short videos to learn this topic/i,  // value statement removed
-  /videos found to weigh in/i,           // old empty-state label removed
-  /none vouched for yet/i,               // old empty-state subtitle removed
-  /Watched one worth keeping/i,          // invite copy removed
-  /Know a clip that belongs here/i,      // invite copy removed
-  /to weigh in/i,                        // trimmed from mixed two-count line
+  /Short videos to learn this topic/i, // value statement removed
+  /videos found to weigh in/i, // old empty-state label removed
+  /to weigh in/i, // trimmed from mixed two-count line
+  /＋plus/, // the card header wordmark is gone (AC1)
+  /on this topic/i, // …and its sub-label
+  /Jump to videos/i, // Browse/Jump dropped (AC3)
+  /Browse suggested videos/i,
+  /Marked complete/i, // the status notice moved out of the card (AC2)
 ];
 
-function renderState(
-  state: "empty" | "mixed" | "curated" | "error",
-  onBrowse = vi.fn()
-) {
+function renderState(state: "empty" | "mixed" | "curated" | "error") {
   const props = {
     empty: { hasCurated: false, stats: zero, suggestionCount: 5 },
     mixed: { hasCurated: true, stats, suggestionCount: 12 },
     curated: { hasCurated: true, stats, suggestionCount: 0 },
     error: { hasCurated: false, stats: zero, suggestionCount: 5, storeError: true },
   }[state];
-  return render(<Infobox {...props} onBrowse={onBrowse} />);
+  return render(<Infobox {...props} />);
 }
 
-describe("Infobox QA — verbatim microcopy", () => {
-  it("renders 'uncurated videos' as the empty-state label (§6.1)", () => {
+describe("Infobox QA — verbatim microcopy that stays", () => {
+  it("renders 'uncurated videos' as the empty-state label", () => {
     renderState("empty");
     expect(screen.getByText(EMPTY_UNCURATED)).toBeInTheDocument();
+    expect(screen.getByText("5")).toBeInTheDocument();
   });
 
-  it("renders the empty Browse button label verbatim (§6.1)", () => {
-    renderState("empty");
-    expect(
-      screen.getByRole("button", { name: "Browse suggested videos" })
-    ).toHaveTextContent("Browse suggested videos ↓");
-  });
-
-  it("renders the mixed two-count line without 'to weigh in' (§6.2)", () => {
+  it("renders the mixed two-count line without 'to weigh in'", () => {
     renderState("mixed");
     expect(
       screen.getByText((_t, el) => el?.textContent === "14 curated · 12 suggested")
     ).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "Jump to videos" })
-    ).toHaveTextContent("Jump to videos ↓");
   });
 
-  it("renders the fully-curated grid only — no suggestion count, no unvetted line (§6.3)", () => {
+  it("renders the fully-curated grid only — no suggestion count, no unvetted line", () => {
     renderState("curated");
     expect(screen.getByText("14")).toBeInTheDocument();
     expect(screen.queryByText(/suggested/i)).toBeNull();
-    expect(
-      screen.getByRole("button", { name: "Jump to videos" })
-    ).toBeInTheDocument();
   });
 
   it("renders the error line verbatim, no numerals, no buttons (§6.5)", () => {
@@ -88,7 +71,7 @@ describe("Infobox QA — verbatim microcopy", () => {
   });
 });
 
-describe("Infobox QA — removed strings are GONE in every state", () => {
+describe("Infobox QA — removed surfaces are GONE in every state", () => {
   it("renders none of the retired strings in empty / mixed / curated / error", () => {
     for (const s of ["empty", "mixed", "curated", "error"] as const) {
       const { container, unmount } = renderState(s);
@@ -99,7 +82,7 @@ describe("Infobox QA — removed strings are GONE in every state", () => {
     }
   });
 
-  it("the curate/add button is absent in every state (block removed)", () => {
+  it("the curate/add button is absent in every state (AC2)", () => {
     for (const s of ["empty", "mixed", "curated", "error"] as const) {
       const { unmount } = renderState(s);
       expect(screen.queryByRole("button", { name: /Curate a video/i })).toBeNull();
@@ -107,51 +90,32 @@ describe("Infobox QA — removed strings are GONE in every state", () => {
       unmount();
     }
   });
-});
 
-describe("Infobox QA — §10 Browse handler fires (all non-error states)", () => {
-  it("empty: Browse fires onBrowse", async () => {
-    const onBrowse = vi.fn();
-    renderState("empty", onBrowse);
-    await userEvent.click(
-      screen.getByRole("button", { name: "Browse suggested videos" })
-    );
-    expect(onBrowse).toHaveBeenCalledOnce();
+  it("no Browse/Jump scroll button in any non-error state (AC3)", () => {
+    for (const s of ["empty", "mixed", "curated"] as const) {
+      const { unmount } = renderState(s);
+      expect(
+        screen.queryByRole("button", { name: /Browse suggested videos/i })
+      ).toBeNull();
+      expect(screen.queryByRole("button", { name: /Jump to videos/i })).toBeNull();
+      unmount();
+    }
   });
 
-  it("mixed: Jump fires onBrowse", async () => {
-    const onBrowse = vi.fn();
-    renderState("mixed", onBrowse);
-    await userEvent.click(screen.getByRole("button", { name: "Jump to videos" }));
-    expect(onBrowse).toHaveBeenCalledOnce();
-  });
-
-  it("fully-curated: Jump fires onBrowse", async () => {
-    const onBrowse = vi.fn();
-    renderState("curated", onBrowse);
-    await userEvent.click(screen.getByRole("button", { name: "Jump to videos" }));
-    expect(onBrowse).toHaveBeenCalledOnce();
+  // A logged-out (signedIn=false), not-complete card has no actions at all — counts only.
+  it("renders NO buttons in the non-error states (logged out, not complete)", () => {
+    for (const s of ["empty", "mixed", "curated"] as const) {
+      const { unmount } = renderState(s);
+      expect(screen.queryByRole("button")).toBeNull();
+      unmount();
+    }
   });
 });
 
-describe("Infobox QA — §9 accessibility contract", () => {
-  it("the scroll button carries a clear accessible name distinct from its label per state", () => {
-    const { unmount } = renderState("empty");
-    expect(
-      screen.getByRole("button", { name: "Browse suggested videos" })
-    ).toHaveAttribute("aria-label", "Browse suggested videos");
-    unmount();
-    renderState("mixed");
-    expect(
-      screen.getByRole("button", { name: "Jump to videos" })
-    ).toHaveAttribute("aria-label", "Jump to videos");
-  });
-
-  it("introduces NO heading element in the panel — (§9)", () => {
+describe("Infobox QA — accessibility contract", () => {
+  it("introduces NO heading element in the card (the cap is decorative)", () => {
     for (const s of ["empty", "mixed", "curated", "error"] as const) {
       const { unmount } = renderState(s);
-      // The panel sits inside the page's labelled <aside>; it must not add an <h1>–<h6>
-      // that would disrupt the page outline.
       expect(screen.queryByRole("heading")).toBeNull();
       unmount();
     }
@@ -166,15 +130,54 @@ describe("Infobox QA — §9 accessibility contract", () => {
     renderState("mixed");
     expect(screen.getByText(/suggested/)).toBeInTheDocument();
   });
+});
 
-  it("the browse button is a keyboard-activable real <button> (Enter/Space, tab order)", async () => {
-    const onBrowse = vi.fn();
-    renderState("empty", onBrowse);
-    const browse = screen.getByRole("button", { name: "Browse suggested videos" });
-    browse.focus();
-    expect(browse).toHaveFocus();
-    await userEvent.keyboard("{Enter}");
-    expect(onBrowse).toHaveBeenCalledOnce();
-    expect(browse.tagName).toBe("BUTTON");
+describe("Infobox QA — the curator control + the empty-card guard", () => {
+  it("a signed-in curator on a complete topic sees 'Reopen to suggestions'", () => {
+    render(
+      <Infobox
+        hasCurated
+        stats={stats}
+        suggestionCount={0}
+        signedIn
+        closedToSuggestions
+        onToggleComplete={() => {}}
+      />
+    );
+    expect(
+      screen.getByRole("button", { name: /Reopen this topic to suggestions/i })
+    ).toBeInTheDocument();
+  });
+
+  it("renders NOTHING at complete + zero curated video for a logged-out reader (AC8)", () => {
+    const { container } = render(
+      <Infobox
+        hasCurated={false}
+        stats={zero}
+        suggestionCount={5}
+        closedToSuggestions
+      />
+    );
+    // The body would be just the cap → the card does not render at all.
+    expect(container.firstChild).toBeNull();
+  });
+
+  it("renders the dialed-down card (cap + Reopen, no counts) at complete + zero video for a curator (AC8)", () => {
+    render(
+      <Infobox
+        hasCurated={false}
+        stats={zero}
+        suggestionCount={5}
+        signedIn
+        closedToSuggestions
+        onToggleComplete={() => {}}
+      />
+    );
+    expect(
+      screen.getByRole("button", { name: /Reopen this topic to suggestions/i })
+    ).toBeInTheDocument();
+    // No counts grid at zero curated video.
+    expect(screen.queryByText("Videos")).toBeNull();
+    expect(screen.queryByText("uncurated videos")).toBeNull();
   });
 });

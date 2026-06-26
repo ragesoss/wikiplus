@@ -161,12 +161,13 @@ videos" heading preserves heading navigation and the region's accessible name. O
 (0 curated) shows a visible heading — **`＋ Suggested videos`** + the `UNCURATED` pill + the unvetted
 subtitle (the once-per-context unvetted signal). See §"Three states" below for the full model.
 
-**Curated-tile anatomy.** A curated General tile carries the same trust signals the
-section-anchored rail card does, so a reader can weigh it where they meet it first. Top-to-bottom:
-thumbnail → held marking (only when held) → caption → creator handle · platform → a single row of
-**stance + accuracy chips followed by the upvote** (the upvote rides the chips row as a chip-height
-outline **tag** — an action beside the filled signal chips, matched to their height) → a **2-line
-context-note preview** → `context by <curator>` → owner/reviewer manage rows. The chips are the standard fact-vs-opinion chips (see §"Fact-vs-opinion
+**Curated-tile anatomy.** A curated General tile and the section-anchored rail clip card carry the
+**same** trust signals in the **same order**, so a reader can weigh a clip identically wherever they
+meet it first. Top-to-bottom: thumbnail → held marking (only when held) → caption → creator handle ·
+platform → a single row of **stance + accuracy chips followed by the upvote** (the upvote rides the
+chips row as a chip-height outline **tag** — an action beside the filled signal chips, matched to
+their height; never a separate footer control) → a **2-line context-note preview** → `context by
+<curator>` (alone in the now-unpaired footer) → owner/reviewer manage rows. The chips are the standard fact-vs-opinion chips (see §"Fact-vs-opinion
 signal" and `lib/curation/labels.ts` for their labels/colors — not restated here); they carry their
 own AA-safe fills, so the indigo band behind them never touches the chip text. The note preview is
 **clamped to two lines on a white panel with a 2px ink border** so its small body text clears AA
@@ -250,7 +251,7 @@ wiki TOC entry. **A row carries DUAL counts:** where a section (or the
 General row) has both curated clips and suggestions, it shows **both** a **solid indigo `{c}`**
 curated badge **and** a **dashed-outline violet `~{s}`** suggested badge, curated-first (matching
 the body order). A row with only curated content shows the solid badge; only suggestions, the
-dashed badge; neither, the muted `no video` text badge (on section rows). Each badge carries an
+dashed badge; neither, **no trailing badge** — the row shows just its title. Each badge carries an
 `sr-only` word (`curated` / `suggested, unvetted`) so the meaning is in the accessible name, never
 color or border-style alone.
 
@@ -285,13 +286,17 @@ curator's choice; it cannot apply at zero curated videos. Separately, a curator 
 **complete (closed to suggestions)** — an explicit, persisted topic-level flag
 (`topic.closed_to_suggestions`) that **suppresses the suggestion layer by default for every viewer,
 even when the derived state is `empty` or `mixed`** (so the page reads like `fully-curated`, and a
-complete topic with zero curated videos reads as a near-plain article with a calm plus-side note —
-the *complete + zero-video minimal render*). It is **orthogonal** to the derived model: it does not
-rename or change the three states, only suppresses their suggestion presentation; with the flag off,
-the derived behavior is exactly as defined here. Any viewer (including logged-out) can opt back in
-for themselves with a session-local "show suggestions anyway" override. See
-[`docs/specs/topic-complete.md`](specs/topic-complete.md) and
-[`docs/design/topic-complete.md`](design/topic-complete.md).
+complete topic with zero curated videos reads as a near-plain article with a minimal General band).
+It is **orthogonal** to the derived model: it does not rename or change the three states, only
+suppresses their suggestion presentation; with the flag off, the derived behavior is exactly as
+defined here. Any viewer (including logged-out) can opt back in for themselves with a session-local
+**"show suggestions anyway"** reveal — the **trailing item in the General strip's scroll row** (to
+the right of the curated videos), which also carries the calm "marked complete" note; when complete
+with zero curated videos, a minimal band holds just that toggle. The signed-in curator's mark/reopen
+control lives at the foot of the trimmed ＋plus Overview card (a thin indigo cap, no wordmark text,
+no Browse/Jump button). See [`docs/specs/topic-complete.md`](specs/topic-complete.md),
+[`docs/design/topic-complete.md`](design/topic-complete.md), and
+[`docs/design/overview-card-cleanup.md`](design/overview-card-cleanup.md).
 
 **Priority + ordering (owner-fixed).** Curated content always sorts and renders **before**
 suggestions — in the General band (curated group → `Suggested · uncurated` divider → capped

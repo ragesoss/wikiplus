@@ -106,10 +106,22 @@ export function ClipCard({
           clip is byte-for-byte its pre-D5b self. The chips/note/curator below stay intact. */}
       {clip.held && <HeldMarking />}
 
-      {/* chips row */}
-      <div className="mt-2 flex flex-wrap gap-1.5">
+      {/* Chips row — stance + accuracy chips, then the upvote as the last item, so the upvote reads
+          as "a tag among the chips" on every curated surface (matches the General band; design
+          §"Curated-tile anatomy"). `items-center` aligns the chip-height tag with the chips. The
+          upvote keeps its full state model via `appearance="tag"`: signed-in interactive
+          `aria-pressed` toggle (▲/△ + "Voted"); logged-out non-interactive figure; count 0 → nothing. */}
+      <div className="mt-2 flex flex-wrap items-center gap-1.5">
         <StanceChip stance={clip.stance} modifier={clip.stanceModifier} />
         <AccuracyChip flag={clip.accuracyFlag} modifier={clip.accuracyModifier} />
+        <UpvoteControl
+          count={clip.upvotes ?? 0}
+          voted={voted}
+          signedIn={signedIn}
+          surface="light"
+          appearance="tag"
+          onActivate={() => onUpvote?.(clip)}
+        />
       </div>
 
       {/* curator note (CURATION §1) */}
@@ -122,24 +134,13 @@ export function ClipCard({
         </p>
       </div>
 
-      {/* Provenance footer — D3 (issue #54, design §6.2) + D4 (issue #55, design §4): the bare
-          `{curatedBy}` text evolved into the linked "context by <curator>" attribution (links IN
-          to the curator's profile; distinct from the creator credit above which links OUT). D4
-          replaces the static `▲ {upvotes}` span on the LEFT with the interactive `UpvoteControl`
-          (the count + the per-viewer voted-state, a real `<button aria-pressed>`); the attribution
-          sits on the right (where `curatedBy` was), with the relative `curatedAt` as trailing
-          muted text. The DISPLAYED count is the DERIVED total `listClips` already computed
-          (Decision 2). The control reads as "Log in to upvote" logged out (count still visible —
-          §4.3); the per-viewer voted-state is off the cached read path (§8). */}
-      <footer className="mt-2 flex items-center justify-between gap-2 text-[11px]">
-        <UpvoteControl
-          count={clip.upvotes ?? 0}
-          voted={voted}
-          signedIn={signedIn}
-          surface="light"
-          onActivate={() => onUpvote?.(clip)}
-        />
-        <span className="min-w-0 truncate text-right">
+      {/* Provenance footer — D3 (issue #54, design §6.2): the linked "context by <curator>"
+          attribution (links IN to the curator's profile; distinct from the creator credit above which
+          links OUT), with the relative `curatedAt` as trailing muted text. With the upvote now riding
+          the chips row above (a tag among the chips), the footer is a single unpaired line — so it
+          runs full-width, left-aligned, rather than balanced across a row. */}
+      <footer className="mt-2 text-[11px]">
+        <span className="block min-w-0 truncate">
           <ContextByLink curatedBy={clip.curatedBy} surface="light" />
           {clip.curatedAt ? (
             <span className="text-muted"> · {clip.curatedAt}</span>

@@ -1,13 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import type { FullArticle } from "@/lib/wiki/article";
 
-// QA call-site integration for the ＋plus panel handler (issue #16 / design §10): proves
-// `onBrowse` (Browse/Jump) is a pure scroll that opens NO gate and fires NO write regardless
-// of session. The secondary curate block is removed — this file now covers only the browse
-// path. The wiki module is MOCKED (no network egress). Drives the EMPTY topic (no clips →
-// the empty panel face).
+// QA call-site integration for the ＋plus Overview card (design overview-card-cleanup.md): the
+// card is a quiet stats card — no curate/add button, and no Browse/Jump scroll button in any
+// state. The wiki module is MOCKED (no network egress). Drives the EMPTY topic (no clips → the
+// empty panel face: the dashed "uncurated videos" volume block).
 
 const article: FullArticle = {
   title: "Cellular respiration",
@@ -78,27 +76,21 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-describe("TopicView — ＋plus panel handler wiring (issue #16 §10)", () => {
-  it("the curate/add button is NOT present in the panel (secondary block removed)", async () => {
+describe("TopicView — ＋plus Overview card (overview-card-cleanup)", () => {
+  it("the curate/add button is NOT present in the card (logged out, empty topic)", async () => {
     render(<TopicView />);
-    // Wait for the panel to appear (empty state).
+    // Wait for the card to appear (empty state).
     await screen.findByText("uncurated videos");
     expect(screen.queryByRole("button", { name: "＋ Curate a video" })).toBeNull();
-    expect(screen.queryByRole("button", { name: "＋ Add a video" })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Add a video/i })).toBeNull();
   });
 
-  it("onBrowse (Browse suggested videos) is a pure scroll — no login gate, no modal, even logged out", async () => {
-    const scrollSpy = vi.spyOn(Element.prototype, "scrollIntoView");
+  it("renders no Browse/Jump scroll button in the card (AC3)", async () => {
     render(<TopicView />);
-    const browse = await screen.findByRole("button", { name: "Browse suggested videos" });
-    await userEvent.click(browse);
-    // No write surface triggered: no gate, no curate/add modal.
-    expect(screen.queryByText("Log in to curate")).toBeNull();
-    expect(screen.queryByText("Log in to add a video")).toBeNull();
-    expect(screen.queryByText("Curate this clip")).toBeNull();
-    expect(screen.queryByText("Add a video")).toBeNull();
-    // It scrolled (to the General band) — the pure non-write path.
-    expect(scrollSpy).toHaveBeenCalled();
-    scrollSpy.mockRestore();
+    await screen.findByText("uncurated videos");
+    expect(
+      screen.queryByRole("button", { name: /Browse suggested videos/i })
+    ).toBeNull();
+    expect(screen.queryByRole("button", { name: /Jump to videos/i })).toBeNull();
   });
 });
