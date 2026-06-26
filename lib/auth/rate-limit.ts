@@ -57,7 +57,11 @@ export type WriteKind =
   // Issue #159: the curator "mark/un-mark complete" write (`closed_to_suggestions`). A counted gated
   // write like the rest — same shared per-identity budget; `kind` is recorded so a future per-action
   // split needs no schema change (the `write_event.kind` column already exists — no migration).
-  | "topic-complete";
+  | "topic-complete"
+  // Issue #158: the curator "mark/unmark hero" write (`hero_clip_id`). A counted gated write like the
+  // rest — same shared per-identity budget; `kind` is recorded so a future per-action split needs no
+  // schema change (the `write_event.kind` column already exists — no migration).
+  | "hero";
 
 /**
  * The default per-identity cap (Product Decision 2): N writes per window W. Tuned high enough that

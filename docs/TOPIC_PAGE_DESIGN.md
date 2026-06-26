@@ -151,6 +151,21 @@ preview is a hook only: the **full, untruncated note lives in the opened player*
 tile thumbnail is already the click-to-open affordance (no separate "read more" control). Candidate
 tiles are unaffected — they carry no note and no chips (CURATION §6).
 
+**The hero — one prominent must-watch clip (issue #158).** A curator may mark **one** curated
+**general** clip as the topic's **hero**: a curator's "start here" signal for readers. The hero renders
+**prominently at the front of the strip** — a full-width bordered card on a white panel (so its body
+text + note clear AA over the indigo band), with a **large thumbnail beside the metadata
+(horizontal on ≥ sm, stacked on narrow)** rather than the uniform `w-44` tile — **above** the scroll
+row of the remaining (peer) curated tiles + suggestions. It carries a **text-labeled "★ Hero" marker**
+(the word carries the meaning — never color alone, never gold) and **every standard trust signal**
+(chips, the context-note, `context by`, upvote, the held marking if held, owner/reviewer rows):
+**prominence is placement only**, not a change to the clip's data or vouch. **At most one hero per
+topic** — set/cleared by **any signed-in curator** via the **"★ Make hero" / "Unmark hero"** control
+on curated general tiles (signed-in only; the server-side curator re-check is the security control,
+and a candidate or section-anchored clip is ineligible). The hero **rides the topic read**, so a
+**logged-out reader sees the prominence but no control** (issue #71 parity). Data model + the
+at-most-one rule: `ARCHITECTURE.md` §"Data model" (`topic.hero_clip_id`).
+
 **Curated player anatomy.** On **desktop (`≥ lg`)**, opening a curated clip — General
 **or** section-anchored — opens the blocking `PlayerModal`, which renders a **curation block beneath
 the video frame**: creator credit (links out) → held marking (only when held) → **stance + accuracy

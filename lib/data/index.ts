@@ -18,6 +18,7 @@ import {
   reviewClipAction,
   setSkinPreferenceAction,
   setTopicClosedToSuggestionsAction,
+  setTopicHeroAction,
   toggleUpvoteAction,
   updateClipAction,
   upsertTopicAction,
@@ -55,6 +56,11 @@ const clientStore: DataStore = {
   // calls this — never a client role flag.
   setTopicClosedToSuggestions: (qid, closed) =>
     setTopicClosedToSuggestionsAction(qid, closed),
+  // Issue #158: set/clear the topic's hero clip. The client forwards the QID + the target clip id
+  // (or null to clear); the boundary (`setTopicHeroAction`) resolves the signed-in curator and gates
+  // the write CURATOR-only (reject a logged-out caller) + enforces eligibility server-side. The
+  // host's optimistic-with-rollback toggle calls this — never a client role flag.
+  setTopicHero: (qid, clipId) => setTopicHeroAction(qid, clipId),
   listClips: (topicQid) => listClipsAction(topicQid),
   // Seeded/fallback candidates are not DB rows (ARCHITECTURE: candidates are computed +
   // cached, only promote/dismiss persists). The server returns []; the live pipeline below

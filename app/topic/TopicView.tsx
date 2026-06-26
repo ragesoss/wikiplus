@@ -210,6 +210,13 @@ export function TopicView() {
   const [completeNotice, setCompleteNotice] = useState<
     null | { reason: "generic" | "limited"; verb: "mark" | "unmark" }
   >(null);
+  // Issue #158: a hero mark/unmark write in flight — the double-submit guard + the control's busy
+  // word, plus the reason-aware non-blocking notice when a hero write is rolled back (mirroring the
+  // complete-notice surface). `verb` names which copy to show.
+  const [settingHero, setSettingHero] = useState(false);
+  const [heroNotice, setHeroNotice] = useState<
+    null | { reason: "generic" | "limited"; verb: "set" | "clear" }
+  >(null);
   // Store-read error floor (design §"read failure"): a clip/dismissal read can now fail.
   const [storeError, setStoreError] = useState(false);
   const [article, setArticle] = useState<FullArticle | null>(null);
@@ -1302,6 +1309,51 @@ export function TopicView() {
     })();
   }, [qid, topic, markingComplete, showExpiredGate]);
 
+  // ── Mark / unmark hero (issue #158 / design §4 — clones the optimistic write posture). ──
+  // OPTIMISTIC-WITH-ROLLBACK (mirroring `toggleComplete`): set/clear `topic.heroClipId` in the
+  // in-memory `topic` IMMEDIATELY so the General strip re-renders the prominent hero block (or
+  // removes it) with no reload, fire the curator-gated Server Action in the background, reconcile to
+  // the server's authoritative `heroClipId`, and on failure ROLL BACK + show a non-blocking polite
+  // notice. The THREE-ARM catch is identical to the other writes: `isAuthRequired` → the
+  // expired-session gate; `isRateLimited` → the calm limit notice; else the generic red line. A
+  // per-topic in-flight guard (`settingHero`) blocks a double-submit. The control is signed-in-only
+  // (the affordance gate), but the SECURITY control is the server-side curator re-check inside
+  // `setTopicHeroAction` (it rejects a logged-out caller, and the store rejects an ineligible clip).
+  const runHero = useCallback(
+    (clipId: string | null) => {
+      if (!qid || !topic) return;
+      if (settingHero) return; // double-submit guard
+      const prevHero = topic.heroClipId;
+      setHeroNotice(null);
+      setSettingHero(true);
+      // Optimistic flip: the strip re-derives the hero block immediately.
+      setTopic((prev) => (prev ? { ...prev, heroClipId: clipId ?? undefined } : prev));
+      void (async () => {
+        try {
+          const updated = await store.setTopicHero(qid, clipId);
+          // Reconcile to the server's authoritative hero (the only field that changed).
+          setTopic((prev) =>
+            prev ? { ...prev, heroClipId: updated.heroClipId } : prev
+          );
+        } catch (err) {
+          // Roll back the optimistic flip to the pre-click hero (the strip re-derives back).
+          setTopic((prev) =>
+            prev ? { ...prev, heroClipId: prevHero } : prev
+          );
+          const verb = clipId ? ("set" as const) : ("clear" as const);
+          if (isAuthRequired(err)) showExpiredGate();
+          else if (isRateLimited(err)) setHeroNotice({ reason: "limited", verb });
+          else setHeroNotice({ reason: "generic", verb });
+        } finally {
+          setSettingHero(false);
+        }
+      })();
+    },
+    [qid, topic, settingHero, showExpiredGate]
+  );
+  const setHero = useCallback((clip: Clip) => runHero(clip.id), [runHero]);
+  const clearHero = useCallback(() => runHero(null), [runHero]);
+
   // ── Persist a curated clip (issue #52 / D1, AC1–AC5). ──────────────────────────────────
   // The two modals (Promote / Add) hand the assembled clip + the CC BY-SA consent up here; the
   // host owns the write (the auth-gated boundary), the in-memory clip-state update (the new clip
@@ -1948,6 +2000,12 @@ export function TopicView() {
              uses. The server-side role-gate is the security control; this affordance mirrors it. */
           canRemove={canRemove}
           onRemove={(c) => setRemoveFor(c)}
+          /* Issue #158: the hero designation (rides the topic read — same for every viewer) + the
+             signed-in-only mark/unmark control and the host's optimistic-with-rollback wiring. */
+          heroClipId={topic?.heroClipId}
+          onSetHero={setHero}
+          onClearHero={clearHero}
+          settingHero={settingHero}
         />
       )}
 
@@ -2051,6 +2109,29 @@ export function TopicView() {
               : completeNotice.verb === "mark"
                 ? "Couldn't mark this topic complete — please try again."
                 : "Couldn't reopen this topic — please try again."}
+          </p>
+        </div>
+      )}
+
+      {/* Hero mark/unmark notice (issue #158). NON-BLOCKING + POLITE, reason-aware, mirroring the
+          mark-complete surface above. After it shows, the optimistic hero flip is already rolled
+          back; this line names why. */}
+      {heroNotice && (
+        <div className="mx-auto max-w-[1200px] px-5">
+          <p
+            role="status"
+            aria-live="polite"
+            className={
+              heroNotice.reason === "limited"
+                ? "rounded-md border-l-4 border-brand bg-surface-2 px-3 py-2 text-sm text-ink-plus"
+                : "rounded-md bg-red-50 px-3 py-2 text-sm text-red-700"
+            }
+          >
+            {heroNotice.reason === "limited"
+              ? AUTH_COPY.rateLimit.notice
+              : heroNotice.verb === "set"
+                ? "Couldn't set the hero video — please try again."
+                : "Couldn't clear the hero video — please try again."}
           </p>
         </div>
       )}

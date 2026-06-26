@@ -189,6 +189,50 @@ export class DrizzleDataStore implements DataStore {
     return rowToTopic(rows[0]);
   }
 
+  async setTopicHero(qid: string, clipId: string | null): Promise<Topic> {
+    // Issue #158: set/clear the topic's hero clip reference (`hero_clip_id`). The CURATOR role-gate
+    // ran already in `setTopicHeroAction`; this enforces ELIGIBILITY and persists. The at-most-one
+    // invariant is STRUCTURAL — a single column holds one value, so passing a new clip id REPLACES
+    // any prior hero in this one atomic UPDATE (no clear-then-set, no race window). Keyed by QID.
+    const topicId = await this.topicIdForQid(qid);
+    if (topicId === null) throw new Error(`Topic ${qid} not found`);
+    let heroId: number | null = null;
+    if (clipId !== null) {
+      const numericId = Number(clipId);
+      if (!Number.isInteger(numericId)) {
+        throw new Error(`Invalid hero clip id: ${clipId}`);
+      }
+      // ELIGIBILITY (curated + GENERAL only, this run — spec §3.2): the target must exist, belong to
+      // THIS topic, be a `general` (whole-topic) clip, and be live (`removed_at IS NULL`). A
+      // candidate is structurally ineligible (it is not a clip row). A section-anchored clip is
+      // rejected here server-side (NOT just hidden in the UI), so a forged boundary call cannot hero
+      // one. The check is the security boundary for eligibility; the on-tile control only mirrors it.
+      const rows = await this.db
+        .select({ id: clip.id, topicId: clip.topicId, general: clip.general })
+        .from(clip)
+        .where(and(eq(clip.id, numericId), isNull(clip.removedAt)))
+        .limit(1);
+      const target = rows[0];
+      if (!target) throw new Error(`Clip ${clipId} not found`);
+      if (target.topicId !== topicId) {
+        throw new Error(`Clip ${clipId} does not belong to topic ${qid}`);
+      }
+      if (!target.general) {
+        throw new Error(
+          `Clip ${clipId} is section-anchored; the hero must be a general (whole-topic) clip`
+        );
+      }
+      heroId = numericId;
+    }
+    const updated = await this.db
+      .update(topic)
+      .set({ heroClipId: heroId, updatedAt: new Date() })
+      .where(eq(topic.wikidataQid, qid))
+      .returning();
+    if (!updated[0]) throw new Error(`Topic ${qid} not found`);
+    return rowToTopic(updated[0]);
+  }
+
   /** Resolve a QID → the topic's internal numeric id (or null if not present). */
   private async topicIdForQid(qid: string): Promise<number | null> {
     const rows = await this.db

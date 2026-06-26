@@ -124,6 +124,33 @@ export class LocalStorageDataStore implements DataStore {
     return topics[i];
   }
 
+  // Issue #158: set/clear the topic's hero clip (reference impl). The production CURATOR role-gate
+  // lives in `setTopicHeroAction`; this enforces the same ELIGIBILITY the DrizzleDataStore does
+  // (curated + general + belongs-to-this-topic + live) and persists `heroClipId` on the topic row.
+  // The at-most-one invariant is structural (a single field holds one id); a new id replaces the
+  // prior. Pass `null` to clear.
+  async setTopicHero(qid: string, clipId: string | null): Promise<Topic> {
+    const topics = read<Topic>(TOPICS_KEY);
+    const i = topics.findIndex((t) => t.qid === qid);
+    if (i < 0) throw new Error(`Topic ${qid} not found`);
+    if (clipId !== null) {
+      const clips = read<Clip>(CLIPS_KEY);
+      const target = clips.find((c) => c.id === clipId && !isRemoved(c));
+      if (!target) throw new Error(`Clip ${clipId} not found`);
+      if (target.topicQid !== qid) {
+        throw new Error(`Clip ${clipId} does not belong to topic ${qid}`);
+      }
+      if (!target.general) {
+        throw new Error(
+          `Clip ${clipId} is section-anchored; the hero must be a general (whole-topic) clip`
+        );
+      }
+    }
+    topics[i] = { ...topics[i], heroClipId: clipId ?? undefined };
+    write(TOPICS_KEY, topics);
+    return topics[i];
+  }
+
   async listClips(topicQid: string): Promise<Clip[]> {
     // D5c (issue #59): a soft-removed clip leaves the read (the reference parallel of the
     // DrizzleDataStore's `removed_at IS NULL` filter). The reference impl marks a removed clip with
