@@ -523,7 +523,7 @@ export function GeneralStrip({
                         onClick={() => onSetHero(clip)}
                         disabled={settingHero}
                         aria-label={`Mark as this topic's hero video: ${clip.caption}`}
-                        className="border-2 border-hardbox bg-surface-raised px-2 py-1 text-[11px] font-bold text-ink-plus hover:shadow-[2px_2px_0_var(--color-hardbox-offset)] disabled:cursor-default disabled:opacity-60"
+                        className="inline-flex min-h-[44px] items-center border-2 border-hardbox bg-surface-raised px-2 py-1 text-[11px] font-bold text-ink-plus hover:shadow-[2px_2px_0_var(--color-hardbox-offset)] disabled:cursor-default disabled:opacity-60"
                       >
                         {settingHero ? "Setting…" : <><span aria-hidden>★</span> Make hero</>}
                       </button>
