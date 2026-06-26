@@ -2006,6 +2006,11 @@ export function TopicView() {
           onSetHero={setHero}
           onClearHero={clearHero}
           settingHero={settingHero}
+          /* Issue #159 follow-up: when the band is in its marked-complete suppressed presentation
+             (`suppressSuggestions` — complete AND this viewer hasn't overridden), the curator
+             find-more controls (Search links + ＋ Add video) don't render — a finished topic offers
+             no "add more". */
+          suppressed={suppressSuggestions}
         />
       )}
 
