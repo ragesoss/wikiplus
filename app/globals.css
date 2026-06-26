@@ -494,6 +494,30 @@ html:has(header.header-shared) body {
   transition: opacity 0.3s, transform 0.3s;
 }
 
+/* General-strip full-bleed scroller (design general-strip-fullbleed.md §3). The horizontal video row
+   spans the FULL band width — not the centered content column — so scrolling fills the whole width.
+   The first tile starts at the centered content column's left edge: `100%` (the band's content width,
+   which EXCLUDES a vertical page scrollbar — unlike `100vw`) keeps that alignment scrollbar-safe. The
+   horizontal scrollbar sits flush at the band's bottom (no bottom padding, no indigo strip beneath it),
+   styled on-brand (white thumb + 2px ink border, a darker-indigo track). */
+.general-scroller {
+  padding-top: 1rem;
+  padding-right: 1.25rem;
+  padding-bottom: 0;
+  padding-left: max(1.25rem, calc((100% - 1200px) / 2 + 1.25rem));
+  scrollbar-color: #fff var(--color-brand);
+}
+.general-scroller::-webkit-scrollbar {
+  height: 12px;
+}
+.general-scroller::-webkit-scrollbar-thumb {
+  background: #fff;
+  border: 2px solid var(--color-hardbox);
+}
+.general-scroller::-webkit-scrollbar-track {
+  background: color-mix(in srgb, var(--color-brand), #000 12%);
+}
+
 /* One-time "unvetted set" header that introduces the rail candidate list (#14, design
    D2). Dashed-outline block — echoes the candidate language without the solid offset
    shadow, so it reads as part of the unvetted set. Carries the once-per-context

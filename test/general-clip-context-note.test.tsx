@@ -74,25 +74,25 @@ describe("AC2/AC1 — curated General tile surfaces both chips + a note preview"
     expect(screen.getByText("Accurate, with a caveat · simplified")).toBeInTheDocument();
   });
 
-  it("renders the context-note PREVIEW text (AC1 reachable on the tile) under a 'Curator note' eyebrow", () => {
+  it("renders the context-note PREVIEW text under a 'Curator note' eyebrow (rail-consistent)", () => {
     renderStrip([makeGeneralClip()]);
-    // The eyebrow word (reused verbatim from the rail card) + the note words themselves.
+    // The note uses the plus-rail's quote treatment, including the "Curator note" eyebrow, so the two
+    // surfaces read consistently.
     expect(screen.getByText("Curator note")).toBeInTheDocument();
     expect(
       screen.getByText(/Solid whole-topic overview; the host's framing in the back half is opinion\./)
     ).toBeInTheDocument();
   });
 
-  it("clamps the note preview to 2 lines (line-clamp-2) on a white panel (AA over the indigo band)", () => {
+  it("clamps the note preview to 2 lines (line-clamp-2) in the rail's quote style (indigo bar + tint)", () => {
     renderStrip([makeGeneralClip()]);
     const note = screen.getByText(/Solid whole-topic overview/);
     expect(note.className).toMatch(/line-clamp-2/);
-    // The note body sits on a raised panel (the AA treatment §3.1), NOT directly on the indigo band.
-    // The fill/border are the skin surface/hardbox tokens (#119): `bg-surface-raised` is white on the
-    // default skin (byte-identical to the old `bg-white`), the dark card on the zine-dark skin.
+    // The note uses the SAME quote treatment as the rail `ClipCard` (cross-surface consistency): a
+    // left indigo bar (`border-l-4 border-brand`) over a tinted `surface-2` fill, within the white card.
     const panel = note.closest("div");
-    expect(panel?.className).toMatch(/bg-surface-raised/);
-    expect(panel?.className).toMatch(/border-2 border-hardbox/);
+    expect(panel?.className).toMatch(/bg-surface-2/);
+    expect(panel?.className).toMatch(/border-l-4 border-brand/);
   });
 });
 

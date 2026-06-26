@@ -31,8 +31,10 @@ export function VideoThumb({
 }: {
   video: ThumbVideo;
   /** "card" = rail card, "strip" = uniform search tile, "inline" = inline candidate,
-   *  "hero" = the full-bleed General hero (uniform 16:9, no own border — the band/card frames it). */
-  variant?: "card" | "strip" | "inline" | "hero";
+   *  "hero" = the full-bleed General hero (uniform 16:9, no own border — the band/card frames it),
+   *  "stripcard" = the General-strip white-card tile (uniform 3:2, only a bottom seam border —
+   *  the enclosing white card supplies the rest). */
+  variant?: "card" | "strip" | "inline" | "hero" | "stripcard";
   candidate?: boolean;
   /** Called for YouTube clips (parent opens the player modal). */
   onPlay?: () => void;
@@ -41,7 +43,12 @@ export function VideoThumb({
   const isYouTube = video.platform === "youtube" && !!video.thumbnailUrl;
 
   const aspect =
-    variant === "strip" || variant === "hero"
+    variant === "stripcard"
+      ? // The General-strip white-card tile (design general-strip-fullbleed.md §2): a uniform, taller
+        // 3:2 frame at the card's full width — the picture leads, and 3:2 crops a vertical clip less
+        // than 16:9 did. `w-full` is added below; the tile width lives in GeneralStrip.
+        "aspect-[3/2]"
+      : variant === "strip" || variant === "hero"
       ? // Thumbnail-forward General strip + hero (TOPIC_PAGE_DESIGN §"The General strip"): a true
         // 16:9 frame that scales with the column width, so the picture is the dominant element.
         // `w-full` is added below; the tile/hero widths live in GeneralStrip. Uniform landscape
@@ -72,11 +79,15 @@ export function VideoThumb({
       onClick={activate}
       aria-label={action}
       className={`group relative block overflow-hidden ${aspect} ${
-        // The hero bleeds: the indigo band + the docked curation card frame it, so the thumbnail
-        // itself carries NO border (avoids a doubled border at the band edge). Every other variant
-        // keeps the 2px Indigo-Press frame. Strip + hero fill their column width.
-        variant === "hero" ? "" : "border-2 border-hardbox"
-      } ${variant === "strip" || variant === "hero" ? "w-full" : ""}`}
+        // The hero bleeds (band + docked card frame it → no border). The strip-card tile carries only
+        // a bottom seam (the enclosing white card supplies the rest). Every other variant keeps the
+        // full 2px Indigo-Press frame. Strip / hero / strip-card fill their column width.
+        variant === "hero"
+          ? ""
+          : variant === "stripcard"
+            ? "border-b-2 border-hardbox"
+            : "border-2 border-hardbox"
+      } ${variant === "strip" || variant === "hero" || variant === "stripcard" ? "w-full" : ""}`}
     >
       {showImg ? (
         // eslint-disable-next-line @next/next/no-img-element
