@@ -2282,9 +2282,11 @@ export function TopicView() {
                   - `!hasCurated` + zero in both candidate pools: genuinely empty.
                 With curated clips present a zero suggestion count reads as fully-curated — no
                 suggestion chrome (§7.5). */}
-            {/* Issue #159: suppressed on a complete topic (no override) — this line points at
-                'Find more' suggestion chrome that is deliberately hidden; the calm complete-topic
-                rail is empty here, and the wiki+ panel's status indicator carries the add path. */}
+            {/* Issue #159: on a suppressed complete topic (no override) this empty-suggestions line is
+                hidden — the rail stays calm and the add path lives in the wiki+ panel's status
+                indicator. When shown, the signed-in arm names the General band's ＋ Add video / Search
+                controls (which ride that band's row) without a stale directional or label; a logged-out
+                reader gets the honest informational line (parity with the band's zero-results line). */}
             {!suppressSuggestions &&
               shouldShowEmptySuggestions({
                 storeReady,
@@ -2295,8 +2297,9 @@ export function TopicView() {
                 generalCandidatesCount: generalCandidates.length,
               }) && (
                 <p className="text-sm text-muted">
-                  No suggestions for this topic yet — use &lsquo;Find more&rsquo;
-                  above to add the first video.
+                  {signedIn
+                    ? "No suggestions for this topic yet — search a platform or add one by link to start."
+                    : "No suggestions for this topic yet — check back as people curate this topic."}
                 </p>
               )}
           </aside>

@@ -178,11 +178,11 @@ export function GeneralStrip({
   const showZero = !loading && !hasSuggestions && !hasCurated;
 
   // Hero full-bleed margins (design §2.2): the hero `<article>` breaks out of the band container's
-  // px-5 / py-4 with negative margins so the video reaches the band's content-box edges. It bleeds to
-  // the TOP when nothing renders above it (logged-out: no find-more toolbar, and the curated heading
-  // is sr-only), and to the BOTTOM when it is the band's last element (no peer / suggestion / loading
-  // row follows). Used only inside the hero block.
-  const heroBleedTop = !signedIn;
+  // px-5 / py-4 with negative margins so the video reaches the band's content-box edges. NOTHING
+  // renders above the hero in any state — the curated heading is `sr-only` and the curator find-more
+  // controls ride the scroll row BELOW (not a toolbar above) — so it always bleeds to the TOP. It
+  // bleeds to the BOTTOM only when it is the band's last element (no peer / suggestion / loading row
+  // follows). Used only inside the hero block.
   const heroBleedBottom = !hasPeers && !hasSuggestions && !showLoading;
 
   // Curator find-more controls (Search TikTok / Search YouTube + ＋ Add video). They ride the END of
@@ -267,9 +267,9 @@ export function GeneralStrip({
         {heroClip && (
           <article
             aria-label={`Hero video: ${heroClip.caption}`}
-            className={`-mx-5 flex flex-col sm:flex-row sm:items-center${
-              heroBleedTop ? " -mt-4" : " mt-4"
-            }${heroBleedBottom ? " -mb-4" : ""}${curatedFade}`}
+            className={`-mx-5 -mt-4 flex flex-col sm:flex-row sm:items-center${
+              heroBleedBottom ? " -mb-4" : ""
+            }${curatedFade}`}
           >
             {/* The video — full-bleed left (and top/bottom when first/last). Uniform 16:9, no own
                 border; the band + the card's seam frame it. Click-to-play facade (unchanged). */}
