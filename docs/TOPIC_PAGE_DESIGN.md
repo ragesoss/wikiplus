@@ -161,12 +161,13 @@ videos" heading preserves heading navigation and the region's accessible name. O
 (0 curated) shows a visible heading — **`＋ Suggested videos`** + the `UNCURATED` pill + the unvetted
 subtitle (the once-per-context unvetted signal). See §"Three states" below for the full model.
 
-**Curated-tile anatomy.** A curated General tile carries the same trust signals the
-section-anchored rail card does, so a reader can weigh it where they meet it first. Top-to-bottom:
-thumbnail → held marking (only when held) → caption → creator handle · platform → a single row of
-**stance + accuracy chips followed by the upvote** (the upvote rides the chips row as a chip-height
-outline **tag** — an action beside the filled signal chips, matched to their height) → a **2-line
-context-note preview** → `context by <curator>` → owner/reviewer manage rows. The chips are the standard fact-vs-opinion chips (see §"Fact-vs-opinion
+**Curated-tile anatomy.** A curated General tile and the section-anchored rail clip card carry the
+**same** trust signals in the **same order**, so a reader can weigh a clip identically wherever they
+meet it first. Top-to-bottom: thumbnail → held marking (only when held) → caption → creator handle ·
+platform → a single row of **stance + accuracy chips followed by the upvote** (the upvote rides the
+chips row as a chip-height outline **tag** — an action beside the filled signal chips, matched to
+their height; never a separate footer control) → a **2-line context-note preview** → `context by
+<curator>` (alone in the now-unpaired footer) → owner/reviewer manage rows. The chips are the standard fact-vs-opinion chips (see §"Fact-vs-opinion
 signal" and `lib/curation/labels.ts` for their labels/colors — not restated here); they carry their
 own AA-safe fills, so the indigo band behind them never touches the chip text. The note preview is
 **clamped to two lines on a white panel with a 2px ink border** so its small body text clears AA

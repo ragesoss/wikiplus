@@ -96,6 +96,112 @@ describe("ClipCard — anchored clip content (AC9)", () => {
   });
 });
 
+describe("ClipCard — upvote rides the chips row as a tag (issue #174)", () => {
+  it("signed in: the upvote is an interactive aria-pressed toggle IN the chips row, not the footer", () => {
+    const onUpvote = vi.fn();
+    const { container } = render(
+      <ClipCard
+        clip={baseClip}
+        active={false}
+        signedIn
+        voted={false}
+        onUpvote={onUpvote}
+        onPlay={vi.fn()}
+        onGoToSection={vi.fn()}
+      />
+    );
+    // It is a real toggle (the `tag` appearance keeps the full state model).
+    const btn = screen.getByRole("button", { name: /Upvote this clip — 42 upvotes/ });
+    expect(btn).toHaveAttribute("aria-pressed", "false");
+    expect(btn).toHaveTextContent("42");
+    // It shares one row with the stance + accuracy chips (a tag among the chips).
+    const chipsRow = btn.parentElement as HTMLElement;
+    expect(within(chipsRow).getByText("Explainer · conceptual")).toBeInTheDocument();
+    expect(within(chipsRow).getByText("Accurate")).toBeInTheDocument();
+    // The footer no longer carries the upvote control.
+    const footer = container.querySelector("footer") as HTMLElement;
+    expect(within(footer).queryByRole("button")).toBeNull();
+  });
+
+  it("voted: the toggle shows aria-pressed=true, the filled ▲, and the visible 'Voted' word", () => {
+    render(
+      <ClipCard
+        clip={baseClip}
+        active={false}
+        signedIn
+        voted
+        onUpvote={vi.fn()}
+        onPlay={vi.fn()}
+        onGoToSection={vi.fn()}
+      />
+    );
+    const btn = screen.getByRole("button", { name: /You upvoted this clip/ });
+    expect(btn).toHaveAttribute("aria-pressed", "true");
+    expect(btn).toHaveTextContent("▲");
+    expect(btn).toHaveTextContent("Voted");
+  });
+
+  it("invokes onUpvote with the clip when the signed-in viewer activates the tag", async () => {
+    const onUpvote = vi.fn();
+    render(
+      <ClipCard
+        clip={baseClip}
+        active={false}
+        signedIn
+        voted={false}
+        onUpvote={onUpvote}
+        onPlay={vi.fn()}
+        onGoToSection={vi.fn()}
+      />
+    );
+    await userEvent.click(screen.getByRole("button", { name: /Upvote this clip/ }));
+    expect(onUpvote).toHaveBeenCalledWith(expect.objectContaining({ id: "c1" }));
+  });
+
+  it("logged out: the upvote is a non-interactive figure (a span, never a button) with the count", () => {
+    render(
+      <ClipCard
+        clip={baseClip}
+        active={false}
+        onPlay={vi.fn()}
+        onGoToSection={vi.fn()}
+      />
+    );
+    // No upvote button at all logged out (the figure is read-only social proof).
+    expect(screen.queryByRole("button", { name: /upvote/i })).toBeNull();
+    expect(screen.getByText("42 upvotes")).toBeInTheDocument();
+  });
+
+  it("count 0 logged out renders NO upvote figure (no '0 upvotes')", () => {
+    render(
+      <ClipCard
+        clip={{ ...baseClip, upvotes: 0 }}
+        active={false}
+        onPlay={vi.fn()}
+        onGoToSection={vi.fn()}
+      />
+    );
+    expect(screen.queryByText(/upvotes?/)).toBeNull();
+  });
+
+  it("the footer keeps the context-by attribution and the relative curatedAt", () => {
+    const { container } = render(
+      <ClipCard
+        clip={baseClip}
+        active={false}
+        signedIn
+        voted={false}
+        onUpvote={vi.fn()}
+        onPlay={vi.fn()}
+        onGoToSection={vi.fn()}
+      />
+    );
+    const footer = container.querySelector("footer") as HTMLElement;
+    expect(within(footer).getByText("@bio_teacher")).toBeInTheDocument();
+    expect(within(footer).getByText(/2 days ago/)).toBeInTheDocument();
+  });
+});
+
 describe("ClipCard — owner-only Edit/Delete affordances (issue #53 / D2, AC7)", () => {
   function setup(over: Partial<Clip> = {}, owned = false) {
     const onEdit = vi.fn();
