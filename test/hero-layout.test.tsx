@@ -67,17 +67,19 @@ describe("GeneralStrip hero layout — AC2 full-bleed video + separate docked ca
   });
 
   it("an only-hero clip bleeds the band's top AND bottom edges (-mt-4 + -mb-4, logged-out)", () => {
-    renderStrip({ signedIn: false }); // logged-out → no find-more toolbar above ⇒ bleeds top
+    renderStrip({ signedIn: false });
     const block = screen.getByRole("article", { name: /Hero video:/ });
-    expect(block.className).toContain("-mt-4"); // first element → top bleed
+    expect(block.className).toContain("-mt-4"); // nothing above the hero → top bleed
     expect(block.className).toContain("-mb-4"); // last element (no peers/suggestions) → bottom bleed
   });
 
-  it("signed-in with the find-more toolbar above does NOT bleed the top (sits below the toolbar)", () => {
+  it("signed-in ALSO bleeds the top — the find-more controls ride the row below, not a toolbar above", () => {
     renderStrip({ signedIn: true });
     const block = screen.getByRole("article", { name: /Hero video:/ });
-    expect(block.className).not.toContain("-mt-4");
-    expect(block.className).toContain("mt-4"); // a positive top margin under the toolbar
+    // Nothing renders above the hero in any auth state (the heading is sr-only; the curator controls
+    // are the leading item of the scroll row BELOW), so it bleeds to the top identically to logged-out.
+    expect(block.className).toContain("-mt-4");
+    expect(block.className).not.toMatch(/(^|\s)mt-4(\s|$)/); // no positive top margin
   });
 
   it("the hero VIDEO thumbnail carries NO 2px border (the band/card frame it)", () => {
