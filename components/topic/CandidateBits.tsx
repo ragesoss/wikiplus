@@ -4,38 +4,15 @@ import type { Candidate } from "@/lib/data/types";
 import { VideoThumb } from "./VideoThumb";
 
 // Shared candidate sub-parts. Candidates carry NO stance/accuracy chips and NO
-// context note (CURATION §6) — only a compact match reason + a source pill.
+// context note (CURATION §6) — and, for reader-first calm (#164), NO per-tile match-reason
+// line either. The candidate tile is thumbnail-forward and minimal (thumbnail + caption +
+// creator credit, plus the rail source pill). The per-clip "Why suggested" match reason is
+// genuine information but not tile chrome, so it lives one tap away in the opened player
+// (`MobilePlayerDock`'s See-context reveal renders `clip.matchReason`), never on the card.
 //
 // The "this is unvetted / auto-suggested / no context yet" SIGNAL reads ONCE per context
 // (the ＋plus panel, the General band header, and the rail set header `CandidateSetHeader`),
-// not per card. What stays per card is genuine per-clip INFORMATION: why THIS clip matched,
-// and its source.
-
-/**
- * Compact, quiet single-line match reason (#14 AC3) — per-clip information, not the
- * repeated unvetted signal. Decorative magnifier glyph `aria-hidden`; an `sr-only`
- * "Why suggested:" prefix makes the line self-describing to screen readers. The
- * source value is NOT here — it lives in the SourcePill (design §3 / AC4).
- */
-export function MatchReason({ candidate }: { candidate: Candidate }) {
-  return (
-    <p className="mt-1.5 flex items-start gap-1 text-[11px] leading-snug text-ink2">
-      <span className="sr-only">Why suggested: </span>
-      <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth={2}
-        aria-hidden
-        className="mt-[1px] h-3 w-3 shrink-0 text-muted"
-      >
-        <circle cx="11" cy="11" r="7" />
-        <path d="M21 21l-4.3-4.3" />
-      </svg>
-      <span>{candidate.matchReason}</span>
-    </p>
-  );
-}
+// not per card.
 
 /**
  * Small text-labeled, outline source pill (#14 AC4 / design §6). Reads the
@@ -262,7 +239,7 @@ export function CandidateCard({
           </span>
         </span>
       </a>
-      <MatchReason candidate={candidate} />
+      {/* No per-tile match-reason line (#164): the "Why suggested" reason lives in the player. */}
       {/* #71 §5: on-tile actions only when signed in; logged out the tile is watch-only. */}
       {signedIn && (
         <CandidateActions

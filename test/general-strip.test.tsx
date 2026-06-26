@@ -69,11 +69,14 @@ describe("GeneralStrip — fully-curated (AC3/AC8)", () => {
 
   // AC3: fully-curated is visually clean — no divider, no see-more, no uncurated pill.
   it("shows no suggestion chrome when there are no candidates (AC3)", () => {
+    // Signed in: a curator keeps the standing ＋ Add video; the Search links drop in
+    // fully-curated. (The logged-out Find-more gating is its own test below — #164.)
     render(
       <GeneralStrip
         topicTitle="Photosynthesis"
         generalClips={[clip]}
         generalCandidates={[]}
+        signedIn
         onPlay={vi.fn()}
         onPromote={vi.fn()}
         onDismiss={vi.fn()}
@@ -83,7 +86,7 @@ describe("GeneralStrip — fully-curated (AC3/AC8)", () => {
     expect(screen.queryByText("uncurated")).toBeNull();
     expect(screen.queryByText(/Suggested · uncurated/)).toBeNull();
     expect(screen.queryByRole("button", { name: /See \d+ more/ })).toBeNull();
-    // Add-video stays reachable; the empty-state Search links do NOT (§7.3).
+    // Add-video stays reachable for a curator; the empty-state Search links do NOT (§7.3).
     expect(screen.getByRole("button", { name: /Add video/ })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /Search YouTube/ })).toBeNull();
   });
@@ -118,6 +121,17 @@ describe("GeneralStrip — empty / Suggested (AC1, AC16, AC18)", () => {
   it("does NOT render a 'N candidates' count label on the band (#14 AC6)", () => {
     setup();
     expect(screen.queryByText(/\d+\s+candidates?/)).toBeNull();
+  });
+
+  // #164 (AC5 / the adversarial trap): trimming the curated-state subtitle must NOT also
+  // remove the EMPTY-state "— auto-found candidates, not yet vetted" line — that text IS the
+  // once-per-context unvetted signal in the empty band (a required signal, not chrome). It
+  // must still render here, in words.
+  it("KEEPS the empty-state 'auto-found candidates, not yet vetted' unvetted subtitle (#164 AC5)", () => {
+    setup();
+    expect(
+      screen.getByText("— auto-found candidates, not yet vetted")
+    ).toBeInTheDocument();
   });
 
   // #14 AC1 / #60 §5.3: no per-tile "SUGGESTED" badge. In the empty band there is also no
@@ -178,12 +192,15 @@ describe("GeneralStrip — empty / Suggested (AC1, AC16, AC18)", () => {
 
 // Issue #60 §2.1 — the mixed band: curated FIRST, then the divider, then suggestions.
 describe("GeneralStrip — mixed state (AC2/AC4)", () => {
+  // `signedIn` so the curator-only Find-more cluster renders (its presence is asserted
+  // below); the curated/suggestion rendering + ordering tests are agnostic to it.
   function setup() {
     render(
       <GeneralStrip
         topicTitle="Photosynthesis"
         generalClips={[clip]}
         generalCandidates={[cand]}
+        signedIn
         onPlay={vi.fn()}
         onPromote={vi.fn()}
         onDismiss={vi.fn()}
@@ -224,6 +241,17 @@ describe("GeneralStrip — mixed state (AC2/AC4)", () => {
     setup();
     expect(screen.getByRole("link", { name: /Search YouTube/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Add video/ })).toBeInTheDocument();
+  });
+
+  // #164 (AC5 / the adversarial trap, other arm): in a CURATED band the descriptive
+  // subtitle is trimmed (it added words, not signal) — AND the empty-state unvetted line
+  // must NOT bleed into the curated band (it belongs ONLY to the empty state).
+  it("renders NO descriptive subtitle in a curated band (#164 AC5)", () => {
+    setup();
+    expect(screen.queryByText(/quick visual overview/)).toBeNull();
+    expect(
+      screen.queryByText(/auto-found candidates, not yet vetted/)
+    ).toBeNull();
   });
 });
 
@@ -331,6 +359,7 @@ describe("GeneralStrip — loading face (design §5.4 / AC2/AC11)", () => {
         generalClips={[]}
         generalCandidates={[]}
         loading
+        signedIn
         onPlay={vi.fn()}
         onPromote={vi.fn()}
         onDismiss={vi.fn()}
@@ -368,7 +397,27 @@ describe("GeneralStrip — loading face (design §5.4 / AC2/AC11)", () => {
 });
 
 describe("GeneralStrip — zero-results face (design §5.2 / AC2 zero case)", () => {
-  it("shows the honest line and keeps 'Find more' (no candidate count — #14 AC6)", () => {
+  it("shows the honest line and keeps 'Find more' for a curator (no candidate count — #14 AC6)", () => {
+    render(
+      <GeneralStrip
+        topicTitle="Obscurium"
+        generalClips={[]}
+        generalCandidates={[]}
+        loading={false}
+        signedIn
+        onPlay={vi.fn()}
+        onPromote={vi.fn()}
+        onDismiss={vi.fn()}
+        onAdd={vi.fn()}
+      />
+    );
+    expect(screen.getByText(/No videos found for this topic yet/)).toBeInTheDocument();
+    // #14 AC6: the band does not show a candidate count, even at zero.
+    expect(screen.queryByText(/\d+\s+candidates?/)).toBeNull();
+    expect(screen.getByRole("link", { name: /Search YouTube/ })).toBeInTheDocument();
+  });
+
+  it("logged out: the honest line does NOT point at the hidden Find-more controls (#164)", () => {
     render(
       <GeneralStrip
         topicTitle="Obscurium"
@@ -382,9 +431,10 @@ describe("GeneralStrip — zero-results face (design §5.2 / AC2 zero case)", ()
       />
     );
     expect(screen.getByText(/No videos found for this topic yet/)).toBeInTheDocument();
-    // #14 AC6: the band does not show a candidate count, even at zero.
-    expect(screen.queryByText(/\d+\s+candidates?/)).toBeNull();
-    expect(screen.getByRole("link", { name: /Search YouTube/ })).toBeInTheDocument();
+    // The dangling "try a manual search below" must NOT show (those controls are hidden).
+    expect(screen.queryByText(/manual search below/)).toBeNull();
+    expect(screen.queryByRole("link", { name: /Search YouTube/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Add video/ })).toBeNull();
   });
 });
 
@@ -415,8 +465,28 @@ describe("GeneralStrip — logged-out tile gating (#71 §4/§5, AC1/AC2/AC3/AC8)
     expect(
       screen.queryByRole("button", { name: /Dismiss as not relevant/ })
     ).toBeNull();
-    // The match reason + caption (weighing signals) still render.
-    expect(screen.getByText(/Top result/)).toBeInTheDocument();
+    // Caption + creator credit still render; the per-tile match-reason line is gone
+    // (#164 — the "Why suggested" reason lives in the player now, not on the tile).
+    expect(screen.getByText("Suggested overview")).toBeInTheDocument();
+    expect(screen.queryByText(/Top result/)).toBeNull();
+  });
+
+  it("logged out: hides the curator-only Find-more cluster entirely (#164)", () => {
+    // Empty (all-suggestions) — the band a logged-out reader is most likely to meet.
+    renderStrip(false, [], [cand]);
+    expect(screen.queryByRole("link", { name: /Search YouTube/ })).toBeNull();
+    expect(screen.queryByRole("link", { name: /Search TikTok/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Add video/ })).toBeNull();
+  });
+
+  it("signed in: shows the Find-more cluster the logged-out reader does not (#164)", () => {
+    renderStrip(true, [], [cand]);
+    expect(
+      screen.getByRole("link", { name: /Search YouTube/ })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Add video/ })
+    ).toBeInTheDocument();
   });
 
   it("logged out: a curated tile renders the read-only count, NO upvote button (AC1/AC2)", () => {

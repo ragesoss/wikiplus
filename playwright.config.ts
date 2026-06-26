@@ -22,6 +22,10 @@ const E2E_YOUTUBE_KEY = process.env.NEXT_PUBLIC_YOUTUBE_API_KEY || "e2e-youtube-
 export default defineConfig({
   testDir: "./e2e",
   fullyParallel: true,
+  // Screenshot runs (`scripts/dev/shots.sh` sets SHOTS=1) drive the real SSR server across
+  // many scenes at once; the default worker count oversubscribes one Node server and flakes
+  // shots with h1-timeout contention. Cap shots to 5 workers; the normal e2e gate is unaffected.
+  workers: process.env.SHOTS ? 5 : undefined,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? "github" : "list",

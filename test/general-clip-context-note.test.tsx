@@ -358,7 +358,8 @@ describe("AC7/§6 — empty-note guard, held coexistence, candidate non-regressi
         },
       ],
     });
-    // The candidate's match reason shows, but no curator-note eyebrow and no chips.
+    // A candidate tile carries no curator-note eyebrow and no chips. (Its per-tile
+    // match-reason line is also gone — #164 — but the point here is the note/chips absence.)
     expect(screen.queryByText("Curator note")).toBeNull();
     expect(screen.queryByText("Explainer")).toBeNull();
     expect(screen.queryByText(/Accurate/)).toBeNull();

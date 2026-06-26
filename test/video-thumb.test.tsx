@@ -34,6 +34,26 @@ describe("VideoThumb — aspect ratio by orientation (AC10)", () => {
     render(<VideoThumb video={tiktok} />);
     expect(screen.getByRole("button").className).toMatch(/aspect-\[9\/16\]/);
   });
+
+  // #164 (AC4): the General-strip variant is a true 16:9 frame (`aspect-video w-full`) that
+  // scales with the tile width — the picture is the dominant element. It is NOT the fixed
+  // short `h-24` band, and it stays uniform LANDSCAPE even for a vertical-orientation clip
+  // (the strip row reads as an even band, not a ragged portrait/landscape mix).
+  it("renders the strip variant as a full-width 16:9 frame, never the fixed h-24 band (#164 AC4)", () => {
+    render(<VideoThumb video={yt} variant="strip" onPlay={vi.fn()} />);
+    const cls = screen.getByRole("button").className;
+    expect(cls).toMatch(/aspect-video/);
+    expect(cls).toMatch(/w-full/);
+    expect(cls).not.toMatch(/h-24/);
+  });
+
+  it("keeps the strip variant uniform LANDSCAPE for a vertical clip (#164 AC4 — even row)", () => {
+    render(<VideoThumb video={tiktok} variant="strip" />);
+    const cls = screen.getByRole("button").className;
+    expect(cls).toMatch(/aspect-video/);
+    // It does NOT switch to 9:16 in the strip — uniform landscape keeps the scroll row even.
+    expect(cls).not.toMatch(/aspect-\[9\/16\]/);
+  });
 });
 
 describe("VideoThumb — click-to-load, no autoload (AC11)", () => {

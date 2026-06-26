@@ -41,7 +41,11 @@ export function VideoThumb({
 
   const aspect =
     variant === "strip"
-      ? "h-24"
+      ? // Thumbnail-forward General strip (TOPIC_PAGE_DESIGN §"The General strip"): a true
+        // 16:9 frame that scales with the tile width, so the picture is the dominant
+        // element. `w-full` is added below; the tile widths (curated/candidate) live in
+        // GeneralStrip. Uniform landscape for every strip tile keeps the scroll row even.
+        "aspect-video"
       : video.orientation === "vertical"
         ? variant === "inline"
           ? "aspect-[9/16] w-28"

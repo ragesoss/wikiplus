@@ -62,20 +62,13 @@ describe("CandidateCard — decluttered unvetted treatment (#14; CURATION §6)",
     ).toBeNull();
   });
 
-  // AC3 — a single compact match-reason line with an sr-only "Why suggested:" prefix.
-  it("shows a compact match-reason line with an sr-only 'Why suggested:' prefix (AC3)", () => {
+  // #164 — the candidate card is thumbnail-forward: NO per-tile match-reason line. The
+  // per-clip "Why suggested" reason is genuine info but not tile chrome; it lives one tap
+  // away in the player (`MobilePlayerDock`'s See-context reveal), never on the card.
+  it("renders NO per-tile match-reason line (#164)", () => {
     setup();
-    expect(screen.getByText(/Mentions/)).toBeInTheDocument();
-    // The sr-only prefix makes the line self-describing to screen readers.
-    expect(screen.getByText("Why suggested:")).toBeInTheDocument();
-  });
-
-  it("does NOT put the source value inside the match line (AC3 — source moves to the pill)", () => {
-    setup();
-    // The match line shows only the reason; the source ("YouTube") is in the pill,
-    // not concatenated into the reason text.
-    const reason = screen.getByText(/Mentions/);
-    expect(reason.textContent).not.toContain("YouTube");
+    expect(screen.queryByText(/Mentions/)).toBeNull();
+    expect(screen.queryByText("Why suggested:")).toBeNull();
   });
 
   // AC4 / AC6 — text-labeled source pill, derived from the candidate's own `source`.
@@ -164,12 +157,13 @@ describe("CandidateCard — logged-out watch-only (#71 §5, AC3/AC4)", () => {
     ).toBeNull();
   });
 
-  it("logged out: keeps the weighing signals — match reason + source pill + caption + credit (AC4)", () => {
+  it("logged out: keeps the weighing signals — source pill + caption + credit (AC4)", () => {
     renderCard(false);
-    expect(screen.getByText(/Mentions/)).toBeInTheDocument(); // match reason
     expect(screen.getByTitle("Auto-suggested from YouTube")).toBeInTheDocument(); // source pill
     expect(screen.getByText(cand.caption)).toBeInTheDocument(); // caption
     expect(screen.getByText(/2minuteclassroom/)).toBeInTheDocument(); // creator credit
+    // The match-reason line is no longer on the tile (#164 — it lives in the player).
+    expect(screen.queryByText(/Mentions/)).toBeNull();
   });
 
   it("logged out: retains the dashed/unvetted candcard treatment (AC4 — distinction kept)", () => {

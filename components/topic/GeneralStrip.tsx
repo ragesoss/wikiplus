@@ -4,11 +4,7 @@ import { useState } from "react";
 import { GENERAL_SUGGESTION_DEFAULT } from "@/lib/candidates";
 import type { Candidate, Clip } from "@/lib/data/types";
 import { pluralize } from "@/lib/format";
-import {
-  CandidateActions,
-  MatchReason,
-  SeeMoreButton,
-} from "./CandidateBits";
+import { CandidateActions, SeeMoreButton } from "./CandidateBits";
 import { AccuracyChip, StanceChip } from "./Chips";
 import { ContextByLink } from "./ContextByLink";
 import { HeldPill } from "./HeldMarking";
@@ -181,11 +177,14 @@ export function GeneralStrip({
               uncurated
             </span>
           )}
-          <span className="text-sm text-white/80">
-            {hasCurated
-              ? "— quick visual overview across both columns"
-              : "— auto-found candidates, not yet vetted"}
-          </span>
+          {/* Reader-first calm (#164): drop the curated-state descriptive subtitle (it adds
+              words, not signal). The empty-state subtitle stays — "— auto-found candidates,
+              not yet vetted" IS the once-per-context unvetted signal in the empty band. */}
+          {!hasCurated && (
+            <span className="text-sm text-white/80">
+              — auto-found candidates, not yet vetted
+            </span>
+          )}
           {/* The curated `N video` count pill (mixed + fully-curated); the transient
               "Finding videos…" loading tag. The empty band states the KIND once and
               defers the volume to the ＋plus panel (#14 AC6). */}
@@ -201,8 +200,11 @@ export function GeneralStrip({
         {/* Find-more cluster (§7.2/§7.3): the full cluster (Search TikTok / Search YouTube /
             ＋ Add video) in empty + mixed; only the quiet "＋ Add video" in fully-curated (the
             Search-platform links are an empty-state discovery aid that's noise on a finished
-            curated overview, but Add-video is a standing action that must not be stranded). */}
-        {!hasCurated || hasSuggestions ? (
+            curated overview, but Add-video is a standing action that must not be stranded).
+            Reader-first calm (#164): the whole cluster is a CURATOR tool (＋ Add video needs
+            login; the Search links are a curation-discovery aid) — render it only when signed
+            in, so a logged-out reader's band stays calm and reader-first. */}
+        {signedIn && (!hasCurated || hasSuggestions ? (
           <div
             role="group"
             aria-label="Add videos from a source manually"
@@ -248,7 +250,7 @@ export function GeneralStrip({
               ＋ Add video
             </button>
           </div>
-        )}
+        ))}
 
         {/* The one horizontally-scrollable row: curated group FIRST (uncapped), then the
             divider (mixed only), then the capped suggestion group + "See N more". */}
@@ -264,7 +266,10 @@ export function GeneralStrip({
                 <li
                   key={clip.id}
                   role="listitem"
-                  className={`w-44 shrink-0${curatedFade}`}
+                  // Curated tile grows MODESTLY (#164): the thumbnail (a 16:9 strip frame)
+                  // scales with this width; the wider tile relaxes the text wrapping. All
+                  // curated trust signals below stay intact (the guardrail).
+                  className={`w-52 shrink-0${curatedFade}`}
                 >
                   <VideoThumb video={clip} variant="strip" onPlay={() => onPlay(clip)} />
                   {/* D5b (design §3.3): the compact held marking — eyebrow-only on a white-fill pill
@@ -389,10 +394,14 @@ export function GeneralStrip({
                 className="flex shrink-0 gap-3"
               >
                 {shownCandidates.map((c) => (
-                  // #14: candidate tile on a candcard surface (dashed/unvetted retained). No
-                  // per-tile "SUGGESTED" badge (AC1/§5.3); the compact match line on a white
-                  // panel so its ink text clears AA on the indigo band.
-                  <div key={c.id} className="candcard w-44 shrink-0 p-2">
+                  // Candidate tile on a candcard surface (dashed/unvetted retained). No per-tile
+                  // "SUGGESTED" badge (AC1/§5.3). Reader-first calm (#164): the most minimal,
+                  // thumbnail-forward tile — NOTABLY wider so the picture leads — carrying only
+                  // the caption + creator credit. NO match-reason line (the "Why suggested"
+                  // reason is genuine info but not tile chrome; it lives one tap away in the
+                  // player). The once-per-context unvetted signal lives in the band header /
+                  // divider / rail set-header, never per card.
+                  <div key={c.id} className="candcard w-64 shrink-0 p-2">
                     <VideoThumb
                       video={c}
                       variant="strip"
@@ -409,7 +418,6 @@ export function GeneralStrip({
                     <p className="truncate text-[11px] text-muted">
                       {c.creator.handle} · {c.platformLabel}
                     </p>
-                    <MatchReason candidate={c} />
                     {/* #71 §5: on-tile actions only when signed in; logged out → watch-only. */}
                     {signedIn && (
                       <CandidateActions
@@ -448,7 +456,8 @@ export function GeneralStrip({
                   className="flex gap-3"
                 >
                   {[0, 1, 2].map((i) => (
-                    <li key={i} role="listitem" className="w-44 shrink-0">
+                    // Match the candidate tile width (#164) so the skeleton stands in 1:1.
+                    <li key={i} role="listitem" className="w-64 shrink-0">
                       <div
                         className={`aspect-video w-full border-2 border-white/40 bg-surface-raised/15${
                           prefersReduced ? "" : " animate-pulse"
@@ -478,8 +487,12 @@ export function GeneralStrip({
             simply reads as fully-curated. */}
         {showZero && (
           <p className="mt-4 max-w-prose text-sm leading-relaxed text-white">
-            No videos found for this topic yet. Try a manual search below, or add
-            one by link.
+            {/* The line must not point at controls the viewer can't see (#164): a logged-out
+                reader has no Find-more cluster, so it would dangle "try a manual search below".
+                Honest + reader-first for them; the actionable line stays for a signed-in curator. */}
+            {signedIn
+              ? "No videos found for this topic yet. Try a manual search below, or add one by link."
+              : "No videos found for this topic yet — check back as people curate this topic."}
           </p>
         )}
       </div>
