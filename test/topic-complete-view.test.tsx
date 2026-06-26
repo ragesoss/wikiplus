@@ -340,8 +340,9 @@ describe("Marked complete + zero curated videos — minimal render (AC18)", () =
     expect(
       screen.getByRole("button", { name: /Show suggestions for this topic/i })
     ).toBeTruthy();
-    // The signed-in curator keeps the quiet "＋ Add video" (the standing curation action).
-    expect(screen.getByRole("button", { name: /Add video/i })).toBeInTheDocument();
+    // A finished topic offers no "add more": the curator find-more (＋ Add video) is suppressed in
+    // the minimal band, even for a signed-in curator (they reopen first to add).
+    expect(screen.queryByRole("button", { name: /Add video/i })).toBeNull();
     // The article column still renders normally.
     expect(screen.getByText(/Lead text here/i)).toBeTruthy();
   });

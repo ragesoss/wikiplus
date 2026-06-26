@@ -1999,11 +1999,14 @@ export function TopicView() {
           onSetHero={setHero}
           onClearHero={clearHero}
           settingHero={settingHero}
-          /* Marked-complete reveal (design overview-card-cleanup.md §4): the reader-facing completion
-             signal + the per-viewer "show suggestions anyway" toggle live in the strip as its trailing
-             row item, not in the Overview card. `complete` drives its presence; `hasUnderlyingSuggestions`
-             gates it (never a reveal that shows nothing); `overridden`/`onToggleOverride` are the same
-             session-local, per-topic, client-only override the suppression derivation reads. */
+          /* Marked-complete (design overview-card-cleanup.md §4). `suppressed` (= complete AND this
+             viewer hasn't overridden) hides the curator find-more controls — a finished topic offers
+             no "add more". The reader-facing completion signal + the per-viewer "show suggestions
+             anyway" reveal are the strip's TRAILING row item: `complete` drives its presence,
+             `hasUnderlyingSuggestions` gates it (never a reveal that shows nothing), `onToggleOverride`
+             flips the same session-local, per-topic, client-only override (the strip derives the
+             reveal's on/off label from `complete && !suppressed`). */
+          suppressed={suppressSuggestions}
           complete={closedToSuggestions}
           overridden={viewerOverride === true}
           hasUnderlyingSuggestions={hasUnderlyingSuggestions}
@@ -2279,9 +2282,11 @@ export function TopicView() {
                   - `!hasCurated` + zero in both candidate pools: genuinely empty.
                 With curated clips present a zero suggestion count reads as fully-curated — no
                 suggestion chrome (§7.5). */}
-            {/* Issue #159: suppressed on a complete topic (no override) — this line points at
-                'Find more' suggestion chrome that is deliberately hidden; the calm complete-topic
-                rail is empty here, and the wiki+ panel's status indicator carries the add path. */}
+            {/* Issue #159: on a suppressed complete topic (no override) this empty-suggestions line is
+                hidden — the rail stays calm and the add path lives in the wiki+ panel's status
+                indicator. When shown, the signed-in arm names the General band's ＋ Add video / Search
+                controls (which ride that band's row) without a stale directional or label; a logged-out
+                reader gets the honest informational line (parity with the band's zero-results line). */}
             {!suppressSuggestions &&
               shouldShowEmptySuggestions({
                 storeReady,
@@ -2292,8 +2297,9 @@ export function TopicView() {
                 generalCandidatesCount: generalCandidates.length,
               }) && (
                 <p className="text-sm text-muted">
-                  No suggestions for this topic yet — use &lsquo;Find more&rsquo;
-                  above to add the first video.
+                  {signedIn
+                    ? "No suggestions for this topic yet — search a platform or add one by link to start."
+                    : "No suggestions for this topic yet — check back as people curate this topic."}
                 </p>
               )}
           </aside>

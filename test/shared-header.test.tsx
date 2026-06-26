@@ -368,8 +368,10 @@ describe("#96 fix round — no seam line, no scroll jitter (scroll-aware hosts)"
   });
 
   it("opts the collapsing-header document scroller out of scroll anchoring", () => {
-    // The opt-out sits on a selector LIST (the root `html:has(...)` AND its `body`), so allow
-    // the rest of the selector list (`[^{}]*`) before the rule body.
+    // The opt-out targets `html:has(header.header-shared)` — Chromium reads `overflow-anchor`
+    // off `body` on the document scroller, so the rule groups the root + its body selector
+    // (`html:has(header.header-shared), html:has(header.header-shared) body { overflow-anchor: none }`).
+    // `[^{}]*` spans that grouped selector list up to the block's opening brace.
     expect(css).toMatch(
       /html:has\(header\.header-shared\)[^{}]*\{[^}]*overflow-anchor:\s*none/
     );

@@ -80,6 +80,86 @@
     "focus": true
   },
   {
+    "id": "topic-complete-overview",
+    "group": "Topic · marked complete",
+    "label": "＋plus panel — marked complete (indicator + curator control)",
+    "viewport": "desktop",
+    "auth": "in",
+    "skin": "light",
+    "file": "topic-complete-overview-desktop-logged-in.png",
+    "focus": true
+  },
+  {
+    "id": "topic-complete-overview",
+    "group": "Topic · marked complete",
+    "label": "＋plus panel — marked complete (indicator + curator control)",
+    "viewport": "desktop",
+    "auth": "in",
+    "skin": "zine-dark",
+    "file": "topic-complete-overview-desktop-logged-in-zine-dark.png",
+    "focus": true
+  },
+  {
+    "id": "topic-complete-overview",
+    "group": "Topic · marked complete",
+    "label": "＋plus panel — marked complete (indicator + curator control)",
+    "viewport": "tablet",
+    "auth": "in",
+    "skin": "light",
+    "file": "topic-complete-overview-tablet-logged-in.png",
+    "focus": true
+  },
+  {
+    "id": "topic-complete-overview",
+    "group": "Topic · marked complete",
+    "label": "＋plus panel — marked complete (indicator + curator control)",
+    "viewport": "tablet",
+    "auth": "in",
+    "skin": "zine-dark",
+    "file": "topic-complete-overview-tablet-logged-in-zine-dark.png",
+    "focus": true
+  },
+  {
+    "id": "topic-complete-suppressed",
+    "group": "Topic · marked complete",
+    "label": "Topic — complete, suppressed (full page)",
+    "viewport": "desktop",
+    "auth": "in",
+    "skin": "light",
+    "file": "topic-complete-suppressed-desktop-logged-in.png",
+    "focus": true
+  },
+  {
+    "id": "topic-complete-zero-video",
+    "group": "Topic · marked complete",
+    "label": "Topic — complete + zero curated videos (minimal render)",
+    "viewport": "desktop",
+    "auth": "in",
+    "skin": "light",
+    "file": "topic-complete-zero-video-desktop-logged-in.png",
+    "focus": true
+  },
+  {
+    "id": "topic-complete-zero-video",
+    "group": "Topic · marked complete",
+    "label": "Topic — complete + zero curated videos (minimal render)",
+    "viewport": "desktop",
+    "auth": "in",
+    "skin": "zine-dark",
+    "file": "topic-complete-zero-video-desktop-logged-in-zine-dark.png",
+    "focus": true
+  },
+  {
+    "id": "topic-complete-overridden",
+    "group": "Topic · marked complete",
+    "label": "Topic — complete, per-viewer override ON (suggestions revealed)",
+    "viewport": "desktop",
+    "auth": "in",
+    "skin": "light",
+    "file": "topic-complete-overridden-desktop-logged-in.png",
+    "focus": true
+  },
+  {
     "id": "about-landscape-tablet",
     "group": "Other pages",
     "label": "About — wide-but-short (landscape tablet, miniature-alone fallback)",

@@ -229,6 +229,7 @@ describe("GeneralStrip — minimal complete band: lone toggle, bootstrap suppres
         generalClips={[]}
         generalCandidates={[]}
         complete
+        suppressed
         hasUnderlyingSuggestions
         onToggleOverride={vi.fn()}
         {...extra}
