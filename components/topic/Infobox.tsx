@@ -21,20 +21,19 @@ import { Stat } from "./Stat";
 // The unvetted meaning is carried in TEXT ("suggested" / "uncurated"), never by
 // color or border alone (§9). Gold is not used.
 //
-// ── "Marked complete" / closed to suggestions (issue #159; design topic-complete.md). ────────
-// When a curator marks the topic complete (`closedToSuggestions`), the panel grows two surfaces:
-//   - The STATUS INDICATOR (§3) at the TOP of the panel body, shown to EVERY viewer: a calm
-//     notice block stating a curator marked the topic complete (so suggestions are hidden),
-//     carrying the two opt-in paths — (a) the per-viewer "Show suggestions anyway" override
-//     (any viewer, incl. logged-out) and (b) add a video / curate (login-gated for logged-out).
-//   - The CURATOR CONTROL (§2) at the FOOT of the panel, SIGNED-IN ONLY: the "Mark topic
-//     complete" ⇄ "Reopen to suggestions" toggle. The affordance gate here is `signedIn`; the
-//     SECURITY control is the role-gated Server Action (host re-checks the curator server-side).
-// The host (`TopicView`) owns the booleans + the optimistic-with-rollback wiring; this component
-// is presentational. The override is the indicator's path (a) — never elsewhere; the two are
-// kept distinct (state at the top, action at the foot). When the topic has NO underlying
-// suggestion to reveal (`hasUnderlyingSuggestions === false`), path (a) is omitted (§4.4 — the
-// toggle never promises a reveal it can't deliver).
+// ── "Marked complete" / closed to suggestions (design overview-card-cleanup.md, revising #159). ──
+// On a complete topic the card grows ONE surface: the CURATOR CONTROL at the FOOT, SIGNED-IN ONLY —
+// the "Mark topic complete" ⇄ "Reopen to suggestions" toggle. The affordance gate is `signedIn`; the
+// SECURITY control is the role-gated Server Action (the host re-checks the curator server-side). The
+// host (`TopicView`) owns `closedToSuggestions`/`marking` + the optimistic-with-rollback wiring; this
+// component is presentational.
+//
+// The reader-facing completion SIGNAL and the per-viewer "show suggestions anyway" REVEAL do NOT live
+// in this card — they are the trailing toggle item in the General strip's scroll row
+// (`GeneralStrip`), where the videos they govern live. So the card carries no status notice, no
+// override, and no add-a-video path (the strip's add is signed-in-only). At a complete + zero-curated
+// topic the card has no counts to show; for a logged-out reader it then has no body at all and renders
+// nothing (the strip's minimal band + the article carry that state — see the empty-body guard below).
 
 export function Infobox({
   hasCurated,
@@ -42,59 +41,37 @@ export function Infobox({
   suggestionCount,
   storeError = false,
   candidatesLoading = false,
-  onBrowse,
   signedIn = false,
   closedToSuggestions = false,
   marking = false,
   onToggleComplete,
-  hasUnderlyingSuggestions = false,
-  overridden = false,
-  onToggleOverride,
-  onAdd,
 }: {
   /** ≥1 curated clip — selects the numeral grid vs. the empty volume panel. */
   hasCurated: boolean;
   stats: TopicStats;
   /** Remaining, deduped suggestions (`liveCandidates.length`) — `{M}` in mixed / the empty numeral. */
   suggestionCount: number;
-  /** Store-read failure floor (§6.5): render header + an honest line, no counts/buttons. */
+  /** Store-read failure floor (§6.5): render the cap + an honest line, no counts/buttons. */
   storeError?: boolean;
   /** The live candidate search is still in flight (topic-loading-states §4 row 4). While it is —
    *  on an uncurated topic whose suggestion count has not settled — the empty volume block shows a
    *  projector-scan loading treatment instead of a (misleading) "0 uncurated videos" numeral. */
   candidatesLoading?: boolean;
-  /** Browse/Jump — ALWAYS scrolls to the General band / first video (never opens curate). */
-  onBrowse: () => void;
   /**
-   * Issue #159 (design §2.1): is the viewer signed in — the AFFORDANCE gate for the curator
-   * mark/un-mark control (the foot row). Logged-out never sees a mutating control (AC4); the
-   * SECURITY control is the role-gated Server Action. Default false so an anonymous render shows
-   * no control and the read-path render is unchanged for a not-complete topic.
+   * Is the viewer signed in — the AFFORDANCE gate for the curator mark/un-mark control (the foot
+   * row). Logged-out never sees a mutating control; the SECURITY control is the role-gated Server
+   * Action. Default false so an anonymous render shows no control and the read-path render is
+   * unchanged for a not-complete topic.
    */
   signedIn?: boolean;
-  /** Issue #159: is the topic marked complete (`closed_to_suggestions`). Drives the indicator's
-   *  presence (every viewer) + the curator control's label (Mark complete ⇄ Reopen). */
+  /** Is the topic marked complete (`closed_to_suggestions`). Drives the curator control's label
+   *  (Mark complete ⇄ Reopen) and, with zero curated videos, the dialed-down card (no counts). */
   closedToSuggestions?: boolean;
-  /** Issue #159 (§2.3): a mark/un-mark write is in flight → the foot button shows a busy word and
-   *  is disabled to block a double-submit (the visual flip is optimistic, so the busy word is brief). */
+  /** A mark/un-mark write is in flight → the foot button shows a busy word and is disabled to block
+   *  a double-submit (the visual flip is optimistic, so the busy word is brief). */
   marking?: boolean;
-  /** Issue #159: activate the curator mark/un-mark toggle (host's optimistic-with-rollback). */
+  /** Activate the curator mark/un-mark toggle (host's optimistic-with-rollback). */
   onToggleComplete?: () => void;
-  /**
-   * Issue #159 (§4.4): does the topic have ≥1 underlying suggestion (computed as if the flag were
-   * off, regardless of suppression)? Gates the indicator's override path (a): when there is nothing
-   * to reveal, the "Show suggestions anyway" toggle is omitted (only the add/curate path shows).
-   */
-  hasUnderlyingSuggestions?: boolean;
-  /** Issue #159 (§4): has THIS viewer overridden the suppression for this session (suggestions
-   *  showing for them). Drives the override toggle's label/treatment. Session-local, per-topic. */
-  overridden?: boolean;
-  /** Issue #159 (§4): toggle the per-viewer "show suggestions anyway" override (host's client-only,
-   *  session-local, per-topic reveal — instant in-place, never a DB write). */
-  onToggleOverride?: () => void;
-  /** Issue #159 (§3.3 path b): add a video / curate — the existing gated Add flow (`openAdd`),
-   *  login-gated for logged-out via the host's `requireLogin` seam. */
-  onAdd?: () => void;
 }) {
   const isEmpty = !hasCurated;
   const isMixed = hasCurated && suggestionCount > 0;
@@ -102,29 +79,32 @@ export function Infobox({
   // trustworthy, so show the volume block as loading rather than asserting a count (AC1).
   const isEmptyLoading = isEmpty && candidatesLoading && suggestionCount === 0;
 
-  // Issue #159 (design §6.2): on a COMPLETE topic with zero curated videos, the panel dials down —
-  // it omits the counts/volume block AND the Browse action (there is nothing to scroll to; the
-  // panel's substance is the indicator + its two paths). A "0 videos" grid or a dashed suggestion-
-  // volume block would read as broken / would point at suppressed suggestions (AC10/AC18). On a
-  // complete topic WITH curated videos the numeral grid stays (curated content is never suppressed).
+  // On a COMPLETE topic with zero curated videos the card dials down — it omits the counts/volume
+  // block (overview-card-cleanup §3.4): a "0 videos" grid or a dashed suggestion-volume block would
+  // read as broken / would point at suppressed suggestions. On a complete topic WITH curated videos
+  // the numeral grid stays (curated content is never suppressed).
   const completeZeroVideo = closedToSuggestions && isEmpty;
 
+  // Empty-body guard (overview-card-cleanup §3.5): the card renders only when it has body content —
+  // the store-error line, a counts block (present whenever NOT complete+zero-video), or the signed-in
+  // curator mark/reopen control. At complete + zero-video with neither an error nor the curator
+  // control (i.e. a logged-out reader), the body would be just the cap, so render nothing — the
+  // strip's minimal band + the article carry that state.
+  const hasBody = storeError || !completeZeroVideo || (signedIn && !!onToggleComplete);
+  if (!hasBody) return null;
+
   return (
-    <div className="plus-card overflow-hidden">
-      {/* Header block — the Indigo identity (§6.1). */}
-      <div className="flex items-baseline gap-2 border-b-2 border-hardbox bg-brand px-4 py-2.5 text-white">
-        <span className="plus-disp text-lg leading-none font-bold">＋plus</span>
-        <span className="plus-sans text-[11px] font-bold uppercase tracking-widest opacity-90">
-          on this topic
-        </span>
-      </div>
+    <div className="plus-card overflow-hidden" data-testid="plus-overview">
+      {/* Header — a thin solid brand cap, no text (overview-card-cleanup §3.1). It marks the card as a
+          plus-side element by color + the hardbox language; the brand WORDMARK's home is the universal
+          projector header (VI §10.1), so the card needs no "＋plus" text. Decorative → aria-hidden. */}
+      <div className="h-2.5 border-b-2 border-hardbox bg-brand" aria-hidden />
 
       {storeError ? (
         // §6.5 read-failure floor: an honest line in place of the counts block. No numerals,
         // no buttons (a write surface is meaningless when reads are failing). On a read failure the
-        // complete-topic indicator + curator control are also absent (design §7.1 — the flag lives
-        // on `topic`, and a write surface is meaningless when reads fail): a read failure is not a
-        // complete-topic state.
+        // curator mark/reopen control is also absent (the flag lives on `topic`, and a write surface
+        // is meaningless when reads fail): a read failure is not a complete-topic state.
         <div className="px-4 pb-4 pt-3">
           <p className="plus-body text-[12px] leading-snug text-ink2">
             Couldn&apos;t load this topic&apos;s video stats. The article is unaffected.
@@ -132,62 +112,10 @@ export function Infobox({
         </div>
       ) : (
         <>
-          {/* Issue #159 (§3): the STATUS INDICATOR — top of the panel body, above the counts, for
-              EVERY viewer of a complete topic. A calm informational notice (NOT the indigo header
-              block, NOT a red/warning treatment): a thin brand left rule on bg2, ink-on-light. The
-              WORD carries the meaning; the rule/glyph are reinforcement (§7.2 — never color alone). */}
-          {closedToSuggestions && (
-            <div className="px-4 pt-3">
-              <div className="border-l-4 border-brand bg-surface-2 px-3 py-2.5">
-                <p className="plus-sans text-[12px] font-bold uppercase tracking-wide text-ink-plus">
-                  <span aria-hidden>✓</span> Marked complete
-                </p>
-                <p className="plus-body mt-1 text-[13px] leading-snug text-ink-plus">
-                  A curator marked this topic complete, so suggestions are hidden. This is
-                  one curator&apos;s judgment — not a guarantee that nothing&apos;s missing.
-                </p>
-                {/* The two opt-in paths (§3.3), as a small wrapping row. Path (a) — the override —
-                    is the primary, leftmost path (any viewer, no account), shown only when there is
-                    something to reveal (§4.4). Path (b) — add/curate — is the quieter secondary,
-                    login-gated for logged-out via the host's `requireLogin`. Both keep ≥44px. */}
-                <div className="mt-2 flex flex-wrap items-stretch gap-2">
-                  {hasUnderlyingSuggestions && onToggleOverride && (
-                    <button
-                      type="button"
-                      onClick={onToggleOverride}
-                      aria-label={
-                        overridden
-                          ? "Hide suggestions again — return to the complete view"
-                          : "Show suggestions for this topic in this session"
-                      }
-                      className={
-                        overridden
-                          ? "inline-flex min-h-[44px] items-center border-2 border-hardbox bg-surface-raised px-2.5 py-1 text-[12px] font-bold text-ink-plus hover:shadow-[2px_2px_0_var(--color-hardbox-offset)]"
-                          : "inline-flex min-h-[44px] items-center border-2 border-hardbox bg-brand px-2.5 py-1 text-[12px] font-bold text-white hover:shadow-[2px_2px_0_var(--color-hardbox-offset)]"
-                      }
-                    >
-                      {overridden ? "Hide suggestions again" : "Show suggestions anyway"}
-                    </button>
-                  )}
-                  {onAdd && (
-                    <button
-                      type="button"
-                      onClick={onAdd}
-                      aria-haspopup="dialog"
-                      className="inline-flex min-h-[44px] items-center border-2 border-hardbox bg-surface-raised px-2.5 py-1 text-[12px] font-bold text-ink-plus hover:shadow-[2px_2px_0_var(--color-hardbox-offset)]"
-                    >
-                      ＋ Add a video
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Counts / volume block — the single state-variant region (§6.1–§6.3). OMITTED on a
-              complete + zero-video topic (design §6.2 / AC10 / AC18): no honest numeral exists and
-              a dashed suggestion-volume / "0 videos" grid would mislead. Curated counts still show
-              on a complete topic with curated videos (AC11 — curated content is never suppressed). */}
+          {/* Counts / volume block — the single state-variant region. OMITTED on a complete +
+              zero-video topic (overview-card-cleanup §3.4): no honest numeral exists and a dashed
+              suggestion-volume / "0 videos" grid would mislead. Curated counts still show on a
+              complete topic with curated videos (curated content is never suppressed). */}
           {!completeZeroVideo && (
             <div className="px-4 pt-3">
               {isEmptyLoading ? (
@@ -242,31 +170,13 @@ export function Infobox({
             </div>
           )}
 
-          {/* Primary action — scrolls to the relevant content. ALWAYS a scroll, never curate
-              (§10). A real <button> performing a scripted scroll, with a clear accessible
-              name (§9). OMITTED on a complete + zero-video topic (design §6.2): there is nothing
-              to scroll to; the panel's action at that state is the indicator's override / add paths. */}
-          {!completeZeroVideo && (
-            <div className="px-4 pt-3 pb-4">
-              <button
-                type="button"
-                onClick={onBrowse}
-                aria-label={isEmpty ? "Browse suggested videos" : "Jump to videos"}
-                className="block w-full border-2 border-hardbox bg-surface-raised px-3 py-2 text-center plus-sans text-[13px] font-bold text-ink-plus transition hover:bg-surface-2"
-              >
-                {isEmpty ? "Browse suggested videos ↓" : "Jump to videos ↓"}
-              </button>
-            </div>
-          )}
-
-          {/* Issue #159 (§2): the CURATOR mark/un-mark control — the panel FOOT row, SIGNED-IN ONLY
-              (the affordance gate; the role-gated Server Action is the security control). A quiet,
-              deliberate plus-side action: a secondary raised/white toggle (not the brand-fill
-              curation invite). The WORD states what tapping does (no `aria-pressed`/`role=switch` —
-              a labeled action button is the clearer model). Optimistic-with-rollback lives in the
-              host; here it shows the busy word + disabled while `marking`. The helper line sits
-              under the not-complete button (omitted when already complete — the indicator carries
-              the explanation). */}
+          {/* The CURATOR mark/un-mark control — the card FOOT row, SIGNED-IN ONLY (the affordance
+              gate; the role-gated Server Action is the security control). A quiet, deliberate
+              plus-side action: a secondary raised/white toggle. The WORD states what tapping does (no
+              `aria-pressed`/`role=switch` — a labeled action button is the clearer model).
+              Optimistic-with-rollback lives in the host; here it shows the busy word + disabled while
+              `marking`. The helper line sits under the not-complete button; when already complete the
+              line is omitted (the strip's trailing toggle carries the reader-facing explanation). */}
           {signedIn && onToggleComplete && (
             <div className="border-t-2 border-hardbox px-4 pb-4 pt-3">
               <button

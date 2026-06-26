@@ -40,28 +40,28 @@ describe("Toc (AC6 / AC17 / #60 §5.2)", () => {
   it("shows a solid integer count badge for curated sections with videos (AC6)", () => {
     render(<Toc entries={curatedEntries} currentSlug={null} onGo={vi.fn()} />);
     expect(screen.getByText("2")).toBeInTheDocument();
-    // zero-count section shows no integer badge (it shows the "no video" text badge)
+    // a zero-count section shows no integer badge — and no "no video" badge (overview-card-cleanup §5).
     expect(screen.queryByText("0")).toBeNull();
   });
 
-  it("shows a 'no video' text badge on a zero-count SECTION (article-fidelity #27 D5)", () => {
+  it("shows NO 'no video' badge on a zero-count section row; it just lists the title (AC10)", () => {
     render(<Toc entries={curatedEntries} currentSlug={null} onGo={vi.fn()} />);
-    expect(screen.getByText("no video")).toBeInTheDocument();
+    expect(screen.queryByText("no video")).toBeNull();
+    expect(screen.getByText("Calvin cycle")).toBeInTheDocument();
   });
 
-  it("does NOT badge the ＋General band row with 'no video' even at zero count (D5)", () => {
+  it("shows NO 'no video' badge anywhere — band row or section, curated or suggested TOC (AC10)", () => {
     const zeroBand: TocEntry[] = [
       { slug: "__general", title: "General", level: 2, curated: 0, suggested: 0 },
       { slug: "calvin-cycle", title: "Calvin cycle", level: 2, curated: 0, suggested: 0 },
     ];
-    render(<Toc entries={zeroBand} currentSlug={null} onGo={vi.fn()} />);
-    // only the section row gets a badge → exactly one "no video"
-    expect(screen.getAllByText("no video")).toHaveLength(1);
-  });
-
-  it("shows 'no video' on a zero-count section in a suggestions-only TOC too (D5)", () => {
+    const { unmount } = render(
+      <Toc entries={zeroBand} currentSlug={null} onGo={vi.fn()} />
+    );
+    expect(screen.queryByText("no video")).toBeNull();
+    unmount();
     render(<Toc entries={suggestedEntries} currentSlug={null} onGo={vi.fn()} />);
-    expect(screen.getByText("no video")).toBeInTheDocument();
+    expect(screen.queryByText("no video")).toBeNull();
   });
 
   it("shows dashed/outline '~n' badges for suggestion counts (AC17)", () => {
@@ -98,93 +98,66 @@ describe("Toc (AC6 / AC17 / #60 §5.2)", () => {
 
 const stats: TopicStats = { videos: 14, creators: 9, curators: 6, synced: "2h ago" };
 
-// ＋plus overview panel — Direction A (docs/design/plus-overview-redesign.md). These cover the
+// ＋plus Overview card after the cleanup (design overview-card-cleanup.md). These cover the
 // component contract Dev built; QA authors the full acceptance matrix on top.
-describe("Infobox (plus-overview redesign — Direction A)", () => {
-  it("shows the three derived counts as big numerals when curated (§6.2/§6.3)", () => {
-    render(
-      <Infobox
-        hasCurated
-        stats={stats}
-        suggestionCount={0}
-        onBrowse={vi.fn()}
-      />
-    );
+describe("Infobox (Overview card — overview-card-cleanup)", () => {
+  it("shows the three derived counts as big numerals when curated (§3.4)", () => {
+    render(<Infobox hasCurated stats={stats} suggestionCount={0} />);
     expect(screen.getByText("14")).toBeInTheDocument();
     expect(screen.getByText("Videos")).toBeInTheDocument();
     expect(screen.getByText("Creators")).toBeInTheDocument();
     expect(screen.getByText("Curators")).toBeInTheDocument();
   });
 
-  it("shows the dashed volume panel with 'uncurated videos' label in the empty state (§6.1)", () => {
+  it("shows the dashed volume panel with 'uncurated videos' label in the empty state", () => {
     render(
       <Infobox
         hasCurated={false}
         stats={{ videos: 0, creators: 0, curators: 0 }}
         suggestionCount={5}
-        onBrowse={vi.fn()}
       />
     );
     expect(screen.getByText("5")).toBeInTheDocument();
-    // The unvetted meaning is carried in TEXT (§9), not color/border alone.
+    // The unvetted meaning is carried in TEXT, not color/border alone.
     expect(screen.getByText("uncurated videos")).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "Browse suggested videos" })
-    ).toBeInTheDocument();
-    // No curate button — secondary block removed.
+    // No curate button, and no Browse/Jump button (overview-card-cleanup §3.2/§3.3).
     expect(screen.queryByRole("button", { name: "＋ Curate a video" })).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: /Browse suggested videos/i })
+    ).toBeNull();
   });
 
-  // §6.2: the mixed face — three numerals + the trimmed two-count line + Jump button.
-  it("shows the '{V} curated · {M} suggested' line (without 'to weigh in') in mixed state (§6.2)", () => {
-    render(
-      <Infobox
-        hasCurated
-        stats={stats}
-        suggestionCount={12}
-        onBrowse={vi.fn()}
-      />
-    );
+  // The mixed face — three numerals + the trimmed two-count line (no Jump button).
+  it("shows the '{V} curated · {M} suggested' line (without 'to weigh in') in mixed state", () => {
+    render(<Infobox hasCurated stats={stats} suggestionCount={12} />);
     expect(screen.getByText("14")).toBeInTheDocument(); // the curated numerals still show
     expect(screen.getByText(/14 curated/)).toBeInTheDocument();
     expect(screen.getByText(/12 suggested/)).toBeInTheDocument();
     expect(screen.queryByText(/to\s+weigh in/)).toBeNull();
-    expect(
-      screen.getByRole("button", { name: "Jump to videos" })
-    ).toBeInTheDocument();
-    // No add button — secondary block removed.
+    expect(screen.queryByRole("button", { name: /Jump to videos/i })).toBeNull();
     expect(screen.queryByRole("button", { name: "＋ Add a video" })).toBeNull();
   });
 
-  // §6.3: fully-curated — numerals only, NO suggestion count, NO unvetted line.
-  it("shows no suggestion count in the fully-curated state (§6.3)", () => {
-    render(
-      <Infobox
-        hasCurated
-        stats={stats}
-        suggestionCount={0}
-        onBrowse={vi.fn()}
-      />
-    );
+  // Fully-curated — numerals only, NO suggestion count, NO unvetted line.
+  it("shows no suggestion count in the fully-curated state", () => {
+    render(<Infobox hasCurated stats={stats} suggestionCount={0} />);
     expect(screen.queryByText(/suggested/)).toBeNull();
-    // No add button — secondary block removed.
     expect(screen.queryByRole("button", { name: "＋ Add a video" })).toBeNull();
   });
 
-  it("renders the ＋plus header with the 'on this topic' label (§6.1)", () => {
+  it("renders a thin indigo cap with NO wordmark text (AC1)", () => {
     render(
       <Infobox
         hasCurated={false}
         stats={{ videos: 0, creators: 0, curators: 0 }}
         suggestionCount={5}
-        onBrowse={vi.fn()}
       />
     );
-    expect(screen.getByText("＋plus")).toBeInTheDocument();
-    expect(screen.getByText("on this topic")).toBeInTheDocument();
+    expect(screen.queryByText("＋plus")).toBeNull();
+    expect(screen.queryByText("on this topic")).toBeNull();
   });
 
-  // §6.5: the store-read error floor — header + the honest line, no counts/buttons.
+  // The store-read error floor — the honest line, no counts/buttons.
   it("renders the honest error line and no counts/buttons on storeError (§6.5)", () => {
     render(
       <Infobox
@@ -192,7 +165,6 @@ describe("Infobox (plus-overview redesign — Direction A)", () => {
         stats={{ videos: 0, creators: 0, curators: 0 }}
         suggestionCount={5}
         storeError
-        onBrowse={vi.fn()}
       />
     );
     expect(
@@ -200,23 +172,7 @@ describe("Infobox (plus-overview redesign — Direction A)", () => {
         "Couldn't load this topic's video stats. The article is unaffected."
       )
     ).toBeInTheDocument();
-    expect(screen.queryByRole("button")).toBeNull(); // no browse
+    expect(screen.queryByRole("button")).toBeNull();
     expect(screen.queryByText("5")).toBeNull(); // no numerals
-  });
-
-  it("fires onBrowse (scroll) from the primary action (§10)", async () => {
-    const onBrowse = vi.fn();
-    render(
-      <Infobox
-        hasCurated={false}
-        stats={{ videos: 0, creators: 0, curators: 0 }}
-        suggestionCount={5}
-        onBrowse={onBrowse}
-      />
-    );
-    await userEvent.click(
-      screen.getByRole("button", { name: "Browse suggested videos" })
-    );
-    expect(onBrowse).toHaveBeenCalledOnce();
   });
 });

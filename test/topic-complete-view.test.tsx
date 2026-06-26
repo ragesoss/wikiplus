@@ -12,10 +12,13 @@ import type { Clip } from "@/lib/data/types";
 //               viewer; AC11: curated content still renders.
 //   - AC12/AC15: the per-viewer "Show suggestions anyway" override reveals suggestions in place and
 //               is reversible.
-//   - AC17: the status indicator is present with the honest microcopy + both opt-in paths.
-//   - AC4/AC16: a signed-in curator sees the mark/un-mark control; a logged-out viewer sees no
-//               mutating control but can still override.
-//   - AC18: a complete + zero-video topic renders a calm minimal render (the band is omitted).
+//   - The reader-facing completion signal + the reveal live in the General strip's TRAILING TOGGLE
+//     (design overview-card-cleanup.md) — the honest "Marked complete" copy + the show/hide button —
+//     NOT in the wiki+ Overview card.
+//   - AC4/AC16: a signed-in curator sees the mark/un-mark control (card foot); a logged-out viewer
+//               sees no mutating control but can still override.
+//   - A complete + zero-curated topic renders a MINIMAL band holding just the toggle (not an omitted
+//     band) so the reveal always has a home; the article stays calm.
 //
 // Harness mirrors test/coexistence.test.tsx: it drives the UNCURATED seed topic (Cellular
 // respiration, Q189603) with the SAME general-matching YouTube captions that test proves produce
@@ -187,18 +190,23 @@ describe("Marked complete — default suppression (mixed: curated + suggestions)
     expect(screen.queryByText(/\d+ curated ·/i)).toBeNull();
   });
 
-  it("AC17 — the status indicator is present with honest copy + both opt-in paths", async () => {
+  it("the completion signal + reveal live in the strip's trailing toggle, not the card", async () => {
     render(<TopicView />);
-    await waitFor(() => expect(screen.getByText(/Marked complete/i)).toBeTruthy());
+    // "Marked complete" + the honest body line now live in the strip's trailing toggle card.
+    await waitFor(() =>
+      expect(within(band()!).getByText(/Marked complete/i)).toBeTruthy()
+    );
     expect(
-      screen.getByText(/not a guarantee that nothing's missing/i)
+      within(band()!).getByText(
+        /A curator marked this complete, so suggestions are hidden/i
+      )
     ).toBeTruthy();
+    // The reveal toggle (any viewer) is present.
     expect(
       screen.getByRole("button", { name: /Show suggestions for this topic/i })
     ).toBeTruthy();
-    expect(
-      screen.getAllByRole("button", { name: /Add a video/i }).length
-    ).toBeGreaterThan(0);
+    // The signal lives ONLY in the band now — it is not duplicated in the Overview card.
+    expect(screen.getAllByText(/Marked complete/i)).toHaveLength(1);
   });
 
   it("AC12/AC15 — the per-viewer override reveals suggestions in place, and is reversible", async () => {
@@ -320,19 +328,21 @@ describe("Marked complete + zero curated videos — minimal render (AC18)", () =
     await store.setTopicClosedToSuggestions(QID, true);
   });
 
-  it("renders the calm indicator with both paths and OMITS the General band", async () => {
+  it("renders a minimal band holding just the toggle (no candidate tiles), article stays calm (AC8)", async () => {
     render(<TopicView />);
-    await waitFor(() => expect(screen.getByText(/Marked complete/i)).toBeTruthy());
+    await waitFor(() => expect(band()).not.toBeNull());
     await new Promise((r) => setTimeout(r, 50));
-    // AC18 — the General band is omitted entirely (calm, not broken, no suggestion chrome).
-    expect(band()).toBeNull();
-    // Both opt-in paths present (underlying suggestions exist).
+    // The minimal band carries the toggle card but NO candidate tiles / suggestion bootstrap chrome.
+    expect(within(band()!).getByText(/Marked complete/i)).toBeTruthy();
+    expect(bandCandcards()).toBe(0);
+    expect(within(band()!).queryByText("＋ Suggested videos")).toBeNull();
+    expect(within(band()!).queryByText("uncurated")).toBeNull();
     expect(
       screen.getByRole("button", { name: /Show suggestions for this topic/i })
     ).toBeTruthy();
-    expect(
-      screen.getAllByRole("button", { name: /Add a video/i }).length
-    ).toBeGreaterThan(0);
+    // A finished topic offers no "add more": the curator find-more (＋ Add video) is suppressed in
+    // the minimal band, even for a signed-in curator (they reopen first to add).
+    expect(screen.queryByRole("button", { name: /Add video/i })).toBeNull();
     // The article column still renders normally.
     expect(screen.getByText(/Lead text here/i)).toBeTruthy();
   });

@@ -1247,12 +1247,6 @@ export function TopicView() {
     promote(c);
   }, [pinnedCandidate, promote]);
 
-  // ＋plus panel primary action (plus-overview-redesign §6 / §10): Browse/Jump ALWAYS scrolls
-  // to the General band / first video — never opens curate. Not a write, so it runs regardless
-  // of session. (Splits the formerly-overloaded `curateFirst`, which scrolled OR curated.)
-  const browseVideos = useCallback(() => {
-    document.getElementById("general-band")?.scrollIntoView({ block: "start" });
-  }, []);
   // Add video — gated (design §2c). Signed in → open AddModal; logged out → "Log in to add".
   const openAdd = useCallback(() => {
     requireLogin({ gate: "add", action: () => setAddOpen(true) });
@@ -1915,23 +1909,20 @@ export function TopicView() {
                 <Infobox
                   hasCurated={hasCurated}
                   stats={stats}
-                  /* Issue #159: feed the SUPPRESSED count (`shownCandidates`), so a complete topic's
-                     mixed two-count line + the empty dashed volume block both drop via the existing
-                     zero-suggestion paths (AC10). The underlying count rides `hasUnderlyingSuggestions`. */
+                  /* Feed the SUPPRESSED count (`shownCandidates`), so a complete topic's mixed
+                     two-count line + the empty dashed volume block both drop via the existing
+                     zero-suggestion paths. The reader-facing completion signal + the per-viewer
+                     reveal live in the General strip (design overview-card-cleanup.md), not here. */
                   suggestionCount={shownCandidates.length}
                   storeError={storeError}
                   candidatesLoading={candidatesLoading}
-                  onBrowse={browseVideos}
-                  /* Issue #159 (§2/§3/§4): the curator control (signed-in only), the status indicator
-                     (every viewer when complete), and the per-viewer override + add path. */
+                  /* The curator mark/reopen control — signed-in only (affordance gate; the role-gated
+                     Server Action is the security control). The card carries no status notice, no
+                     override, and no add-a-video path. */
                   signedIn={signedIn}
                   closedToSuggestions={closedToSuggestions}
                   marking={markingComplete}
                   onToggleComplete={toggleComplete}
-                  hasUnderlyingSuggestions={hasUnderlyingSuggestions}
-                  overridden={viewerOverride === true}
-                  onToggleOverride={toggleOverride}
-                  onAdd={openAdd}
                 />
                 <Toc
                   entries={tocEntries}
@@ -1949,20 +1940,22 @@ export function TopicView() {
           when it resolves. Shows while `!storeReady`, matching the plus-aside skeleton above. */}
       {!storeReady && <PlusBandSkeleton />}
 
-      {/* General / Suggested band — full bleed (the one crossover). Issue #159 (design §6.3,
-          preferred option 1): on a COMPLETE + zero-video topic the band is OMITTED entirely — with
-          no curated clips and suppressed suggestions there is nothing for it to present, and the
-          wiki+ panel's status indicator already carries the add path; a near-plain article + a calm
-          panel note is the target (AC18). The omission applies ONLY while suppressing AND there is
-          nothing to present (no curated clips, no shown suggestions, no in-flight search); in EVERY
-          non-suppressing case the band renders exactly as before (its own empty/mixed/fully-curated
-          faces — including the genuine empty "No videos found" zero face — are untouched). */}
+      {/* General / Suggested band — full bleed (the one crossover). On a COMPLETE + zero-curated
+          topic that STILL has an underlying suggestion to reveal, the band is KEPT and renders its
+          minimal face: the scroll row holds just the "show suggestions anyway" toggle (design
+          overview-card-cleanup.md §4.3), so the reveal always has a home right where the videos live.
+          The band is OMITTED only when there is TRULY nothing to present — suppressing, no curated
+          clips, no shown suggestions, no in-flight search, AND no underlying suggestion to offer the
+          toggle (a genuinely empty complete topic → a near-plain article). In every non-suppressing
+          case the band renders exactly as before (its own empty/mixed/fully-curated faces — including
+          the genuine empty "No videos found" zero face — are untouched). */}
       {storeReady &&
         !(
           suppressSuggestions &&
           !hasCurated &&
           !hasSuggestions &&
-          !candidatesLoading
+          !candidatesLoading &&
+          !hasUnderlyingSuggestions
         ) && (
         <GeneralStrip
           topicTitle={canonicalTitle}
@@ -2006,11 +1999,18 @@ export function TopicView() {
           onSetHero={setHero}
           onClearHero={clearHero}
           settingHero={settingHero}
-          /* Issue #159 follow-up: when the band is in its marked-complete suppressed presentation
-             (`suppressSuggestions` — complete AND this viewer hasn't overridden), the curator
-             find-more controls (Search links + ＋ Add video) don't render — a finished topic offers
-             no "add more". */
+          /* Marked-complete (design overview-card-cleanup.md §4). `suppressed` (= complete AND this
+             viewer hasn't overridden) hides the curator find-more controls — a finished topic offers
+             no "add more". The reader-facing completion signal + the per-viewer "show suggestions
+             anyway" reveal are the strip's TRAILING row item: `complete` drives its presence,
+             `hasUnderlyingSuggestions` gates it (never a reveal that shows nothing), `onToggleOverride`
+             flips the same session-local, per-topic, client-only override (the strip derives the
+             reveal's on/off label from `complete && !suppressed`). */
           suppressed={suppressSuggestions}
+          complete={closedToSuggestions}
+          overridden={viewerOverride === true}
+          hasUnderlyingSuggestions={hasUnderlyingSuggestions}
+          onToggleOverride={toggleOverride}
         />
       )}
 
