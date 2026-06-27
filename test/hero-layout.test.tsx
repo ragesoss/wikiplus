@@ -66,11 +66,13 @@ describe("GeneralStrip hero layout — AC2 full-bleed video + separate docked ca
     expect(block.className).toContain("-mx-5");
   });
 
-  it("an only-hero clip bleeds the band's top AND bottom edges (-mt-4 + -mb-4, logged-out)", () => {
+  it("the hero bleeds the band's top edge (-mt-4); the bottom is flush via the header container", () => {
     renderStrip({ signedIn: false });
     const block = screen.getByRole("article", { name: /Hero video:/ });
     expect(block.className).toContain("-mt-4"); // nothing above the hero → top bleed
-    expect(block.className).toContain("-mb-4"); // last element (no peers/suggestions) → bottom bleed
+    // The header container carries no bottom padding, so a last-element hero is already flush to the
+    // band bottom — no `-mb-4` margin needed (general-strip-fullbleed.md §3).
+    expect(block.className).not.toContain("-mb-4");
   });
 
   it("signed-in ALSO bleeds the top — the find-more controls ride the row below, not a toolbar above", () => {

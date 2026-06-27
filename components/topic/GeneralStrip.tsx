@@ -2,10 +2,12 @@
 
 import { useState } from "react";
 import { GENERAL_SUGGESTION_DEFAULT } from "@/lib/candidates";
+import { isStubCurator } from "@/lib/curation/curator-attribution";
 import type { Candidate, Clip } from "@/lib/data/types";
 import { CandidateActions, SeeMoreButton } from "./CandidateBits";
 import { AccuracyChip, StanceChip } from "./Chips";
 import { ContextByLink } from "./ContextByLink";
+import { CuratorBadge } from "./CuratorBadge";
 import { HeldPill } from "./HeldMarking";
 import { ReviewRow } from "./ReviewRow";
 import { UpvoteControl } from "./UpvoteControl";
@@ -65,10 +67,6 @@ export function GeneralStrip({
   onClearHero,
   settingHero = false,
   suppressed = false,
-  complete = false,
-  overridden = false,
-  hasUnderlyingSuggestions = false,
-  onToggleOverride,
   bandRef,
 }: {
   topicTitle: string;
@@ -154,26 +152,6 @@ export function GeneralStrip({
    * for that viewer.
    */
   suppressed?: boolean;
-  /**
-   * Is the topic marked complete (`closedToSuggestions`) — drives the reader-facing completion signal
-   * + the per-viewer "show suggestions anyway" REVEAL, which live here as the TRAILING item in the
-   * scroll row (design overview-card-cleanup.md §4), NOT in the wiki+ Overview card. Default false so a
-   * not-complete topic renders byte-for-byte as before. (`suppressed === complete && !overridden`, so
-   * the reveal's on/off label is derived as `complete && !suppressed`.)
-   */
-  complete?: boolean;
-  /** Has THIS viewer overridden the suppression for this session (suggestions showing for them) —
-   *  drives the reveal toggle's label/treatment (`suppressed === complete && !overridden`). */
-  overridden?: boolean;
-  /**
-   * Does the topic have ≥1 underlying suggestion (computed as if the flag were off, regardless of
-   * suppression)? With `complete`, gates the reveal toggle: when there is nothing to reveal it is
-   * omitted (the toggle never promises a reveal it can't deliver).
-   */
-  hasUnderlyingSuggestions?: boolean;
-  /** Toggle the per-viewer "show suggestions anyway" override (host's client-only, session-local,
-   *  per-topic reveal — instant in-place, never a DB write). */
-  onToggleOverride?: () => void;
   bandRef?: (el: HTMLElement | null) => void;
 }) {
   // ── The three-state derivation (issue #60 §0). Two independent facts; no `mode`. ──
@@ -196,31 +174,26 @@ export function GeneralStrip({
   // zero line, or the populated/capped group. The loading + zero faces apply ONLY to the
   // suggestion region and NEVER disturb the curated group (AC10 / §7.4/§7.5).
   const showLoading = loading;
-  // ── Marked-complete reveal (design overview-card-cleanup.md §4). The reader-facing completion
-  // signal + the per-viewer "show suggestions anyway" toggle live HERE as the TRAILING item in the
-  // scroll row — to the RIGHT of the curated videos, adding no vertical height. Shown only when the
-  // topic is complete AND there is an underlying suggestion to reveal (the toggle never promises a
-  // reveal it can't deliver). The reveal's label follows `overridden` (off → "Show suggestions
-  // anyway"; on → "Hide suggestions again"). When complete with ZERO curated videos and suggestions
-  // suppressed, the band renders a MINIMAL face: the empty-state suggestion bootstrap (the
-  // "＋ Suggested videos" header) is suppressed and the row holds just the toggle.
-  const showCompleteToggle = complete && hasUnderlyingSuggestions;
-  const minimalCompleteBand =
+  // ── Marked-complete suppressed-empty guard (design complete-toggle-rail.md §5). When the band is
+  // `suppressed` (marked complete, this viewer hasn't overridden) and has no curated tiles, no shown
+  // suggestions, and nothing loading, it must NOT show the empty-state "＋ Suggested videos" unvetted
+  // bootstrap — a finished topic has no suggestions to bootstrap. The "show suggestions anyway" reveal
+  // is NOT here: it lives in the plus rail (TopicView), which also OMITS this band entirely in this
+  // case, so this is a defensive clean-empty face (the sr-only heading only).
+  const suppressedEmptyBand =
     suppressed && !hasCurated && !hasSuggestions && !showLoading;
   // The honest zero line shows only when there are no suggestions AND nothing is loading AND there
   // are no curated clips either (empty state with no results). In a curated band a zero suggestion
-  // count simply reads as fully-curated — no suggestion chrome. On a COMPLETE topic the toggle card
-  // (not a misleading "no videos found" line) carries the state, so the zero line is suppressed.
-  const showZero = !loading && !hasSuggestions && !hasCurated && !complete;
+  // count simply reads as fully-curated — no suggestion chrome. On a `suppressed` complete band the
+  // rail's toggle card carries the state, so this misleading "no videos found" line is suppressed.
+  const showZero = !loading && !hasSuggestions && !hasCurated && !suppressed;
 
-  // Hero full-bleed margins (design §2.2): the hero `<article>` breaks out of the band container's
-  // px-5 / py-4 with negative margins so the video reaches the band's content-box edges. NOTHING
-  // renders above the hero in any state — the curated heading is `sr-only` and the curator find-more
-  // controls ride the scroll row BELOW (not a toolbar above) — so it always bleeds to the TOP. It
-  // bleeds to the BOTTOM only when it is the band's last element (no peer / suggestion / loading row
-  // follows). Used only inside the hero block.
-  const heroBleedBottom =
-    !hasPeers && !hasSuggestions && !showLoading && !showCompleteToggle;
+  // Hero top-bleed (design general-hero-layout.md §2.2): the hero `<article>` breaks out of the
+  // centered header container (`-mx-5`) and bleeds to the band's TOP edge (`-mt-4` cancels the header
+  // container's `pt-4`). NOTHING renders above the hero in any state — the curated heading is
+  // `sr-only` and the curator find-more controls ride the full-bleed scroll row BELOW. The header
+  // container carries no bottom padding, so a hero that is the band's last element is already flush
+  // to the band bottom (no bottom-bleed margin needed).
 
   // Curator find-more controls (Search TikTok / Search YouTube + ＋ Add video). They ride the END of
   // the horizontal scroll row (after the videos that are there) — never a separate toolbar above the
@@ -259,22 +232,26 @@ export function GeneralStrip({
       aria-label={
         hasCurated
           ? "General overview videos"
-          : minimalCompleteBand
+          : suppressedEmptyBand
             ? "Videos"
             : "Suggested videos"
       }
       className="my-7 border-y-2 border-hardbox bg-brand text-white"
     >
-      <div className="mx-auto max-w-[1200px] px-5 py-4">
+      {/* Header region — centered to the content column; top padding only when it carries visible
+          content (the hero, or the empty-state heading). The full-bleed scroll row + the zero line are
+          siblings BELOW (design general-strip-fullbleed.md §3), so the scroll row can span the full
+          band width and seat its scrollbar flush at the band's bottom. */}
+      <div className={`mx-auto max-w-[1200px] px-5${heroClip || !hasCurated ? " pt-4" : ""}`}>
         {/* Curated states lead with the video itself — no visible heading or count pill (the volume
             already lives in the ＋plus overview card). An sr-only `<h2>` keeps heading navigation and
             the region's accessible name. The EMPTY state keeps its visible `＋ Suggested videos`
             heading + the UNCURATED pill + the unvetted subtitle — that line is the once-per-context
             unvetted signal (required, not chrome); the transient "Finding videos…" tag rides it. */}
-        {hasCurated || minimalCompleteBand ? (
-          // Curated band — and the COMPLETE minimal band (zero curated, suppressed) — lead with an
-          // sr-only heading: no visible "＋ Suggested videos" bootstrap on a complete topic; the
-          // trailing toggle card carries the state (overview-card-cleanup §4.3).
+        {hasCurated || suppressedEmptyBand ? (
+          // Curated band — and the defensive suppressed-empty band (zero curated, marked complete) —
+          // lead with an sr-only heading: never the visible "＋ Suggested videos" unvetted bootstrap on
+          // a complete topic (the rail's toggle card carries the state — complete-toggle-rail.md §5).
           <h2 className="sr-only">General videos</h2>
         ) : (
           <div className="flex flex-wrap items-center gap-3">
@@ -313,9 +290,7 @@ export function GeneralStrip({
         {heroClip && (
           <article
             aria-label={`Hero video: ${heroClip.caption}`}
-            className={`-mx-5 -mt-4 flex flex-col sm:flex-row sm:items-center${
-              heroBleedBottom ? " -mb-4" : ""
-            }${curatedFade}`}
+            className={`-mx-5 -mt-4 flex flex-col sm:flex-row sm:items-center${curatedFade}`}
           >
             {/* The video — full-bleed left (and top/bottom when first/last). Uniform 16:9, no own
                 border; the band + the card's seam frame it. Click-to-play facade (unchanged). */}
@@ -369,7 +344,7 @@ export function GeneralStrip({
                   />
                 </div>
                 {heroClip.contextNote ? (
-                  <div className="mt-2 border-2 border-hardbox bg-surface-2 px-2.5 py-2">
+                  <div className="mt-2 border-l-4 border-brand bg-surface-2 py-2 pl-3 pr-2">
                     <p className="text-[10px] font-bold uppercase tracking-wide text-violet">
                       Curator note
                     </p>
@@ -438,18 +413,17 @@ export function GeneralStrip({
             </div>
           </article>
         )}
+      </div>
 
-        {/* The one horizontally-scrollable row: curated group FIRST (uncapped), then the
-            divider (mixed only), then the capped suggestion group + "See N more". */}
-        {(hasPeers ||
-          hasSuggestions ||
-          showLoading ||
-          showCuratorTools ||
-          showCompleteToggle) && (
-          // `relative` makes the <ul> a containing block for the absolute overlays inside the cards
-          // (thumbnail wash, brand wash, play circle, badge), so overflow-x clips them instead of
-          // letting them escape the scroller and expand the document width beyond the viewport on mobile.
-          <ul role="list" className="relative mt-4 flex gap-3 overflow-x-auto pb-2">
+      {/* The full-bleed horizontally-scrollable row (design general-strip-fullbleed.md §3): it spans
+          the FULL band width via `.general-scroller` (not the centered column), starting at the content
+          column's left edge, scrolling into the full width, with its scrollbar flush at the band's
+          bottom (no indigo beneath it). Curated cards first, then the divider (mixed only), then the
+          capped suggestion cards + "See N more". The marked-complete "show suggestions" toggle lives in
+          the plus rail now (complete-toggle-rail.md), not here. `relative` keeps it a containing block
+          for the cards' absolute thumbnail overlays. */}
+      {(hasPeers || hasSuggestions || showLoading || showCuratorTools) && (
+        <ul role="list" className="general-scroller relative flex items-start gap-2 overflow-x-auto">
             {/* Curator find-more controls — the LEADING item in the scroll row (before the videos),
                 so they're always visible right after the hero without horizontal scrolling, never sit
                 above the hero, and add no vertical band space. Search links in empty/mixed (the
@@ -500,122 +474,116 @@ export function GeneralStrip({
             {peerClips.map((clip) => {
               const owned = ownsClip?.(clip) ?? false;
               return (
-                <li
-                  key={clip.id}
-                  role="listitem"
-                  // Curated tile grows MODESTLY (#164): the thumbnail (a 16:9 strip frame)
-                  // scales with this width; the wider tile relaxes the text wrapping. All
-                  // curated trust signals below stay intact (the guardrail).
-                  className={`w-52 shrink-0${curatedFade}`}
-                >
-                  <VideoThumb video={clip} variant="strip" onPlay={() => onPlay(clip)} />
-                  {/* D5b (design §3.3): the compact held marking — eyebrow-only on a white-fill pill
-                      (AA on the indigo band), ABOVE the caption so the status reads first. */}
-                  {clip.held && (
-                    <p className="mt-1">
-                      <HeldPill />
-                    </p>
-                  )}
-                  <p className="mt-1 line-clamp-2 text-[12px] font-bold leading-snug text-white">
-                    {clip.caption}
-                  </p>
-                  <p className="truncate text-[11px] text-white/70">
-                    {clip.creator.handle} · {clip.platformLabel}
-                  </p>
-                  {/* #63 §3 (AC2): the stance + accuracy chips, the same AA-safe chips the rail
-                      `ClipCard` uses — their own dark fills + 2px ink border carry the contrast, so
-                      the indigo band behind them never touches the chip text (no re-tint — §7.2).
-                      `flex-wrap` so a long pair stacks to two rows within the `w-44` tile (§9). */}
-                  <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                    <StanceChip stance={clip.stance} modifier={clip.stanceModifier} />
-                    <AccuracyChip flag={clip.accuracyFlag} modifier={clip.accuracyModifier} />
-                    {/* D4 §5 / design §2.3: the upvote rides the chips row as a chip-height tag. */}
-                    <UpvoteControl
-                      count={clip.upvotes ?? 0}
-                      voted={votedClip?.(clip) ?? false}
-                      signedIn={signedIn}
-                      surface="indigo"
-                      appearance="tag"
-                      onActivate={() => onUpvote?.(clip)}
-                    />
+                <li key={clip.id} role="listitem" className={`w-72 shrink-0${curatedFade}`}>
+                  {/* The curated tile is one white zine card (design general-strip-fullbleed.md §2): a
+                      3:2 thumbnail bled to the card top + compact info below. White surface so all the
+                      small body text clears AA over the indigo band (every tile is now a card). */}
+                  <div className="overflow-hidden border-2 border-hardbox bg-surface-raised text-ink-plus shadow-[3px_3px_0_var(--color-hardbox-offset)]">
+                    <VideoThumb video={clip} variant="stripcard" onPlay={() => onPlay(clip)} />
+                    <div className="p-2.5">
+                      {clip.held && (
+                        <p className="mb-1.5">
+                          <HeldPill />
+                        </p>
+                      )}
+                      <p className="line-clamp-2 text-[13px] font-bold leading-snug text-ink-plus">
+                        {clip.caption}
+                      </p>
+                      <p className="mt-0.5 truncate text-[11px] text-muted">
+                        {clip.creator.handle} · {clip.platformLabel}
+                      </p>
+                      {/* Stance + accuracy chips + the upvote tag — one inline row (the chips carry
+                          their own AA-safe fills + ink border; the upvote is the outline tag). */}
+                      <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                        <StanceChip stance={clip.stance} modifier={clip.stanceModifier} />
+                        <AccuracyChip flag={clip.accuracyFlag} modifier={clip.accuracyModifier} />
+                        <UpvoteControl
+                          count={clip.upvotes ?? 0}
+                          voted={votedClip?.(clip) ?? false}
+                          signedIn={signedIn}
+                          surface="light"
+                          appearance="tag"
+                          onActivate={() => onUpvote?.(clip)}
+                        />
+                      </div>
+                      {/* The curation note — kept BORDERED for emphasis (design §2.1, the key info),
+                          a 2-line preview with the curator credit as a corner initial-badge overlapping
+                          the note's lower-right border (`CuratorBadge`; hover/focus → full name). The
+                          FULL note lives in the opened player. On an EMPTY note, fall back to a compact
+                          "context by" line so the curator is still credited. */}
+                      {clip.contextNote ? (
+                        <div className="relative mt-2 border-l-4 border-brand bg-surface-2 py-2 pl-3 pr-2">
+                          <p className="text-[10px] font-bold uppercase tracking-wide text-violet">
+                            Curator note
+                          </p>
+                          <p className="mt-0.5 line-clamp-2 text-[12px] leading-snug text-ink2">
+                            {clip.contextNote}
+                          </p>
+                          <CuratorBadge curatedBy={clip.curatedBy} />
+                        </div>
+                      ) : null}
+                      {/* Curator credit: the corner badge covers a real curator on a note tile.
+                          Otherwise — no note, OR a seed/stub clip with no profile (the badge returns
+                          null) — show the compact "context by" / "seed clip · no curator" line so the
+                          curator / seed status is still stated. */}
+                      {(!clip.contextNote || isStubCurator(clip.curatedBy)) && (
+                        <p className="mt-1.5 truncate text-[11px]">
+                          <ContextByLink curatedBy={clip.curatedBy} surface="light" />
+                        </p>
+                      )}
+                      {/* D3 §9.2: owner-only Edit/Delete. */}
+                      {owned && (
+                        <div
+                          role="group"
+                          aria-label="Manage your curated clip"
+                          className="mt-2 flex flex-wrap gap-1.5"
+                        >
+                          <button
+                            type="button"
+                            onClick={() => onEdit?.(clip)}
+                            aria-label={`Edit your curation: ${clip.caption}`}
+                            className="border-2 border-hardbox bg-surface-raised px-2 py-1 text-[11px] font-bold text-ink-plus hover:shadow-[2px_2px_0_var(--color-hardbox-offset)]"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => onDelete?.(clip)}
+                            aria-label={`Delete your curation: ${clip.caption}`}
+                            className="border-2 border-accred bg-surface-raised px-2 py-1 text-[11px] font-bold text-accred hover:bg-accred hover:text-white"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      )}
+                      {/* D5b/D5c (design §4): the reviewer-only Hold/Approve + moderator Remove row. */}
+                      <ReviewRow
+                        clip={clip}
+                        canHold={canHold?.(clip) ?? false}
+                        canApprove={canApprove?.(clip) ?? false}
+                        canRemove={canRemove?.(clip) ?? false}
+                        inFlight={reviewInFlight?.(clip) ?? false}
+                        onHold={onHold}
+                        onApprove={onApprove}
+                        onRemove={onRemove}
+                        size="tile"
+                      />
+                      {/* Issue #158: the curator "★ Make hero" control (signed-in only). */}
+                      {signedIn && onSetHero && (
+                        <div className="mt-2">
+                          <button
+                            type="button"
+                            onClick={() => onSetHero(clip)}
+                            disabled={settingHero}
+                            aria-label={`Mark as this topic's hero video: ${clip.caption}`}
+                            className="inline-flex min-h-[44px] items-center border-2 border-hardbox bg-surface-raised px-2 py-1 text-[11px] font-bold text-ink-plus hover:shadow-[2px_2px_0_var(--color-hardbox-offset)] disabled:cursor-default disabled:opacity-60"
+                          >
+                            {settingHero ? "Setting…" : <><span aria-hidden>★</span> Make hero</>}
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  {/* #63 §3.1 (AC1 preview): the 2-line context-note PREVIEW, on a WHITE panel + 2px
-                      ink border so its small body text clears AA over the indigo `#676EB4` band
-                      (ink/ink2 on white, never small body text on bare indigo — §7.2). It is the rail
-                      card's "Curator note" block re-skinned for the indigo band + `line-clamp-2`; the
-                      FULL note lives in the opened player (§2/§4). The whole tile thumbnail is already
-                      the click-to-open affordance, so there is NO separate "read more" control (§2).
-                      Omitted defensively on an empty note — render nothing rather than an empty panel
-                      (§6 empty-note guard; chips above still render). */}
-                  {clip.contextNote ? (
-                    <div className="mt-1.5 border-2 border-hardbox bg-surface-raised px-2 py-1.5">
-                      <p className="text-[10px] font-bold uppercase tracking-wide text-violet">
-                        Curator note
-                      </p>
-                      <p className="mt-0.5 line-clamp-2 text-[11px] leading-snug text-ink2">
-                        {clip.contextNote}
-                      </p>
-                    </div>
-                  ) : null}
-                  {/* D3 §6.3: the linked "context by <curator>" attribution. */}
-                  <p className="mt-0.5 truncate text-[11px]">
-                    <ContextByLink curatedBy={clip.curatedBy} surface="indigo" />
-                  </p>
-                  {/* D3 §9.2: owner-only Edit/Delete on the General tile. */}
-                  {owned && (
-                    <div
-                      role="group"
-                      aria-label="Manage your curated clip"
-                      className="mt-1.5 flex flex-wrap gap-1.5"
-                    >
-                      <button
-                        type="button"
-                        onClick={() => onEdit?.(clip)}
-                        aria-label={`Edit your curation: ${clip.caption}`}
-                        className="border-2 border-hardbox bg-surface-raised px-2 py-1 text-[11px] font-bold text-ink-plus hover:shadow-[2px_2px_0_var(--color-hardbox-offset)]"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => onDelete?.(clip)}
-                        aria-label={`Delete your curation: ${clip.caption}`}
-                        className="border-2 border-accred bg-surface-raised px-2 py-1 text-[11px] font-bold text-accred hover:bg-accred hover:text-white"
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  )}
-                  {/* D5b/D5c (design §4): the reviewer-only Hold/Approve + moderator Remove row. */}
-                  <ReviewRow
-                    clip={clip}
-                    canHold={canHold?.(clip) ?? false}
-                    canApprove={canApprove?.(clip) ?? false}
-                    canRemove={canRemove?.(clip) ?? false}
-                    inFlight={reviewInFlight?.(clip) ?? false}
-                    onHold={onHold}
-                    onApprove={onApprove}
-                    onRemove={onRemove}
-                    size="tile"
-                  />
-                  {/* Issue #158: the curator "★ Make hero" control on a peer General tile — signed-in
-                      only (the affordance gate; the Server Action is the security control). Every peer
-                      tile here is a general clip, so eligibility holds. Marking replaces any prior hero
-                      (the at-most-one invariant is structural). Busy + disabled while a hero write is
-                      in flight. The WORD carries the action; the ★ is decorative. */}
-                  {signedIn && onSetHero && (
-                    <div className="mt-1.5">
-                      <button
-                        type="button"
-                        onClick={() => onSetHero(clip)}
-                        disabled={settingHero}
-                        aria-label={`Mark as this topic's hero video: ${clip.caption}`}
-                        className="inline-flex min-h-[44px] items-center border-2 border-hardbox bg-surface-raised px-2 py-1 text-[11px] font-bold text-ink-plus hover:shadow-[2px_2px_0_var(--color-hardbox-offset)] disabled:cursor-default disabled:opacity-60"
-                      >
-                        {settingHero ? "Setting…" : <><span aria-hidden>★</span> Make hero</>}
-                      </button>
-                    </div>
-                  )}
                 </li>
               );
             })}
@@ -645,20 +613,18 @@ export function GeneralStrip({
               <li
                 id={SUGGESTION_GROUP_ID}
                 role="listitem"
-                className="flex shrink-0 gap-3"
+                className="flex shrink-0 gap-2"
               >
                 {shownCandidates.map((c) => (
-                  // Candidate tile on a candcard surface (dashed/unvetted retained). No per-tile
-                  // "SUGGESTED" badge (AC1/§5.3). Reader-first calm (#164): the most minimal,
-                  // thumbnail-forward tile — NOTABLY wider so the picture leads — carrying only
-                  // the caption + creator credit. NO match-reason line (the "Why suggested"
-                  // reason is genuine info but not tile chrome; it lives one tap away in the
-                  // player). The once-per-context unvetted signal lives in the band header /
-                  // divider / rail set-header, never per card.
-                  <div key={c.id} className="candcard w-64 shrink-0 p-2">
+                  // Suggested (uncurated) tile (design general-strip-fullbleed.md §2.2): the same
+                  // white-card shape with the dashed/desaturated `candcard`/`candthumb` unvetted
+                  // treatment. A 3:2 thumbnail bled to the card top + a compact context section
+                  // (caption → creator → signed-in Curate / Not relevant). NO per-tile match line or
+                  // "SUGGESTED" badge — the once-per-context unvetted signal lives in the divider.
+                  <div key={c.id} className="candcard w-72 shrink-0 overflow-hidden">
                     <VideoThumb
                       video={c}
-                      variant="strip"
+                      variant="stripcard"
                       candidate
                       onPlay={
                         onPlayCandidate && c.platform === "youtube" && c.embedUrl
@@ -666,20 +632,22 @@ export function GeneralStrip({
                           : undefined
                       }
                     />
-                    <p className="mt-1.5 line-clamp-2 text-[12px] font-bold leading-snug text-ink-plus">
-                      {c.caption}
-                    </p>
-                    <p className="truncate text-[11px] text-muted">
-                      {c.creator.handle} · {c.platformLabel}
-                    </p>
-                    {/* #71 §5: on-tile actions only when signed in; logged out → watch-only. */}
-                    {signedIn && (
-                      <CandidateActions
-                        candidate={c}
-                        onPromote={onPromote}
-                        onDismiss={onDismiss}
-                      />
-                    )}
+                    <div className="p-2.5">
+                      <p className="line-clamp-2 text-[13px] font-bold leading-snug text-ink-plus">
+                        {c.caption}
+                      </p>
+                      <p className="mt-0.5 truncate text-[11px] text-muted">
+                        {c.creator.handle} · {c.platformLabel}
+                      </p>
+                      {/* #71 §5: on-tile actions only when signed in; logged out → watch-only. */}
+                      {signedIn && (
+                        <CandidateActions
+                          candidate={c}
+                          onPromote={onPromote}
+                          onDismiss={onDismiss}
+                        />
+                      )}
+                    </div>
                   </div>
                 ))}
               </li>
@@ -707,13 +675,13 @@ export function GeneralStrip({
                   role="list"
                   aria-busy="true"
                   aria-label="Looking for suggested videos"
-                  className="flex gap-3"
+                  className="flex gap-2"
                 >
                   {[0, 1, 2].map((i) => (
-                    // Match the candidate tile width (#164) so the skeleton stands in 1:1.
-                    <li key={i} role="listitem" className="w-64 shrink-0">
+                    // Match the candidate card width + 3:2 frame so the skeleton stands in 1:1.
+                    <li key={i} role="listitem" className="w-72 shrink-0">
                       <div
-                        className={`aspect-video w-full border-2 border-white/40 bg-surface-raised/15${
+                        className={`aspect-[3/2] w-full border-2 border-white/40 bg-surface-raised/15${
                           prefersReduced ? "" : " animate-pulse"
                         }`}
                       />
@@ -733,63 +701,24 @@ export function GeneralStrip({
               </li>
             )}
 
-            {/* Marked-complete reveal (overview-card-cleanup §4.2): the TRAILING item — to the right
-                of the videos, the same kind of slot as "See N more". A compact WHITE card (so its
-                small text clears AA on the indigo band) with a brand left rule; it stretches to the
-                row height, so it adds no vertical space. The eyebrow + body line carry the honest
-                framing in WORDS (a curator's judgment); the button toggles the per-viewer,
-                session-local reveal. Stays the row's last item in both states — when overridden,
-                after the revealed suggestions. Shown iff `complete && hasUnderlyingSuggestions` (never
-                a reveal that shows nothing — §4.3). */}
-            {showCompleteToggle && (
-              <li role="listitem" className="flex shrink-0 items-stretch">
-                <div
-                  className="flex w-48 flex-col justify-center gap-2 border-2 border-hardbox bg-surface-raised p-3 text-ink-plus shadow-[2px_2px_0_var(--color-hardbox-offset)]"
-                  style={{ borderLeftWidth: 4, borderLeftColor: "var(--color-brand)" }}
-                >
-                  <p className="plus-sans text-[11px] font-bold uppercase tracking-wide text-ink-plus">
-                    <span aria-hidden>✓</span> Marked complete
-                  </p>
-                  <p className="plus-body text-[12px] leading-snug text-ink2">
-                    A curator marked this complete, so suggestions are hidden.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={onToggleOverride}
-                    aria-label={
-                      overridden
-                        ? "Hide suggestions again — return to the complete view"
-                        : "Show suggestions for this topic in this session"
-                    }
-                    className={
-                      overridden
-                        ? "inline-flex min-h-[44px] items-center justify-center border-2 border-hardbox bg-surface-raised px-2.5 py-1 text-[12px] font-bold text-ink-plus hover:shadow-[2px_2px_0_var(--color-hardbox-offset)]"
-                        : "inline-flex min-h-[44px] items-center justify-center border-2 border-hardbox bg-brand px-2.5 py-1 text-[12px] font-bold text-white hover:shadow-[2px_2px_0_var(--color-hardbox-offset)]"
-                    }
-                  >
-                    {overridden ? "Hide suggestions again" : "Show suggestions anyway"}
-                  </button>
-                </div>
-              </li>
-            )}
           </ul>
         )}
 
-        {/* Zero-results face (design §5.2): the honest line, no tile chrome — only in the
-            empty-with-no-results case. Also covers the error/quota silent-degrade case (§5.5)
-            — same honest line, never an error UI. In a curated band a zero suggestion count
-            simply reads as fully-curated. */}
+        {/* Zero-results face (design §5.2): the honest line, no tile chrome — centered to the content
+            column (the scroll row is absent here). Also covers the error/quota silent-degrade case
+            (§5.5) — same honest line, never an error UI. */}
         {showZero && (
-          <p className="mt-4 max-w-prose text-sm leading-relaxed text-white">
-            {/* Logged-out readers have no curator controls, so their line stays purely informational;
-                the signed-in line names the Search / ＋ Add-video controls (which ride the scroll row
-                with the band's actions) without a stale directional "below". */}
-            {signedIn
-              ? "No videos found for this topic yet — search a platform or add one by link to start."
-              : "No videos found for this topic yet — check back as people curate this topic."}
-          </p>
+          <div className="mx-auto max-w-[1200px] px-5 py-4">
+            <p className="max-w-prose text-sm leading-relaxed text-white">
+              {/* Logged-out readers have no curator controls, so their line stays purely informational;
+                  the signed-in line names the Search / ＋ Add-video controls (which ride the scroll row
+                  with the band's actions) without a stale directional "below". */}
+              {signedIn
+                ? "No videos found for this topic yet — search a platform or add one by link to start."
+                : "No videos found for this topic yet — check back as people curate this topic."}
+            </p>
+          </div>
         )}
-      </div>
     </section>
   );
 }

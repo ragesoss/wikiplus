@@ -84,6 +84,11 @@ minimal strip band of §4.3 + the TOC).
 
 ## 4. The relocated "show suggestions" toggle — a trailing item in the strip
 
+> **Superseded (placement only):** the toggle now lives in the **plus rail**, not the General strip —
+> see [`complete-toggle-rail.md`](complete-toggle-rail.md). The form, microcopy, gate
+> (`complete && hasUnderlyingSuggestions`), and override mechanics in this section are unchanged; only
+> the surface it renders on moved. Retained as the record of the strip-placement build.
+
 ### 4.1 Placement (the decision)
 The toggle is the **last item in the General strip's horizontal scroll row** — to the **right** of the
 curated tiles, the same slot the "See N more" control occupies. It **stretches to the row height and

@@ -29,6 +29,7 @@ import { EditModal } from "@/components/topic/EditModal";
 import type { ClipEditFormPatch } from "@/components/topic/curate-clip";
 import type { SubmitOutcome } from "@/components/topic/useCurateSubmit";
 import { GeneralStrip } from "@/components/topic/GeneralStrip";
+import { CompleteToggleCard } from "@/components/topic/CompleteToggleCard";
 import { Infobox } from "@/components/topic/Infobox";
 import { PlusAsideSkeleton, PlusBandSkeleton } from "@/components/topic/PlusSkeleton";
 import { PinnedPlayer, type PinnedClip } from "@/components/topic/PinnedPlayer";
@@ -779,10 +780,10 @@ export function TopicView() {
     generalCandidates,
   ]);
 
-  // ── Refs for scroll-sync. ──
+  // ── Refs for scroll/focus. ── `sectionEls` drives the active-section cue off the page scroll;
+  // `cardEls` lets a reviewer action restore focus to the acted-on rail card.
   const sectionEls = useRef<Map<string, HTMLElement>>(new Map());
   const cardEls = useRef<Map<string, HTMLElement>>(new Map());
-  const railRef = useRef<HTMLElement>(null);
   const lockUntil = useRef(0);
   const prefersReduced = useRef(false);
 
@@ -796,16 +797,6 @@ export function TopicView() {
     if (el) sectionEls.current.set(slug, el);
     else sectionEls.current.delete(slug);
   }, []);
-
-  // First clip/candidate per section (the rail card to scroll to). Issue #60 §2.3: the
-  // union, curated-first — `sectionClips` come before `sectionCandidates`, so for any section
-  // that has a curated clip `railItems.find(...)` resolves to the curated card as the sync
-  // anchor; a section with only suggestions anchors on its first suggestion. The sync mechanics
-  // (active-section pairing, the TOC highlight) are otherwise untouched.
-  const railItems = useMemo(
-    () => [...sectionClips, ...sectionCandidates],
-    [sectionClips, sectionCandidates]
-  );
 
   const scrollBehavior = (): ScrollBehavior =>
     prefersReduced.current ? "auto" : "smooth";
@@ -866,13 +857,6 @@ export function TopicView() {
           const y = window.scrollY + el.getBoundingClientRect().top - HEAD - 16;
           window.scrollTo({ top: y, behavior: scrollBehavior() });
         }
-        // Bring the matching card into the rail.
-        const item = railItems.find((c) => c.sectionSlug === slug);
-        const card = item && cardEls.current.get(item.id);
-        const rail = railRef.current;
-        if (card && rail) {
-          rail.scrollTo({ top: card.offsetTop - 8, behavior: "auto" });
-        }
         setActiveSlug(slug);
       };
       // Phone: expand the owning `h2` group if collapsed, then scroll once the reveal has laid out
@@ -887,11 +871,11 @@ export function TopicView() {
         scrollToTarget();
       }
     },
-    [railItems, requestExpand]
+    [requestExpand]
   );
 
-  // Article → rail sync (AC12). Active = deepest section whose heading crossed
-  // the reading line. Only sections that bear a rail item drive the rail scroll.
+  // Article → active-section sync (AC12). Active = deepest section whose heading crossed
+  // the reading line; it drives the TOC cue and highlights the matching rail card.
   useEffect(() => {
     if (fetchState !== "ready") return;
     let raf = 0;
@@ -913,13 +897,6 @@ export function TopicView() {
         }
         if (current && current !== activeSlug) {
           setActiveSlug(current);
-          const item = railItems.find((c) => c.sectionSlug === current);
-          const card = item && cardEls.current.get(item.id);
-          const rail = railRef.current;
-          if (card && rail) {
-            lockUntil.current = Date.now() + 180;
-            rail.scrollTo({ top: card.offsetTop - 8, behavior: "auto" });
-          }
         }
       });
     };
@@ -928,32 +905,7 @@ export function TopicView() {
       window.removeEventListener("scroll", onScroll);
       if (raf) cancelAnimationFrame(raf);
     };
-  }, [fetchState, activeSlug, railItems]);
-
-  // Rail → article sync (AC13). The card nearest the rail's vertical center wins.
-  const onRailScroll = useCallback(() => {
-    if (Date.now() < lockUntil.current) return;
-    const rail = railRef.current;
-    if (!rail) return;
-    const center = rail.scrollTop + rail.clientHeight / 2;
-    let best: { slug: string; dist: number } | null = null;
-    for (const item of railItems) {
-      const card = cardEls.current.get(item.id);
-      if (!card || !item.sectionSlug) continue;
-      const cardCenter = card.offsetTop + card.offsetHeight / 2;
-      const dist = Math.abs(cardCenter - center);
-      if (!best || dist < best.dist) best = { slug: item.sectionSlug, dist };
-    }
-    if (best && best.slug !== activeSlug) {
-      setActiveSlug(best.slug);
-      const el = sectionEls.current.get(best.slug);
-      if (el) {
-        lockUntil.current = Date.now() + 180;
-        const y = window.scrollY + el.getBoundingClientRect().top - HEAD - 16;
-        window.scrollTo({ top: y, behavior: "auto" });
-      }
-    }
-  }, [railItems, activeSlug]);
+  }, [fetchState, activeSlug]);
 
   // ── Wide-region overflow flag (design §4.2 / templatestyles-reuse §4–§5). ──
   // Mark each contained scroll region (`.wiki-tablewrap` wide data tables,
@@ -2024,28 +1976,23 @@ export function TopicView() {
           when it resolves. Shows while `!storeReady`, matching the plus-aside skeleton above. */}
       {!storeReady && <PlusBandSkeleton />}
 
-      {/* General / Suggested band — full bleed (the one crossover). On a COMPLETE + zero-curated
-          topic that STILL has an underlying suggestion to reveal, the band is KEPT and renders its
-          minimal face: the scroll row holds just the "show suggestions anyway" toggle (design
-          overview-card-cleanup.md §4.3), so the reveal always has a home right where the videos live.
-          The band is OMITTED only when there is TRULY nothing to present — suppressing, no curated
-          clips, no shown suggestions, no in-flight search, AND no underlying suggestion to offer the
-          toggle (a genuinely empty complete topic → a near-plain article). In every non-suppressing
-          case the band renders exactly as before (its own empty/mixed/fully-curated faces — including
-          the genuine empty "No videos found" zero face — are untouched). */}
+      {/* General / Suggested band — full bleed (the one crossover). It is OMITTED on a marked-complete
+          topic that, with suggestions suppressed for this viewer, has NO General-overview curated
+          video: the band would carry only suppressed suggestion chrome, and the "show suggestions
+          anyway" reveal lives in the plus rail (below), not here (design complete-toggle-rail.md §5).
+          In every non-suppressing case — and whenever the band has General curated videos — it renders
+          exactly as before (its own empty/mixed/fully-curated faces, including the genuine "No videos
+          found" zero face, untouched). */}
       {storeReady &&
-        !(
-          suppressSuggestions &&
-          !hasCurated &&
-          !hasSuggestions &&
-          !candidatesLoading &&
-          !hasUnderlyingSuggestions
-        ) && (
+        !(suppressSuggestions && generalClips.length === 0) && (
         <GeneralStrip
           topicTitle={canonicalTitle}
           generalClips={generalClips}
           generalCandidates={generalCandidates}
-          loading={candidatesLoading}
+          /* A suppressed (marked-complete, not-overridden) band shows NO suggestion chrome at all —
+             including the candidate-loading skeleton — so the loading signal is gated off when
+             suppressing (design complete-toggle-rail.md §5). */
+          loading={suppressSuggestions ? false : candidatesLoading}
           prefersReduced={prefersReduced.current}
           onPlay={playClip}
           onPlayCandidate={playCandidate}
@@ -2083,18 +2030,11 @@ export function TopicView() {
           onSetHero={setHero}
           onClearHero={clearHero}
           settingHero={settingHero}
-          /* Marked-complete (design overview-card-cleanup.md §4). `suppressed` (= complete AND this
+          /* Marked-complete (design complete-toggle-rail.md §5). `suppressed` (= complete AND this
              viewer hasn't overridden) hides the curator find-more controls — a finished topic offers
              no "add more". The reader-facing completion signal + the per-viewer "show suggestions
-             anyway" reveal are the strip's TRAILING row item: `complete` drives its presence,
-             `hasUnderlyingSuggestions` gates it (never a reveal that shows nothing), `onToggleOverride`
-             flips the same session-local, per-topic, client-only override (the strip derives the
-             reveal's on/off label from `complete && !suppressed`). */
+             anyway" reveal are NOT here: they live as a card in the plus rail (below). */
           suppressed={suppressSuggestions}
-          complete={closedToSuggestions}
-          overridden={viewerOverride === true}
-          hasUnderlyingSuggestions={hasUnderlyingSuggestions}
-          onToggleOverride={toggleOverride}
         />
       )}
 
@@ -2248,7 +2188,7 @@ export function TopicView() {
         </div>
       )}
 
-      {/* Reader: article body sections (left) + the sticky rail (right). */}
+      {/* Reader: article body sections (left) + the plus rail (right), both in the page scroll. */}
       <div className="mx-auto max-w-[1200px] px-5 pb-16">
         <div className="grid grid-cols-1 gap-7 lg:grid-cols-[1fr_360px]">
           <div className="min-w-0" onClick={onArticleClick}>
@@ -2264,8 +2204,6 @@ export function TopicView() {
             )}
           </div>
           <aside
-            ref={railRef}
-            onScroll={onRailScroll}
             aria-label={
               hasCurated && hasSuggestions
                 ? "wiki+ curated and suggested videos"
@@ -2273,7 +2211,10 @@ export function TopicView() {
                   ? "wiki+ curated videos"
                   : "wiki+ suggested videos"
             }
-            className="space-y-4 lg:sticky lg:top-16 lg:max-h-[calc(100vh-4rem)] lg:overflow-y-auto"
+            /* The plus rail flows in the page's own scroll — no separate scroll region. It stacks
+               in the right column and scrolls with the document; the active section still highlights
+               its card (the highlight rides `activeSlug`, not a rail scroll). */
+            className="space-y-4"
           >
             {/* Store-read error floor (issue #45; design §"read failure"). If the clip/
                 dismissal read failed (DB down), show an honest line — NOT a permanent
@@ -2318,6 +2259,20 @@ export function TopicView() {
                 }}
               />
             ))}
+            {/* Marked-complete "show suggestions anyway" reveal (design complete-toggle-rail.md). It
+                sits in the rail AFTER the curated section ClipCards — or, when there are none, as the
+                rail's first item (same DOM position). When this viewer overrides, the revealed
+                suggestion set (CandidateSetHeader + cards) appears below it, so the toggle reads as the
+                divider between curated and revealed. Shown iff the topic is complete AND has ≥1
+                underlying suggestion to reveal (never a reveal that shows nothing — topic-complete §4.4);
+                its label/treatment follows the per-viewer override, and activating it flips the same
+                session-local, per-topic, client-only override the band/TOC re-derive from. */}
+            {closedToSuggestions && hasUnderlyingSuggestions && (
+              <CompleteToggleCard
+                overridden={viewerOverride === true}
+                onToggle={toggleOverride}
+              />
+            )}
             {/* #14 AC5 / issue #60 §2.2/§5.3: the one-time "unvetted set" header introduces
                 the rail suggestion subset ONCE. Its gate is now "≥1 rail suggestion" — NOT
                 `mode === "empty"` — so it sits BETWEEN the curated group and the suggestion
