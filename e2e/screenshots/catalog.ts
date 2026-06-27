@@ -462,6 +462,26 @@ async function scrollRecentToEnd(page: Page): Promise<void> {
   await page.waitForTimeout(300);
 }
 
+// ── Watchlist feed setups (issue #162 / `/watchlist`, design watchlist.md §6). ───────────────────
+// The per-user feed reuses the `/recent` feed body, so the populated scene's ready mirrors
+// `recentPopulatedReady` (the first item's play affordance settled). The gate scene (logged-out)
+// waits for the login-gate heading instead. The e2e contributor watches the curated Photosynthesis
+// topic (seeded in db-server.ts), so the logged-in feed is non-empty.
+
+/** Ready for the populated watchlist feed: the header + the first item's play affordance settled. */
+async function watchlistPopulatedReady(page: Page): Promise<void> {
+  await homeReady(page);
+  await page.getByRole("button", { name: /^Play:/ }).first().waitFor({ timeout: 8000 });
+  await page.waitForTimeout(300);
+}
+
+/** Ready for the logged-out watchlist gate: the header + the "Log in to see your watchlist" panel. */
+async function watchlistGateReady(page: Page): Promise<void> {
+  await homeReady(page);
+  await page.getByText("Log in to see your watchlist").waitFor({ timeout: 8000 });
+  await page.waitForTimeout(300);
+}
+
 /** Wait for the About centerpiece to be SETTLED (docs/design/about-projector-warmup.md §6). The
  *  page plays a one-shot "projector warm-up" intro on load; the baseline must capture the SETTLED
  *  final state, never a mid-intro frame. Two independent guards (belt-and-braces): force reduced
@@ -1328,6 +1348,44 @@ export const SCENES: Scene[] = [
     ready: recentPopulatedReady,
     prepare: scrollRecentToEnd,
     clip: "viewport",
+  },
+
+  // ── Watchlist (issue #162 / `/watchlist` + the topic watch control, design watchlist.md §6) ──────
+  // The per-user feed reuses the `/recent` feed body (scope prop) — only the data source + copy
+  // differ. The e2e contributor watches the curated Photosynthesis topic (seeded in db-server.ts),
+  // so the logged-in feed is real + non-empty. The two EMPTY states (no topics watched / watched-but-
+  // no-curations) are covered by unit tests, not scenes — a single e2e contributor can't be both.
+  {
+    id: "watchlist-populated",
+    focus: true,
+    group: "Watchlist",
+    label: "Watchlist feed — populated (signed-in)",
+    note: "The signed-in viewer's watchlist: the SAME feed UI as /recent, sourced from only the curations on their watched topics, newest first. Login-gated (logged-out gets the gate below).",
+    route: "/watchlist",
+    stub: "curated",
+    auth: ["in"],
+    ready: watchlistPopulatedReady,
+    clip: "viewport",
+  },
+  {
+    id: "watchlist-gate",
+    group: "Watchlist",
+    label: "Watchlist — login gate (logged-out)",
+    note: "A logged-out visit to /watchlist gets the login gate (never a blank page or a leak of anyone's watchlist) — 'Log in to see your watchlist' + the canonical Wikipedia login.",
+    route: "/watchlist",
+    auth: ["out"],
+    ready: watchlistGateReady,
+    clip: "viewport",
+  },
+  {
+    id: "topic-watch-control",
+    group: "Watchlist",
+    label: "Topic watch control (overview panel foot)",
+    note: "The login-gated watch toggle in the wiki+ overview panel foot: '＋ Watch topic' logged-out (a tap opens the login gate), '✓ Watching' signed-in for a watched topic (the e2e contributor watches Photosynthesis).",
+    route: "/topic/Photosynthesis/",
+    stub: "curated",
+    ready: topicReady,
+    clip: SEL_OVERVIEW,
   },
 ];
 

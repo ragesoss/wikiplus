@@ -10,6 +10,7 @@ import type {
   Topic,
   TopicWithStats,
   UpvoteToggle,
+  WatchlistCurationsPage,
 } from "@/lib/data/types";
 import { ACCURACY_ORDER, STANCE_ORDER } from "@/lib/curation/labels";
 import { NOTE_LICENSE } from "@/lib/curation/note-license";
@@ -577,6 +578,67 @@ export async function listRecentCurationsAction(input?: {
   limit?: number;
 }): Promise<RecentCurationsPage> {
   return store().listRecentCurations(input);
+}
+
+// ── Watchlist (issue #162 — follow topics + the watchlist feed) ──────────────────────────
+// One auth-gated WRITE (`setWatchAction`) + two auth-gated, viewer-scoped READS
+// (`isWatchingAction`, `listWatchlistCurationsAction`). Watching is a PERSONAL FOLLOW available to
+// ANY signed-in contributor (not curator-restricted — Decision D1): there is NO role check, only the
+// `requireContributor` gate (the same bar as the existing per-user signals). All three resolve the
+// contributor SERVER-SIDE and scope to that identity, so one user can never read or write another's
+// watchlist (AC11), and an anonymous direct call is rejected before any DB touch (AC8). The two reads
+// are per-viewer and run ONLY in the already-authenticated client session (the `votedClipIds`
+// posture) — never on the cached topic read path (AC: off the read path / logged-out parity).
+
+/**
+ * Add or remove a topic from the signed-in contributor's watchlist (issue #162). GATE FIRST (AC8):
+ * an unauthenticated call is rejected before any DB write. LIMIT SECOND (the gate→limit→write
+ * contract): a watch toggle creates/removes a row, so it is a counted gated write (the `write_event`
+ * kind `watch`) — bounded like add/dismiss so a watch/un-watch flood can't run away. `watch = true`
+ * adds (idempotent on the unique identity — AC3); `watch = false` removes (idempotent). The store
+ * scopes the row to the resolved `contributorId` — never a client-supplied identity (AC11).
+ */
+export async function setWatchAction(
+  qid: string,
+  watch: boolean
+): Promise<void> {
+  // GATE FIRST (AC8): reject an anonymous watch/un-watch before any DB write.
+  const { contributorId } = await requireContributor();
+  // LIMIT SECOND (issue #57 / D5a — the gate→limit→write contract): reject + write nothing if over
+  // the per-identity cap. Pure-read check; the event is recorded after the write lands.
+  const db = getDb();
+  await checkWriteRateLimit(db, contributorId);
+  const s = store();
+  if (watch) await s.addWatch(qid, contributorId);
+  else await s.removeWatch(qid, contributorId);
+  await recordWriteEvent(db, contributorId, "watch");
+}
+
+/**
+ * Does the signed-in viewer watch this topic (issue #162)? The PER-VIEWER state behind the topic-page
+ * watch toggle — gated by `requireContributor`, so it only ever runs in the already-authenticated
+ * client session (the host guards on the session before calling it; a logged-out caller is rejected,
+ * never a per-user query on the read path — AC: off the read path). Scoped to the resolved viewer.
+ */
+export async function isWatchingAction(qid: string): Promise<boolean> {
+  const { contributorId } = await requireContributor();
+  return store().isWatching(qid, contributorId);
+}
+
+/**
+ * The signed-in viewer's WATCHLIST feed (issue #162 / `/watchlist`) — the #160 cross-topic feed
+ * scoped to the curations on the topics THEY watch, newest first, cursor-paginated (AC4/AC5). GATE
+ * FIRST: `requireContributor` resolves the viewer and rejects an anonymous call (the route is
+ * login-gated — AC7), so the feed is always scoped to the caller's own `contributorId` (AC11). The
+ * client passes only the opaque cursor + limit; the boundary supplies the resolved contributor. The
+ * page carries `watchedTopicCount` so the view distinguishes the two empty states (AC9/AC10).
+ */
+export async function listWatchlistCurationsAction(input?: {
+  cursor?: string | null;
+  limit?: number;
+}): Promise<WatchlistCurationsPage> {
+  const { contributorId } = await requireContributor();
+  return store().listWatchlistCurations({ ...input, contributorId });
 }
 
 // ── Upvotes (issue #55 / D4 — a persisted, one-per-user, toggleable signal) ──────────────

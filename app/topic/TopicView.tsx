@@ -218,6 +218,19 @@ export function TopicView() {
   const [heroNotice, setHeroNotice] = useState<
     null | { reason: "generic" | "limited"; verb: "set" | "clear" }
   >(null);
+  // ── Watchlist (issue #162 — a per-user "follow this topic" toggle). ──────────────────────────────
+  // The PER-VIEWER "am I watching this topic?" state, resolved in the ALREADY-AUTHENTICATED client
+  // session and OFF the cached read path (the `votedClipIds` posture): it hydrates AFTER the shell
+  // renders, so an anonymous load does ZERO watch work. `false` until hydrated (the honest default —
+  // the button reads "＋ Watch topic"); hydration only ADDS the "Watching" cue (a quiet correction,
+  // never a flash of a wrong "watching"). A watch/un-watch write in flight (`watchInFlight`) is the
+  // per-topic double-submit guard + the button's busy word. The reason-aware non-blocking notice
+  // mirrors the complete/hero surfaces: `null` = none; the `verb` names which copy to show.
+  const [watching, setWatching] = useState(false);
+  const [watchInFlight, setWatchInFlight] = useState(false);
+  const [watchNotice, setWatchNotice] = useState<
+    null | { reason: "generic" | "limited"; verb: "watch" | "unwatch" }
+  >(null);
   // Store-read error floor (design §"read failure"): a clip/dismissal read can now fail.
   const [storeError, setStoreError] = useState(false);
   const [article, setArticle] = useState<FullArticle | null>(null);
@@ -520,6 +533,31 @@ export function TopicView() {
     // referentially stable across a count-only `clips` mutation, so an in-flight optimistic
     // upvote does not re-fire this read and clobber the optimistic voted-state flip.
   }, [myContributorId, clipIds]);
+
+  // ── Per-viewer watch-state hydration (issue #162 — the same off-read-path posture as votedClipIds).
+  // Runs ONLY in the already-authenticated client session, keyed by the resolved QID + the viewer.
+  // An ANONYMOUS viewer (no `myContributorId`) does ZERO watch work — it bails before any read and the
+  // control renders the default "＋ Watch topic" (a logged-out tap then opens the login gate). For a
+  // signed-in viewer it reads whether THEY watch THIS topic, then the button shows the "Watching" cue
+  // — a quiet correction, never a flash of a wrong "watching". A failed read leaves the default.
+  useEffect(() => {
+    if (typeof myContributorId !== "number" || !qid) {
+      setWatching(false);
+      return;
+    }
+    let alive = true;
+    (async () => {
+      try {
+        const w = await store.isWatching(qid);
+        if (alive) setWatching(w);
+      } catch {
+        if (alive) setWatching(false);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [myContributorId, qid]);
 
   const loadArticle = useCallback(async () => {
     if (!resolvedTitle) return;
@@ -1300,6 +1338,46 @@ export function TopicView() {
   const setHero = useCallback((clip: Clip) => runHero(clip.id), [runHero]);
   const clearHero = useCallback(() => runHero(null), [runHero]);
 
+  // ── Watch / un-watch this topic (issue #162 / design §2.5 — clones the optimistic write posture). ──
+  // OPTIMISTIC-WITH-ROLLBACK (mirroring `toggleComplete`/`runHero`): flip `watching` IMMEDIATELY so
+  // the button reflects the new state with no reload, fire the auth-gated Server Action in the
+  // background, reconcile, and on failure ROLL BACK + show a non-blocking polite notice. THREE-ARM
+  // catch identical to the other writes: `isAuthRequired` → the expired-session gate; `isRateLimited`
+  // → the calm limit notice; else the generic red line. A per-topic in-flight guard (`watchInFlight`)
+  // blocks a double-submit. This runs only AFTER the login gate (below) passes — so it is always a
+  // signed-in write; the SECURITY control is the server-side `requireContributor` re-check inside
+  // `setWatchAction` (it rejects a logged-out caller regardless of the button — AC8).
+  const runWatch = useCallback(() => {
+    if (!qid) return;
+    if (watchInFlight) return; // double-submit guard
+    const wasWatching = watching;
+    const willWatch = !wasWatching;
+    setWatchNotice(null);
+    setWatchInFlight(true);
+    setWatching(willWatch); // optimistic flip
+    void (async () => {
+      try {
+        if (willWatch) await store.addWatch(qid);
+        else await store.removeWatch(qid);
+      } catch (err) {
+        // Roll back to the pre-click truth.
+        setWatching(wasWatching);
+        const verb = willWatch ? ("watch" as const) : ("unwatch" as const);
+        if (isAuthRequired(err)) showExpiredGate();
+        else if (isRateLimited(err)) setWatchNotice({ reason: "limited", verb });
+        else setWatchNotice({ reason: "generic", verb });
+      } finally {
+        setWatchInFlight(false);
+      }
+    })();
+  }, [qid, watching, watchInFlight, showExpiredGate]);
+
+  // Entry point (design §2.4): gate first. Signed in → run the optimistic watch toggle; logged out →
+  // the watch login gate (no optimistic flip — the boundary would reject a logged-out write).
+  const toggleWatch = useCallback(() => {
+    requireLogin({ gate: "watch", action: runWatch });
+  }, [requireLogin, runWatch]);
+
   // ── Persist a curated clip (issue #52 / D1, AC1–AC5). ──────────────────────────────────
   // The two modals (Promote / Add) hand the assembled clip + the CC BY-SA consent up here; the
   // host owns the write (the auth-gated boundary), the in-memory clip-state update (the new clip
@@ -1875,6 +1953,12 @@ export function TopicView() {
                   closedToSuggestions={closedToSuggestions}
                   marking={markingComplete}
                   onToggleComplete={toggleComplete}
+                  /* Watchlist (issue #162): the per-user follow toggle, shown to every viewer (a
+                     logged-out tap opens the login gate via `toggleWatch`). `watching` is the
+                     off-read-path per-viewer state; `watchInFlight` drives the busy word + disable. */
+                  watching={watching}
+                  watchInFlight={watchInFlight}
+                  onToggleWatch={toggleWatch}
                 />
                 <Toc
                   entries={tocEntries}
@@ -2077,6 +2161,29 @@ export function TopicView() {
               : heroNotice.verb === "set"
                 ? "Couldn't set the hero video — please try again."
                 : "Couldn't clear the hero video — please try again."}
+          </p>
+        </div>
+      )}
+
+      {/* Watch/un-watch notice (issue #162). NON-BLOCKING + POLITE, reason-aware, mirroring the
+          complete/hero surfaces above. After it shows, the optimistic watch flip is already rolled
+          back; this line names why. */}
+      {watchNotice && (
+        <div className="mx-auto max-w-[1200px] px-5">
+          <p
+            role="status"
+            aria-live="polite"
+            className={
+              watchNotice.reason === "limited"
+                ? "rounded-md border-l-4 border-brand bg-surface-2 px-3 py-2 text-sm text-ink-plus"
+                : "rounded-md bg-red-50 px-3 py-2 text-sm text-red-700"
+            }
+          >
+            {watchNotice.reason === "limited"
+              ? AUTH_COPY.rateLimit.notice
+              : watchNotice.verb === "watch"
+                ? "Couldn't add this topic to your watchlist — please try again."
+                : "Couldn't remove this topic from your watchlist — please try again."}
           </p>
         </div>
       )}

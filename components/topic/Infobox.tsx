@@ -45,6 +45,9 @@ export function Infobox({
   closedToSuggestions = false,
   marking = false,
   onToggleComplete,
+  watching = false,
+  watchInFlight = false,
+  onToggleWatch,
 }: {
   /** ≥1 curated clip — selects the numeral grid vs. the empty volume panel. */
   hasCurated: boolean;
@@ -72,6 +75,18 @@ export function Infobox({
   marking?: boolean;
   /** Activate the curator mark/un-mark toggle (host's optimistic-with-rollback). */
   onToggleComplete?: () => void;
+  // ── Watchlist (issue #162 — a per-user "follow this topic" toggle) ──────────────────────────────
+  /** Does THIS viewer watch this topic — the per-viewer state, hydrated off the read path (the
+   *  `votedClipIds` posture). Drives the watch button's label/treatment (＋ Watch topic ⇄ ✓ Watching).
+   *  Always `false` for a logged-out (or not-yet-hydrated) render — the button then invites login. */
+  watching?: boolean;
+  /** A watch/un-watch write is in flight → the button shows a busy word (Adding…/Removing…) and is
+   *  disabled to block a double-submit (the visual flip is optimistic, so the busy word is brief). */
+  watchInFlight?: boolean;
+  /** Activate the watch toggle (host's login-gate-on-click + optimistic-with-rollback). Rendered for
+   *  EVERY viewer when provided (discoverable; the flywheel) — a logged-out tap opens the login gate.
+   *  Absent ⇒ no watch control (e.g. before the topic resolves). */
+  onToggleWatch?: () => void;
 }) {
   const isEmpty = !hasCurated;
   const isMixed = hasCurated && suggestionCount > 0;
@@ -90,7 +105,16 @@ export function Infobox({
   // curator mark/reopen control. At complete + zero-video with neither an error nor the curator
   // control (i.e. a logged-out reader), the body would be just the cap, so render nothing — the
   // strip's minimal band + the article carry that state.
-  const hasBody = storeError || !completeZeroVideo || (signedIn && !!onToggleComplete);
+  // The watch control (issue #162) renders for EVERY viewer when provided, but NOT under a store
+  // error (a write surface is meaningless when reads are failing — the mark-complete reasoning). It
+  // adds body, so a complete + zero-video topic that would otherwise be empty still shows the panel
+  // with the watch affordance (the desirable change: the personal follow is always reachable).
+  const showWatch = !!onToggleWatch && !storeError;
+  const hasBody =
+    storeError ||
+    !completeZeroVideo ||
+    (signedIn && !!onToggleComplete) ||
+    showWatch;
   if (!hasBody) return null;
 
   return (
@@ -166,6 +190,55 @@ export function Infobox({
                     </p>
                   )}
                 </>
+              )}
+            </div>
+          )}
+
+          {/* The WATCHLIST control (issue #162) — the card FOOT row, shown to EVERY viewer (the
+              personal follow is discoverable; a logged-out tap opens the login gate — design §2.2/
+              §2.4). It sits ABOVE the curator mark-complete control (watch is the broader, any-user
+              action). The WORD states the action + state (no `aria-pressed` — a labeled action button
+              is the clearer model, matching mark-complete); the ＋/✓ glyphs are decorative reinforcement
+              (never color/glyph alone — §4). Optimistic-with-rollback lives in the host; here it shows
+              the busy word + disabled while `watchInFlight`. The helper line sits under the
+              not-watching button; once watching the state is self-evident so the line is omitted. */}
+          {showWatch && (
+            <div className="border-t-2 border-hardbox px-4 pb-4 pt-3">
+              <button
+                type="button"
+                onClick={onToggleWatch}
+                disabled={watchInFlight}
+                aria-label={
+                  watching
+                    ? "Watching this topic — tap to remove from your watchlist"
+                    : "Watch this topic — follow it in your watchlist"
+                }
+                className={`block w-full border-2 border-hardbox px-3 py-2 text-center plus-sans text-[13px] font-bold transition disabled:cursor-default disabled:opacity-60 ${
+                  watching
+                    ? "bg-brand text-white hover:bg-brand/90"
+                    : "bg-surface-raised text-ink-plus hover:bg-surface-2"
+                }`}
+              >
+                {watchInFlight ? (
+                  watching ? (
+                    "Adding…"
+                  ) : (
+                    "Removing…"
+                  )
+                ) : watching ? (
+                  <>
+                    <span aria-hidden>✓</span> Watching
+                  </>
+                ) : (
+                  <>
+                    <span aria-hidden>＋</span> Watch topic
+                  </>
+                )}
+              </button>
+              {!watching && (
+                <p className="plus-body mt-1.5 text-[12px] leading-snug text-ink2">
+                  Follow this topic to see its new curations in your watchlist.
+                </p>
               )}
             </div>
           )}

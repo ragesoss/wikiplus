@@ -35,6 +35,14 @@ export const AUTH_COPY = {
       title: "Log in to upvote",
       body: "Upvoting a clip ties your vote to your Wikimedia identity, so the count means one real person, once. Reading the count stays anonymous — only voting needs a login.",
     },
+    // Issue #162 (design watchlist.md §2.4 — verbatim). Watching is a PERSONAL FOLLOW, not a curation
+    // action: it adds the topic to the viewer's own watchlist, tied to their Wikimedia identity, so
+    // the watchlist feed is theirs. Reading stays anonymous — only watching needs a login. Matches
+    // the C/D1 gate language + the existing gate shape.
+    watch: {
+      title: "Log in to watch this topic",
+      body: "Watching a topic adds it to your personal watchlist, tied to your Wikimedia identity, so you can keep up with new curations on it. Reading stays anonymous — only watching needs a login.",
+    },
   },
 
   errors: {
