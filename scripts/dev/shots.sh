@@ -43,11 +43,11 @@
 #                         (`yarn e2e:reap`). Targets only resources the harness recorded as its own —
 #                         never a process-name pattern match. `--force` reaps even an apparently-live run.
 #
-# The committed-gallery refresh is ATOMIC: --commit renders into a staging dir and syncs to the
-# baseline only when the result is coherent, so a failed scene never leaves an index-less or wiped
-# committed dir (a partial failure keeps the prior shots, rebuilds a coherent index, and reports which
-# scenes are missing). A run with two sessions live is safe: each gets its own per-run Postgres + web
-# port (issue #182).
+# The committed-gallery refresh is COHERENT-ON-SUCCESS: --commit renders into a staging dir and syncs
+# to the baseline only when the result is coherent, so a failed scene never leaves an index-less or
+# wiped committed dir (a partial failure keeps the prior shots, rebuilds a coherent index, and reports
+# which scenes are missing). A run with two sessions live is safe: each gets its own per-run Postgres +
+# web port (issue #182).
 #
 # The catalog is the source of truth: to add a shot, add a scene there — it is captured AND indexed
 # automatically; no edits to this script or the spec.
@@ -95,10 +95,11 @@ grep_arg=()
 echo "shots: rendering '$scope' → $out (this builds + serves the app; ~1–2 min)…"
 mkdir -p "$out"
 
-# WHERE we render. The committed baseline (--commit) is refreshed ATOMICALLY: render into a staging
-# dir and only sync to $out when the result is coherent, so a failed scene never leaves the committed
-# dir index-less or wiped. The throwaway working dir (non-commit) renders in place — corruption there
-# is harmless.
+# WHERE we render. The committed baseline (--commit) is refreshed COHERENT-ON-SUCCESS: render into a
+# staging dir and only sync to $out when the result is coherent, so a failed scene never leaves the
+# committed dir index-less or wiped. (The final sync is rm-then-cp, not a single rename, so a crash
+# mid-sync is the one narrow non-atomic window — the staged set is always coherent before it.) The
+# throwaway working dir (non-commit) renders in place — corruption there is harmless.
 if [ "$commit" = 1 ]; then
   render="$(mktemp -d)/shots"; mkdir -p "$render"
   # A PARTIAL refresh (--commit + a subset) must PRESERVE un-selected shots: seed staging with the

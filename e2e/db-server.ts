@@ -49,10 +49,13 @@ export function e2eDatabaseUrl(): string {
 
 // A test contributor seeded into the e2e DB so the auth helper (e2e/auth.ts) can mint a signed-in
 // session that maps to a REAL contributor row (the write boundary attributes to contributor.id).
-// The handle is fixed; the id is written to this file at setup time so the helper reads it without
-// a DB round-trip. (issue #47 — the uncurated-topic contribute flow is auth-gated as of issue C.)
+// The handle is fixed; the seeded id is published in `process.env[E2E_USER_ENV]` at setup time and
+// read from there by the helper (NOT a shared temp file — two concurrent runs would clobber each
+// other's file, and one run's teardown would delete a sibling's, the #182 cross-contamination
+// failure mode). The env is per process-tree, so each run's workers inherit only their own run's
+// contributor. (issue #47 — the contribute flow is auth-gated as of issue C; parallel-safe per #182.)
 export const E2E_USER_HANDLE = "E2ETester";
-export const E2E_USER_FILE = join(tmpdir(), "wikiplus-e2e-user.json");
+export const E2E_USER_ENV = "E2E_USER";
 
 // The Auth.js JWT signing secret + session-cookie name the webServer runs with — SHARED with the
 // sign-in helper (e2e/auth.ts) so a test-minted session cookie verifies against the same key.
@@ -211,52 +214,64 @@ export async function startE2EDatabase(): Promise<void> {
     /* a missing record only weakens reaping; never fail the run over it */
   }
 
-  execFileSync(
-    pg(bin, "psql"),
-    ["-h", "127.0.0.1", "-p", String(pgPort), "-U", "postgres", "-c", `CREATE DATABASE ${E2E_PG_DB};`],
-    { stdio: "ignore" }
-  );
+  // Create the DB, apply migrations + seed, and publish the seeded contributor. Any failure here —
+  // after the postmaster is already up — would otherwise ORPHAN the cluster, because Playwright skips
+  // globalTeardown when globalSetup throws. So tear the half-built run down (postmaster + datadir +
+  // record) before rethrowing, leaving nothing behind.
+  try {
+    execFileSync(
+      pg(bin, "psql"),
+      ["-h", "127.0.0.1", "-p", String(pgPort), "-U", "postgres", "-c", `CREATE DATABASE ${E2E_PG_DB};`],
+      { stdio: "ignore" }
+    );
 
-  // Apply migrations + seed via the SAME deploy-path script (scripts/migrate.ts), so the e2e DB
-  // matches exactly what `docker compose` lands on deploy. tsx is a devDependency; run it through
-  // the local binary with DATABASE_URL pointed at the throwaway cluster.
-  execFileSync("yarn", ["db:migrate"], {
-    stdio: "inherit",
-    env: { ...process.env, DATABASE_URL: databaseUrl },
-  });
+    // Apply migrations + seed via the SAME deploy-path script (scripts/migrate.ts), so the e2e DB
+    // matches exactly what `docker compose` lands on deploy. tsx is a devDependency; run it through
+    // the local binary with DATABASE_URL pointed at the throwaway cluster.
+    execFileSync("yarn", ["db:migrate"], {
+      stdio: "inherit",
+      env: { ...process.env, DATABASE_URL: databaseUrl },
+    });
 
-  // Seed the e2e test contributor and record its id for the auth helper. RETURNING the id means we
-  // never assume a serial value. `-tA` → tuples-only, unaligned (bare id) — but psql STILL prints
-  // its command-completion tag ("INSERT 0 1") on a SECOND stdout line, so the RETURNING value is
-  // line 1 and the tag is line 2. Parse line 1 only: a naive `.trim()` of the whole output leaves
-  // "2\nINSERT 0 1", whose `Number(...)` is `NaN` → the auth helper would mint a session with a
-  // null `contributorId` and every signed-in capture/test would silently run logged-out (#109).
-  const rawId = execFileSync(
-    pg(bin, "psql"),
-    [
-      "-h",
-      "127.0.0.1",
-      "-p",
-      String(pgPort),
-      "-U",
-      "postgres",
-      "-d",
-      E2E_PG_DB,
-      "-tA",
-      "-c",
-      `INSERT INTO contributor (handle, display_name) VALUES ('${E2E_USER_HANDLE}', 'E2E Tester')
-       RETURNING id;`,
-    ],
-    { encoding: "utf8" }
-  );
-  const id = Number(rawId.split("\n", 1)[0]?.trim());
-  if (!Number.isInteger(id) || id <= 0) {
-    // Fail loud rather than write a null id that turns every signed-in test logged-out.
+    // Seed the e2e test contributor and publish its id for the auth helper. RETURNING the id means we
+    // never assume a serial value. `-tA` → tuples-only, unaligned (bare id) — but psql STILL prints
+    // its command-completion tag ("INSERT 0 1") on a SECOND stdout line, so the RETURNING value is
+    // line 1 and the tag is line 2. Parse line 1 only: a naive `.trim()` of the whole output leaves
+    // "2\nINSERT 0 1", whose `Number(...)` is `NaN` → the auth helper would mint a session with a
+    // null `contributorId` and every signed-in capture/test would silently run logged-out (#109).
+    const rawId = execFileSync(
+      pg(bin, "psql"),
+      [
+        "-h",
+        "127.0.0.1",
+        "-p",
+        String(pgPort),
+        "-U",
+        "postgres",
+        "-d",
+        E2E_PG_DB,
+        "-tA",
+        "-c",
+        `INSERT INTO contributor (handle, display_name) VALUES ('${E2E_USER_HANDLE}', 'E2E Tester')
+         RETURNING id;`,
+      ],
+      { encoding: "utf8" }
+    );
+    const id = Number(rawId.split("\n", 1)[0]?.trim());
+    if (!Number.isInteger(id) || id <= 0) {
+      // Fail loud rather than publish a null id that turns every signed-in test logged-out.
+      throw new Error(
+        `e2e: could not parse the seeded contributor id from psql output: ${JSON.stringify(rawId)}`
+      );
+    }
+    // Publish to the env (inherited by worker processes) — no shared file, so parallel-safe (#182).
+    process.env[E2E_USER_ENV] = JSON.stringify({ contributorId: id, handle: E2E_USER_HANDLE });
+  } catch (e) {
+    await stopE2EDatabase(); // tear down the half-built run — no orphan postmaster/datadir/record
     throw new Error(
-      `e2e: could not parse the seeded contributor id from psql output: ${JSON.stringify(rawId)}`
+      `e2e: database setup failed after Postgres started on port ${pgPort}: ${(e as Error).message}`
     );
   }
-  writeFileSync(E2E_USER_FILE, JSON.stringify({ contributorId: id, handle: E2E_USER_HANDLE }));
 }
 
 /** Stop the cluster and remove its datadir + run record. Best-effort: never throws out of teardown. */
@@ -273,11 +288,6 @@ export async function stopE2EDatabase(): Promise<void> {
   }
   try {
     rmSync(datadir, { recursive: true, force: true });
-  } catch {
-    /* best effort */
-  }
-  try {
-    rmSync(E2E_USER_FILE, { force: true });
   } catch {
     /* best effort */
   }
@@ -326,10 +336,11 @@ function stopPostmaster(datadir: string, pgPid: number | null, log: (m: string) 
 function killWebPort(port: number, log: (m: string) => void): void {
   for (const pid of listenerPids(port)) {
     const cmd = procCmd(pid);
-    // We found this pid by OUR recorded port, but a recycled port could now belong to something
-    // else — confirm it looks like the harness web server before SIGKILL.
-    if (!/node|next-server|next start/i.test(cmd)) {
-      log(`skip pid ${pid} on :${port} (not a node/next process: ${cmd || "?"})`);
+    // We found this pid by OUR recorded port, but the OS could have recycled that port to an
+    // unrelated process — confirm it is a Next server (what the harness runs: `next start` →
+    // `next-server`) before SIGKILL, so a plain `node`/other listener on a recycled port is spared.
+    if (!/next-server|next start|[/\\]next[/\\]/i.test(cmd)) {
+      log(`skip pid ${pid} on :${port} (not a Next server: ${cmd || "?"})`);
       continue;
     }
     try {

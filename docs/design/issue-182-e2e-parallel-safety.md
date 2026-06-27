@@ -87,11 +87,13 @@ next run to start.
 - A bounded `PGCTLTIMEOUT` keeps `pg_ctl -w start` from hanging indefinitely on its readiness wait
   (observed under PostgreSQL 18 in this environment).
 
-## Atomic gallery refresh (the `--commit` blast radius)
+## Coherent-on-success gallery refresh (the `--commit` blast radius)
 
 `scripts/dev/shots.sh --commit` is the only path that writes the **committed** baseline, so a failure
 there must never leave it broken. The committed refresh now renders into a **staging dir** and syncs to
-the baseline only when the staging set is coherent:
+the baseline only when the staging set is coherent. (The final sync is `rm`-then-`cp`, not a single
+rename, so the one narrow non-atomic window is a crash *mid-sync*; the staged set is always coherent
+before the sync starts, so this is no worse than the prior behavior for that case.) The rules:
 
 - A **partial refresh** (`--commit` + a subset) seeds staging with the existing baseline PNGs so
   un-selected shots survive; the selected scenes render over them.

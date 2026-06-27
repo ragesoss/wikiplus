@@ -1,7 +1,6 @@
-import { readFileSync } from "node:fs";
 import { encode } from "@auth/core/jwt";
 import type { Page } from "@playwright/test";
-import { E2E_AUTH_SECRET, E2E_SESSION_COOKIE, E2E_USER_FILE } from "./db-server";
+import { E2E_AUTH_SECRET, E2E_SESSION_COOKIE, E2E_USER_ENV } from "./db-server";
 
 // Test sign-in helper (issue #47). As of issue C the contribute entry points (Add / Curate /
 // Dismiss) are AUTH-GATED: a logged-out click opens the LoginPromptDialog instead of the real
@@ -23,8 +22,15 @@ interface E2EUser {
 }
 
 function readUser(): E2EUser {
-  // Written by startE2EDatabase() (globalSetup) after the seed.
-  return JSON.parse(readFileSync(E2E_USER_FILE, "utf8")) as E2EUser;
+  // Published to the env by startE2EDatabase() (globalSetup) after the seed, and inherited by this
+  // worker process — per-run isolated, no shared file (#182).
+  const raw = process.env[E2E_USER_ENV];
+  if (!raw) {
+    throw new Error(
+      `e2e: ${E2E_USER_ENV} is not set — globalSetup must seed the contributor before signIn()`
+    );
+  }
+  return JSON.parse(raw) as E2EUser;
 }
 
 /**
