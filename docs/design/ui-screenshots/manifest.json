@@ -180,6 +180,66 @@
     "focus": true
   },
   {
+    "id": "recent-feed-populated",
+    "group": "Recent feed",
+    "label": "Recent feed — populated (top of feed)",
+    "viewport": "mobile",
+    "auth": "out",
+    "skin": "light",
+    "file": "recent-feed-populated-mobile-logged-out.png",
+    "focus": true
+  },
+  {
+    "id": "recent-feed-populated",
+    "group": "Recent feed",
+    "label": "Recent feed — populated (top of feed)",
+    "viewport": "mobile",
+    "auth": "in",
+    "skin": "light",
+    "file": "recent-feed-populated-mobile-logged-in.png",
+    "focus": true
+  },
+  {
+    "id": "recent-feed-populated",
+    "group": "Recent feed",
+    "label": "Recent feed — populated (top of feed)",
+    "viewport": "tablet",
+    "auth": "out",
+    "skin": "light",
+    "file": "recent-feed-populated-tablet-logged-out.png",
+    "focus": true
+  },
+  {
+    "id": "recent-feed-populated",
+    "group": "Recent feed",
+    "label": "Recent feed — populated (top of feed)",
+    "viewport": "tablet",
+    "auth": "in",
+    "skin": "light",
+    "file": "recent-feed-populated-tablet-logged-in.png",
+    "focus": true
+  },
+  {
+    "id": "recent-feed-populated",
+    "group": "Recent feed",
+    "label": "Recent feed — populated (top of feed)",
+    "viewport": "desktop",
+    "auth": "out",
+    "skin": "light",
+    "file": "recent-feed-populated-desktop-logged-out.png",
+    "focus": true
+  },
+  {
+    "id": "recent-feed-populated",
+    "group": "Recent feed",
+    "label": "Recent feed — populated (top of feed)",
+    "viewport": "desktop",
+    "auth": "in",
+    "skin": "light",
+    "file": "recent-feed-populated-desktop-logged-in.png",
+    "focus": true
+  },
+  {
     "id": "home",
     "group": "Home",
     "label": "Home — landing page",
@@ -2327,6 +2387,426 @@
     "auth": "in",
     "skin": "zine-dark",
     "file": "contributor-profile-desktop-logged-in-zine-dark.png",
+    "focus": false
+  },
+  {
+    "id": "recent-feed-populated-landscape",
+    "group": "Recent feed",
+    "label": "Recent feed — 16:9 clip (letterbox)",
+    "viewport": "mobile",
+    "auth": "out",
+    "skin": "light",
+    "file": "recent-feed-populated-landscape-mobile-logged-out.png",
+    "focus": false
+  },
+  {
+    "id": "recent-feed-populated-landscape",
+    "group": "Recent feed",
+    "label": "Recent feed — 16:9 clip (letterbox)",
+    "viewport": "mobile",
+    "auth": "in",
+    "skin": "light",
+    "file": "recent-feed-populated-landscape-mobile-logged-in.png",
+    "focus": false
+  },
+  {
+    "id": "recent-feed-populated-landscape",
+    "group": "Recent feed",
+    "label": "Recent feed — 16:9 clip (letterbox)",
+    "viewport": "tablet",
+    "auth": "out",
+    "skin": "light",
+    "file": "recent-feed-populated-landscape-tablet-logged-out.png",
+    "focus": false
+  },
+  {
+    "id": "recent-feed-populated-landscape",
+    "group": "Recent feed",
+    "label": "Recent feed — 16:9 clip (letterbox)",
+    "viewport": "tablet",
+    "auth": "in",
+    "skin": "light",
+    "file": "recent-feed-populated-landscape-tablet-logged-in.png",
+    "focus": false
+  },
+  {
+    "id": "recent-feed-populated-landscape",
+    "group": "Recent feed",
+    "label": "Recent feed — 16:9 clip (letterbox)",
+    "viewport": "desktop",
+    "auth": "out",
+    "skin": "light",
+    "file": "recent-feed-populated-landscape-desktop-logged-out.png",
+    "focus": false
+  },
+  {
+    "id": "recent-feed-populated-landscape",
+    "group": "Recent feed",
+    "label": "Recent feed — 16:9 clip (letterbox)",
+    "viewport": "desktop",
+    "auth": "in",
+    "skin": "light",
+    "file": "recent-feed-populated-landscape-desktop-logged-in.png",
+    "focus": false
+  },
+  {
+    "id": "recent-feed-populated-vertical",
+    "group": "Recent feed",
+    "label": "Recent feed — 9:16 clip (vertical)",
+    "viewport": "mobile",
+    "auth": "out",
+    "skin": "light",
+    "file": "recent-feed-populated-vertical-mobile-logged-out.png",
+    "focus": false
+  },
+  {
+    "id": "recent-feed-populated-vertical",
+    "group": "Recent feed",
+    "label": "Recent feed — 9:16 clip (vertical)",
+    "viewport": "mobile",
+    "auth": "in",
+    "skin": "light",
+    "file": "recent-feed-populated-vertical-mobile-logged-in.png",
+    "focus": false
+  },
+  {
+    "id": "recent-feed-populated-vertical",
+    "group": "Recent feed",
+    "label": "Recent feed — 9:16 clip (vertical)",
+    "viewport": "tablet",
+    "auth": "out",
+    "skin": "light",
+    "file": "recent-feed-populated-vertical-tablet-logged-out.png",
+    "focus": false
+  },
+  {
+    "id": "recent-feed-populated-vertical",
+    "group": "Recent feed",
+    "label": "Recent feed — 9:16 clip (vertical)",
+    "viewport": "tablet",
+    "auth": "in",
+    "skin": "light",
+    "file": "recent-feed-populated-vertical-tablet-logged-in.png",
+    "focus": false
+  },
+  {
+    "id": "recent-feed-populated-vertical",
+    "group": "Recent feed",
+    "label": "Recent feed — 9:16 clip (vertical)",
+    "viewport": "desktop",
+    "auth": "out",
+    "skin": "light",
+    "file": "recent-feed-populated-vertical-desktop-logged-out.png",
+    "focus": false
+  },
+  {
+    "id": "recent-feed-populated-vertical",
+    "group": "Recent feed",
+    "label": "Recent feed — 9:16 clip (vertical)",
+    "viewport": "desktop",
+    "auth": "in",
+    "skin": "light",
+    "file": "recent-feed-populated-vertical-desktop-logged-in.png",
+    "focus": false
+  },
+  {
+    "id": "recent-feed-playing",
+    "group": "Recent feed",
+    "label": "Recent feed — playing (embed mounted)",
+    "viewport": "mobile",
+    "auth": "out",
+    "skin": "light",
+    "file": "recent-feed-playing-mobile-logged-out.png",
+    "focus": false
+  },
+  {
+    "id": "recent-feed-playing",
+    "group": "Recent feed",
+    "label": "Recent feed — playing (embed mounted)",
+    "viewport": "mobile",
+    "auth": "in",
+    "skin": "light",
+    "file": "recent-feed-playing-mobile-logged-in.png",
+    "focus": false
+  },
+  {
+    "id": "recent-feed-playing",
+    "group": "Recent feed",
+    "label": "Recent feed — playing (embed mounted)",
+    "viewport": "tablet",
+    "auth": "out",
+    "skin": "light",
+    "file": "recent-feed-playing-tablet-logged-out.png",
+    "focus": false
+  },
+  {
+    "id": "recent-feed-playing",
+    "group": "Recent feed",
+    "label": "Recent feed — playing (embed mounted)",
+    "viewport": "tablet",
+    "auth": "in",
+    "skin": "light",
+    "file": "recent-feed-playing-tablet-logged-in.png",
+    "focus": false
+  },
+  {
+    "id": "recent-feed-playing",
+    "group": "Recent feed",
+    "label": "Recent feed — playing (embed mounted)",
+    "viewport": "desktop",
+    "auth": "out",
+    "skin": "light",
+    "file": "recent-feed-playing-desktop-logged-out.png",
+    "focus": false
+  },
+  {
+    "id": "recent-feed-playing",
+    "group": "Recent feed",
+    "label": "Recent feed — playing (embed mounted)",
+    "viewport": "desktop",
+    "auth": "in",
+    "skin": "light",
+    "file": "recent-feed-playing-desktop-logged-in.png",
+    "focus": false
+  },
+  {
+    "id": "recent-feed-loading",
+    "group": "Recent feed",
+    "label": "Recent feed — loading (initial skeletons)",
+    "viewport": "mobile",
+    "auth": "out",
+    "skin": "light",
+    "file": "recent-feed-loading-mobile-logged-out.png",
+    "focus": false
+  },
+  {
+    "id": "recent-feed-loading",
+    "group": "Recent feed",
+    "label": "Recent feed — loading (initial skeletons)",
+    "viewport": "mobile",
+    "auth": "in",
+    "skin": "light",
+    "file": "recent-feed-loading-mobile-logged-in.png",
+    "focus": false
+  },
+  {
+    "id": "recent-feed-loading",
+    "group": "Recent feed",
+    "label": "Recent feed — loading (initial skeletons)",
+    "viewport": "tablet",
+    "auth": "out",
+    "skin": "light",
+    "file": "recent-feed-loading-tablet-logged-out.png",
+    "focus": false
+  },
+  {
+    "id": "recent-feed-loading",
+    "group": "Recent feed",
+    "label": "Recent feed — loading (initial skeletons)",
+    "viewport": "tablet",
+    "auth": "in",
+    "skin": "light",
+    "file": "recent-feed-loading-tablet-logged-in.png",
+    "focus": false
+  },
+  {
+    "id": "recent-feed-loading",
+    "group": "Recent feed",
+    "label": "Recent feed — loading (initial skeletons)",
+    "viewport": "desktop",
+    "auth": "out",
+    "skin": "light",
+    "file": "recent-feed-loading-desktop-logged-out.png",
+    "focus": false
+  },
+  {
+    "id": "recent-feed-loading",
+    "group": "Recent feed",
+    "label": "Recent feed — loading (initial skeletons)",
+    "viewport": "desktop",
+    "auth": "in",
+    "skin": "light",
+    "file": "recent-feed-loading-desktop-logged-in.png",
+    "focus": false
+  },
+  {
+    "id": "recent-feed-empty",
+    "group": "Recent feed",
+    "label": "Recent feed — empty (no curations yet)",
+    "viewport": "mobile",
+    "auth": "out",
+    "skin": "light",
+    "file": "recent-feed-empty-mobile-logged-out.png",
+    "focus": false
+  },
+  {
+    "id": "recent-feed-empty",
+    "group": "Recent feed",
+    "label": "Recent feed — empty (no curations yet)",
+    "viewport": "mobile",
+    "auth": "in",
+    "skin": "light",
+    "file": "recent-feed-empty-mobile-logged-in.png",
+    "focus": false
+  },
+  {
+    "id": "recent-feed-empty",
+    "group": "Recent feed",
+    "label": "Recent feed — empty (no curations yet)",
+    "viewport": "tablet",
+    "auth": "out",
+    "skin": "light",
+    "file": "recent-feed-empty-tablet-logged-out.png",
+    "focus": false
+  },
+  {
+    "id": "recent-feed-empty",
+    "group": "Recent feed",
+    "label": "Recent feed — empty (no curations yet)",
+    "viewport": "tablet",
+    "auth": "in",
+    "skin": "light",
+    "file": "recent-feed-empty-tablet-logged-in.png",
+    "focus": false
+  },
+  {
+    "id": "recent-feed-empty",
+    "group": "Recent feed",
+    "label": "Recent feed — empty (no curations yet)",
+    "viewport": "desktop",
+    "auth": "out",
+    "skin": "light",
+    "file": "recent-feed-empty-desktop-logged-out.png",
+    "focus": false
+  },
+  {
+    "id": "recent-feed-empty",
+    "group": "Recent feed",
+    "label": "Recent feed — empty (no curations yet)",
+    "viewport": "desktop",
+    "auth": "in",
+    "skin": "light",
+    "file": "recent-feed-empty-desktop-logged-in.png",
+    "focus": false
+  },
+  {
+    "id": "recent-feed-error",
+    "group": "Recent feed",
+    "label": "Recent feed — error (read failed)",
+    "viewport": "mobile",
+    "auth": "out",
+    "skin": "light",
+    "file": "recent-feed-error-mobile-logged-out.png",
+    "focus": false
+  },
+  {
+    "id": "recent-feed-error",
+    "group": "Recent feed",
+    "label": "Recent feed — error (read failed)",
+    "viewport": "mobile",
+    "auth": "in",
+    "skin": "light",
+    "file": "recent-feed-error-mobile-logged-in.png",
+    "focus": false
+  },
+  {
+    "id": "recent-feed-error",
+    "group": "Recent feed",
+    "label": "Recent feed — error (read failed)",
+    "viewport": "tablet",
+    "auth": "out",
+    "skin": "light",
+    "file": "recent-feed-error-tablet-logged-out.png",
+    "focus": false
+  },
+  {
+    "id": "recent-feed-error",
+    "group": "Recent feed",
+    "label": "Recent feed — error (read failed)",
+    "viewport": "tablet",
+    "auth": "in",
+    "skin": "light",
+    "file": "recent-feed-error-tablet-logged-in.png",
+    "focus": false
+  },
+  {
+    "id": "recent-feed-error",
+    "group": "Recent feed",
+    "label": "Recent feed — error (read failed)",
+    "viewport": "desktop",
+    "auth": "out",
+    "skin": "light",
+    "file": "recent-feed-error-desktop-logged-out.png",
+    "focus": false
+  },
+  {
+    "id": "recent-feed-error",
+    "group": "Recent feed",
+    "label": "Recent feed — error (read failed)",
+    "viewport": "desktop",
+    "auth": "in",
+    "skin": "light",
+    "file": "recent-feed-error-desktop-logged-in.png",
+    "focus": false
+  },
+  {
+    "id": "recent-feed-end",
+    "group": "Recent feed",
+    "label": "Recent feed — end-of-feed marker",
+    "viewport": "mobile",
+    "auth": "out",
+    "skin": "light",
+    "file": "recent-feed-end-mobile-logged-out.png",
+    "focus": false
+  },
+  {
+    "id": "recent-feed-end",
+    "group": "Recent feed",
+    "label": "Recent feed — end-of-feed marker",
+    "viewport": "mobile",
+    "auth": "in",
+    "skin": "light",
+    "file": "recent-feed-end-mobile-logged-in.png",
+    "focus": false
+  },
+  {
+    "id": "recent-feed-end",
+    "group": "Recent feed",
+    "label": "Recent feed — end-of-feed marker",
+    "viewport": "tablet",
+    "auth": "out",
+    "skin": "light",
+    "file": "recent-feed-end-tablet-logged-out.png",
+    "focus": false
+  },
+  {
+    "id": "recent-feed-end",
+    "group": "Recent feed",
+    "label": "Recent feed — end-of-feed marker",
+    "viewport": "tablet",
+    "auth": "in",
+    "skin": "light",
+    "file": "recent-feed-end-tablet-logged-in.png",
+    "focus": false
+  },
+  {
+    "id": "recent-feed-end",
+    "group": "Recent feed",
+    "label": "Recent feed — end-of-feed marker",
+    "viewport": "desktop",
+    "auth": "out",
+    "skin": "light",
+    "file": "recent-feed-end-desktop-logged-out.png",
+    "focus": false
+  },
+  {
+    "id": "recent-feed-end",
+    "group": "Recent feed",
+    "label": "Recent feed — end-of-feed marker",
+    "viewport": "desktop",
+    "auth": "in",
+    "skin": "light",
+    "file": "recent-feed-end-desktop-logged-in.png",
     "focus": false
   }
 ]
