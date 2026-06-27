@@ -22,6 +22,7 @@
 #
 # Usage:
 #   scripts/dev/shots.sh [SELECTION] [--out DIR] [--commit [SLUG]] [--pr N]
+#   scripts/dev/shots.sh --cleanup [--force]   (reap a crashed run's orphan Postgres + web server)
 # Selection (default: everything):
 #   --all                 every scene (default)
 #   --group NAME          one index group, e.g. --group "General Strip"  (or a slug: general-strip)
@@ -37,6 +38,16 @@
 #   --pr N                attach the rendered set to PR #N as a comment gallery. PNGs are pushed to a
 #                         dedicated `screenshots` branch (never merged → main stays lean) and
 #                         referenced by SHA-pinned raw URLs (survive the PR branch being deleted).
+# Maintenance:
+#   --cleanup [--force]   reap a CRASHED run's orphan ephemeral Postgres + Next web server + datadir
+#                         (`yarn e2e:reap`). Targets only resources the harness recorded as its own —
+#                         never a process-name pattern match. `--force` reaps even an apparently-live run.
+#
+# The committed-gallery refresh is COHERENT-ON-SUCCESS: --commit renders into a staging dir and syncs
+# to the baseline only when the result is coherent, so a failed scene never leaves an index-less or
+# wiped committed dir (a partial failure keeps the prior shots, rebuilds a coherent index, and reports
+# which scenes are missing). A run with two sessions live is safe: each gets its own per-run Postgres +
+# web port (issue #182).
 #
 # The catalog is the source of truth: to add a shot, add a scene there — it is captured AND indexed
 # automatically; no edits to this script or the spec.
@@ -64,7 +75,8 @@ while [ $# -gt 0 ]; do
                 if [ $# -ge 2 ] && [[ "$2" != --* ]]; then slug="$2"; shift; fi
                 shift ;;
     --pr)       pr="$2"; shift 2 ;;
-    -h|--help)  sed -n '2,38p' "$0"; exit 0 ;;
+    --cleanup)  shift; exec yarn e2e:reap "$@" ;;
+    -h|--help)  sed -n '2,53p' "$0"; exit 0 ;;
     *) echo "shots: unknown option '$1' (see --help)" >&2; exit 2 ;;
   esac
 done
@@ -82,29 +94,55 @@ grep_arg=()
 
 echo "shots: rendering '$scope' → $out (this builds + serves the app; ~1–2 min)…"
 mkdir -p "$out"
-# Clean the output dir so it reflects EXACTLY this run — EXCEPT a partial refresh of the committed
-# baseline (--commit + a subset), where the un-selected shots must SURVIVE so only the changed
-# scenes are re-rendered over them. (A full --all run always re-renders everything; a non-commit
-# run is the throwaway working dir.) The index is rebuilt from whatever PNGs remain either way.
-if [ "$commit" = 1 ] && [ "$scope" != all ]; then
-  rm -f "$out"/index.html "$out"/manifest.json 2>/dev/null || true
-else
-  rm -f "$out"/*.png "$out"/index.html "$out"/manifest.json 2>/dev/null || true
-fi
-SHOTS=1 SHOTS_OUT="$out" npx playwright test e2e/screenshots.spec.ts "${grep_arg[@]}"
-rc=$?
-if [ "$rc" != 0 ]; then echo "shots: capture run failed (rc=$rc)" >&2; exit "$rc"; fi
 
-# Build the browsable HTML index + manifest from the catalog + the PNGs just produced.
-SHOTS_FOCUS="$focus" npx tsx scripts/dev/shots-index.ts "$out"
+# WHERE we render. The committed baseline (--commit) is refreshed COHERENT-ON-SUCCESS: render into a
+# staging dir and only sync to $out when the result is coherent, so a failed scene never leaves the
+# committed dir index-less or wiped. (The final sync is rm-then-cp, not a single rename, so a crash
+# mid-sync is the one narrow non-atomic window — the staged set is always coherent before it.) The
+# throwaway working dir (non-commit) renders in place — corruption there is harmless.
+if [ "$commit" = 1 ]; then
+  render="$(mktemp -d)/shots"; mkdir -p "$render"
+  # A PARTIAL refresh (--commit + a subset) must PRESERVE un-selected shots: seed staging with the
+  # current baseline PNGs, then render the selected scenes over them. A full --all starts empty.
+  if [ "$scope" != all ]; then cp "$out"/*.png "$render"/ 2>/dev/null || true; fi
+else
+  render="$out"
+  rm -f "$render"/*.png "$render"/index.html "$render"/manifest.json 2>/dev/null || true
+fi
+
+SHOTS=1 SHOTS_OUT="$render" npx playwright test e2e/screenshots.spec.ts "${grep_arg[@]}"
+rc=$?
+captured=$(ls "$render"/*.png 2>/dev/null | wc -l | tr -d ' ')
+[ "$rc" = 0 ] || echo "shots: capture run had failures (rc=$rc); $captured shot(s) produced" >&2
+
+if [ "$commit" = 1 ]; then
+  if [ "$captured" -eq 0 ]; then
+    # Catastrophic (e.g. the build failed): leave the existing baseline UNTOUCHED rather than wipe it.
+    echo "shots: 0 shots captured — baseline $out left untouched" >&2
+    rm -rf "$(dirname "$render")"
+    exit "${rc:-1}"
+  fi
+  # Build a coherent index over the staged set, then sync atomically into the committed baseline.
+  SHOTS_FOCUS="$focus" npx tsx scripts/dev/shots-index.ts "$render"
+  rm -f "$out"/*.png "$out"/index.html "$out"/manifest.json 2>/dev/null || true
+  cp "$render"/* "$out"/ 2>/dev/null || true
+  rm -rf "$(dirname "$render")"
+else
+  # Build the browsable HTML index + manifest from the catalog + the PNGs just produced.
+  SHOTS_FOCUS="$focus" npx tsx scripts/dev/shots-index.ts "$out"
+fi
+
 count=$(ls "$out"/*.png 2>/dev/null | wc -l | tr -d ' ')
 echo "shots: wrote $count screenshot(s) to $out"
+[ "$rc" = 0 ] || echo "shots: NOTE partial refresh — $out has a coherent index but is missing the failed scene(s)" >&2
 
 if [ "$commit" = 1 ]; then
   git add "$out" && echo "shots: staged $out (commit when ready)"
 fi
 
-[ -n "$pr" ] || exit 0
+# Exit reflects the capture outcome: a partial failure is non-zero even though the committed dir is
+# now coherent, so the operator (and CI) see the run wasn't fully green.
+[ -n "$pr" ] || exit "$rc"
 
 # ── Attach to PR #$pr: push the PNGs to the dedicated `screenshots` side branch (never merged), then
 #    post a gallery comment with SHA-pinned raw URLs, grouped from the run manifest. ───────────────
@@ -160,3 +198,4 @@ body="$(mktemp)"
 gh pr comment "$pr" --body-file "$body"
 rm -f "$body"
 echo "shots: posted gallery to PR #$pr"
+exit "$rc"

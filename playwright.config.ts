@@ -1,5 +1,6 @@
 import { defineConfig, devices } from "@playwright/test";
-import { E2E_AUTH_SECRET, E2E_DATABASE_URL } from "./e2e/db-server";
+import { E2E_AUTH_SECRET, e2eDatabaseUrl } from "./e2e/db-server";
+import { ensureE2EPorts } from "./e2e/ports";
 
 // E2E for the core loop (find topic → read → watch & weigh → contribute), run
 // against the Node SSR server (`yarn build` → `next start`) — issue #37 replaced the
@@ -11,7 +12,13 @@ import { E2E_AUTH_SECRET, E2E_DATABASE_URL } from "./e2e/db-server";
 // webServer needs a real DB + an Auth.js secret to behave like the deployed app — `globalSetup`
 // boots an ephemeral, seeded Postgres (e2e/db-server.ts) and `webServer.env` points the server
 // at it. (issue #47)
-const PORT = Number(process.env.E2E_PORT || 4321);
+//
+// Parallel-safe per run (issue #182): the Postgres + web ports are allocated FREE per run and
+// published to process.env HERE — first thing at config evaluation, before globalSetup and before
+// any reader resolves them — so the web server, baseURL, the webServer DATABASE_URL, and the
+// ephemeral Postgres all agree on the same per-run ports. Workers inherit this env, so they resolve
+// the identical ports. `E2E_PG_PORT` / `E2E_PORT` are honored when explicitly set.
+const { webPort: PORT } = ensureE2EPorts();
 
 // A non-empty placeholder YouTube key so the candidate source's `isEnabled()` is TRUE at BUILD
 // time (the key is `NEXT_PUBLIC_`, inlined into the client bundle). The live search call is then
@@ -48,7 +55,7 @@ export default defineConfig({
     timeout: 180_000,
     reuseExistingServer: !process.env.CI,
     env: {
-      DATABASE_URL: E2E_DATABASE_URL,
+      DATABASE_URL: e2eDatabaseUrl(),
       AUTH_SECRET: E2E_AUTH_SECRET,
       NEXT_PUBLIC_YOUTUBE_API_KEY: E2E_YOUTUBE_KEY,
     },
