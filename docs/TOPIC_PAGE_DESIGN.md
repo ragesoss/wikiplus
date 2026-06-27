@@ -84,9 +84,9 @@ A two-column layout from the top (article ~1fr, plus rail ~360px):
   article body sections with their real headings, wikilinks, figures, and (per the
   article-fidelity feature) the **Wikipedia infobox** float-right at the top — see *Two infoboxes*
   below.
-- **Right (plus rail, sticky):** the **wiki+ panel** (video / creator / curator counts), then the
-  **Table of Contents**, then the curated **section videos**. The rail is
-  present and pinned from the very top.
+- **Right (plus rail):** the **wiki+ panel** (video / creator / curator counts) and the
+  **Table of Contents** stay pinned (sticky) at the top of the column; the curated **section
+  videos** below them flow in the page's own scroll. The rail is present from the very top.
 
 ### Two infoboxes — a naming disambiguation (do not conflate)
 
@@ -255,16 +255,19 @@ dashed badge; neither, **no trailing badge** — the row shows just its title. E
 `sr-only` word (`curated` / `suggested, unvetted`) so the meaning is in the accessible name, never
 color or border-style alone.
 
-## Interaction: synchronized scrolling
+## Interaction: active-section pairing
 
-The article and the plus rail are **scroll-synchronized**:
+The article and the plus rail share the page's **one** vertical scroll — the rail is part of the
+document flow, never a separate scroll region. As you read, the **active section** is paired across
+the page:
 
-- Scrolling the **article** moves the plus rail to the active section's video(s) and highlights
-  the pairing (section marker + active card + TOC entry).
-- Scrolling the **plus rail** scrolls the article to that anchor.
+- Scrolling the **article** highlights the active section's pairing — the section marker, the
+  matching rail card, and the TOC entry — tracking the deepest heading past the reading line.
+- Clicking a **TOC entry** or a card's **section link** jumps the article to that section (and
+  marks it active).
 
-Anchoring is at **section granularity**. The exact sync mechanics
-(thresholds, easing, mobile single-column fallback) are an implementation-phase detail.
+Anchoring is at **section granularity**. The exact pairing mechanics (the reading-line threshold,
+easing, mobile single-column fallback) are an implementation-phase detail.
 
 ## Three states: empty / mixed / fully-curated
 
@@ -418,7 +421,7 @@ viewing experience share a single surface on the small screen. The desktop split
 - **Standard position + size (desktop `≥ lg`).** A fixed dock in the **bottom-left** corner
   (`bottom/left: 1rem`), width capped at `min(380px, calc(100vw − 2rem))`; vertical 9:16 Shorts are
   height-capped (`min(60vh, 460px)`) and the dock narrows to that frame. Bottom-**left** is deliberate:
-  the sticky plus rail and every candidate's **Curate / Not relevant** controls live on the right,
+  the plus rail and every candidate's **Curate / Not relevant** controls live on the right,
   so docking left keeps them visible and operable while the player is open (no overlap, no layout
   shift). On **mobile** the candidate plays in the unified mobile dock instead (below).
 - **Persistent + single instance.** `position: fixed`, survives scroll (iframe never re-mounts), one
