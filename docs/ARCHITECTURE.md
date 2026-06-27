@@ -247,9 +247,23 @@ curated before sign-in existed. See *Authentication & identity*.
     frozen `clip.upvotes` seed baseline **+** `COUNT(clip_vote rows)`, so it can never drift from the
     set of distinct real voters; `clip.upvotes` is never mutated by a vote. A viewer's "have I
     voted?" state comes **only** from `clip_vote` (never the seed).
+- **watchlist** (one contributor watching one topic — issue #162, the wiki+-side follow join)
+  - `id`, `contributor_id` → contributor (`onDelete: cascade`), `topic_id` → topic (`onDelete:
+    cascade`), `watched_at`
+  - **`unique(contributor_id, topic_id)`** — the **one-per-pair enforcement is this DB constraint**,
+    not app logic: a duplicate watch collides (the add inserts with `onConflictDoNothing`, so a
+    racing double-add lands watched, never doubled), `index(contributor_id)` covers the feed's
+    watched-membership read. A pure **join** — no payload; the watched topics carry everything.
+    Backs the topic-page **watch toggle** and the **`/watchlist` feed** (curations on watched topics,
+    newest first — see *Watchlist feed* below). **Watching is a personal follow available to any
+    signed-in contributor** (no role gate — only `requireContributor`); a deleted contributor's or
+    topic's watches cascade away. Both reads (`isWatching`, `listWatchlistCurations`) are **per-viewer
+    and off the cached topic read path** (the `clip_vote` voted-state posture) — an anonymous topic
+    load does no watch work. **Wikipedia-watchlist sync is an explicit future**, not this — the list
+    is entirely wiki+-side.
 - **write_event** (the per-identity write rate-limit ledger)
   - `id`, `contributor_id` → contributor (`onDelete: cascade`), `kind` (`add` | `upsert` | `upvote`
-    | `dismiss` | `edit` | `delete`), `created_at`
+    | `dismiss` | `edit` | `delete` | `topic-complete` | `hero` | `watch` | …), `created_at`
   - **`index(contributor_id, created_at)`** — supports the hot window check
     `COUNT(... WHERE contributor_id = ? AND created_at > now() - W)`. One row per **successful**
     counted gated write; the per-identity cap (default **N=60 / W=60s**, env-overridable) is enforced
@@ -1103,6 +1117,29 @@ database** on the VPS, so everyone on `wikiplus.wikiedu.org` reads and writes th
     built now. **Entry point:** the home page's "Recently curated" section carries a **"See all recent
     curations →"** link to `/recent` (the section shows recently-curated *topics*; the feed shows
     recently-curated *clips* — complementary).
+  - **Watchlist feed — `/watchlist` (issue #162).** A per-user feed of the curations on the topics the
+    signed-in viewer **watches**, newest first — the **same feed UI as `/recent`** (the
+    `RecentFeedView` body reused via a `scope` prop, the same `CurationBlock`, scroll/playback/
+    pagination/a11y model), sourced through **`listWatchlistCurations({ cursor?, limit?,
+    contributorId })`**. This is **NOT a second feed query**: it calls the SAME private keyset helper
+    (`recentCurationsPage`) as `listRecentCurations`, passing one extra `WHERE` — `clip.topic_id IN
+    (the viewer's watched topic ids)` — so the `(created_at desc, id desc)` ordering, the opaque
+    `(t, i)` cursor, the vouched-only visibility (`removed_at IS NULL` **and** `vetted = true`), and
+    the derived public upvote count are **identical by construction** (the issue's "reuse, don't
+    rebuild" contract). The page also carries **`watchedTopicCount`** so the view tells its two empty
+    states apart — **no topics watched** (go find some) vs. **watched-but-no-curations** (nothing new
+    yet) — with no second round-trip. **Login-gated + per-viewer:** `listWatchlistCurationsAction`
+    runs `requireContributor()` (a logged-out visit to `/watchlist` gets the login gate, never a blank
+    page or a leak of another user's list), and the feed is always scoped to the resolved
+    `contributor.id`. **Dynamic (uncached) render** like `/recent` (`export const dynamic =
+    "force-dynamic"`) — a per-user feed that changes on every curation to a watched topic does not fit
+    the (future) static/ISR per-topic shell. The reference `LocalStorageDataStore` derives the same
+    watched-scoped, newest-first, keyset-paged shape over its in-memory set (parity). **Watch
+    toggle:** the topic page's `Infobox` foot carries a login-gated **watch / un-watch** control
+    (shown to every viewer; a logged-out tap opens the login gate — the contribute-flywheel pattern);
+    the per-viewer "am I watching?" state is `isWatching`, hydrated off the read path. The watch write
+    (`setWatchAction`) is auth-gated + slots into the gate→limit→write contract (`write_event` kind
+    `watch`).
   - **Writes (server-DB):** `upsertTopic`, `addClip`, `recordDismissal` — **auth-gated** (rejected
     when anonymous; attributed to the real signed-in contributor). `updateClip` / `deleteClip` are also
     boundary actions (`updateClipAction` / `deleteClipAction`) — **auth-gated + owner-only**, the gate

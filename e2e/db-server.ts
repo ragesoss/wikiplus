@@ -266,6 +266,31 @@ export async function startE2EDatabase(): Promise<void> {
     }
     // Publish to the env (inherited by worker processes) — no shared file, so parallel-safe (#182).
     process.env[E2E_USER_ENV] = JSON.stringify({ contributorId: id, handle: E2E_USER_HANDLE });
+
+    // Watchlist (issue #162): seed the e2e contributor WATCHING the curated Photosynthesis topic
+    // (Q11982 — the one with seeded clips), so the `/watchlist` populated scene + the logged-in topic
+    // watch-control ("✓ Watching") capture against a real, non-empty per-user feed. A `SELECT` from
+    // `topic` resolves the topic id (the seed assigns serials); `ON CONFLICT DO NOTHING` keeps the
+    // boot idempotent. (The two watchlist EMPTY states are covered by unit tests, not scenes — a single
+    // e2e contributor can't simultaneously watch-nothing and watch-a-curated-topic.)
+    execFileSync(
+      pg(bin, "psql"),
+      [
+        "-h",
+        "127.0.0.1",
+        "-p",
+        String(pgPort),
+        "-U",
+        "postgres",
+        "-d",
+        E2E_PG_DB,
+        "-c",
+        `INSERT INTO watchlist (contributor_id, topic_id)
+         SELECT ${id}, t.id FROM topic t WHERE t.wikidata_qid = 'Q11982'
+         ON CONFLICT DO NOTHING;`,
+      ],
+      { stdio: "inherit" }
+    );
   } catch (e) {
     await stopE2EDatabase(); // tear down the half-built run — no orphan postmaster/datadir/record
     throw new Error(

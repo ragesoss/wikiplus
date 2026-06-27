@@ -35,6 +35,51 @@ const ITEM_HEIGHT = `calc(100dvh - ${SLIM_BAR_HEIGHT}px)`;
 type FeedState = "loading" | "empty" | "error" | "populated";
 type TailState = "idle" | "loading" | "error" | "end";
 
+// ── Feed SCOPE (issue #162). ─────────────────────────────────────────────────────────────────────
+// The one feed body serves BOTH `/recent` (the whole-site discovery feed, #160) and `/watchlist` (the
+// per-user feed of curations on watched topics, #162). The scroll/playback/pagination/a11y model is
+// IDENTICAL — only the data source + a little copy differ — so the difference is captured in a small
+// `FeedScope` the view is parameterized by, NOT a forked component (the issue's "reuse, don't rebuild"
+// contract). The route picks the scope; `/recent` defaults to `recentScope`.
+export interface FeedPage {
+  items: ContributorClip[];
+  nextCursor: string | null;
+  /** Watchlist only (#162): how many topics the viewer watches — distinguishes the two empties. */
+  watchedTopicCount?: number;
+}
+export interface FeedScope {
+  /** The document's single (visually-hidden) <h1>. */
+  h1: string;
+  /** The initial-loading announcement + status copy. */
+  loadingLabel: string;
+  /** The initial-error panel heading + body. */
+  errorHeading: string;
+  errorBody: string;
+  /** The end-of-feed marker's two lines. */
+  endPrimary: string;
+  endSecondary: string;
+  /** Fetch the first page (newest first). */
+  loadInitial(): Promise<FeedPage>;
+  /** Fetch the page strictly older than `cursor`. */
+  loadMore(cursor: string): Promise<FeedPage>;
+  /** Render the zero-items empty panel — scope-specific (the initial page is passed so the watchlist
+   *  scope can tell "no topics watched" from "watched but no curations" via `watchedTopicCount`). */
+  renderEmpty(page: FeedPage): React.ReactNode;
+}
+
+/** The `/recent` scope (#160): the whole-site feed, the original copy + the global recent read. */
+export const recentScope: FeedScope = {
+  h1: "Recent curations",
+  loadingLabel: "Loading recent curations…",
+  errorHeading: "Couldn't load the feed",
+  errorBody: "Something went wrong loading recent curations.",
+  endPrimary: "You're all caught up.",
+  endSecondary: "That's every curation, newest first.",
+  loadInitial: () => store.listRecentCurations({}),
+  loadMore: (cursor) => store.listRecentCurations({ cursor }),
+  renderEmpty: () => <RecentEmptyPanel />,
+};
+
 /** Mount-time reduced-motion signal (the SiteHeader/useIsPhone matchMedia pattern). Default false
  *  for SSR; refines after mount. Gates any PROGRAMMATIC smooth scroll (§3.1/§8.5). */
 function useReducedMotion(): boolean {
@@ -54,7 +99,7 @@ function useReducedMotion(): boolean {
   return reduced;
 }
 
-export function RecentFeedView() {
+export function RecentFeedView({ scope = recentScope }: { scope?: FeedScope }) {
   // The signed-in viewer (already-authenticated client session — no read-path cost). Used ONLY to
   // pass `signedIn` to the CurationBlock (it renders the same feed either way — §6.3); never a gate.
   const { data: session } = useSession();
@@ -65,6 +110,9 @@ export function RecentFeedView() {
   const [tailState, setTailState] = useState<TailState>("idle");
   const [items, setItems] = useState<ContributorClip[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
+  // The initial page is kept so the scope's empty panel can read scope-specific fields (the
+  // watchlist's `watchedTopicCount` distinguishes its two empty states — #162).
+  const [initialPage, setInitialPage] = useState<FeedPage | null>(null);
   // Which item is the single active player (its id), or null when nothing plays (§3.3).
   const [playingId, setPlayingId] = useState<string | null>(null);
 
@@ -83,7 +131,8 @@ export function RecentFeedView() {
     setFeedState("loading");
     setTailState("idle");
     try {
-      const page = await store.listRecentCurations({});
+      const page = await scope.loadInitial();
+      setInitialPage(page);
       setItems(page.items);
       setCursor(page.nextCursor);
       if (page.items.length === 0) {
@@ -97,7 +146,7 @@ export function RecentFeedView() {
     } finally {
       loadingRef.current = false;
     }
-  }, []);
+  }, [scope]);
 
   useEffect(() => {
     void loadInitial();
@@ -110,7 +159,7 @@ export function RecentFeedView() {
     loadingRef.current = true;
     setTailState("loading");
     try {
-      const page = await store.listRecentCurations({ cursor });
+      const page = await scope.loadMore(cursor);
       setItems((prev) => [...prev, ...page.items]);
       setCursor(page.nextCursor);
       setTailState(page.nextCursor ? "idle" : "end");
@@ -119,7 +168,7 @@ export function RecentFeedView() {
     } finally {
       loadingRef.current = false;
     }
-  }, [cursor]);
+  }, [cursor, scope]);
 
   // ── The infinite-scroll sentinel (§3.4): when it scrolls into view, fetch the next page. The
   //    keyboard/AT "Show more" button (rendered in the tail) is the always-present fallback for a
@@ -181,22 +230,26 @@ export function RecentFeedView() {
   // ── State precedence (§4.5): error > loading > empty > populated. The header always renders. ──
   if (feedState === "loading") {
     return (
-      <Shell header={header}>
-        <InitialLoading />
+      <Shell header={header} h1={scope.h1}>
+        <InitialLoading label={scope.loadingLabel} />
       </Shell>
     );
   }
   if (feedState === "error") {
     return (
-      <Shell header={header}>
-        <InitialError onRetry={() => void loadInitial()} />
+      <Shell header={header} h1={scope.h1}>
+        <InitialError
+          heading={scope.errorHeading}
+          body={scope.errorBody}
+          onRetry={() => void loadInitial()}
+        />
       </Shell>
     );
   }
   if (feedState === "empty") {
     return (
-      <Shell header={header}>
-        <EmptyPanel />
+      <Shell header={header} h1={scope.h1}>
+        {scope.renderEmpty(initialPage ?? { items: [], nextCursor: null })}
       </Shell>
     );
   }
@@ -207,7 +260,7 @@ export function RecentFeedView() {
     <main>
       {header}
       {/* The document's single top-level heading, visually hidden (§8.1) — like the home page. */}
-      <h1 className="sr-only">Recent curations</h1>
+      <h1 className="sr-only">{scope.h1}</h1>
       <ol
         ref={trackRef}
         role="list"
@@ -249,6 +302,8 @@ export function RecentFeedView() {
         >
           <Tail
             state={tailState}
+            endPrimary={scope.endPrimary}
+            endSecondary={scope.endSecondary}
             onMore={() => void loadMore()}
             onRetry={() => void loadMore()}
             onBackToTop={backToTop}
@@ -263,15 +318,17 @@ export function RecentFeedView() {
 //    The track height keeps the panel centred in the usable viewport below the slim header. ──
 function Shell({
   header,
+  h1,
   children,
 }: {
   header: React.ReactNode;
+  h1: string;
   children: React.ReactNode;
 }) {
   return (
     <main>
       {header}
-      <h1 className="sr-only">Recent curations</h1>
+      <h1 className="sr-only">{h1}</h1>
       <div
         className="flex items-center justify-center bg-[var(--color-content-white)] px-5"
         style={{ minHeight: ITEM_HEIGHT }}
@@ -285,14 +342,14 @@ function Shell({
 // ── Loading (initial, §4.1). A polite announcement + 2 skeleton item placeholders (a black stage box
 //    + a light note-card silhouette) so the layout reads as the feed, not a blank page. Static under
 //    reduced motion (no pulse) — handled by the global .animate-pulse reduced-motion suppression. ──
-function InitialLoading() {
+function InitialLoading({ label }: { label: string }) {
   return (
     <div
       aria-busy="true"
       className="w-full max-w-[760px]"
     >
       <p className="sr-only" role="status" aria-live="polite">
-        Loading recent curations…
+        {label}
       </p>
       <div className="space-y-6">
         {[0, 1].map((i) => (
@@ -313,7 +370,7 @@ function InitialLoading() {
 // ── Empty (§4.2): the read succeeded with ZERO items (the bootstrap state). A light-register panel
 //    that sends the reader to find a topic — the honest path (you curate ON a topic). Mirrors the
 //    home page's empty "Recently curated" voice so the two surfaces read as one product. ──
-function EmptyPanel() {
+function RecentEmptyPanel() {
   return (
     <div className="w-full max-w-[460px] border-2 border-hardbox bg-surface-raised p-6 text-center shadow-[4px_4px_0_var(--color-hardbox-offset)]">
       <h2 className="plus-disp text-xl font-bold text-ink-plus">No curations yet</h2>
@@ -333,13 +390,19 @@ function EmptyPanel() {
 
 // ── Error (initial read failed, §4.3): an honest line + a Try-again button (one keyboard action),
 //    never a spinner-forever. The header still renders (the Shell provides it). ──
-function InitialError({ onRetry }: { onRetry: () => void }) {
+function InitialError({
+  heading,
+  body,
+  onRetry,
+}: {
+  heading: string;
+  body: string;
+  onRetry: () => void;
+}) {
   return (
     <div className="w-full max-w-[460px] border-2 border-hardbox bg-surface-raised p-6 text-center shadow-[4px_4px_0_var(--color-hardbox-offset)]">
-      <h2 className="plus-disp text-xl font-bold text-ink-plus">Couldn&apos;t load the feed</h2>
-      <p className="mt-2 text-sm leading-relaxed text-ink2">
-        Something went wrong loading recent curations.
-      </p>
+      <h2 className="plus-disp text-xl font-bold text-ink-plus">{heading}</h2>
+      <p className="mt-2 text-sm leading-relaxed text-ink2">{body}</p>
       <button
         type="button"
         onClick={onRetry}
@@ -360,11 +423,15 @@ function InitialError({ onRetry }: { onRetry: () => void }) {
 //      end     → the end-of-feed marker + a "Back to top" button.
 function Tail({
   state,
+  endPrimary,
+  endSecondary,
   onMore,
   onRetry,
   onBackToTop,
 }: {
   state: TailState;
+  endPrimary: string;
+  endSecondary: string;
   onMore: () => void;
   onRetry: () => void;
   onBackToTop: () => void;
@@ -377,8 +444,8 @@ function Tail({
     >
       {state === "end" ? (
         <>
-          <p className="plus-disp text-lg font-bold text-ink-plus">You&apos;re all caught up.</p>
-          <p className="mt-1 text-sm text-ink2">That&apos;s every curation, newest first.</p>
+          <p className="plus-disp text-lg font-bold text-ink-plus">{endPrimary}</p>
+          <p className="mt-1 text-sm text-ink2">{endSecondary}</p>
           <button
             type="button"
             onClick={onBackToTop}

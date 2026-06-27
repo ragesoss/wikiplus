@@ -24,7 +24,9 @@ import type {
   Topic,
   TopicWithStats,
   UpvoteToggle,
+  WatchlistCurationsPage,
 } from "@/lib/data/types";
+import type { SQL } from "drizzle-orm";
 import { RECENT_PAGE_DEFAULT } from "@/lib/data/types";
 import {
   decodeRecentCursor,
@@ -39,7 +41,14 @@ import {
   rowToPublicContributor,
   rowToTopic,
 } from "./mappers";
-import { clip, clipVote, contributor, dismissedCandidate, topic } from "./schema";
+import {
+  clip,
+  clipVote,
+  contributor,
+  dismissedCandidate,
+  topic,
+  watchlist,
+} from "./schema";
 
 // The Postgres-backed DataStore (issue #45). Implements the FULL DataStore interface
 // (lib/data/store.ts) server-side, behind the lib/data/index.ts seam (the swap point).
@@ -541,6 +550,23 @@ export class DrizzleDataStore implements DataStore {
     cursor?: string | null;
     limit?: number;
   }): Promise<RecentCurationsPage> {
+    // The unscoped, cross-topic feed: the shared keyset query with NO extra filter (every visible
+    // clip across all topics). The watchlist feed reuses the SAME helper with a watched-topic filter.
+    return this.recentCurationsPage(input);
+  }
+
+  /**
+   * The shared cross-topic keyset feed query (issue #160 / #162). `listRecentCurations` calls it with
+   * no extra filter; `listWatchlistCurations` passes `extraWhere = inArray(clip.topicId, watched)` to
+   * scope it to the viewer's watched topics. Identical ordering (`created_at desc, id desc`), opaque
+   * `(t, i)` cursor, vouched-only visibility (`removed_at IS NULL` AND `vetted = true`), `limit + 1`
+   * has-more probe, and derived public upvote count — so the watchlist feed is the recent feed with a
+   * topic-set filter, NOT a second implementation (the issue's "reuse, don't rebuild" contract).
+   */
+  private async recentCurationsPage(
+    input?: { cursor?: string | null; limit?: number },
+    extraWhere?: SQL | undefined
+  ): Promise<RecentCurationsPage> {
     const limit =
       input?.limit && input.limit > 0 ? input.limit : RECENT_PAGE_DEFAULT;
     const cursor = decodeRecentCursor(input?.cursor);
@@ -548,8 +574,9 @@ export class DrizzleDataStore implements DataStore {
     // Visibility predicate (§3.4 / OQ-2): the cross-topic public shopfront shows only VOUCHED,
     // non-removed clips. `removed_at IS NULL` matches every read; `vetted = true` EXCLUDES held
     // clips (the topic read shows held-but-marked because the curator/moderator is in context — the
-    // feed is the site's vouch, so a not-yet-vouched clip does not appear here).
-    const visible = and(isNull(clip.removedAt), eq(clip.vetted, true));
+    // feed is the site's vouch, so a not-yet-vouched clip does not appear here). `extraWhere` (the
+    // watchlist's watched-topic filter, issue #162) is AND-ed on with no other change.
+    const visible = and(isNull(clip.removedAt), eq(clip.vetted, true), extraWhere);
 
     // Keyset boundary (§3.4): strictly OLDER than the cursor in the `(created_at desc, id desc)`
     // order — `created_at < t OR (created_at = t AND id < i)`. This is the dupe/gap-free stable
@@ -616,6 +643,98 @@ export class DrizzleDataStore implements DataStore {
         })
       : null;
     return { items, nextCursor };
+  }
+
+  // ── Watchlist (issue #162 — per-user followed topics + the watchlist feed) ───────────
+  async addWatch(topicQid: string, contributorId?: number): Promise<void> {
+    // The auth-gated boundary always passes the authenticated contributor; the optional path keeps
+    // the store-level tests + reference impl callable. A watch must be attributed to a real identity.
+    if (contributorId === undefined) {
+      throw new Error("addWatch: no contributor to attribute the watch to.");
+    }
+    const topicId = await this.topicIdForQid(topicQid);
+    if (topicId === null) return; // nothing to watch against an unknown topic (no row to reference)
+    // IDEMPOTENT on the `(contributor, topic)` unique identity: re-watching is a no-op, and a racing
+    // double-add collides on the constraint and lands as exactly one row (never doubled / a throw) —
+    // the `clip_vote`/`dismissed_candidate` upsert pattern.
+    await this.db
+      .insert(watchlist)
+      .values({ contributorId, topicId })
+      .onConflictDoNothing({
+        target: [watchlist.contributorId, watchlist.topicId],
+      });
+  }
+
+  async removeWatch(topicQid: string, contributorId?: number): Promise<void> {
+    if (contributorId === undefined) {
+      throw new Error("removeWatch: no contributor to scope the un-watch to.");
+    }
+    const topicId = await this.topicIdForQid(topicQid);
+    if (topicId === null) return; // unknown topic → nothing watched to remove (idempotent no-op)
+    // Delete the one (contributor, topic) row if present; deleting an absent row is a no-op landing
+    // in "not watching" (idempotent).
+    await this.db
+      .delete(watchlist)
+      .where(
+        and(
+          eq(watchlist.contributorId, contributorId),
+          eq(watchlist.topicId, topicId)
+        )
+      );
+  }
+
+  async isWatching(topicQid: string, contributorId?: number): Promise<boolean> {
+    // The boundary passes the authenticated viewer; an absent one (logged out) is NOT watching —
+    // never a per-user query for an anonymous caller (the `votedClipIds` posture, off the read path).
+    if (contributorId === undefined) return false;
+    const topicId = await this.topicIdForQid(topicQid);
+    if (topicId === null) return false;
+    const rows = await this.db
+      .select({ id: watchlist.id })
+      .from(watchlist)
+      .where(
+        and(
+          eq(watchlist.contributorId, contributorId),
+          eq(watchlist.topicId, topicId)
+        )
+      )
+      .limit(1);
+    return rows.length > 0;
+  }
+
+  async listWatchlistCurations(input?: {
+    cursor?: string | null;
+    limit?: number;
+    contributorId?: number;
+  }): Promise<WatchlistCurationsPage> {
+    // The boundary passes the authenticated viewer; an absent one (logged out) has an empty watchlist
+    // — never a per-user feed query for an anonymous caller (the route is login-gated anyway, AC7).
+    const contributorId = input?.contributorId;
+    if (contributorId === undefined) {
+      return { items: [], nextCursor: null, watchedTopicCount: 0 };
+    }
+    // The viewer's watched topic ids — the small per-user set that scopes the feed. One indexed read
+    // (the `watchlist_contributor_idx`). The count drives the two-empty distinction (AC9/AC10).
+    const watched = await this.db
+      .select({ topicId: watchlist.topicId })
+      .from(watchlist)
+      .where(eq(watchlist.contributorId, contributorId));
+    const watchedTopicCount = watched.length;
+    if (watchedTopicCount === 0) {
+      // No topics watched → no feed (AC9: the "find a topic" empty). Skip the clip query entirely.
+      return { items: [], nextCursor: null, watchedTopicCount: 0 };
+    }
+    // REUSE the #160 keyset query with the ONLY scope difference: clips whose parent topic is in the
+    // watched set (AC4/AC5). Everything else — ordering, cursor, vouched-only visibility, derived
+    // counts — is identical, by construction (the shared `recentCurationsPage` helper).
+    const page = await this.recentCurationsPage(
+      { cursor: input?.cursor, limit: input?.limit },
+      inArray(
+        clip.topicId,
+        watched.map((w) => w.topicId)
+      )
+    );
+    return { ...page, watchedTopicCount };
   }
 
   // ── Sticky dismissals (shared + durable — AC5) ─────────────────────────────────────
