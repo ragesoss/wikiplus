@@ -230,7 +230,13 @@ test.describe("Article fidelity (#24–#27) — browser-only criteria", () => {
     await expect(hatnote).toHaveCSS("font-style", "italic");
   });
 
-  test("D5/D6 — restored tail sections appear as TOC rows with a 'no video' badge; scroll-sync tracks them", async ({
+  // The video-less tail rows carry NO count badge — the TOC shows a curated count and/or an
+  // unvetted-suggestion count only where a section has one, and just the title where it has neither
+  // (Toc.tsx §5.2). Both badge spans carry a telltale `title` ("…curated video(s)" /
+  // "…unvetted suggestion(s)"), so their ABSENCE in a row is the zero-count assertion.
+  const COUNT_BADGE = 'span[title*="curated video"], span[title*="unvetted suggestion"]';
+
+  test("D5/D6 — restored tail sections appear as TOC rows (no count badge); scroll-sync tracks them", async ({
     page,
   }) => {
     await page.goto("/topic/Photosynthesis/");
@@ -239,37 +245,37 @@ test.describe("Article fidelity (#24–#27) — browser-only criteria", () => {
     const toc = page.getByRole("navigation", { name: "Table of contents" });
     await expect(toc.getByText("References")).toBeVisible();
     await expect(toc.getByText("See also")).toBeVisible();
-    // They are video-less → "no video" badge present in the TOC.
-    await expect(toc.getByText("no video").first()).toBeVisible();
-    // Scroll-sync tracks the tail: the feature wires tail sections into scroll-sync
-    // exactly like content sections (real `.sec` wrapper + setSectionRef). Scroll the
-    // See-also heading past the reading line (HEAD+READ=184) with genuine wheel events
-    // (the article→rail onScroll handler is rAF-debounced and needs real scroll events,
-    // not one synthetic jump) and assert it becomes the active section.
-    //   It is made viewport-tall on purpose so its heading CAN rise above the line while
-    //   its body still fills the screen. NOTE: a *very short trailing* section can't
-    //   activate — the page runs out of scroll before its heading reaches the line. That
-    //   is PRE-EXISTING scroll-spy geometry (it affects the last content section too),
-    //   unchanged by this feature, not a tail-specific defect.
+    // They are video-less → no count badge (the row shows just its title).
+    await expect(toc.locator("li", { hasText: "See also" }).locator(COUNT_BADGE)).toHaveCount(0);
+    // Scroll-sync tracks the tail: the feature wires tail sections into scroll-sync exactly like
+    // content sections (real `.sec` wrapper + setSectionRef). Position the See-also heading just
+    // past the reading line (HEAD+READ=176) and nudge with a real wheel event (the article→rail
+    // onScroll handler is rAF-debounced); assert it becomes the active section.
+    //   See also is made viewport-tall on purpose so its heading CAN rise above the line while its
+    //   body still fills the screen. NOTE: a *very short trailing* section can't activate — the page
+    //   runs out of scroll before its heading reaches the line. That is PRE-EXISTING scroll-spy
+    //   geometry (it affects the last content section too), not a tail-specific defect.
     const seeAlso = page.locator("#sec-see-also");
-    await seeAlso.getByRole("heading", { name: "See also" }).scrollIntoViewIfNeeded();
-    for (let i = 0; i < 6; i++) {
-      await page.mouse.wheel(0, 40);
-      await page.waitForTimeout(120);
-    }
+    await page.evaluate(() => {
+      const el = document.getElementById("sec-see-also");
+      if (!el) return;
+      const line = 56 + 120; // HEAD + READ
+      window.scrollTo(0, window.scrollY + el.getBoundingClientRect().top - (line - 12));
+    });
+    await page.mouse.wheel(0, 2);
     await expect(seeAlso).toHaveClass(/\bactive\b/);
   });
 
-  test("D6 — no clip is mis-anchored to a tail section (tail TOC rows stay zero-count)", async ({
+  test("D6 — no clip is mis-anchored to a tail section (tail TOC rows carry no count badge)", async ({
     page,
   }) => {
     await page.goto("/topic/Photosynthesis/");
     await expect(page.getByText("Videos", { exact: true })).toBeVisible();
     const toc = page.getByRole("navigation", { name: "Table of contents" });
-    // The References / See also rows show "no video", never a numeric count badge.
-    const refRow = toc.locator("li", { hasText: "References" });
-    await expect(refRow.getByText("no video")).toBeVisible();
-    const seeAlsoRow = toc.locator("li", { hasText: "See also" });
-    await expect(seeAlsoRow.getByText("no video")).toBeVisible();
+    // The References / See also rows carry NO count badge → no clip is anchored to a tail section.
+    await expect(toc.getByText("References")).toBeVisible();
+    await expect(toc.getByText("See also")).toBeVisible();
+    await expect(toc.locator("li", { hasText: "References" }).locator(COUNT_BADGE)).toHaveCount(0);
+    await expect(toc.locator("li", { hasText: "See also" }).locator(COUNT_BADGE)).toHaveCount(0);
   });
 });

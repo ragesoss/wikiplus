@@ -166,19 +166,21 @@ test.describe("Curated topic — read & weigh (AC1–AC13)", () => {
   }) => {
     await page.goto("/topic/Photosynthesis/");
     await expect(page.getByText("Videos", { exact: true })).toBeVisible();
-    // Scroll a clip-bearing section past the reading line; the article→rail sync
-    // (TopicView onScroll, AC12) sets `.sec.active` on that section. This auto-follow
-    // is layout-dependent (real geometry), so it is only verifiable in a real browser.
+    // Scroll so the clip-bearing section's heading sits just past the reading line
+    // (HEAD+READ=176); the article→rail sync (TopicView onScroll, AC12) then marks that section
+    // `.sec.active`. This auto-follow is layout-dependent (real geometry), so it is only
+    // verifiable in a real browser. Position the section DETERMINISTICALLY just above the line so it
+    // is the deepest section above it (not overshot to the next one), then nudge with a real wheel
+    // event to fire the rAF-debounced window-scroll handler.
     const sec = page.locator("#sec-calvin-cycle");
     await expect(sec).toBeVisible();
-    // Bring the heading to the line, then drive REAL wheel events: the article→rail onScroll
-    // handler is rAF-debounced and needs genuine scroll events, not a single synthetic
-    // scrollIntoView jump (mirrors the D5/D6 article-fidelity scroll-sync technique).
-    await sec.getByRole("heading", { name: "Calvin cycle" }).scrollIntoViewIfNeeded();
-    for (let i = 0; i < 8; i++) {
-      await page.mouse.wheel(0, 50);
-      await page.waitForTimeout(120);
-    }
+    await page.evaluate(() => {
+      const el = document.getElementById("sec-calvin-cycle");
+      if (!el) return;
+      const line = 56 + 120; // HEAD + READ
+      window.scrollTo(0, window.scrollY + el.getBoundingClientRect().top - (line - 12));
+    });
+    await page.mouse.wheel(0, 2);
     await expect(sec).toHaveClass(/\bactive\b/);
   });
 });
@@ -193,12 +195,13 @@ test.describe("Uncurated topic — empty state & contribute (AC14–AC19)", () =
   }) => {
     await page.goto("/topic/Cellular_respiration/");
     await expect(page.getByText("uncurated videos")).toBeVisible();
-    await expect(
-      page.getByRole("button", { name: "Browse suggested videos" })
-    ).toBeVisible();
+    // An uncurated topic shows the Suggested band DIRECTLY (auto-found, unvetted candidates) — there
+    // is no reveal/browse gate to click first.
     await expect(page.getByText("＋ Suggested videos")).toBeVisible();
     await expect(page.getByText("uncurated").first()).toBeVisible();
     await expect(page.getByText("Suggested").first()).toBeVisible();
+    // AC16 — the unvetted candidates are listed (the five stubbed YouTube suggestions).
+    await expect(page.getByRole("button", { name: /^Play:/ })).toHaveCount(5);
     // AC15 — no chips on candidates
     await expect(page.getByText("Curator note")).toHaveCount(0);
   });
