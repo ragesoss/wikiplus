@@ -1,4 +1,4 @@
-// Ephemeral Postgres for the e2e suite (issue #47).
+// Ephemeral Postgres for the e2e suite (issue #47), parallel-safe per run (issue #182).
 //
 // WHY THIS EXISTS. As of issue #45 the data layer is shared Postgres reached through Server
 // Actions (see docs/ARCHITECTURE.md "Persistence"). The e2e webServer runs the REAL server
@@ -9,22 +9,43 @@
 // pglite, but `next start` runs the postgres.js TCP driver, which pglite cannot back — hence a
 // real, ephemeral Postgres here.)
 //
-// WHAT IT DOES. Boots a throwaway Postgres cluster under a temp datadir using the system
-// `initdb`/`pg_ctl` binaries, on a fixed loopback port, then applies the Drizzle migrations +
-// the environment-agnostic seed (the SAME `scripts/migrate.ts` deploy path) so the suite runs
-// against the exact seeded shape the deployed app opens with (the three demo topics + the
-// curated Photosynthesis clips). Playwright `globalSetup` starts it before the webServer;
-// `globalTeardown` stops it and removes the datadir. Deterministic + offline (no network).
+// WHAT IT DOES. Boots a throwaway Postgres cluster under a per-run temp datadir using the system
+// `initdb`/`pg_ctl` binaries, on a PER-RUN FREE port (so two sessions never collide — see
+// e2e/ports.ts), then applies the Drizzle migrations + the environment-agnostic seed (the SAME
+// `scripts/migrate.ts` deploy path) so the suite runs against the exact seeded shape the deployed
+// app opens with (the three demo topics + the curated Photosynthesis clips). Playwright
+// `globalSetup` starts it before the webServer; `globalTeardown` stops it and removes the datadir.
+// Deterministic + offline (no network). Each run is recorded so a crash can be reaped (`reapE2E`).
 
 import { execFileSync, spawnSync } from "node:child_process";
-import { existsSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { basename, join } from "node:path";
+import { ensureE2EPorts } from "./ports";
 
-/** Loopback port for the throwaway cluster — high + fixed so the webServer env can point at it. */
-export const E2E_PG_PORT = Number(process.env.E2E_PG_PORT || 54330);
 export const E2E_PG_DB = "wikiplus_e2e";
-export const E2E_DATABASE_URL = `postgres://postgres@127.0.0.1:${E2E_PG_PORT}/${E2E_PG_DB}`;
+
+/** The per-run Postgres port (allocated free per run; honors an explicit E2E_PG_PORT). */
+export function e2ePgPort(): number {
+  return ensureE2EPorts().pgPort;
+}
+
+/**
+ * DATABASE_URL for the per-run ephemeral cluster. A FUNCTION (read at call time), not a module
+ * constant, so playwright.config.ts (config evaluation) and `startE2EDatabase()` (globalSetup) both
+ * resolve the SAME per-run port that `ensureE2EPorts()` published to `process.env`. (#182)
+ */
+export function e2eDatabaseUrl(): string {
+  return `postgres://postgres@127.0.0.1:${e2ePgPort()}/${E2E_PG_DB}`;
+}
 
 // A test contributor seeded into the e2e DB so the auth helper (e2e/auth.ts) can mint a signed-in
 // session that maps to a REAL contributor row (the write boundary attributes to contributor.id).
@@ -45,6 +66,43 @@ export const E2E_SESSION_COOKIE = "authjs.session-token";
 // A datadir under the OS temp root, recorded so teardown can find + remove it. Kept in an env
 // var (not a module global) because globalSetup and globalTeardown run in separate processes.
 const DATADIR_ENV = "E2E_PG_DATADIR";
+const DATADIR_PREFIX = "wikiplus-e2e-pg-";
+
+// Per-run registry: each run drops a small record so a crashed run (no teardown) can be reaped by
+// its OWN recorded port/datadir — never a command-line pattern match (which would kill the
+// operator's shell). `stopE2EDatabase` deletes the record on clean exit, so a leftover = a crash.
+const RUNS_DIR = join(tmpdir(), "wikiplus-e2e-runs");
+
+interface RunRecord {
+  datadir: string;
+  pgPort: number;
+  webPort: number;
+  pgPid: number | null;
+  // The Playwright runner pid that owns this run. Lets `reapE2E` tell a LIVE run from an orphan.
+  ownerPid: number;
+}
+
+function recordPath(datadir: string): string {
+  return join(RUNS_DIR, `${basename(datadir)}.json`);
+}
+
+function readPostmasterPid(datadir: string): number | null {
+  try {
+    const pid = Number(readFileSync(join(datadir, "postmaster.pid"), "utf8").split("\n", 1)[0]?.trim());
+    return Number.isInteger(pid) && pid > 0 ? pid : null;
+  } catch {
+    return null;
+  }
+}
+
+function isAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (e) {
+    return (e as NodeJS.ErrnoException).code === "EPERM"; // exists but not ours
+  }
+}
 
 /**
  * Locate the Postgres server bin directory (where `initdb`/`pg_ctl`/`postgres` live). Debian
@@ -84,34 +142,78 @@ function pg(bin: string, exe: string): string {
 /** Boot the throwaway cluster, create the DB, and apply migrations + seed. Idempotent-ish. */
 export async function startE2EDatabase(): Promise<void> {
   const bin = findPgBin();
-  const datadir = mkdtempSync(join(tmpdir(), "wikiplus-e2e-pg-"));
+  const { pgPort, webPort } = ensureE2EPorts();
+  const databaseUrl = e2eDatabaseUrl();
+  const datadir = mkdtempSync(join(tmpdir(), DATADIR_PREFIX));
   process.env[DATADIR_ENV] = datadir;
+  const logFile = join(datadir, "postmaster.log");
 
-  // initdb: trust auth on loopback (throwaway cluster, never reachable off-box), UTF8.
-  execFileSync(
-    pg(bin, "initdb"),
-    ["-D", datadir, "-U", "postgres", "--auth=trust", "-E", "UTF8"],
-    { stdio: "ignore" }
-  );
+  try {
+    // initdb: trust auth on loopback (throwaway cluster, never reachable off-box), UTF8.
+    execFileSync(
+      pg(bin, "initdb"),
+      ["-D", datadir, "-U", "postgres", "--auth=trust", "-E", "UTF8"],
+      { stdio: "ignore" }
+    );
 
-  // Start: bind loopback only, put the unix socket inside the datadir (no /tmp clash with a
-  // system Postgres), and disable fsync for a faster throwaway boot.
-  execFileSync(
-    pg(bin, "pg_ctl"),
-    [
-      "-D",
+    // Start: bind loopback only on the per-run port, put the unix socket inside the datadir (no
+    // /tmp clash with a system Postgres), disable fsync for a faster throwaway boot. `-l` captures
+    // the postmaster log so a bind failure is legible; PGCTLTIMEOUT bounds the `-w` readiness wait
+    // (it has been observed to hang under PostgreSQL 18 here).
+    execFileSync(
+      pg(bin, "pg_ctl"),
+      [
+        "-D",
+        datadir,
+        "-l",
+        logFile,
+        "-w", // wait until accepting connections
+        "-o",
+        `-p ${pgPort} -k ${datadir} -c listen_addresses=127.0.0.1 -c fsync=off`,
+        "start",
+      ],
+      { stdio: "ignore", env: { ...process.env, PGCTLTIMEOUT: process.env.PGCTLTIMEOUT || "60" } }
+    );
+  } catch (e) {
+    // Fail fast + legible: surface the port, the datadir, the postmaster log tail, and the reap
+    // hint — not a swallowed execFileSync throw.
+    let tail = "";
+    try {
+      tail = readFileSync(logFile, "utf8").trim().split("\n").slice(-8).join("\n");
+    } catch {
+      /* no log */
+    }
+    try {
+      rmSync(datadir, { recursive: true, force: true });
+    } catch {
+      /* best effort */
+    }
+    throw new Error(
+      `e2e: Postgres failed to start on port ${pgPort} (datadir ${datadir}).\n` +
+        "Another run holding the port, or a crashed one? Run `yarn e2e:reap` to clear orphans, or " +
+        "set E2E_PG_PORT to a known-free port.\n" +
+        (tail ? `postmaster log tail:\n${tail}` : `(no postmaster log: ${(e as Error).message})`)
+    );
+  }
+
+  // Record this run so a crash leaves a reapable trail keyed by OUR port + datadir.
+  try {
+    mkdirSync(RUNS_DIR, { recursive: true });
+    const rec: RunRecord = {
       datadir,
-      "-w", // wait until accepting connections
-      "-o",
-      `-p ${E2E_PG_PORT} -k ${datadir} -c listen_addresses=127.0.0.1 -c fsync=off`,
-      "start",
-    ],
-    { stdio: "ignore" }
-  );
+      pgPort,
+      webPort,
+      pgPid: readPostmasterPid(datadir),
+      ownerPid: process.pid,
+    };
+    writeFileSync(recordPath(datadir), JSON.stringify(rec));
+  } catch {
+    /* a missing record only weakens reaping; never fail the run over it */
+  }
 
   execFileSync(
     pg(bin, "psql"),
-    ["-h", "127.0.0.1", "-p", String(E2E_PG_PORT), "-U", "postgres", "-c", `CREATE DATABASE ${E2E_PG_DB};`],
+    ["-h", "127.0.0.1", "-p", String(pgPort), "-U", "postgres", "-c", `CREATE DATABASE ${E2E_PG_DB};`],
     { stdio: "ignore" }
   );
 
@@ -120,7 +222,7 @@ export async function startE2EDatabase(): Promise<void> {
   // the local binary with DATABASE_URL pointed at the throwaway cluster.
   execFileSync("yarn", ["db:migrate"], {
     stdio: "inherit",
-    env: { ...process.env, DATABASE_URL: E2E_DATABASE_URL },
+    env: { ...process.env, DATABASE_URL: databaseUrl },
   });
 
   // Seed the e2e test contributor and record its id for the auth helper. RETURNING the id means we
@@ -135,7 +237,7 @@ export async function startE2EDatabase(): Promise<void> {
       "-h",
       "127.0.0.1",
       "-p",
-      String(E2E_PG_PORT),
+      String(pgPort),
       "-U",
       "postgres",
       "-d",
@@ -157,7 +259,7 @@ export async function startE2EDatabase(): Promise<void> {
   writeFileSync(E2E_USER_FILE, JSON.stringify({ contributorId: id, handle: E2E_USER_HANDLE }));
 }
 
-/** Stop the cluster and remove its datadir. Best-effort: never throws out of teardown. */
+/** Stop the cluster and remove its datadir + run record. Best-effort: never throws out of teardown. */
 export async function stopE2EDatabase(): Promise<void> {
   const datadir = process.env[DATADIR_ENV];
   if (!datadir) return;
@@ -179,4 +281,133 @@ export async function stopE2EDatabase(): Promise<void> {
   } catch {
     /* best effort */
   }
+  try {
+    rmSync(recordPath(datadir), { force: true });
+  } catch {
+    /* best effort */
+  }
+}
+
+/** PIDs LISTENing on `port` (exact match — never a command-line grep). lsof, then fuser fallback. */
+function listenerPids(port: number): number[] {
+  const res = spawnSync("lsof", ["-ti", `tcp:${port}`, "-sTCP:LISTEN"], { encoding: "utf8" });
+  let out = res.status === 0 ? res.stdout || "" : "";
+  if (!out) {
+    const f = spawnSync("fuser", [`${port}/tcp`], { encoding: "utf8" });
+    out = `${f.stdout || ""} ${f.stderr || ""}`;
+  }
+  return [...new Set(out.split(/\s+/).map(Number).filter((n) => Number.isInteger(n) && n > 0))];
+}
+
+function procCmd(pid: number): string {
+  return (spawnSync("ps", ["-o", "args=", "-p", String(pid)], { encoding: "utf8" }).stdout || "").trim();
+}
+
+function stopPostmaster(datadir: string, pgPid: number | null, log: (m: string) => void): void {
+  if (existsSync(datadir)) {
+    try {
+      const bin = findPgBin();
+      execFileSync(pg(bin, "pg_ctl"), ["-D", datadir, "-m", "immediate", "stop"], { stdio: "ignore" });
+      return;
+    } catch {
+      /* fall through to a direct PID kill */
+    }
+  }
+  if (pgPid && isAlive(pgPid)) {
+    try {
+      process.kill(pgPid, "SIGKILL");
+      log(`killed postmaster pid ${pgPid}`);
+    } catch {
+      /* gone */
+    }
+  }
+}
+
+function killWebPort(port: number, log: (m: string) => void): void {
+  for (const pid of listenerPids(port)) {
+    const cmd = procCmd(pid);
+    // We found this pid by OUR recorded port, but a recycled port could now belong to something
+    // else — confirm it looks like the harness web server before SIGKILL.
+    if (!/node|next-server|next start/i.test(cmd)) {
+      log(`skip pid ${pid} on :${port} (not a node/next process: ${cmd || "?"})`);
+      continue;
+    }
+    try {
+      process.kill(pid, "SIGKILL");
+      log(`killed web server pid ${pid} on :${port}`);
+    } catch {
+      /* gone */
+    }
+  }
+}
+
+/**
+ * Reap harness leftovers — the cleanup affordance (`yarn e2e:reap`, `scripts/dev/shots.sh
+ * --cleanup`). Walks the run registry and, for each ORPHANED run (its owner Playwright process is
+ * gone), stops the postmaster by its recorded datadir, kills whatever holds the recorded web port,
+ * and removes the datadir + record. Also sweeps orphan `wikiplus-e2e-pg-*` datadirs no record
+ * covers. A LIVE run (owner still alive) is skipped unless `force`. Targets only resources the
+ * harness recorded as its own — never a command-line pattern match.
+ */
+export async function reapE2E(opts: { force?: boolean } = {}): Promise<void> {
+  const force = !!opts.force;
+  const log = (m: string) => console.log(`e2e:reap ${m}`);
+  let reaped = 0;
+  let skipped = 0;
+  const seen = new Set<string>();
+
+  let records: string[] = [];
+  try {
+    records = readdirSync(RUNS_DIR).filter((f) => f.endsWith(".json"));
+  } catch {
+    /* no registry yet */
+  }
+  for (const f of records) {
+    const p = join(RUNS_DIR, f);
+    let rec: RunRecord;
+    try {
+      rec = JSON.parse(readFileSync(p, "utf8")) as RunRecord;
+    } catch {
+      rmSync(p, { force: true });
+      continue;
+    }
+    seen.add(rec.datadir);
+    if (!force && rec.ownerPid && isAlive(rec.ownerPid)) {
+      log(`skip LIVE run (owner pid ${rec.ownerPid}, pg :${rec.pgPort}, web :${rec.webPort}) — use --force`);
+      skipped++;
+      continue;
+    }
+    stopPostmaster(rec.datadir, rec.pgPid, log);
+    killWebPort(rec.webPort, log);
+    try {
+      rmSync(rec.datadir, { recursive: true, force: true });
+    } catch {
+      /* best effort */
+    }
+    rmSync(p, { force: true });
+    log(`reaped run pg :${rec.pgPort} web :${rec.webPort} (${rec.datadir})`);
+    reaped++;
+  }
+
+  // Backstop: orphan datadirs that lost their record (PG-only — no port to reap a web server from).
+  let dirs: string[] = [];
+  try {
+    dirs = readdirSync(tmpdir()).filter((d) => d.startsWith(DATADIR_PREFIX));
+  } catch {
+    /* none */
+  }
+  for (const d of dirs) {
+    const datadir = join(tmpdir(), d);
+    if (seen.has(datadir)) continue;
+    stopPostmaster(datadir, readPostmasterPid(datadir), log);
+    try {
+      rmSync(datadir, { recursive: true, force: true });
+    } catch {
+      /* best effort */
+    }
+    log(`reaped orphan datadir ${datadir}`);
+    reaped++;
+  }
+
+  log(reaped === 0 && skipped === 0 ? "nothing to reap" : `done (${reaped} reaped, ${skipped} skipped)`);
 }

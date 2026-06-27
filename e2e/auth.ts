@@ -55,7 +55,10 @@ async function mintSessionToken(): Promise<string> {
  */
 export async function signIn(page: Page, baseURL?: string): Promise<void> {
   const token = await mintSessionToken();
-  const origin = new URL(baseURL ?? "http://localhost:4321");
+  // Tests always pass `baseURL` (Playwright `use.baseURL`); the fallback only matters off-harness.
+  // Cookies are domain-scoped (not port-specific), so the port here is immaterial to the cookie, but
+  // derive it from the per-run env for coherence with the dynamic ports (#182).
+  const origin = new URL(baseURL ?? `http://localhost:${process.env.E2E_PORT || 4321}`);
   await page.context().addCookies([
     {
       name: E2E_SESSION_COOKIE,
