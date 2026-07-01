@@ -96,8 +96,10 @@ export default function HomePage() {
               the word that names it. The effect is CSS-only (.tagline-illuminated, globals.css):
               gated behind no-preference + background-clip:text support, and it rests at the eyebrow's
               ink2 color, so contrast and the read are unchanged when motion/support is off. */}
-          The encyclopedia, {" "}
-          <span className="tagline-illuminated">illuminated</span>
+          <span>
+            The encyclopedia,{" "}
+            <span className="tagline-illuminated">illuminated</span>
+          </span>
         </p>
 
         <h2
