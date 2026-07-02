@@ -195,12 +195,13 @@ export function GeneralStrip({
   // container carries no bottom padding, so a hero that is the band's last element is already flush
   // to the band bottom (no bottom-bleed margin needed).
 
-  // Curator find-more controls (Search TikTok / Search YouTube + ＋ Add video). They ride the END of
-  // the horizontal scroll row (after the videos that are there) — never a separate toolbar above the
-  // hero — so they add NO vertical band space. Signed-in only (curator tools), and hidden entirely
-  // when the band is `suppressed` (marked complete — a finished topic offers no "add more"). The
-  // Search links are the empty/mixed discovery aid (dropped once content leads — fully-curated);
-  // ＋ Add video is the standing action.
+  // Curator find-more controls (Search TikTok / Search YouTube + ＋ Add video). They ride the
+  // horizontal scroll row AFTER the curated tiles — the videos lead, the tools follow (in the empty
+  // state, with no curated tiles, they lead the row as the discovery aid) — never a separate toolbar
+  // above the hero, so they add NO vertical band space. Signed-in only (curator tools), and hidden
+  // entirely when the band is `suppressed` (marked complete — a finished topic offers no "add
+  // more"). The Search links are the empty/mixed discovery aid (dropped once content leads —
+  // fully-curated); ＋ Add video is the standing action.
   const showCuratorTools = signedIn && !suppressed;
   const showSearchLinks = !hasCurated || hasSuggestions;
 
@@ -273,8 +274,8 @@ export function GeneralStrip({
         )}
 
         {/* The curator find-more controls do NOT sit here as a toolbar above the hero — they ride the
-            END of the scroll row below (see `showCuratorTools`), so they add no vertical band space
-            and follow the videos. */}
+            scroll row below, after the curated tiles (see `showCuratorTools`), so they add no
+            vertical band space and follow the videos. */}
 
         {/* ── Hero block (issue #158, redesigned — design `general-hero-layout.md`). The one prominent
             must-watch clip at the FRONT of the band: the VIDEO bleeds (a uniform 16:9 frame flush to
@@ -418,56 +419,13 @@ export function GeneralStrip({
       {/* The full-bleed horizontally-scrollable row (design general-strip-fullbleed.md §3): it spans
           the FULL band width via `.general-scroller` (not the centered column), starting at the content
           column's left edge, scrolling into the full width, with its scrollbar flush at the band's
-          bottom (no indigo beneath it). Curated cards first, then the divider (mixed only), then the
-          capped suggestion cards + "See N more". The marked-complete "show suggestions" toggle lives in
-          the plus rail now (complete-toggle-rail.md), not here. `relative` keeps it a containing block
-          for the cards' absolute thumbnail overlays. */}
+          bottom (no indigo beneath it). Curated cards first, then the curator find-more controls,
+          then the divider (mixed only), then the capped suggestion cards + "See N more". The
+          marked-complete "show suggestions" toggle lives in the plus rail now (complete-toggle-rail.md),
+          not here. `relative` keeps it a containing block for the cards' absolute thumbnail
+          overlays. */}
       {(hasPeers || hasSuggestions || showLoading || showCuratorTools) && (
         <ul role="list" className="general-scroller relative flex items-start gap-2 overflow-x-auto">
-            {/* Curator find-more controls — the LEADING item in the scroll row (before the videos),
-                so they're always visible right after the hero without horizontal scrolling, never sit
-                above the hero, and add no vertical band space. Search links in empty/mixed (the
-                discovery aid); ＋ Add video is the standing action. Hidden entirely when the band is
-                suppressed (marked complete — a finished topic offers no "add more"). A top-aligned
-                vertical stack. */}
-            {showCuratorTools && (
-              <li role="listitem" className="flex shrink-0 self-start">
-                <div
-                  role="group"
-                  aria-label="Add videos from a source manually"
-                  className="flex flex-col gap-2"
-                >
-                  {showSearchLinks && (
-                    <>
-                      <a
-                        href={tiktok}
-                        target="_blank"
-                        rel="noopener"
-                        className="inline-flex min-h-[44px] items-center border-2 border-hardbox bg-surface-raised px-2.5 py-1 text-[12px] font-bold text-ink-plus hover:bg-[#C03060] hover:text-white"
-                      >
-                        Search TikTok ↗
-                      </a>
-                      <a
-                        href={youtube}
-                        target="_blank"
-                        rel="noopener"
-                        className="inline-flex min-h-[44px] items-center border-2 border-hardbox bg-surface-raised px-2.5 py-1 text-[12px] font-bold text-ink-plus hover:bg-brand hover:text-white"
-                      >
-                        Search YouTube ↗
-                      </a>
-                    </>
-                  )}
-                  <button
-                    type="button"
-                    onClick={onAdd}
-                    aria-haspopup="dialog"
-                    className="inline-flex min-h-[44px] items-center border-2 border-hardbox bg-brand px-2.5 py-1 text-[12px] font-bold text-white hover:shadow-[2px_2px_0_var(--color-hardbox-offset)]"
-                  >
-                    ＋ Add video
-                  </button>
-                </div>
-              </li>
-            )}
             {/* Curated group (§2.1 — always first, never capped). Full Indigo-Press chrome. The hero
                 clip (issue #158) is pulled out into the prominent block above; `peerClips` is the
                 remaining general clips in their existing order. */}
@@ -587,6 +545,51 @@ export function GeneralStrip({
                 </li>
               );
             })}
+
+            {/* Curator find-more controls — AFTER the curated tiles, so the videos lead the row and
+                the tools follow them (in the empty state, with no curated tiles, this is the leading
+                item — the discovery aid up front). Never a toolbar above the hero; they add no
+                vertical band space. Search links in empty/mixed (the discovery aid); ＋ Add video is
+                the standing action. Hidden entirely when the band is suppressed (marked complete — a
+                finished topic offers no "add more"). A top-aligned vertical stack. */}
+            {showCuratorTools && (
+              <li role="listitem" className="flex shrink-0 self-start">
+                <div
+                  role="group"
+                  aria-label="Add videos from a source manually"
+                  className="flex flex-col gap-2"
+                >
+                  {showSearchLinks && (
+                    <>
+                      <a
+                        href={tiktok}
+                        target="_blank"
+                        rel="noopener"
+                        className="inline-flex min-h-[44px] items-center border-2 border-hardbox bg-surface-raised px-2.5 py-1 text-[12px] font-bold text-ink-plus hover:bg-[#C03060] hover:text-white"
+                      >
+                        Search TikTok ↗
+                      </a>
+                      <a
+                        href={youtube}
+                        target="_blank"
+                        rel="noopener"
+                        className="inline-flex min-h-[44px] items-center border-2 border-hardbox bg-surface-raised px-2.5 py-1 text-[12px] font-bold text-ink-plus hover:bg-brand hover:text-white"
+                      >
+                        Search YouTube ↗
+                      </a>
+                    </>
+                  )}
+                  <button
+                    type="button"
+                    onClick={onAdd}
+                    aria-haspopup="dialog"
+                    className="inline-flex min-h-[44px] items-center border-2 border-hardbox bg-brand px-2.5 py-1 text-[12px] font-bold text-white hover:shadow-[2px_2px_0_var(--color-hardbox-offset)]"
+                  >
+                    ＋ Add video
+                  </button>
+                </div>
+              </li>
+            )}
 
             {/* §2.1 divider — the inline, scroll-with-the-row "Suggested · uncurated" group label.
                 Renders ONLY in MIXED (curated group above AND ≥1 suggestion): in empty the band
