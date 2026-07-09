@@ -15,7 +15,7 @@ const REST = "https://en.wikipedia.org/api/rest_v1";
 // Wikimedia etiquette: a descriptive Api-User-Agent identifying wiki+ + a contact
 // (CLAUDE.md / ARCHITECTURE "Etiquette"). Browsers forbid setting User-Agent, but
 // Api-User-Agent is honored by the REST API for anonymous CORS GETs.
-const UA = "wiki+/0.0 (prototype; https://ragesoss.github.io/wikiplus/)";
+const UA = "wiki+/0.0 (prototype; https://wikiplus.video/)";
 
 export interface ArticleLead {
   title: string;

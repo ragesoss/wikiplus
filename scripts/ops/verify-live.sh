@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Post-deploy health check of the LIVE site (default https://wikiplus.wikiedu.org).
+# Post-deploy health check of the LIVE site (default https://wikiplus.video).
 # Read-only (GET only) — checks the anonymous read path + the auth endpoints, exits non-zero
 # on any failure. No args needed (defaults to prod), so the no-arg form is safe to allowlist.
 # Optional: pass a base URL as $1 to check another origin (that invocation is prompt-gated).

@@ -55,7 +55,7 @@ Scaling out later is intentionally a **config change, not a rewrite** — see th
 note below.
 
 **Provisioned host:** a single **Linode Nanode 1GB** (Debian 13 / trixie — see
-`docs/ops/vps-setup.md`), serving **`wikiplus.wikiedu.org`**. The deploy files live in
+`docs/ops/vps-setup.md`), serving **`wikiplus.video`**. The deploy files live in
 [`deploy/`](../deploy/) (`docker-compose.yml`, `Caddyfile`) and on the box at `/opt/wikiplus`;
 the box-setup runbook is `docs/ops/vps-setup.md`. Stack on the box is **`app` + `caddy` +
 `postgres`** (the shared data store) plus a one-shot **`migrate`** service that applies Drizzle
@@ -64,9 +64,10 @@ internal-only (named `pgdata` volume, password via a Docker secret), the app's `
 reaches it on the compose network, and migrations apply automatically on `up -d` (no manual SSH).
 **Caddy** terminates TLS via Let's Encrypt and reverse-proxies the apex → `app:3000`; **Cloudflare
 edge cache is deferred** to the production-MVP — at prototype scale a single box renders per-request
-fine. (Caveat baked into the Caddyfile: `wikiplus.wikiedu.org` is in the `wikiedu.org` zone, which
-may sit behind Cloudflare — if the DNS record is proxied, Caddy's HTTP-01 challenge needs Cloudflare
-SSL mode "Full", or a DNS-01 challenge; verify before bring-up.)
+fine. The canonical host `wikiplus.video` resolves **DNS-only** (a plain A/AAAA record to the box,
+no proxy in front), so Caddy's HTTP-01 challenge reaches Let's Encrypt directly. The former host
+`wikiplus.wikiedu.org` is kept only as a **301 redirect** to the canonical host (a second Caddy site
+block), so existing links keep resolving.
 
 **Pipeline — CI builds, the box only runs.** A push to `main` (or `workflow_dispatch`) runs
 [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml): job 1 builds the Next.js
@@ -590,7 +591,7 @@ table).
 (the YouTube Data API doesn't support service-account auth; OAuth is only for a *user's* private data,
 which we never touch). The key is **API-restricted to YouTube Data API v3**. *Where it lives* is the real
 decision: in the prototype it's a **browser key restricted by HTTP referrer** to the live origin
-`https://wikiplus.wikiedu.org/*`. Because a client key is inlined into the static bundle and publicly
+`https://wikiplus.video/*`. Because a client key is inlined into the static bundle and publicly
 readable, the **referrer restriction plus a quota cap are the protection, not secrecy**. The production
 read-path should move search **server-side** (key held as a server secret; the expensive quota shared +
 cached) — see *Open questions*. Embedding needs no key — that's oEmbed/the facade.
@@ -998,7 +999,7 @@ contract). This section is the durable record of the canonical wording + where i
 
 The deployed app's `DataStore` is **Postgres via Drizzle ORM**, reached through a **server data-access
 boundary**. The seeded topics and every curated clip and candidate dismissal live in **one shared
-database** on the VPS, so everyone on `wikiplus.wikiedu.org` reads and writes the **same data**
+database** on the VPS, so everyone on `wikiplus.video` reads and writes the **same data**
 (shared, multi-user, durable across devices/sessions/deploys).
 
 - **Boundary mechanism: Server Actions (not route handlers).** Server Actions are the idiomatic
@@ -1261,7 +1262,7 @@ produces a **server build** (`.next/`, no `out/`) and `next start` serves it, re
     `next/image` in use; harmless no-op); `trailingSlash:true` kept (the canonical `/topic/<Title>/` URL
     enforced by the server's redirect); `outputFileTracingRoot` kept.
 - **Deploy:** **LIVE.** A push to `main` auto-deploys the Node SSR server to a **Linode Nanode 1GB
-  (Debian 13 / trixie)** at **`wikiplus.wikiedu.org`** via Docker Compose (`app` + `caddy` + `postgres`
+  (Debian 13 / trixie)** at **`wikiplus.video`** via Docker Compose (`app` + `caddy` + `postgres`
   + `migrate`; Redis deferred, Cloudflare edge cache deferred to the production-MVP).
   `.github/workflows/deploy.yml` builds the **standalone** image in CI, pushes it to **GHCR**
   (`ghcr.io/ragesoss/wikiplus`), then SSHes to the box to `docker compose pull && docker compose up -d`
@@ -1290,7 +1291,7 @@ produces a **server build** (`.next/`, no `out/`) and `next start` serves it, re
   boundary** and attribute to the real signed-in contributor. The `@prototype` stub attributes only
   clips curated before sign-in existed. See *Authentication & identity* above. **Ops bring-up needs:**
   `AUTH_SECRET` (server secret), the `wikimedia_oauth_client_key`/`_secret` as Docker secrets on the
-  box, and the prod callback `https://wikiplus.wikiedu.org/api/auth/callback/wikimedia` registered at
+  box, and the prod callback `https://wikiplus.video/api/auth/callback/wikimedia` registered at
   meta.wikimedia.org.
 - **In-product Promote / Add-by-link curation.** The two Topic-page curation modals
   (`components/topic/CurateModal.tsx`, `AddModal.tsx`) write through the **auth-gated Server Actions
@@ -1556,7 +1557,7 @@ produces a **server build** (`.next/`, no `out/`) and `next start` serves it, re
     from `window.location`, so they reach `/topic/<Title>/`.
 
 **Path to production:** the prototype is a Node SSR server, and the host + auto-deploy are provisioned
-(Linode VPS + Compose + Caddy at `wikiplus.wikiedu.org`, CI→GHCR→SSH on push to `main`; see
+(Linode VPS + Compose + Caddy at `wikiplus.video`, CI→GHCR→SSH on push to `main`; see
 *Deployment*). The Drizzle `DataStore` + Server Actions + shared Postgres, Wikimedia OAuth, and the
 curation-action product layer are done. Remaining: the production read-path (ISR + the Redis
 `cacheHandler`, server-side candidate search, the deferred Redis compose service + Cloudflare edge

@@ -28,7 +28,7 @@ import type { Platform } from "@/lib/data/types";
 // Wikimedia/Wikimedia-adjacent etiquette: a descriptive User-Agent identifying wiki+ + a contact
 // (CLAUDE.md / ARCHITECTURE "Etiquette"; consistent with the `UA` in lib/wiki/article.ts). On a
 // SERVER fetch (unlike the browser) we CAN set User-Agent, so the request honestly identifies us.
-const UA = "wiki+/0.0 (prototype; https://wikiplus.wikiedu.org/)";
+const UA = "wiki+/0.0 (prototype; https://wikiplus.video/)";
 
 // Public, token-free oEmbed endpoints for the platforms we resolve. Both sidestep CORS via the
 // Server Action (no `Access-Control-Allow-Origin` from either provider — see WHY A SERVER ACTION).

@@ -16,7 +16,7 @@
 // Wikimedia etiquette: the same descriptive Api-User-Agent as the article client.
 // Browsers forbid setting User-Agent, but Api-User-Agent is honored by the REST API
 // for anonymous CORS GETs (mirrors lib/wiki/article.ts).
-const UA = "wiki+/0.0 (prototype; https://ragesoss.github.io/wikiplus/)";
+const UA = "wiki+/0.0 (prototype; https://wikiplus.video/)";
 
 /** REST `search/title` base — namespace 0 (articles) is the endpoint's default. */
 const SUGGEST_URL = "https://en.wikipedia.org/w/rest.php/v1/search/title";
