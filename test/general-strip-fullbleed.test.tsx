@@ -278,15 +278,20 @@ describe("AC3/AC5 — mixed band: divider, signed-in candidate actions, find-mor
     expect(screen.queryByRole("button", { name: /Dismiss as not relevant/ })).toBeNull();
   });
 
-  it("the find-more controls are the LEADING item of the scroller (signed-in, mixed)", () => {
+  it("the find-more controls FOLLOW the curated tiles — a curated tile leads, the tools trail (signed-in, mixed)", () => {
     const { container } = renderStrip({
       generalClips: [makeClip()],
       generalCandidates: [makeCand()],
       signedIn: true,
     });
     const ul = container.querySelector("ul.general-scroller") as HTMLElement;
-    const firstItem = ul.querySelector(":scope > li");
-    // The first scroller item is the find-more group, not a video tile.
-    expect(within(firstItem as HTMLElement).getByRole("button", { name: "＋ Add video" })).toBeInTheDocument();
+    const firstItem = ul.querySelector(":scope > li") as HTMLElement;
+    // The first scroller item is a curated video tile, NOT the find-more group.
+    expect(within(firstItem).queryByRole("button", { name: "＋ Add video" })).toBeNull();
+    // The find-more controls still render, but AFTER the curated tile(s) in DOM order.
+    const addBtn = screen.getByRole("button", { name: "＋ Add video" });
+    expect(
+      firstItem.compareDocumentPosition(addBtn) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
   });
 });

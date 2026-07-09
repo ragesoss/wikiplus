@@ -575,7 +575,8 @@ function dedupeSlugs(sections: ArticleSectionBody[]): ArticleSectionBody[] {
  * Rewrite article-namespace wikilinks to the canonical title-based Topic route
  * (`/topic/<Title>/`, AC5, design §8; owner-directed title scheme — ARCHITECTURE
  * "Internal-link resolution"). The href is basePath-prefixed + trailing-slashed so a
- * hard navigation resolves under the GitHub Pages subpath; the decoded title is also
+ * hard navigation resolves under the app's configured basePath (empty/root as served
+ * today; a subpath only if ever hosted under one); the decoded title is also
  * stashed in `data-topic-title` so TopicView's click interceptor can route client-side
  * (no full reload). Non-article / red / external links keep an absolute Wikipedia URL
  * opening in a new tab — never a broken /topic/ route.

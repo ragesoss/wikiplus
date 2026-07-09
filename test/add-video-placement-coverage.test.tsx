@@ -4,8 +4,9 @@ import { GeneralStrip } from "@/components/topic/GeneralStrip";
 import type { Candidate, Clip } from "@/lib/data/types";
 
 // ── QA coverage companion to add-video-placement.test.tsx. Locks the requirement edges the
-// authored suite leaves open: the controls LEAD the scroll row (before any video), the
-// empty-with-only-controls render (the new `showCuratorTools` term in the <ul> gate), and the
+// authored suite leaves open: the controls FOLLOW the curated tiles in the scroll row (the videos
+// lead, the tools trail — leading only in the empty state as the discovery aid), the
+// empty-with-only-controls render (the `showCuratorTools` term in the <ul> gate), and the
 // group label travels inside the row item (a11y). ────────────────────────────────────────────────
 
 function makeClip(over: Partial<Clip> = {}): Clip {
@@ -50,9 +51,9 @@ function renderStrip(
 }
 
 describe("GeneralStrip — ＋ Add video placement (QA coverage edges)", () => {
-  it("Req4: the controls LEAD the scroll row — they precede the first curated peer tile in DOM order", () => {
+  it("Req4: the controls FOLLOW the scroll row — they come after the last curated peer tile in DOM order", () => {
     // Two curated general clips, no hero → both ride the scroll row as peer tiles. The controls
-    // must come BEFORE the first peer tile (leading the row), not after the videos.
+    // must come AFTER the curated peer tiles (the videos lead, the tools follow), not before them.
     renderStrip({
       generalClips: [
         makeClip({ id: "c1", caption: "First peer" }),
@@ -60,10 +61,10 @@ describe("GeneralStrip — ＋ Add video placement (QA coverage edges)", () => {
       ],
     });
     const addBtn = screen.getByRole("button", { name: /Add video/i });
-    const firstPeer = screen.getByText("First peer");
-    // DOCUMENT_POSITION_FOLLOWING on the Add button means the peer comes AFTER it.
+    const lastPeer = screen.getByText("Second peer");
+    // DOCUMENT_POSITION_FOLLOWING on the last peer means the Add button comes AFTER it.
     expect(
-      addBtn.compareDocumentPosition(firstPeer) &
+      lastPeer.compareDocumentPosition(addBtn) &
         Node.DOCUMENT_POSITION_FOLLOWING
     ).toBeTruthy();
   });
