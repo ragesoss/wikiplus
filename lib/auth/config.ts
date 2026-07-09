@@ -66,7 +66,7 @@ declare module "@auth/core/jwt" {
 // to the Wikimedia OAuth identity endpoints (token + userinfo). `customFetch` is Auth.js's
 // documented hook to wrap the provider's fetch; we only add the header, then defer to fetch.
 const WIKI_PLUS_UA =
-  "wiki-plus/0.1 (https://wikiplus.wikiedu.org; sage@wikiedu.org) Auth.js";
+  "wiki-plus/0.1 (https://wikiplus.video; sage@wikiedu.org) Auth.js";
 
 function wikimediaFetch(
   input: RequestInfo | URL,

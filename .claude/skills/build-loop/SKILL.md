@@ -1,6 +1,6 @@
 ---
 name: build-loop
-description: This skill should be used to build or change a wiki+ application feature — whenever the owner asks to "build", "add", "implement", "redo", "rebuild", or substantially change or fix the behavior of a feature, page, component, or flow of the wiki+ app (including "run the build-loop for issue #N"). It runs the full role pipeline (Product → UX → Development → QA & Review + UX evaluation → Operations) inline in one active session — wearing each role's `.claude/agents/` charter in turn — with Phase-4 verification split between an inline evaluation and a concurrent fresh-eyes background subagent (so the session never sits idle and a cloud container can't freeze it mid-build), then commits and deploys the updated prototype to its live host (a push to `main` ships it to the Linode VPS at `wikiplus.wikiedu.org`) — autonomously, from one prompt to a live deploy. Use it instead of building the feature free-form. A one-line copy, CI, or doc fix is NOT a feature change — do those directly, do not run this loop.
+description: This skill should be used to build or change a wiki+ application feature — whenever the owner asks to "build", "add", "implement", "redo", "rebuild", or substantially change or fix the behavior of a feature, page, component, or flow of the wiki+ app (including "run the build-loop for issue #N"). It runs the full role pipeline (Product → UX → Development → QA & Review + UX evaluation → Operations) inline in one active session — wearing each role's `.claude/agents/` charter in turn — with Phase-4 verification split between an inline evaluation and a concurrent fresh-eyes background subagent (so the session never sits idle and a cloud container can't freeze it mid-build), then commits and deploys the updated prototype to its live host (a push to `main` ships it to the Linode VPS at `wikiplus.video`) — autonomously, from one prompt to a live deploy. Use it instead of building the feature free-form. A one-line copy, CI, or doc fix is NOT a feature change — do those directly, do not run this loop.
 ---
 
 # wiki+ build-loop — the role pipeline, run inline with independent verification
@@ -9,7 +9,7 @@ Run a wiki+ feature or code change through the full role pipeline **inline, in o
 wearing each role's hat in sequence (reading that role's `.claude/agents/` charter first), committing
 each role's artifact as you go, and verifying the result with **genuinely fresh eyes via a concurrent
 background subagent** — then deploy to the project's live host (a push to `main` ships it to the
-Linode VPS at `wikiplus.wikiedu.org`) — autonomously, from one prompt to a live updated prototype.
+Linode VPS at `wikiplus.video`) — autonomously, from one prompt to a live updated prototype.
 
 **Why inline, not a subagent per stage.** A cloud container freezes the session on main-loop
 inactivity. A *foreground* subagent spawn leaves the main loop idle and waiting — so the container
@@ -75,7 +75,7 @@ it in Phase 0 and carry each phase the scope relevant to it, rather than trustin
 If this paragraph ever disagrees with ARCHITECTURE, trust ARCHITECTURE and fix this.
 
 The app is a **Next.js App Router Node SSR server** running **live on a Linode VPS at
-`https://wikiplus.wikiedu.org`**, auto-deployed by a push to `main` (`.github/workflows/deploy.yml`:
+`https://wikiplus.video`**, auto-deployed by a push to `main` (`.github/workflows/deploy.yml`:
 build the image in CI → push to GHCR → SSH to the box → `docker compose pull && up`). Persistence is
 **shared Postgres via Drizzle, reached through a Server Actions data-access boundary**
 (`lib/data/index.ts` → `lib/server/actions.ts` → `lib/db/drizzle-store.ts`), so the app is
@@ -293,7 +293,7 @@ UX-evaluation pass (minor cosmetic notes may pass with a logged follow-up). If s
 ### 5 — Deploy (Operations) → live on the VPS
 Wear the **operations** hat (read `.claude/agents/operations.md`). The job: land the committed work on
 **`main`** (the only branch `.github/workflows/deploy.yml` deploys from) and confirm the **live result** at
-`https://wikiplus.wikiedu.org`. A push/merge **to `main`** fires the deploy workflow (build image → GHCR
+`https://wikiplus.video`. A push/merge **to `main`** fires the deploy workflow (build image → GHCR
 → SSH to the box → `docker compose pull && up`); a feature branch fires nothing. Operations picks the
 right mechanism for the environment, in this preference order:
 1. **Already on `main` with push rights** (typical local session) → push `main`.
@@ -332,7 +332,7 @@ that fired no `main` workflow run.
 
 ### 6 — Report
 Summarize for the owner, mobile-legibly: what was built, the artifact paths (spec, design, tests if
-present), the per-role commits, the **live URL** (`https://wikiplus.wikiedu.org`) **or** the
+present), the per-role commits, the **live URL** (`https://wikiplus.video`) **or** the
 open PR to merge, and any assumption made or follow-up logged. If the loop stopped at a gate, **lead
 with `BLOCKED`** and the reason. When working from an issue, post this summary as an **issue comment** (the durable,
 mobile-visible report): a green run closes the issue via the `Closes #N` merge; a blocked run leaves it

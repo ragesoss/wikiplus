@@ -28,7 +28,7 @@ The dev cycle must run **completely in the cloud and be drivable from a mobile C
 5. **Stay cost-efficient.** Automate the single VPS rather than reflexively swapping to a managed PaaS (record the staging-target decision in `ARCHITECTURE.md`).
 
 **As built (issue A.2 / #42 — live, not aspirational):** the prototype runs as a **Next.js Node SSR
-server on a single Linode Nanode 1GB** (shipped Debian 13) at **`https://wikiplus.wikiedu.org`**. A push
+server on a single Linode Nanode 1GB** (shipped Debian 13) at **`https://wikiplus.video`**. A push
 to **`main`** fires `.github/workflows/deploy.yml`: CI builds the standalone Docker image and pushes it to
 **GHCR**, then SSHes to the box to `docker compose pull && docker compose up -d --wait`. **The 1GB box
 never builds Next.js** (it would OOM) — CI builds, the box only pulls. Compose stack is `app` + `caddy`

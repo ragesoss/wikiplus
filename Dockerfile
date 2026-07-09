@@ -29,7 +29,7 @@ COPY . .
 # → the live YouTube search no-ops (falls back to seeded/empty candidates), by design.
 ARG NEXT_PUBLIC_YOUTUBE_API_KEY=""
 ENV NEXT_PUBLIC_YOUTUBE_API_KEY=${NEXT_PUBLIC_YOUTUBE_API_KEY}
-# basePath stays empty (root-served): Caddy reverse-proxies the apex of wikiplus.wikiedu.org
+# basePath stays empty (root-served): Caddy reverse-proxies the apex of wikiplus.video
 # directly to app:3000, not a subpath. (NEXT_PUBLIC_BASE_PATH left unset on purpose.)
 # NOTE: `next build` does NOT connect to Postgres (DB access is lazy, runtime-only) — so no
 # DATABASE_URL is needed here, and the build never fails for lack of a DB (issue #45).

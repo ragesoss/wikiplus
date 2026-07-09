@@ -13,7 +13,7 @@ with a human-written **context note** that separates factual content from the cr
 - `.claude/agents/` — the role subagents that build & operate this project (see below).
 - The **Next.js 15 app** (`app/`, `components/`, `lib/`) — a **Node SSR server** (App Router) backed
   by **shared Postgres via Drizzle** (multi-user and durable). It is **live** at
-  <https://wikiplus.wikiedu.org> (a self-hosted Linode VPS, Docker Compose + Caddy). Push to `main`
+  <https://wikiplus.video> (a self-hosted Linode VPS, Docker Compose + Caddy). Push to `main`
   auto-deploys via `.github/workflows/deploy.yml` (CI builds a standalone Docker image → GHCR → the
   box runs `docker compose pull && up`; the box never builds Next.js).
 - Work is tracked as **GitHub Issues** (<https://github.com/ragesoss/wikiplus/issues>) — one issue =

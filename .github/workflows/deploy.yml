@@ -1,7 +1,7 @@
 name: Build & deploy to VPS
 
 # Issue A.2 (#42): the prototype now ships the Next.js Node SSR server (issue #37) to a
-# self-hosted Linode VPS via Docker Compose + Caddy at https://wikiplus.wikiedu.org — NOT
+# self-hosted Linode VPS via Docker Compose + Caddy at https://wikiplus.video — NOT
 # GitHub Pages (the old Pages-export workflow #37 paused is fully replaced here). This
 # re-enables the push-to-`main` auto-deploy and closes the cloud, mobile-drivable
 # prompt -> staging loop.

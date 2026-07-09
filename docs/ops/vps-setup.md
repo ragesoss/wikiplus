@@ -2,7 +2,7 @@
 
 Ordered commands to provision the prototype host **once the owner has created the box and
 provided SSH access**. Target: a fresh **Linode Nanode 1GB, Ubuntu 24.04 LTS**, serving the
-Next.js Node SSR server (issue #37) at **`wikiplus.wikiedu.org`** via Docker Compose
+Next.js Node SSR server (issue #37) at **`wikiplus.video`** via Docker Compose
 (`app` + `caddy`).
 
 This is run **once**. After it, the steady-state loop is fully automated: a push to `main`
@@ -21,20 +21,22 @@ builds the image in CI and SSH-deploys it (`.github/workflows/deploy.yml`) — n
   `~/.ssh/wikiplus_vps_ed25519`, the matching `.pub` authorized on the box for the deploy
   user. (Generate with `ssh-keygen -t ed25519 -f ~/.ssh/wikiplus_vps_ed25519 -C wikiplus-deploy`
   if it doesn't exist; add the `.pub` to the deploy user's `~/.ssh/authorized_keys`.)
-- DNS: an **A record** (and AAAA if using IPv6) for `wikiplus.wikiedu.org` → the box IP.
-  **See the Cloudflare check below before bring-up.**
+- DNS: an **A record** (and AAAA if using IPv6) for `wikiplus.video` → the box IP.
+  **See the DNS check below before bring-up.**
 
-### DNS / Cloudflare check (do FIRST — do not assume)
+### DNS check (do FIRST — do not assume)
 
-`wikiplus.wikiedu.org` is a subdomain of the `wikiedu.org` zone, which may already be in
-Cloudflare. Confirm with the owner:
+The canonical host `wikiplus.video` resolves **DNS-only** — a plain A/AAAA record pointing
+straight at the box IP, with **no proxy/CDN in front**. Caddy then reaches Let's Encrypt
+directly, HTTP-01 works, and there is nothing extra to configure. **Keep it DNS-only:** putting
+a proxy in front forces the proxy's SSL/TLS mode to **Full** (NOT Flexible — Flexible causes a
+redirect loop) or a Caddy **DNS-01** challenge with an API token (a custom Caddy image with a
+DNS plugin — the fallback path, not built into `caddy:2`). None of that is needed here.
 
-- If the record is created **DNS-only (grey cloud)** → Caddy reaches Let's Encrypt directly,
-  HTTP-01 works, nothing extra to do. **(Simplest — recommended for the prototype.)**
-- If the record is **proxied (orange cloud)** → set the zone's SSL/TLS mode to **Full** (NOT
-  Flexible — Flexible causes a redirect loop), or switch Caddy to a **DNS-01** challenge with a
-  Cloudflare API token (needs a custom Caddy image with the `caddy-dns/cloudflare` plugin — the
-  fallback path; not built by default in `caddy:2`).
+The former host `wikiplus.wikiedu.org` (a subdomain of the `wikiedu.org` zone) stays pointed at
+the box too, purely so Caddy can **301-redirect** it to `wikiplus.video` (the redirect block in
+`deploy/Caddyfile`). Its existing DNS/proxy status is fine as-is — the redirect works whether it
+is DNS-only or proxied, since Caddy still terminates a real cert at the origin.
 
 ## 1. Connect
 
@@ -211,8 +213,8 @@ consumer at meta.wikimedia.org.
   (`maxAge` 7 days) — the role is stamped on the JWT at sign-in, not re-resolved per read. The
   **write boundary enforces the role server-side immediately regardless**, so a stale claim only
   affects which affordances show, never authorization.
-- **`AUTH_URL`** is pinned to `https://wikiplus.wikiedu.org` in the compose file (public, not a
-  secret) so the OAuth `redirect_uri` matches the registered consumer callback behind Caddy/Cloudflare.
+- **`AUTH_URL`** is pinned to `https://wikiplus.video` in the compose file (public, not a
+  secret) so the OAuth `redirect_uri` matches the registered consumer callback behind Caddy.
 - To inspect the box `.env` keys (read-only, values redacted), use `scripts/ops/box-secrets-check.sh`
   rather than an interactive SSH.
 
@@ -227,16 +229,21 @@ consumer at meta.wikimedia.org.
 
 The Wikimedia OAuth **consumer** must have the production callback/redirect URL registered, or every
 login round-trip fails with **`redirect_uri mismatch`**. Auth.js's built-in Wikimedia provider uses the
-default callback path:
+default callback path, which on the canonical host is:
 
 ```
-https://wikiplus.wikiedu.org/api/auth/callback/wikimedia
+https://wikiplus.video/api/auth/callback/wikimedia
 ```
 
-Register/confirm it on the consumer's admin page at **meta.wikimedia.org**
-(`Special:OAuthConsumerRegistration` / the consumer's manage page). This is the **owner's** action
-(consumer admin) — Ops cannot do it. Confirm it is registered **before** the change goes live, or login
-ships broken (reading is unaffected — only the auth round-trip 400s).
+MediaWiki OAuth fixes a consumer's callback URL **at registration** — an approved consumer's callback
+cannot be edited — so the canonical host needs its **own consumer**: register a **new** consumer at
+**meta.wikimedia.org** (`Special:OAuthConsumerRegistration`) with the callback above and the same
+identify-only scope, then set the repo Actions secrets `WIKIMEDIA_OAUTH_CLIENT_KEY` /
+`WIKIMEDIA_OAUTH_CLIENT_SECRET` to the new consumer's key/secret (`gh secret set …`, §3c) — the next
+deploy injects them into the box `.env`. `AUTH_SECRET` does **not** change (JWT signing is
+domain-independent). This is the **owner's** action (consumer admin) — Ops cannot do it. Get the new
+consumer approved and the secrets rotated **before** the cutover, or login ships broken (reading is
+unaffected — only the auth round-trip 400s).
 
 ### Migration on this deploy (issue C — `0001_loose_blockbuster`)
 
@@ -320,23 +327,27 @@ docker compose ps          # both app + caddy should be "running"
 docker compose logs -f caddy   # watch for the Let's Encrypt cert being issued
 ```
 
-Caddy obtains the TLS cert on first request to `wikiplus.wikiedu.org` (or proactively on
-startup). The cert + ACME account persist in the `caddy_data` named volume.
+Caddy obtains a TLS cert on first request to each configured host — `wikiplus.video` and the
+redirect host `wikiplus.wikiedu.org` — (or proactively on startup). The certs + ACME account
+persist in the `caddy_data` named volume.
 
 ## 7. Verify TLS + the live site
 
 ```sh
 # From anywhere (or the box):
-curl -sI https://wikiplus.wikiedu.org/ | head -n 5         # expect HTTP/2 200
-curl -s https://wikiplus.wikiedu.org/ | grep -i "wiki+"    # the app HTML
+curl -sI https://wikiplus.video/ | head -n 5              # expect HTTP/2 200
+curl -s https://wikiplus.video/ | grep -i "wiki+"         # the app HTML
+
+# The former host must 301 to the canonical one (path + query preserved):
+curl -sI https://wikiplus.wikiedu.org/topic/San_Francisco/ | head -n 5   # expect 301 → https://wikiplus.video/topic/San_Francisco/
 
 # Cert chain / expiry:
-echo | openssl s_client -connect wikiplus.wikiedu.org:443 -servername wikiplus.wikiedu.org 2>/dev/null \
+echo | openssl s_client -connect wikiplus.video:443 -servername wikiplus.video 2>/dev/null \
   | openssl x509 -noout -issuer -dates
 ```
 
-Then in a browser: `https://wikiplus.wikiedu.org/` (home renders), and an **unseeded** topic
-deep link, e.g. `https://wikiplus.wikiedu.org/topic/San_Francisco/`, renders on demand (the
+Then in a browser: `https://wikiplus.video/` (home renders), and an **unseeded** topic
+deep link, e.g. `https://wikiplus.video/topic/San_Francisco/`, renders on demand (the
 #37 SSR behavior, live). A valid Let's Encrypt cert (no warning) confirms TLS.
 
 ## 8. Done → auto-deploy takes over
@@ -355,7 +366,7 @@ The workflow consumes exactly these:
 
 | Secret | Value |
 |--------|-------|
-| `DEPLOY_HOST` | The box's public IP (or `wikiplus.wikiedu.org` once DNS resolves). |
+| `DEPLOY_HOST` | The box's public IP (or `wikiplus.video` once DNS resolves). |
 | `DEPLOY_USER` | The SSH deploy user on the box (the sudo/docker-group user from step 3). |
 | `DEPLOY_SSH_KEY` | The **private** SSH key — the contents of `~/.ssh/wikiplus_vps_ed25519` (whose `.pub` is in the deploy user's `authorized_keys`). |
 | `YOUTUBE_API_KEY` | The referrer-restricted YouTube Data API key, baked into the client bundle at build time (`--build-arg NEXT_PUBLIC_YOUTUBE_API_KEY`). Unset → live search no-ops. **The key is HTTP-referrer-restricted — the live origin must be on its allowlist (see ⚠️ below) or every search 403s even though the key is present.** *(Carried over from the old Pages workflow.)* |
@@ -389,8 +400,9 @@ The workflow consumes exactly these:
 > allowlist. After standing up a new origin, add it or live candidate suggestions fail with
 > `API_KEY_HTTP_REFERRER_BLOCKED` even though the key is correctly baked into the bundle.
 > Console → **APIs & Services → Credentials →** the key → **Application restrictions → Website
-> restrictions**, add `wikiplus.wikiedu.org/*` (keep `localhost`/`127.0.0.1` for local dev).
-> Confirmed required on the 2026-06-16 cutover from `ragesoss.github.io`.
+> restrictions**, add `wikiplus.video/*` (keep `localhost`/`127.0.0.1` for local dev). The app is
+> served at the canonical origin, so `wikiplus.video/*` is the entry that matters; the former
+> `wikiplus.wikiedu.org/*` entry can stay harmlessly but is not required (that host only 301s).
 
 ```sh
 # Run from a checkout (the repo is the default target). DEPLOY_SSH_KEY reads the private key file:

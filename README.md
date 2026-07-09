@@ -24,5 +24,5 @@ operated by AI agents** in distinct roles.
   palette). Reference mockup: `mockups/inline-indigo-sync.html`.
 
 > Status: **prototype, live.** A Next.js app on shared Postgres runs at
-> <https://wikiplus.wikiedu.org> (push to `main` auto-deploys to a self-hosted VPS). See
+> <https://wikiplus.video> (push to `main` auto-deploys to a self-hosted VPS). See
 > `docs/ARCHITECTURE.md` for what's built vs. still deferred.
