@@ -597,7 +597,10 @@ figure.wikifig {
   background: var(--article-box-bg);
   padding: 4px;
 }
-figure.wikifig img {
+/* Article-embedded Commons media (native <video>) fits the figure exactly like an
+   image: fills the column width, intrinsic aspect ratio drives height, no overflow. */
+figure.wikifig img,
+figure.wikifig video {
   width: 100%;
   height: auto;
   display: block;
