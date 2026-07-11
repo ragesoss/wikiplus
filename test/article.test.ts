@@ -347,7 +347,7 @@ describe("article-embedded video (article-video spec)", () => {
     ).toBe(true);
   });
 
-  it("AC5c: preserves the subtitles <track> (kind/srclang/label + https src)", async () => {
+  it("AC1/track: preserves the subtitles <track> (kind/srclang/label + https src)", async () => {
     const track = parse(await sanitize(VIDEO_FIGURE)).querySelector("video track")!;
     expect(track).not.toBeNull();
     expect(track.getAttribute("kind")).toBe("subtitles");

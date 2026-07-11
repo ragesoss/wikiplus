@@ -25,8 +25,11 @@ Parsoid wraps an article video in the identical `<figure typeof="mw:File/Thumb">
   background + 4px padding, caption below in muted small text — exactly as image figures.
 - The `<video>` fills the figure: `width: 100%; height: auto; display: block` (mirrors
   `figure.wikifig img`). Its intrinsic aspect ratio (from the poster / first source) drives height, so
-  there is no fixed-height letterbox and no overflow. The inline `<span>` Parsoid wraps the video in is
-  set to `display: block` so it doesn't shrink-wrap the player.
+  there is no fixed-height letterbox and no overflow. The `<video>`'s `width`/`height` attributes are
+  preserved to reserve the aspect ratio (no layout shift as the poster loads). The inline `<span>`
+  Parsoid wraps the video in needs no special rule: a block `width:100%` video resolves its width
+  against the figure, so the inline span does not shrink-wrap it — the same way an image fills the
+  figure inside its inline `<a>` wrapper today (verified in a real browser at desktop and phone width).
 
 ## States
 
@@ -64,8 +67,9 @@ identically — one code path, faithful.)
   keep width/height, class, id, src already allowed. **No** `on*`, **no** `autoplay`.
 - https-upgrade protocol-relative `poster` and `<source src>` in the same post-sanitize pass that
   already upgrades image `src`.
-- Add the `.wiki-body figure.wikifig video` (and the `> span { display:block }`) CSS beside the
-  existing `figure.wikifig img` rule.
+- Add `figure.wikifig video` to the existing `figure.wikifig img` CSS rule (same
+  `width:100%; height:auto; display:block`). No separate span rule is required (the block video
+  fills the figure on its own — verified in-browser).
 
 ## Out of scope (design)
 

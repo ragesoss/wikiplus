@@ -262,9 +262,14 @@ export async function fetchFullArticle(
   //   the SAME rules as the rest of the allowlist: no `on*` handler is allowlisted (so
   //   `onerror`/`onloadstart` die), `autoplay` is NOT allowlisted (article video never
   //   autoplays — the reader initiates playback), and `poster`/`src` stay URI-validated
-  //   by ALLOWED_URI_REGEXP (a `javascript:`/`data:`-script source is rejected exactly
-  //   as on a link). The rendered `<video>` keeps Parsoid's `preload="none"`, so no
-  //   media bytes load until the reader presses play (the poster is the only fetch).
+  //   by ALLOWED_URI_REGEXP: a `javascript:` (or any non-allowlisted scheme) source is
+  //   DROPPED. A `data:` URL is dropped on `poster` (poster is not a data-URI attribute)
+  //   but RETAINED-yet-INERT on a `<source>`/`<track>` `src` — like `<img src=data:>`
+  //   (DOMPurify's DATA_URI_TAGS), the media pipeline decodes the bytes and never parses
+  //   HTML or runs a handler, so it is not a script vector (the inert `<img src=data:>`
+  //   case is asserted in test/article.test.ts; the media parallel in
+  //   test/article-video-security.test.ts). The rendered `<video>` keeps Parsoid's
+  //   `preload="none"`, so no media bytes load until the reader presses play (poster only).
   //
   // ATTR additions for this round (all inert, render/a11y/anchor-routing only):
   //   - `aria-hidden`, `role`           → table/equation scroll regions + math img
