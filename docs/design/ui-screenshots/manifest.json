@@ -80,6 +80,26 @@
     "focus": true
   },
   {
+    "id": "topic-article-video",
+    "group": "Topic · article video",
+    "label": "Article video — native poster + controls in the figure",
+    "viewport": "desktop",
+    "auth": "out",
+    "skin": "light",
+    "file": "topic-article-video-desktop-logged-out.png",
+    "focus": true
+  },
+  {
+    "id": "topic-article-video",
+    "group": "Topic · article video",
+    "label": "Article video — native poster + controls in the figure",
+    "viewport": "mobile",
+    "auth": "out",
+    "skin": "light",
+    "file": "topic-article-video-mobile-logged-out.png",
+    "focus": true
+  },
+  {
     "id": "topic-complete-overview",
     "group": "Topic · marked complete",
     "label": "＋plus card — marked complete (thin cap + counts + Reopen)",

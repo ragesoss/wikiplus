@@ -68,7 +68,8 @@ export type StubProfile =
   | "empty"
   | "missing"
   | "plain"
-  | "article-mobile";
+  | "article-mobile"
+  | "article-video";
 
 export interface Scene {
   /** Filename stem + index key, e.g. "topic-general-curated". Combined with viewport + auth. */
@@ -177,6 +178,25 @@ const MOBILE_ARTICLE_HTML = `<!DOCTYPE html><html><body>
   <section data-mw-section-id="6"><h2 id="references">References</h2><p>Cited works.</p></section>
 </body></html>`;
 
+/** The article-video fixture (docs/specs/article-video.md): an article that embeds a native
+ *  Commons `<video>` (TimedMediaHandler) in the lead — the shape restored by the sanitizer change.
+ *  Faithful Parsoid markup (figure → span → video[poster,controls,preload=none] → transcoded
+ *  sources → subtitles track → figcaption). The poster is a stubbable host so the capture is
+ *  hermetic; `preload="none"` means the `<source>` media is never fetched (the shot never plays). */
+const VIDEO_ARTICLE_HTML = `<!DOCTYPE html><html><body>
+  <section>
+    <figure class="mw-default-size" typeof="mw:File/Thumb"><span>
+      <video poster="//up.example/engelberg-poster.jpg" controls preload="none" width="250" height="141" class="mw-file-element">
+        <source src="//up.example/clip.ogv" type='video/ogg; codecs="theora, vorbis"'/>
+        <source src="//up.example/clip.240p.vp9.webm" type='video/webm; codecs="vp9, opus"'/>
+        <track kind="subtitles" srclang="en" label="English" src="https://commons.wikimedia.org/w/api.php?action=timedtext"/>
+      </video></span><figcaption>Der Alpabzug</figcaption></figure>
+    <p>Engelberg is a village and municipality in the canton of Obwalden in Switzerland, in the Uri Alps. It is home to Engelberg Abbey, a Benedictine monastery, and is a well-known destination for winter sports and mountaineering, with Mount Titlis to the south.</p>
+    <p>The Alpabzug — the ceremonial autumn descent of decorated cattle from the high summer pastures into the valley — is a traditional event in Engelberg and other alpine communities, marking the end of the grazing season.</p>
+  </section>
+  <section data-mw-section-id="1"><h2 id="history">History</h2><p>The settlement grew around the monastery, founded around 1120; from the nineteenth century onward tourism became central to the local economy.</p></section>
+</body></html>`;
+
 // ── Fixture profiles ────────────────────────────────────────────────────────────────────────────
 // Each profile registers the Wikidata + action-API + YouTube stubs (no network egress) and the
 // article-HTML + embed routes a scene needs. The seeded ephemeral Postgres already carries the
@@ -257,6 +277,26 @@ export async function applyStub(page: Page, profile: StubProfile): Promise<void>
         article: MOBILE_ARTICLE_HTML,
         youtube: () => [],
       });
+    case "article-video": {
+      // An article that embeds a native Commons <video>. The poster is served hermetically
+      // (a solid SVG from the stubbable `up.example` host) so no egress is needed; the video
+      // <source> media is never fetched (preload="none" + the capture never presses play).
+      await stubTopic(page, {
+        qid: "Q64108",
+        title: "Engelberg",
+        article: VIDEO_ARTICLE_HTML,
+        youtube: () => [],
+      });
+      await page.route(/up\.example\//, (route) =>
+        route.fulfill({
+          contentType: "image/svg+xml",
+          body:
+            '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 180" width="320" height="180">' +
+            '<rect width="320" height="180" fill="#43535f"/></svg>',
+        })
+      );
+      return;
+    }
     case "missing":
       // A well-formed but NONEXISTENT title: the action API returns a `missing` page (no pageid),
       // which resolvePage treats as unresolved → TopicView's #19 not-found state. Register the
@@ -848,6 +888,28 @@ export const SCENES: Scene[] = [
     stub: "article-mobile",
     prepare: (page) => articleExpandSection(page, /^Population by region/),
     viewports: ["mobile"],
+    auth: ["out"],
+    clip: "viewport",
+    focus: true,
+  },
+
+  // ── Topic — article-embedded Commons video (docs/specs/article-video.md) ──
+  // A Wikipedia article that embeds a native <video> (TimedMediaHandler) renders it in the SAME
+  // figure as an image: the poster shows at rest (`preload="none"` → no video bytes until the
+  // reader presses play), native controls, caption below. Faithful Wikipedia look, no plus chrome.
+  {
+    id: "topic-article-video",
+    group: "Topic · article video",
+    label: "Article video — native poster + controls in the figure",
+    note: "Engelberg's Commons video in the article column: poster + native controls + caption; zero bytes load until play.",
+    route: "/topic/Engelberg/",
+    stub: "article-video",
+    // Wait for the article, then let the (stubbed) poster paint before capturing.
+    ready: async (page) => {
+      await topicReady(page);
+      await page.waitForTimeout(700);
+    },
+    viewports: ["desktop", "mobile"],
     auth: ["out"],
     clip: "viewport",
     focus: true,
