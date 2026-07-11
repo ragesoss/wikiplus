@@ -284,6 +284,117 @@ describe("DOMPurify allowlist — XSS vectors (SECURITY)", () => {
   });
 });
 
+// ───────── Article-embedded video (docs/specs/article-video.md) ─────────
+// Wikipedia articles embed freely-licensed Commons video as native <video>
+// (TimedMediaHandler). These assert the sanitizer keeps a faithful, inert native
+// player (poster + <source> transcodes + <track>) WITHOUT widening the XSS surface.
+describe("article-embedded video (article-video spec)", () => {
+  async function sanitize(body: string): Promise<string> {
+    mockArticleHtml(body);
+    const a = await fetchFullArticle("X");
+    return a.lead.leadHtml + a.sections.map((s) => s.html).join("\n");
+  }
+  const parse = (out: string): Document =>
+    new DOMParser().parseFromString(out, "text/html");
+
+  // Faithful Parsoid markup (as emitted for e.g. Engelberg / Polio): figure → span →
+  // <video poster controls preload=none> with transcoded <source> children + a <track>.
+  const VIDEO_FIGURE = `<section><p>Intro.</p>
+    <figure class="mw-default-size" typeof="mw:File/Thumb"><span>
+      <video poster="//upload.wikimedia.org/wikipedia/commons/thumb/e/e5/Clip.ogv/250px--Clip.ogv.jpg" controls="" preload="none" data-mw-tmh="" height="141" width="250" resource="./File:Clip.ogv" class="mw-file-element">
+        <source src="//upload.wikimedia.org/wikipedia/commons/e/e5/Clip.ogv" type='video/ogg; codecs="theora, vorbis"'/>
+        <source src="//upload.wikimedia.org/wikipedia/commons/transcoded/e/e5/Clip.ogv/Clip.ogv.240p.vp9.webm" type='video/webm; codecs="vp9, opus"'/>
+        <track kind="subtitles" type="text/vtt" src="https://commons.wikimedia.org/w/api.php?action=timedtext&amp;title=File%3AClip.ogv&amp;lang=en&amp;trackformat=vtt&amp;origin=%2A" srclang="en" label="English"/>
+      </video></span><figcaption>A clip</figcaption></figure></section>`;
+
+  it("AC1: keeps the <video> and all its <source> children (not an empty figure)", async () => {
+    const doc = parse(await sanitize(VIDEO_FIGURE));
+    expect(doc.querySelector("video")).not.toBeNull();
+    expect(doc.querySelectorAll("video source").length).toBe(2);
+  });
+
+  it("AC2: no autoload — preload=none, controls, and poster all preserved", async () => {
+    const video = parse(await sanitize(VIDEO_FIGURE)).querySelector("video")!;
+    expect(video.getAttribute("preload")).toBe("none");
+    expect(video.hasAttribute("controls")).toBe(true);
+    expect(video.getAttribute("poster")).toMatch(/^https:\/\/upload\.wikimedia\.org\//);
+  });
+
+  it("AC3: each <source> keeps its src and type (codec choice preserved)", async () => {
+    const sources = Array.from(
+      parse(await sanitize(VIDEO_FIGURE)).querySelectorAll("video source")
+    );
+    expect(sources.map((s) => s.getAttribute("type"))).toEqual([
+      'video/ogg; codecs="theora, vorbis"',
+      'video/webm; codecs="vp9, opus"',
+    ]);
+    expect(sources.every((s) => (s.getAttribute("src") || "").length > 0)).toBe(true);
+  });
+
+  it("AC4: https-upgrades protocol-relative poster and <source> src (no mixed content)", async () => {
+    const out = await sanitize(VIDEO_FIGURE);
+    // No attribute value left protocol-relative (a `"//upload…` would be mixed-content).
+    expect(out).not.toMatch(/"\/\/upload/);
+    const doc = parse(out);
+    expect(doc.querySelector("video")!.getAttribute("poster")).toMatch(
+      /^https:\/\/upload\.wikimedia\.org\//
+    );
+    const sources = Array.from(doc.querySelectorAll("video source"));
+    expect(
+      sources.every((s) =>
+        (s.getAttribute("src") || "").startsWith("https://upload.wikimedia.org/")
+      )
+    ).toBe(true);
+  });
+
+  it("AC1/track: preserves the subtitles <track> (kind/srclang/label + https src)", async () => {
+    const track = parse(await sanitize(VIDEO_FIGURE)).querySelector("video track")!;
+    expect(track).not.toBeNull();
+    expect(track.getAttribute("kind")).toBe("subtitles");
+    expect(track.getAttribute("srclang")).toBe("en");
+    expect(track.getAttribute("label")).toBe("English");
+    expect(
+      (track.getAttribute("src") || "").startsWith("https://commons.wikimedia.org/")
+    ).toBe(true);
+  });
+
+  // SECURITY (AC5 — X4 must still hold for the newly-allowed media tags):
+  it("AC5a: strips on* event handlers from video/source", async () => {
+    const doc = parse(
+      await sanitize(
+        `<section><figure typeof="mw:File/Thumb"><span><video controls onerror="alert(1)" onloadstart="alert(2)">` +
+          `<source src="//upload.wikimedia.org/x.webm" type="video/webm" onerror="alert(3)"/></video></span></figure></section>`
+      )
+    );
+    const video = doc.querySelector("video")!;
+    expect(video.hasAttribute("onerror")).toBe(false);
+    expect(video.hasAttribute("onloadstart")).toBe(false);
+    expect(doc.querySelector("video source")!.hasAttribute("onerror")).toBe(false);
+  });
+
+  it("AC5b: never renders autoplay even if the source markup carries it", async () => {
+    const video = parse(
+      await sanitize(
+        `<section><figure typeof="mw:File/Thumb"><span><video controls autoplay preload="none">` +
+          `<source src="//upload.wikimedia.org/x.webm" type="video/webm"/></video></span></figure></section>`
+      )
+    ).querySelector("video")!;
+    expect(video.hasAttribute("autoplay")).toBe(false);
+  });
+
+  it("AC5c: drops a javascript: source/track src (URI-validated like a link)", async () => {
+    const out = await sanitize(
+      `<section><figure typeof="mw:File/Thumb"><span><video controls>` +
+        `<source src="javascript:alert(1)" type="video/webm"/>` +
+        `<track kind="subtitles" src="javascript:alert(2)" srclang="en"/>` +
+        `</video></span></figure></section>`
+    );
+    expect(out.toLowerCase()).not.toContain("javascript:");
+    const src = parse(out).querySelector("video source");
+    if (src) expect(src.getAttribute("src") || "").not.toMatch(/javascript:/i);
+  });
+});
+
 describe("qidToTitle (AC20 — QID→title resolution path)", () => {
   it("returns the enwiki sitelink title for a QID", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(

@@ -255,6 +255,22 @@ export async function fetchFullArticle(
   //   — i.e. the math MathML/SVG payloads, embeds, and CSS-injection surfaces — so
   //   the existing SECURITY tests (test/article.test.ts) still hold. See math below.
   //
+  // MEDIA: native `<video>`/`<audio>` + their `<source>`/`<track>` children ARE
+  //   allowed (article-embedded Commons media via TimedMediaHandler). These are inert
+  //   media elements — unlike `<iframe>`/`<object>`/`<embed>`, they load no document,
+  //   plugin, or script context, only decoded audio/video from a URL. Safety holds by
+  //   the SAME rules as the rest of the allowlist: no `on*` handler is allowlisted (so
+  //   `onerror`/`onloadstart` die), `autoplay` is NOT allowlisted (article video never
+  //   autoplays — the reader initiates playback), and `poster`/`src` stay URI-validated
+  //   by ALLOWED_URI_REGEXP: a `javascript:` (or any non-allowlisted scheme) source is
+  //   DROPPED. A `data:` URL is dropped on `poster` (poster is not a data-URI attribute)
+  //   but RETAINED-yet-INERT on a `<source>`/`<track>` `src` — like `<img src=data:>`
+  //   (DOMPurify's DATA_URI_TAGS), the media pipeline decodes the bytes and never parses
+  //   HTML or runs a handler, so it is not a script vector (the inert `<img src=data:>`
+  //   case is asserted in test/article.test.ts; the media parallel in
+  //   test/article-video-security.test.ts). The rendered `<video>` keeps Parsoid's
+  //   `preload="none"`, so no media bytes load until the reader presses play (poster only).
+  //
   // ATTR additions for this round (all inert, render/a11y/anchor-routing only):
   //   - `aria-hidden`, `role`           → table/equation scroll regions + math img
   //   - `data-mw-group`                 → distinguishes the `note` footnote group
@@ -293,30 +309,42 @@ export async function fetchFullArticle(
   //   an empty hidden span we drop), and we move accessibility onto the image by
   //   UN-hiding it (`stripChrome`/`cleanMath` removes its `aria-hidden`) so the `alt`
   //   (TeX) is announced (C3/§5.3). No KaTeX/client dependency needed.
-  // The hook's allow-set is a HARDCODED set of exactly these three inert
-  // layout/a11y attribute names — it can rescue nothing else (not `style`, not
-  // `on*`, not `href`/`src`). It is removed in `finally` so it never leaks into
-  // any other DOMPurify.sanitize call (DOMPurify is a global singleton here).
-  //
-  // The img `width`/`height` PRESENTATIONAL attributes are ALSO re-permitted, gated on
-  // `tagName === "IMG"` (#106): the per-image scaled display size of a `.tmulti` montage
-  // ships on the `<img>`'s `width`/`height` attributes (e.g. `width="181" height="111"`),
-  // and DOMPurify 3.x URI-validates those numeric values away under the custom
-  // `ALLOWED_URI_REGEXP` (the same mechanism that drops `colspan`/`scope`) even though they
-  // are in `ALLOWED_ATTR`. They are inert presentational attributes (a length/number only,
-  // no URL/script/style); re-permitting exactly them on images is what lets the montage
-  // crop band clip the image at its scaled size. Still no other attribute is rescued, and
-  // the hook is removed in `finally`.
+  // DOMPurify 3.x, once a custom `ALLOWED_URI_REGEXP` is set (we set one to control link
+  // routing), validates every attribute value that is not a built-in URI-safe name
+  // against that regexp and drops the ones whose value is not URL-shaped — even inert,
+  // allowlisted attributes (`"row"`, `"2"`, `"none"`, `"subtitles"` all fail the link
+  // regexp). A scoped `uponSanitizeAttribute` hook re-permits, via `forceKeepAttr`, a
+  // HARDCODED set of inert render/layout/a11y attributes that are load-bearing and carry
+  // no URL/script/style:
+  //   - `colspan`/`rowspan`/`scope` on any element — faithful table/infobox structure
+  //     (the taxobox/infobox banner rows are `<th colspan="2">`, keyed off by the CSS).
+  //   - `width`/`height` on `<img>` and `<video>` — the scaled display size (`.tmulti`
+  //     montage crop; a video's aspect ratio, so the poster reserves space without CLS).
+  //   - `preload`/`type`/`kind`/`srclang`/`label` on `<video>`/`<audio>`/`<source>`/
+  //     `<track>` — native-media control/codec/caption metadata (poster-only `preload`,
+  //     the `<source type>` codec hint, `<track>` caption language). Enumerated/MIME
+  //     values, never a URL.
+  // The hook can rescue NOTHING else — not `style`, not `on*`, not `href`/`src`/`poster`
+  // (those stay URI-validated: a `javascript:` media source is dropped exactly as on a
+  // link). It is removed in `finally` so it never leaks into any other DOMPurify.sanitize
+  // call (DOMPurify is a global singleton here). X4 is untouched.
   const KEEP_INERT_ATTRS = new Set(["colspan", "rowspan", "scope"]);
+  const MEDIA_TAGS = new Set(["VIDEO", "AUDIO", "SOURCE", "TRACK"]);
+  const KEEP_MEDIA_ATTRS = new Set([
+    "preload", "type", "kind", "srclang", "label",
+  ]);
   const keepInertAttrs: Parameters<typeof DOMPurify.addHook>[1] = (
     node,
     data
   ) => {
+    const tag = (node as Element).tagName;
     if (KEEP_INERT_ATTRS.has(data.attrName)) data.forceKeepAttr = true;
     else if (
-      (node as Element).tagName === "IMG" &&
+      (tag === "IMG" || tag === "VIDEO") &&
       (data.attrName === "width" || data.attrName === "height")
     ) {
+      data.forceKeepAttr = true;
+    } else if (MEDIA_TAGS.has(tag) && KEEP_MEDIA_ATTRS.has(data.attrName)) {
       data.forceKeepAttr = true;
     }
   };
@@ -330,6 +358,10 @@ export async function fetchFullArticle(
         "ul", "ol", "li", "dl", "dt", "dd",
         "b", "strong", "i", "em", "sub", "sup", "small", "abbr",
         "a", "figure", "figcaption", "img",
+        // Article-embedded Commons media (MediaWiki TimedMediaHandler): the native
+        // <video>/<audio> element, its transcoded <source> children (codec choice),
+        // and the subtitles <track>. See the MEDIA note below for why these are inert.
+        "video", "audio", "source", "track",
         "table", "thead", "tbody", "tr", "th", "td", "caption",
         "blockquote", "cite", "code", "pre",
       ],
@@ -340,6 +372,11 @@ export async function fetchFullArticle(
         // Article-fidelity additions (render/a11y/anchor-routing only — all inert):
         "aria-hidden", "role", "aria-label", "aria-labelledby",
         "data-mw-group", "data-mw-footnote-number",
+        // Native-media attrs (see MEDIA note): poster + native controls, the codec
+        // hint (<source type>), and caption-track metadata (<track kind/srclang/label>).
+        // `poster` is URI-validated like `src`. `autoplay` is DELIBERATELY ABSENT so
+        // article video never autoplays; no `on*` handler is ever allowlisted.
+        "poster", "controls", "preload", "type", "kind", "srclang", "label",
       ],
       // We rewrite links ourselves; allow http(s) + relative + in-page anchors.
       ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto):|\.{0,2}\/|#)/i,
@@ -659,6 +696,16 @@ function cleanFigures(root: HTMLElement) {
     const src = img.getAttribute("src") || "";
     if (src.startsWith("//")) img.setAttribute("src", "https:" + src);
     img.setAttribute("loading", "lazy");
+  }
+  // Article-embedded media (native <video>/<audio>): https-upgrade the protocol-relative
+  // `poster` and <source>/<track> `src` (Parsoid emits `//upload.wikimedia.org/…`), so a
+  // faithful native player renders with no mixed-content downgrade. `preload="none"` is
+  // left untouched — the poster is the only fetch until the reader presses play.
+  for (const el of Array.from(root.querySelectorAll("video, audio, source, track"))) {
+    for (const attr of ["src", "poster"]) {
+      const v = el.getAttribute(attr);
+      if (v && v.startsWith("//")) el.setAttribute(attr, "https:" + v);
+    }
   }
 }
 
