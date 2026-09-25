@@ -177,6 +177,13 @@ function mix(c: [number, number, number], t: number): string {
 
 const GOLD_FILL: [number, number, number] = [255, 236, 178]; // #FFECB2 (mixed toward white)
 const GOLD_RIM_RGB = "238,206,135"; // #EECE87 — the single signal-carrying edge gold
+// The beam's edge-glow as [strokeWidth, opacity] layers, drawn widest first (filter-free halo).
+const GLOW_STROKES: [number, number][] = [
+  [22, 0.07],
+  [14, 0.1],
+  [8, 0.18],
+  [4, 0.3],
+];
 
 // ── The indigo "+" zine block (VISUAL_IDENTITY §5.3): even-odd knockout, 2px ink border,
 // hard offset shadow arms, white "plus", with the lit aperture (core + gold rim + bleed) for
@@ -372,16 +379,11 @@ function Beam({
       style={{
         top: top0, // SVG starts at the beam top; the span clips its bottom at burnY
         height: burnY - top0,
-        // overflow:hidden clips the SVG CONTENT at burnY (the underline fix — the polygon's
-        // bottom closing edge sits below this and is never drawn). But `overflow:hidden` does
-        // NOT clip the element's own `filter` output, so the gold drop-shadow GLOW would leak
-        // ~12px below burnY onto the white hero. `clip-path: inset(0)` clips the FILTERED result
-        // too (clip-path applies AFTER filter in the paint order), so the edge-glow stays inside
-        // the header and never bleeds below the boundary — matching the mockup's clip-path clip.
+        // overflow:hidden clips the SVG CONTENT at burnY (the polygon's bottom closing edge sits
+        // below this and is never drawn), glow strokes included. Draw the glow with plain strokes,
+        // never a blur filter (CSS `filter` or SVG <filter>): Chromium's GPU raster paints a
+        // filtered full-width cone here with a ghost copy of it offset sideways.
         overflow: "hidden",
-        clipPath: "inset(0)",
-        filter:
-          `drop-shadow(0 0 4px rgba(${GOLD_RIM_RGB},0.6)) drop-shadow(0 0 11px rgba(${GOLD_RIM_RGB},0.32))`,
       }}
     >
       <svg
@@ -406,6 +408,21 @@ function Beam({
             (--projector-burn-bg: #FFFFFF on BOTH hosts — spec Decision 2 / AC6); the gold stroke
             stays the signal-carrying edge. On Topic the white beam lands on the white page top (the
             page's .topic-illum falloff carries the grey, not the beam) so the edge meets no seam. */}
+        {/* The gold edge-glow: stacked translucent gold strokes BEHIND the beam path, widest and
+            faintest first, approximating a soft 4px + 11px halo. The beam's own fill (drawn after)
+            covers their inner halves, so the glow shows only outside the edge — like a drop-shadow. */}
+        {GLOW_STROKES.map(([w, o]) => (
+          <path
+            key={w}
+            d={d}
+            fill="none"
+            stroke={`rgb(${GOLD_RIM_RGB})`}
+            strokeOpacity={o}
+            strokeWidth={w}
+            strokeLinejoin="round"
+            vectorEffect="non-scaling-stroke"
+          />
+        ))}
         <path
           d={d}
           fill="var(--projector-burn-bg)"
