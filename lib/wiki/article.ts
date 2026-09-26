@@ -925,8 +925,21 @@ function wrapTables(root: HTMLElement) {
     wrap.setAttribute("aria-label", caption || "Data table");
     // MediaWiki's `floatright`/`floatleft` (site CSS wiki+ never fetches) float the scroll
     // region, not the table inside it, so the table keeps its contained scroll.
-    if (table.classList.contains("floatright")) wrap.classList.add("wiki-tablewrap--right");
-    else if (table.classList.contains("floatleft")) wrap.classList.add("wiki-tablewrap--left");
+    const float = table.classList.contains("floatright")
+      ? "right"
+      : table.classList.contains("floatleft")
+        ? "left"
+        : null;
+    if (float) {
+      wrap.classList.add(`wiki-tablewrap--${float}`);
+      // A shrink-to-fit float gives a percentage table width nothing to resolve against, so the
+      // (already-sanitized) percentage sizes the region against the column and the table fills it.
+      const width = (table as HTMLElement).style.width;
+      if (width.endsWith("%")) {
+        wrap.style.width = width;
+        (table as HTMLElement).style.width = "100%";
+      }
+    }
     table.classList.add("wiki-table");
     table.replaceWith(wrap);
     wrap.appendChild(table);

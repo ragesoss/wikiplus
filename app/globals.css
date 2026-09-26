@@ -813,6 +813,8 @@ figure.wikifig .credit {
   .wiki-tablewrap--left {
     float: none;
     margin: 0 0 0.9em;
+    /* Overrides a percentage width moved onto the region from its table. */
+    width: auto !important;
   }
 }
 /* "Scroll table →" hint — TEXT, shown ONLY when the table overflows its wrapper
