@@ -11,7 +11,8 @@
 // bootstrap in app/layout.tsx sets the first frame; this flips it live), so the SSR shell stays
 // skin-agnostic and the cache is never fragmented by skin (AC9/AC10).
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useContext, useEffect, useState } from "react";
+import { SessionContext } from "next-auth/react";
 import { store } from "@/lib/data";
 
 /** The two skins (spec A3.2). `"zine"` = the light Indigo Press zine (the default — `data-skin`
@@ -67,6 +68,43 @@ export function readSkinCookie(): string | null {
   return m ? decodeURIComponent(m[1]) : null;
 }
 
+/** Auth.js's session endpoint (the default `/api/auth` base path — app/api/auth/[...nextauth]). */
+const AUTH_BASE = "/api/auth";
+let resignWanted: Skin | null = null;
+let resignInFlight = false;
+
+/**
+ * Re-sign the session JWT with the chosen skin, so the load-time DB→cookie mirror (SkinSync) reads
+ * the current choice after a reload, never the sign-in-time one. This POSTs Auth.js's session-update
+ * endpoint directly (CSRF token included, exactly as `update()` does) rather than calling the
+ * provider's `update()`, which would flip every `useSession()` consumer to "loading" for the round
+ * trip. Calls are serialized latest-wins: a toggle made while one is in flight is sent when it
+ * lands, so the JWT always ends on the last choice. Fire-and-forget; failures are swallowed.
+ */
+export async function resignSessionSkin(skin: Skin): Promise<void> {
+  resignWanted = skin;
+  if (resignInFlight) return;
+  resignInFlight = true;
+  try {
+    while (resignWanted) {
+      const next: Skin = resignWanted;
+      resignWanted = null;
+      const csrf = await fetch(`${AUTH_BASE}/csrf`).then((r) => r.json());
+      if (typeof csrf?.csrfToken !== "string") return;
+      await fetch(`${AUTH_BASE}/session`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ csrfToken: csrf.csrfToken, data: { skinPreference: next } }),
+      });
+    }
+  } catch {
+    // A failed re-sign leaves the stale claim; the next toggle or sign-in corrects it.
+  } finally {
+    resignInFlight = false;
+    resignWanted = null;
+  }
+}
+
 /** The destination skin of a toggle from `current`. */
 export function otherSkin(current: Skin): Skin {
   return current === "zine-dark" ? "zine" : "zine-dark";
@@ -88,6 +126,12 @@ export function useSkin(): {
 } {
   const [skin, setSkin] = useState<Skin>("zine");
   const [ready, setReady] = useState(false);
+  // Read via the context (not `useSession()`, which throws outside a provider): undefined when no
+  // SessionProvider wraps the control, which simply skips the session update below.
+  const session = useContext(SessionContext);
+  // "loading" counts: a toggle while the session is still resolving may be a signed-in one, and a
+  // re-sign without a session cookie is a harmless no-op.
+  const maybeSignedIn = !!session && session.status !== "unauthenticated";
 
   useEffect(() => {
     // Seed from the resolved skin the bootstrap applied (after mount, so it has run).
@@ -116,7 +160,10 @@ export function useSkin(): {
     // the visual switch (design §4.6). A logged-out call rejects behind the auth gate (the write is a
     // no-op for a reader with no account); swallow it so the toggle never surfaces an error.
     void store.setSkinPreference(next).catch(() => {});
-  }, []);
+    // 4. Re-sign the session JWT with the new skin (signed-in only, fire-and-forget), so the
+    // load-time DB→cookie mirror (SkinSync) reads the current choice, never the sign-in-time one.
+    if (maybeSignedIn) void resignSessionSkin(next);
+  }, [maybeSignedIn]);
 
   return { skin, ready, toggle };
 }

@@ -15,9 +15,9 @@
 // CONFLICT RULE (spec §6.1): the cookie is authoritative for rendering; login seeds it from the DB.
 // A subsequent same-device toggle writes both (cookie immediately + DB), so the cookie then differs
 // from the just-mirrored value — that is the user's newer explicit intent and must NOT be re-stomped.
-// We therefore mirror DB→cookie ONLY ONCE per established session (guarded by a ref), at the moment
-// the session first resolves: the stored preference takes effect on this device at login, and any
-// later toggle on this device wins from then on (the toggle updates both, and we do not re-run).
+// Two guards keep that intent: the mirror runs at most once per mount (a ref), and a signed-in toggle
+// re-signs the session JWT with the new skin (`useSkin` → `resignSessionSkin`), so the session this
+// effect reads after a reload already carries the current choice and the mirror is a no-op.
 
 import { useEffect, useRef } from "react";
 import { useSession } from "next-auth/react";

@@ -17,7 +17,10 @@ vi.mock("server-only", () => ({}));
 //     test/auth-boundary.test.ts by mocking lib/auth/config's `auth()`, independent of this.
 //   - `signIn`/`signOut` are no-op spies (no real OAuth navigation in jsdom — AC13).
 //   - `SessionProvider` is a passthrough.
-vi.mock("next-auth/react", () => ({
+//   - `SessionContext` is a real (empty) context, so a component reading it directly sees no
+//     session unless a test provides one.
+vi.mock("next-auth/react", async () => ({
+  SessionContext: (await import("react")).createContext(undefined),
   useSession: () => ({
     data: { user: { contributorId: 1, username: "TestCurator" } },
     status: "authenticated",

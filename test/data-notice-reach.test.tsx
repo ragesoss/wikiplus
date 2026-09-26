@@ -31,7 +31,8 @@ let sessionState: {
   data: { user: { username?: string } } | null;
   status: "authenticated" | "unauthenticated" | "loading";
 } = { data: null, status: "unauthenticated" };
-vi.mock("next-auth/react", () => ({
+vi.mock("next-auth/react", async () => ({
+  SessionContext: (await import("react")).createContext(undefined),
   useSession: () => sessionState,
   signIn: (...a: unknown[]) => signIn(...a),
   signOut: (...a: unknown[]) => signOut(...a),
