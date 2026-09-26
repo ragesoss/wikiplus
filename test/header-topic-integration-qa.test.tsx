@@ -175,7 +175,8 @@ describe("AC6/AC7/AC8/AC8b — white beam on both hosts + Topic white→grey ill
   it("AC6 — the Beam SVG fill reads var(--projector-burn-bg), not a hardcoded #ffffff", () => {
     const { container } = render(<HeaderProjector variant="projector" />);
     const beam = container.querySelector("[data-projector-beam]");
-    const fill = beam?.querySelector("path")?.getAttribute("fill");
+    // The beam body is the filled path; the glow layers behind it are `fill="none"` strokes.
+    const fill = beam?.querySelector('path:not([fill="none"])')?.getAttribute("fill");
     expect(fill).toBe("var(--projector-burn-bg)");
     // No descending-beam path is painted with a literal white.
     expect(beam?.querySelector('path[fill="#ffffff"]')).toBeNull();
