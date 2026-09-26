@@ -11,7 +11,8 @@
 // bootstrap in app/layout.tsx sets the first frame; this flips it live), so the SSR shell stays
 // skin-agnostic and the cache is never fragmented by skin (AC9/AC10).
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useContext, useEffect, useState } from "react";
+import { SessionContext } from "next-auth/react";
 import { store } from "@/lib/data";
 
 /** The two skins (spec A3.2). `"zine"` = the light Indigo Press zine (the default — `data-skin`
@@ -88,6 +89,11 @@ export function useSkin(): {
 } {
   const [skin, setSkin] = useState<Skin>("zine");
   const [ready, setReady] = useState(false);
+  // Read via the context (not `useSession()`, which throws outside a provider): undefined when no
+  // SessionProvider wraps the control, which simply skips the session update below.
+  const session = useContext(SessionContext);
+  const signedIn = session?.status === "authenticated";
+  const updateSession = session?.update;
 
   useEffect(() => {
     // Seed from the resolved skin the bootstrap applied (after mount, so it has run).
@@ -116,7 +122,10 @@ export function useSkin(): {
     // the visual switch (design §4.6). A logged-out call rejects behind the auth gate (the write is a
     // no-op for a reader with no account); swallow it so the toggle never surfaces an error.
     void store.setSkinPreference(next).catch(() => {});
-  }, []);
+    // 4. Re-sign the session JWT with the new skin (signed-in only, fire-and-forget), so the
+    // load-time DB→cookie mirror (SkinSync) reads the current choice, never the sign-in-time one.
+    if (signedIn && updateSession) void updateSession({ skinPreference: next }).catch(() => {});
+  }, [signedIn, updateSession]);
 
   return { skin, ready, toggle };
 }

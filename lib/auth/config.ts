@@ -119,7 +119,16 @@ export const authConfig: NextAuthConfig = {
     // Runs server-side. On the sign-in pass (`account` + `profile` present) we do the ONE DB
     // write a login makes — find-or-create the contributor/account (AC2/AC3) — and stash the
     // resolved identity in the JWT. Every later request just reads the token (no DB hit, AC4).
-    async jwt({ token, account, profile }) {
+    async jwt({ token, account, profile, trigger, session }) {
+      // A signed-in skin toggle re-signs the JWT via `update({ skinPreference })` so the session
+      // stays truthful and SkinSync's load-time DB→cookie mirror never re-applies a stale skin. The
+      // client payload is trusted for ONLY this cosmetic claim, and only a closed-set value — never
+      // identity or role.
+      if (trigger === "update") {
+        const skin = (session as { skinPreference?: unknown } | undefined)?.skinPreference;
+        if (skin === "zine" || skin === "zine-dark") token.skinPreference = skin;
+        return token;
+      }
       if (account?.provider === "wikimedia" && profile) {
         const p = profile as WikimediaProfile;
         const resolved = await findOrCreateContributor({
