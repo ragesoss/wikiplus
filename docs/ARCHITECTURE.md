@@ -883,7 +883,17 @@ contract). This section is the durable record of the canonical wording + where i
     clear 4.5:1 (never color alone — the cell's text/position/weight and the band's centered/bold/hairline
     carry the signal in greyscale); no Indigo Press color enters the article column. `position`-dependent
     graphics stay out: the geologic `#Timeline-row` timebar is removed by `stripChrome`, and pushpin
-    locator-map overlays remain an accepted limit (they need `position:absolute`).
+    locator-map overlays remain an accepted limit (they need `position:absolute`). `float` is **not**
+    in the inline allowlist: a `<table>`'s raw inline `float:right|left` is instead mapped, in the
+    same encode pass, to MediaWiki's fixed `floatright`/`floatleft` class, which `wrapTables` turns
+    into a floated scroll region (`wiki-tablewrap--right|--left`, with a sanitized percentage table
+    width moved onto the region) — so floating reaches only data tables, never arbitrary elements.
+  - **`wikitable` + float utility classes (site-CSS parity, `app/globals.css`):** `wikitable` and
+    `floatright`/`floatleft` are MediaWiki **site CSS** wiki+ never fetches, so their rules are
+    re-stated as a thin override matched to Wikipedia's own: the `#f8f9fa` box fill under `#eaecf0`
+    header cells, `.wikitable > * > tr > th` centered (the `plainrowheaders` row-header exception
+    left + normal weight), cells inheriting table-level alignment, and the float with matching
+    `clear`, un-floated below 640px.
   - **Infobox + taxobox internal layout (structure-keyed CSS, `app/globals.css`):** this is a **thin
     wiki+ override**, NOT part of the TemplateStyles reuse path — because the modern infobox layout
     (`infobox-above`/`infobox-label`/`infobox-header`/`infobox-image`) and the taxobox

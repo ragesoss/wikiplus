@@ -512,6 +512,12 @@ async function encodeInlineStyles(root: HTMLElement): Promise<void> {
   }
   // Step 2: sanitize each element's raw inline `style` into the carrier.
   for (const el of Array.from(root.querySelectorAll("[style]"))) {
+    // A table's inline `float` is not in the inline allowlist; it is mapped to the fixed
+    // MediaWiki float class instead, so `wrapTables` floats the table like `.floatright`.
+    if (el.tagName === "TABLE") {
+      const float = /(?:^|;)\s*float\s*:\s*(left|right)\b/i.exec(el.getAttribute("style") || "");
+      if (float) el.classList.add(float[1].toLowerCase() === "left" ? "floatleft" : "floatright");
+    }
     const cleaned = await sanitizeInlineStyle(el.getAttribute("style") || "");
     el.removeAttribute("style");
     if (cleaned) el.setAttribute("data-wikiplus-style", cleaned);
@@ -917,6 +923,23 @@ function wrapTables(root: HTMLElement) {
     wrap.setAttribute("tabindex", "0");
     const caption = table.querySelector("caption")?.textContent?.trim();
     wrap.setAttribute("aria-label", caption || "Data table");
+    // MediaWiki's `floatright`/`floatleft` (site CSS wiki+ never fetches) float the scroll
+    // region, not the table inside it, so the table keeps its contained scroll.
+    const float = table.classList.contains("floatright")
+      ? "right"
+      : table.classList.contains("floatleft")
+        ? "left"
+        : null;
+    if (float) {
+      wrap.classList.add(`wiki-tablewrap--${float}`);
+      // A shrink-to-fit float gives a percentage table width nothing to resolve against, so the
+      // (already-sanitized) percentage sizes the region against the column and the table fills it.
+      const width = (table as HTMLElement).style.width;
+      if (width.endsWith("%")) {
+        wrap.style.width = width;
+        (table as HTMLElement).style.width = "100%";
+      }
+    }
     table.classList.add("wiki-table");
     table.replaceWith(wrap);
     wrap.appendChild(table);

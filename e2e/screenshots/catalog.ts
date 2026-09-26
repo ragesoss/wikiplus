@@ -69,7 +69,8 @@ export type StubProfile =
   | "missing"
   | "plain"
   | "article-mobile"
-  | "article-video";
+  | "article-video"
+  | "article-wikitable";
 
 export interface Scene {
   /** Filename stem + index key, e.g. "topic-general-curated". Combined with viewport + auth. */
@@ -197,6 +198,28 @@ const VIDEO_ARTICLE_HTML = `<!DOCTYPE html><html><body>
   <section data-mw-section-id="1"><h2 id="history">History</h2><p>The settlement grew around the monastery, founded around 1120; from the nineteenth century onward tourism became central to the local economy.</p></section>
 </body></html>`;
 
+/** The floated-wikitable fixture (docs/design/wikitable-float-align.md): Figure skating jumps'
+ *  lead, whose `wikitable floatright` of all-`<th>` cells floats right beside the lead prose with
+ *  centered header cells on Wikipedia's #f8f9fa/#eaecf0 fills (un-floated on a phone). */
+const WIKITABLE_ARTICLE_HTML = `<!DOCTYPE html><html><body>
+  <section>
+    <table class="wikitable floatright"><tbody>
+      <tr><th colspan="2">ISU abbreviations</th></tr>
+      <tr><th>Eu</th><th><a rel="mw:WikiLink" href="./Euler_jump" title="Euler jump">Euler jump</a></th></tr>
+      <tr><th>T</th><th><a rel="mw:WikiLink" href="./Toe_loop_jump" title="Toe loop jump">Toe loop</a></th></tr>
+      <tr><th>F</th><th><a rel="mw:WikiLink" href="./Flip_jump" title="Flip jump">Flip</a></th></tr>
+      <tr><th>Lz</th><th><a rel="mw:WikiLink" href="./Lutz_jump" title="Lutz jump">Lutz</a></th></tr>
+      <tr><th>S</th><th><a rel="mw:WikiLink" href="./Salchow_jump" title="Salchow jump">Salchow</a></th></tr>
+      <tr><th>Lo</th><th><a rel="mw:WikiLink" href="./Loop_jump" title="Loop jump">Loop</a></th></tr>
+      <tr><th>A</th><th><a rel="mw:WikiLink" href="./Axel_jump" title="Axel jump">Axel</a></th></tr>
+    </tbody></table>
+    <p><b>Figure skating jumps</b> are an element of three competitive <a rel="mw:WikiLink" href="./Figure_skating" title="Figure skating">figure skating</a> disciplines: men's singles, women's singles, and pair skating — but not ice dancing. Jumping in figure skating is "relatively recent". They were originally individual compulsory figures, and sometimes special figures; many jumps were named after the skaters who invented them or from the figures from which they were developed.</p>
+    <p>It was not until the early part of the 20th century, well after the establishment of organized skating competitions, that jumps with the potential of being completed with multiple revolutions were invented, and when jumps were formally categorized. In the 1920s, Austrian skaters began to perform the first double jumps in practice. Skaters experimented with jumps, and by the end of the period, the modern repertoire of jumps had been developed.</p>
+    <p>The six most common jumps can be divided into two groups: toe jumps (the toe loop, the flip, and the Lutz) and edge jumps (the Salchow, the loop, and the Axel). Jumps are also classified by the number of revolutions.</p>
+  </section>
+  <section data-mw-section-id="1"><h2 id="history">History</h2><p>The first jumps were performed in the late nineteenth century.</p></section>
+</body></html>`;
+
 // ── Fixture profiles ────────────────────────────────────────────────────────────────────────────
 // Each profile registers the Wikidata + action-API + YouTube stubs (no network egress) and the
 // article-HTML + embed routes a scene needs. The seeded ephemeral Postgres already carries the
@@ -297,6 +320,14 @@ export async function applyStub(page: Page, profile: StubProfile): Promise<void>
       );
       return;
     }
+    case "article-wikitable":
+      // A lead `wikitable floatright` (Figure skating jumps): the floated-table scenes.
+      return stubTopic(page, {
+        qid: "Q1889337",
+        title: "Figure skating jumps",
+        article: WIKITABLE_ARTICLE_HTML,
+        youtube: () => [],
+      });
     case "missing":
       // A well-formed but NONEXISTENT title: the action API returns a `missing` page (no pageid),
       // which resolvePage treats as unresolved → TopicView's #19 not-found state. Register the
@@ -910,6 +941,24 @@ export const SCENES: Scene[] = [
       await page.waitForTimeout(700);
     },
     viewports: ["desktop", "mobile"],
+    auth: ["out"],
+    clip: "viewport",
+    focus: true,
+  },
+
+  // ── Topic — floated wikitable (docs/design/wikitable-float-align.md) ──
+  // A `wikitable floatright` floats beside the lead prose with centered header cells on the
+  // faithful Wikipedia fills; on a phone it takes the column instead.
+  {
+    id: "topic-article-wikitable",
+    skins: ["light", "zine-dark"],
+    group: "Topic · article tables",
+    label: "Floated wikitable — right float, centered header cells",
+    note: "Figure skating jumps' ISU abbreviations table floats right beside the lead (un-floated on a phone).",
+    route: "/topic/Figure_skating_jumps/",
+    stub: "article-wikitable",
+    ready: topicReady,
+    viewports: ["desktop", "tablet", "mobile"],
     auth: ["out"],
     clip: "viewport",
     focus: true,

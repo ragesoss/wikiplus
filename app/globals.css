@@ -737,16 +737,35 @@ figure.wikifig .credit {
   margin: 0 0 0.9em;
   background: var(--article-bg);
 }
+/* Data cells inherit their alignment, so a table- or row-level `text-align` (the recovered
+   inline-style subset) reaches them, as on Wikipedia. */
 .wiki-body table:not(.clade):not(.wiki-clade-carrier) th,
 .wiki-body table:not(.clade):not(.wiki-clade-carrier) td {
   border: 1px solid var(--article-rule);
   padding: 4px 8px;
-  text-align: left;
   vertical-align: top;
 }
 .wiki-body table:not(.clade):not(.wiki-clade-carrier) th {
   background: var(--article-th-bg); /* Wikipedia table-header grey — NOT indigo. */
   font-weight: 700;
+  text-align: left;
+}
+/* `wikitable` — MediaWiki's core data-table class, matched to Wikipedia's own rules: the
+   #f8f9fa box fill (dark: its analog) under #eaecf0 header cells, header cells CENTERED
+   (`.wikitable > * > tr > th`), and the `plainrowheaders` exception that keeps row headers
+   left + normal weight in list tables. */
+.wiki-body table.wikitable:not(.clade):not(.wiki-clade-carrier) {
+  background: var(--article-box-bg);
+}
+.wiki-body table.wikitable:not(.infobox) > * > tr > th {
+  text-align: center;
+}
+.wiki-body table.wikitable.plainrowheaders:not(.infobox) > * > tr > th:is([scope="row"], [scope="rowgroup"]) {
+  text-align: left;
+  font-weight: 400;
+}
+.wiki-body table.wikitable > caption {
+  text-align: center;
 }
 /* Guard the fallback grid off cladogram cells: a clade `td`/`th` is a DESCENDANT of any
    non-clade table ancestor, so without this reset the fallback grid above would paint
@@ -773,6 +792,30 @@ figure.wikifig .credit {
 }
 .wiki-tablewrap > table {
   margin-bottom: 0;
+}
+/* A table carrying MediaWiki's `floatright`/`floatleft` (or an inline table `float`, mapped to
+   the class at sanitize) floats its scroll region beside the prose, like Wikipedia. The matching
+   `clear` stacks it under an infobox or an earlier float rather than colliding with it. The
+   region shrinks to the table and still caps at the column width. */
+.wiki-tablewrap--right {
+  float: right;
+  clear: right;
+  margin: 0.2em 0 0.8em 1em;
+}
+.wiki-tablewrap--left {
+  float: left;
+  clear: left;
+  margin: 0.2em 1em 0.8em 0;
+}
+/* On a phone a float beside ~300px of prose is unreadable: the table takes the column. */
+@media (max-width: 639px) {
+  .wiki-tablewrap--right,
+  .wiki-tablewrap--left {
+    float: none;
+    margin: 0 0 0.9em;
+    /* Overrides a percentage width moved onto the region from its table. */
+    width: auto !important;
+  }
 }
 /* "Scroll table →" hint — TEXT, shown ONLY when the table overflows its wrapper
    (design §4.2). Overflow can't be detected in CSS, so a client effect in TopicView
@@ -1986,6 +2029,9 @@ figure.wikifig .credit {
    --article-td-bg). Light keeps the #fff (--article-bg) fill; only the dark skin lifts it. */
 [data-skin="zine-dark"] .wiki-body table:not(.clade):not(.wiki-clade-carrier) {
   background: #16191d;
+}
+[data-skin="zine-dark"] .wiki-body table.wikitable:not(.clade):not(.wiki-clade-carrier) {
+  background: var(--article-box-bg);
 }
 /* The recovered per-taxon inline infobox band colours (#106) glare/clash on dark; suppress them so
    the band falls back to the faithful grey default (--article-th-bg) and relies on its STRUCTURAL
