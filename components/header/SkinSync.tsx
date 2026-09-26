@@ -16,7 +16,7 @@
 // A subsequent same-device toggle writes both (cookie immediately + DB), so the cookie then differs
 // from the just-mirrored value — that is the user's newer explicit intent and must NOT be re-stomped.
 // Two guards keep that intent: the mirror runs at most once per mount (a ref), and a signed-in toggle
-// re-signs the session JWT with the new skin (`useSkin` → Auth.js `update`), so the session this
+// re-signs the session JWT with the new skin (`useSkin` → `resignSessionSkin`), so the session this
 // effect reads after a reload already carries the current choice and the mirror is a no-op.
 
 import { useEffect, useRef } from "react";

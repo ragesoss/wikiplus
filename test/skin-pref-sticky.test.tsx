@@ -89,55 +89,77 @@ function withSession(status: Ctx["status"], update: Ctx["update"]) {
   );
 }
 
+// The re-sign POSTs Auth.js's session endpoint directly (not the provider's `update()`); capture it.
+let jwtSkin = "zine-dark";
+const posts: unknown[] = [];
+beforeEach(() => {
+  jwtSkin = "zine-dark";
+  posts.length = 0;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init?: RequestInit) => {
+      const body = (b: unknown) => new Response(JSON.stringify(b), { status: 200 });
+      if (String(url).endsWith("/api/auth/csrf")) return body({ csrfToken: "t" });
+      if (String(url).endsWith("/api/auth/session") && init?.method === "POST") {
+        const payload = JSON.parse(String(init.body));
+        expect(payload.csrfToken).toBe("t");
+        posts.push(payload.data);
+        jwtSkin = payload.data.skinPreference;
+      }
+      return body({});
+    })
+  );
+});
+afterEach(() => vi.unstubAllGlobals());
+
 describe("the toggle re-signs the session", () => {
-  it("signed in: a toggle calls update({ skinPreference: next })", async () => {
+  it("signed in: a toggle POSTs { skinPreference: next } with the CSRF token", async () => {
     const update = vi.fn(async () => null);
     render(<FooterSkinToggle />, { wrapper: withSession("authenticated", update) });
     const btn = await screen.findByRole("button");
     await waitFor(() => expect(btn.textContent).toMatch(/dark/i));
     fireEvent.click(btn);
     expect(document.documentElement.getAttribute("data-skin")).toBe("zine-dark");
-    expect(update).toHaveBeenCalledWith({ skinPreference: "zine-dark" });
+    await waitFor(() => expect(posts).toEqual([{ skinPreference: "zine-dark" }]));
+    // The provider's `update()` (which flips every consumer to "loading") is never used.
+    expect(update).not.toHaveBeenCalled();
   });
 
-  it("signed out: no session update (and none needed without a provider)", async () => {
-    const update = vi.fn(async () => null);
-    render(<FooterSkinToggle />, { wrapper: withSession("unauthenticated", update) });
+  it("signed out: no re-sign (and none needed without a provider)", async () => {
+    render(<FooterSkinToggle />, { wrapper: withSession("unauthenticated", vi.fn()) });
     fireEvent.click(await screen.findByRole("button"));
-    expect(update).not.toHaveBeenCalled();
+    await new Promise((r) => setTimeout(r, 20));
+    expect(posts).toEqual([]);
     // No SessionProvider at all: the toggle still works.
     clearAll();
     render(<FooterSkinToggle />);
     fireEvent.click(screen.getAllByRole("button")[1]);
     expect(getCookie()).toBe("zine-dark");
+    await new Promise((r) => setTimeout(r, 20));
+    expect(posts).toEqual([]);
   });
 });
 
 describe("reload after a signed-in toggle keeps the new skin", () => {
   it("a remounted SkinSync with the re-signed session does not revert the cookie", async () => {
     // Session stamped dark at sign-in; the user toggles to light.
-    let pref = "zine-dark";
-    const update = vi.fn(async (d: { skinPreference: string }) => {
-      pref = d.skinPreference;
-      return null;
-    });
     document.cookie = "wikiplus-skin=zine-dark; Path=/";
     document.documentElement.setAttribute("data-skin", "zine-dark");
     const { unmount } = render(<FooterSkinToggle />, {
-      wrapper: withSession("authenticated", update as unknown as Ctx["update"]),
+      wrapper: withSession("authenticated", vi.fn()),
     });
     const btn = await screen.findByRole("button");
     await waitFor(() => expect(btn.textContent).toMatch(/light/i));
     fireEvent.click(btn);
     expect(getCookie()).toBe("zine");
-    expect(pref).toBe("zine");
+    await waitFor(() => expect(jwtSkin).toBe("zine"));
     unmount();
 
     // "Reload": a fresh SkinSync mount reading the (re-signed) session.
     const sessionValue = {
-      data: { user: { skinPreference: pref }, expires: "" },
+      data: { user: { skinPreference: jwtSkin }, expires: "" },
       status: "authenticated",
-      update,
+      update: vi.fn(),
     } as unknown as Ctx;
     await act(async () => {
       render(
