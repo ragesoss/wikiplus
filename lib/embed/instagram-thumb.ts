@@ -38,8 +38,13 @@ function remember(code: string, url: string | null): void {
 
 const inFlight = new Map<string, Promise<string | null>>();
 
-async function fetchThumbnail(code: string): Promise<string | null> {
-  const html = await fetchInstagramEmbed(code);
+/** Which embed-page form a stored clip uses (its canonical watch URL is `/reel/<code>/` or `/p/<code>/`). */
+export type InstagramKind = "reel" | "p";
+
+async function fetchThumbnail(code: string, kind: InstagramKind): Promise<string | null> {
+  // The same captioned embed page the add-time resolve reads (lib/embed/instagram.ts), in the clip's
+  // own `/reel/` or `/p/` form — the request proven to return the post's media.
+  const html = await fetchInstagramEmbed(code, { kind, captioned: true });
   const imageUrl = html ? parseInstagramEmbed(html)?.imageUrl : undefined;
   // Send exactly the URL that was validated (the normalized href), never the raw scraped string.
   const url = imageUrl && isInstagramImageUrl(imageUrl) ? new URL(imageUrl).href : null;
@@ -47,13 +52,13 @@ async function fetchThumbnail(code: string): Promise<string | null> {
   return url;
 }
 
-async function lookup(code: string): Promise<string | null> {
+async function lookup(code: string, kind: InstagramKind): Promise<string | null> {
   const cached = memo.get(code);
   if (cached && cached.expires > Date.now()) return cached.url;
   // Concurrent requests for one shortcode share a single Instagram fetch.
   const pending = inFlight.get(code);
   if (pending) return pending;
-  const p = fetchThumbnail(code).finally(() => inFlight.delete(code));
+  const p = fetchThumbnail(code, kind).finally(() => inFlight.delete(code));
   inFlight.set(code, p);
   return p;
 }
@@ -72,25 +77,29 @@ function notFound(cacheable = true): Response {
 }
 
 /**
- * The redirect (302) or 404 response for an Instagram shortcode's thumbnail. `isCurated` confirms
- * the shortcode belongs to a stored wiki+ clip BEFORE any Instagram fetch, so the public route can
- * never be used to make wiki+ fetch arbitrary posts from Instagram.
+ * The redirect (302) or 404 response for an Instagram shortcode's thumbnail. `curatedKind` returns
+ * the stored clip's embed form for the shortcode (or null when no stored wiki+ clip uses it) BEFORE
+ * any Instagram fetch, so the public route can never be used to make wiki+ fetch arbitrary posts.
  */
 export async function instagramThumbResponse(
   code: string,
-  isCurated: (code: string) => Promise<boolean>
+  curatedKind: (code: string) => Promise<InstagramKind | null>
 ): Promise<Response> {
   if (!isInstagramShortcode(code)) return notFound();
-  const known = (memo.get(code)?.expires ?? 0) > Date.now();
-  if (!known && !(await isCurated(code).catch(() => false))) return notFound(false);
-  const url = await lookup(code);
-  if (!url) return notFound();
+  const cached = memo.get(code);
+  if (cached && cached.expires > Date.now()) {
+    return cached.url ? redirect(cached.url) : notFound();
+  }
+  const kind = await curatedKind(code).catch(() => null);
+  if (!kind) return notFound(false);
+  const url = await lookup(code, kind);
+  return url ? redirect(url) : notFound();
+}
+
+function redirect(url: string): Response {
   return new Response(null, {
     status: 302,
-    headers: {
-      Location: url,
-      "Cache-Control": `public, max-age=${HIT_TTL_S}`,
-    },
+    headers: { Location: url, "Cache-Control": `public, max-age=${HIT_TTL_S}` },
   });
 }
 

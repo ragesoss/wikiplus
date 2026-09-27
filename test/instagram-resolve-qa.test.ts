@@ -20,7 +20,7 @@ import {
 } from "@/lib/embed/instagram-thumb";
 
 /** Every shortcode counts as a stored wiki+ clip (the route's DB check, stubbed). */
-const curated = async () => true;
+const curated = async () => "reel" as const;
 import { backfillInstagramPlaceholders } from "@/lib/db/backfill-instagram";
 import { makeTestDb, type TestDb } from "./helpers/pglite-db";
 

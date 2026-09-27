@@ -20,7 +20,7 @@ import {
 } from "@/lib/embed/instagram-thumb";
 
 /** Every shortcode counts as a stored wiki+ clip (the route's DB check, stubbed). */
-const curated = async () => true;
+const curated = async () => "reel" as const;
 import { backfillInstagramPlaceholders } from "@/lib/db/backfill-instagram";
 import { makeTestDb, type TestDb } from "./helpers/pglite-db";
 
@@ -149,14 +149,20 @@ describe("instagramThumbResponse (GET /api/thumb/instagram/<code>)", () => {
     expect(res.status).toBe(302);
     expect(res.headers.get("Location")).toBe(IMG.replace(/&amp;/g, "&"));
     expect(res.headers.get("Cache-Control")).toBe("public, max-age=21600");
-    expect(fetchSpy.mock.calls[0][0]).toBe("https://www.instagram.com/p/DbtdaXkjXsL/embed/");
+    expect(fetchSpy.mock.calls[0][0]).toBe("https://www.instagram.com/reel/DbtdaXkjXsL/embed/captioned/");
     await instagramThumbResponse("DbtdaXkjXsL", curated);
     expect(fetchSpy).toHaveBeenCalledTimes(1);
   });
 
+  it("fetches the stored clip's own embed form (a /p/ post reads the captioned /p/ page)", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(htmlResponse(EMBED_HTML));
+    expect((await instagramThumbResponse("PostCode1", async () => "p" as const)).status).toBe(302);
+    expect(fetchSpy.mock.calls[0][0]).toBe("https://www.instagram.com/p/PostCode1/embed/captioned/");
+  });
+
   it("404s a shortcode that no stored clip uses, without fetching Instagram", async () => {
     const fetchSpy = vi.spyOn(globalThis, "fetch");
-    const res = await instagramThumbResponse("NotCurated1", async () => false);
+    const res = await instagramThumbResponse("NotCurated1", async () => null);
     expect(res.status).toBe(404);
     expect(res.headers.get("Cache-Control")).toBe("no-store");
     expect(fetchSpy).not.toHaveBeenCalled();

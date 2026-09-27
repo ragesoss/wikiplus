@@ -102,7 +102,7 @@ describe("GET /api/thumb/instagram/<code> — curated-clip gate against stored w
     const fetchSpy = vi
       .spyOn(globalThis, "fetch")
       .mockImplementation(() => new Promise<Response>((r) => (release = r)));
-    const curated = async () => true;
+    const curated = async () => "reel" as const;
     const a = instagramThumbResponse("SameCode01", curated);
     const b = instagramThumbResponse("SameCode01", curated);
     const c = instagramThumbResponse("SameCode01", curated);
