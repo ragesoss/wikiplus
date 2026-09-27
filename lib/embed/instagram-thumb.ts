@@ -58,10 +58,16 @@ async function lookup(code: string): Promise<string | null> {
   return p;
 }
 
-function notFound(): Response {
+/**
+ * A 404. A post Instagram can't serve is cached briefly; a shortcode not (yet) curated is `no-store`,
+ * so a curator's browser that asked during the add flow sees the thumbnail as soon as the clip lands.
+ */
+function notFound(cacheable = true): Response {
   return new Response(null, {
     status: 404,
-    headers: { "Cache-Control": `public, max-age=${MISS_TTL_S}` },
+    headers: {
+      "Cache-Control": cacheable ? `public, max-age=${MISS_TTL_S}` : "no-store",
+    },
   });
 }
 
@@ -75,7 +81,8 @@ export async function instagramThumbResponse(
   isCurated: (code: string) => Promise<boolean>
 ): Promise<Response> {
   if (!isInstagramShortcode(code)) return notFound();
-  if (!memo.has(code) && !(await isCurated(code).catch(() => false))) return notFound();
+  const known = (memo.get(code)?.expires ?? 0) > Date.now();
+  if (!known && !(await isCurated(code).catch(() => false))) return notFound(false);
   const url = await lookup(code);
   if (!url) return notFound();
   return new Response(null, {

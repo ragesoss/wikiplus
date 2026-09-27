@@ -91,3 +91,6 @@ credit.
   "Resolved via Instagram" preview and thumbnailed Instagram cards are in the baseline gallery.
 - **Follow-up:** the add-modal "Add anyway" placeholder preview shows no thumbnail, though the stored
   clip gets one.
+- **Follow-up:** index `clip.watch_url` (the thumbnail route's curated check scans `clip`), and
+  exclude removed clips from that check.
+- **Follow-up:** test the backfill's newest-first order and 30s budget.

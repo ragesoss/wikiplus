@@ -158,6 +158,7 @@ describe("instagramThumbResponse (GET /api/thumb/instagram/<code>)", () => {
     const fetchSpy = vi.spyOn(globalThis, "fetch");
     const res = await instagramThumbResponse("NotCurated1", async () => false);
     expect(res.status).toBe(404);
+    expect(res.headers.get("Cache-Control")).toBe("no-store");
     expect(fetchSpy).not.toHaveBeenCalled();
     expect((await instagramThumbResponse("NotCurated2", async () => {
       throw new Error("db down");
