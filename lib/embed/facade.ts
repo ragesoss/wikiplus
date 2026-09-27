@@ -17,6 +17,12 @@ export interface ParsedVideo {
    * which carry no clean handle.
    */
   creatorHandle?: string;
+  /**
+   * A canonical, tracking-free watch URL, when the platform's share links carry noise (Instagram's
+   * `?igsh=` / username-prefixed forms). The add flow stores this as `watchUrl` in place of the
+   * pasted link. Absent when the pasted link is already the watch URL we keep.
+   */
+  canonicalUrl?: string;
 }
 
 export function parseVideoUrl(raw: string): ParsedVideo | null {
@@ -59,14 +65,21 @@ export function parseVideoUrl(raw: string): ParsedVideo | null {
     }
   }
 
-  // Instagram
-  if (host === "instagram.com") {
-    const m = url.pathname.match(/\/(reel|p)\/([^/]+)/);
+  // Instagram (Reels + posts). Share links arrive as `/reel/<code>`, `/reels/<code>`, `/p/<code>`,
+  // `/tv/<code>`, or username-prefixed `/<user>/reel/<code>`, usually with a `?igsh=` tracking query.
+  // The shortcode is validated to Instagram's alphabet so nothing untrusted reaches the iframe `src`.
+  if (host === "instagram.com" || host === "m.instagram.com") {
+    const m = url.pathname.match(
+      /^\/(?:[A-Za-z0-9._]+\/)?(reels?|p|tv)\/([A-Za-z0-9_-]+)\/?$/
+    );
     if (m) {
+      const kind = m[1] === "reel" || m[1] === "reels" ? "reel" : "p";
+      const canonical = `https://www.instagram.com/${kind}/${m[2]}/`;
       return {
         platform: "instagram",
         videoId: m[2],
-        embedUrl: `https://www.instagram.com/${m[1]}/${m[2]}/embed`,
+        embedUrl: `${canonical}embed/`,
+        canonicalUrl: canonical,
       };
     }
   }

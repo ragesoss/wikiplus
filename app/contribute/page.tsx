@@ -18,6 +18,7 @@ import {
 } from "@/lib/curation/labels";
 import type { AccuracyFlag, Stance } from "@/lib/data/types";
 import { parseVideoUrl } from "@/lib/embed/facade";
+import { defaultOrientation } from "@/components/topic/add-media";
 
 // Closed CURATION enums (docs/CURATION_STANDARD.md §2/§3). The Topic Page v1 build
 // is the full curation UX; this lightweight form remains for the prototype's
@@ -117,8 +118,8 @@ export default function ContributePage() {
         topicQid: id,
         platform: parsed.platform,
         platformLabel,
-        orientation: "horizontal",
-        watchUrl: videoUrl,
+        orientation: defaultOrientation(parsed.platform),
+        watchUrl: parsed.canonicalUrl ?? videoUrl,
         embedUrl: parsed.embedUrl,
         thumbnailUrl: parsed.thumbnailUrl,
         caption: contextNote.trim().slice(0, 80),

@@ -489,7 +489,13 @@ correctly). Provider notes that affect integration:
 - **TikTok** — has a public oEmbed endpoint (returns a blockquote + script embed); usable
   without an app token, but the embed pulls TikTok's script at render time.
 - **Instagram Reels** — oEmbed requires a **Facebook/Instagram app access token**, which is a
-  real integration dependency to plan for (and a reason to cache `embed_meta` aggressively).
+  real integration dependency to plan for (and a reason to cache `embed_meta` aggressively). Until
+  that token exists, Reels are supported token-free: `parseVideoUrl` accepts every share form
+  (`/reel/`, `/reels/`, `/p/`, `/tv/`, username-prefixed, `?igsh=` queries; shortcode validated to
+  `[A-Za-z0-9_-]+`), stores a canonical tracking-free `watchUrl`, and plays the clip **in-app**
+  through Instagram's official embed page (`https://www.instagram.com/reel/<code>/embed/`) behind the
+  click-to-load facade — the same player surfaces YouTube uses. Metadata stays on the honest
+  unresolved placeholder (see *add-by-link*).
 
 Because some embeds inject third-party scripts, render them lazily / behind a click-to-load
 facade where possible — this protects the read path's speed and the page's privacy posture.
@@ -550,7 +556,8 @@ read-path posture as the skin toggle. (Product behavior + the complete + zero-vi
   exists. In the interim, the UI offers a **"Search TikTok"** action that deep-links to TikTok
   (web/app) for a manual search; good finds come in via add-by-link. Other source buttons can
   follow the same launch-and-add pattern.
-- **Add by link (logged-in).** A logged-in user pastes a **YouTube or TikTok share link**; we
+- **Add by link (logged-in).** A logged-in user pastes a **YouTube, TikTok, or Instagram Reels
+  share link**; for YouTube and TikTok we
   resolve real `title`/`author_name`/`author_url`/`thumbnail_url` via a **Server Action**
   (`lib/embed/oembed.ts` `resolveOEmbedAction` — server-side because the oEmbed endpoints send no
   CORS header), with an honest, clearly-labeled **unresolved placeholder** fallback when a fetch
