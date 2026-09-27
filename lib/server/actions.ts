@@ -19,6 +19,7 @@ import { requireContributor } from "@/lib/auth/require-session";
 import { checkWriteRateLimit, recordWriteEvent } from "@/lib/auth/rate-limit";
 import { isModeratorContributor } from "@/lib/auth/moderators";
 import { getDb } from "@/lib/db/client";
+import { parseVideoUrl } from "@/lib/embed/facade";
 
 // The server data-access boundary (issue #45 — deliverable 1/4).
 //
@@ -115,6 +116,20 @@ function validateClipInput(
   }
   if (!PLATFORMS.has(input.platform)) {
     throw new Error(`Unknown platform: ${input.platform}`);
+  }
+  if (input.platform === "instagram") {
+    // An Instagram clip plays in-app, so its iframe source is re-derived server-side from the
+    // watch URL (fixed www.instagram.com origin + a validated shortcode) — a client can never
+    // choose what an Instagram clip frames.
+    const parsed = parseVideoUrl(input.watchUrl);
+    if (!parsed || parsed.platform !== "instagram") {
+      throw new Error("Unrecognized Instagram link.");
+    }
+    return {
+      ...input,
+      watchUrl: parsed.canonicalUrl ?? input.watchUrl,
+      embedUrl: parsed.embedUrl,
+    };
   }
   return input;
 }
