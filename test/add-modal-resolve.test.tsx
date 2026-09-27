@@ -296,7 +296,7 @@ describe("AddModal — Instagram/other still use the unsupported placeholder arm
       await screen.findByText("Unresolved Instagram clip")
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/We don't fetch Instagram video details yet/)
+      screen.getByText(/Instagram doesn't share video details with wiki\+ yet/)
     ).toBeInTheDocument();
     // No retry on the support-limitation arm (retrying won't help).
     expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
@@ -322,7 +322,7 @@ describe("AddModal — #64 unrecognized-link no-regression (state F, AC9)", () =
     await userEvent.click(screen.getByRole("button", { name: "Fetch details" }));
 
     expect(screen.getByRole("alert")).toHaveTextContent(
-      "Unrecognized link — paste a YouTube or TikTok URL."
+      "Unrecognized link — paste a YouTube, TikTok, or Instagram Reels URL."
     );
     // Parse-first: the resolve action is never reached for an unrecognized link.
     expect(resolveOEmbed).not.toHaveBeenCalled();

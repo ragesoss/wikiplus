@@ -142,7 +142,7 @@ export function AddModal({
         phase.meta,
         PLATFORM_LABEL[phase.parsed.platform],
         topicQid,
-        link.trim()
+        phase.parsed.canonicalUrl ?? link.trim()
       );
     }
     if (phase.kind === "placeholder") {
@@ -150,7 +150,7 @@ export function AddModal({
         phase.parsed,
         PLATFORM_LABEL[phase.parsed.platform],
         topicQid,
-        link.trim()
+        phase.parsed.canonicalUrl ?? link.trim()
       );
     }
     return null;
@@ -207,7 +207,7 @@ export function AddModal({
         <div className="space-y-4 p-4">
           <label className="block">
             <span className="mb-1 block text-[11px] font-bold uppercase tracking-wide text-violet">
-              Paste a YouTube or TikTok share link
+              Paste a YouTube, TikTok, or Instagram Reels link
             </span>
             <div className="flex gap-2">
               <input
@@ -215,7 +215,7 @@ export function AddModal({
                 type="url"
                 value={link}
                 onChange={(e) => setLink(e.target.value)}
-                placeholder="https://youtu.be/… or https://www.tiktok.com/@user/video/…"
+                placeholder="https://youtu.be/… or https://www.instagram.com/reel/…"
                 className="field"
               />
               <button
@@ -239,7 +239,7 @@ export function AddModal({
               role="alert"
               className="border-2 border-accred bg-[#FDEDED] px-3 py-2 text-[12px] font-semibold text-accred"
             >
-              Unrecognized link — paste a YouTube or TikTok URL.
+              Unrecognized link — paste a YouTube, TikTok, or Instagram Reels URL.
             </div>
           )}
 
@@ -498,8 +498,17 @@ function PlaceholderPreview({
       <p className="mt-1 truncate text-[11px] text-ink2">{link}</p>
       {unsupported && (
         <p className="mt-2 text-[12px] text-ink2">
-          We don&apos;t fetch {platformLabel} video details yet — you can still
-          add and curate this clip.
+          {platformLabel === PLATFORM_LABEL.instagram ? (
+            <>
+              Instagram doesn&apos;t share video details with wiki+ yet — you
+              can still add and curate this Reel, and it plays from Instagram.
+            </>
+          ) : (
+            <>
+              We don&apos;t fetch {platformLabel} video details yet — you can
+              still add and curate this clip.
+            </>
+          )}
         </p>
       )}
       <p className="mt-1 text-[12px] text-ink2">

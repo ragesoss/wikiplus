@@ -4,8 +4,9 @@ import { useState } from "react";
 import type { Platform } from "@/lib/data/types";
 
 // Click-to-load facade (design §5.7, AC10/AC11). The thumbnail is a <button> —
-// nothing loads until clicked. YouTube → onPlay (parent opens the player modal);
-// any other platform → open the watch URL in a new tab (embed-never-host).
+// nothing loads until clicked. An in-app-playable clip (YouTube with a thumbnail, or an
+// Instagram Reel with an embed URL) → onPlay (parent opens the player); any other clip → open
+// the watch URL in a new tab (embed-never-host).
 const PLATFORM_FILL: Record<Platform, string> = {
   youtube: "#C4302B",
   tiktok: "#C03060", // AA-safe TikTok-ish pink (white text ≈4.7:1)
@@ -20,7 +21,20 @@ export interface ThumbVideo {
   caption: string;
   watchUrl: string;
   thumbnailUrl?: string;
+  embedUrl?: string;
   thumbGrad?: string;
+}
+
+/**
+ * Whether a clip plays inside wiki+ (the parent's player) rather than linking out. YouTube plays
+ * in-app; an Instagram Reel plays in-app through Instagram's official embed page when the clip
+ * carries its embed URL (docs/design/instagram-reels.md AC4). Everything else links out.
+ */
+export function playsInApp(video: ThumbVideo): boolean {
+  return (
+    video.platform === "youtube" ||
+    (video.platform === "instagram" && Boolean(video.embedUrl))
+  );
 }
 
 export function VideoThumb({
@@ -36,11 +50,16 @@ export function VideoThumb({
    *  the enclosing white card supplies the rest). */
   variant?: "card" | "strip" | "inline" | "hero" | "stripcard";
   candidate?: boolean;
-  /** Called for YouTube clips (parent opens the player modal). */
+  /** Called for in-app-playable clips (`playsInApp`) — the parent opens its player. */
   onPlay?: () => void;
 }) {
   const [imgFailed, setImgFailed] = useState(false);
   const isYouTube = video.platform === "youtube" && !!video.thumbnailUrl;
+  const inApp = playsInApp(video);
+  // An Instagram Reel plays in-app only when the parent wired a player; otherwise it links out.
+  const reelInApp = video.platform === "instagram" && inApp && !!onPlay;
+  // The "opens ↗" link-out tag shows only when the click leaves wiki+.
+  const linksOut = !isYouTube && !reelInApp;
 
   const aspect =
     variant === "stripcard"
@@ -62,12 +81,12 @@ export function VideoThumb({
         : "aspect-video w-full";
 
   const action =
-    video.platform === "youtube"
+    video.platform === "youtube" || reelInApp
       ? `Play: ${video.caption}`
-      : `Open on ${video.platformLabel}: ${video.caption}`;
+    : `Open on ${video.platformLabel}: ${video.caption}`;
 
   function activate() {
-    if (video.platform === "youtube" && onPlay) onPlay();
+    if (inApp && onPlay) onPlay();
     else window.open(video.watchUrl, "_blank", "noopener");
   }
 
@@ -129,7 +148,7 @@ export function VideoThumb({
       >
         <span className="ml-0.5 border-y-[7px] border-l-[11px] border-y-transparent border-l-white" />
       </span>
-      {!isYouTube && (
+      {linksOut && (
         <span className="absolute bottom-1.5 right-1.5 bg-hardbox/80 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white">
           opens ↗
         </span>

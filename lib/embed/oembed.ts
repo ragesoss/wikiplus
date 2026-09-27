@@ -21,9 +21,10 @@ import type { Platform } from "@/lib/data/types";
 // own public oEmbed endpoint (`OEMBED_ENDPOINT`); the fetch, mapping, resolve floor (a non-empty
 // `title` AND `author_name` — D3), and failure routing are identical. A failure / non-200 /
 // malformed / timeout returns `{ ok: false, reason: "failed" }` (state D — Try again / Add anyway),
-// NOT `unsupported`. Instagram/other stay on the `unsupported` placeholder arm (no public token-free
-// oEmbed for our use), returning `{ ok: false, reason: "unsupported" }` with no fetch — the modal
-// renders the honest placeholder (no fabricated metadata, no false "resolved via oEmbed" — C10).
+// NOT `unsupported`. Instagram/other stay on the `unsupported` placeholder arm (Instagram's oEmbed
+// needs a Meta app access token), returning `{ ok: false, reason: "unsupported" }` with no fetch —
+// the modal renders the honest placeholder (no fabricated metadata, no false "resolved via oEmbed"
+// — C10). An Instagram Reel still plays in-app through its embed page (lib/embed/facade.ts).
 
 // Wikimedia/Wikimedia-adjacent etiquette: a descriptive User-Agent identifying wiki+ + a contact
 // (CLAUDE.md / ARCHITECTURE "Etiquette"; consistent with the `UA` in lib/wiki/article.ts). On a

@@ -522,5 +522,6 @@ These map onto the `clip` entity in [`ARCHITECTURE.md`](ARCHITECTURE.md):
 - Phrase-level anchoring instead of section-level.
 - Mobile / single-column behavior (the two-pane sync collapses on narrow screens).
 - TikTok embedding (thumbnails are signed URLs that can expire; embeds are unreliable) — likely
-  thumbnail + link-out, with YouTube using a click-to-load iframe facade.
+  thumbnail + link-out, with YouTube and Instagram Reels using a click-to-load iframe facade
+  (Reels play through Instagram's official embed page — `docs/design/instagram-reels.md`).
 - How much of the larger set (`stats.totalClips`) to surface and the "see all" / browse flow.

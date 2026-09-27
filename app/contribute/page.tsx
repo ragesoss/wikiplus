@@ -118,7 +118,7 @@ export default function ContributePage() {
         platform: parsed.platform,
         platformLabel,
         orientation: "horizontal",
-        watchUrl: videoUrl,
+        watchUrl: parsed.canonicalUrl ?? videoUrl,
         embedUrl: parsed.embedUrl,
         thumbnailUrl: parsed.thumbnailUrl,
         caption: contextNote.trim().slice(0, 80),

@@ -1105,8 +1105,8 @@ export function TopicView() {
   );
 
   // ── Candidate play (issue #10/#120, design §3/§9). Only reached for a YouTube candidate WITH an
-  // embedUrl (AC1): VideoThumb only calls onPlay for `platform === "youtube"`, and we only PASS
-  // onPlay when an embedUrl exists — so the no-embed YouTube and non-YouTube paths both fall
+  // embedUrl (AC1): the candidate surfaces PASS onPlay only for `platform === "youtube"` with an
+  // embedUrl — so the no-embed YouTube and non-YouTube paths both fall
   // through to VideoThumb's existing window.open(watchUrl) (design §9 State F/G; AC7/AC8). No
   // src-less iframe is ever rendered.
   //   - Desktop → the bottom-left PinnedPlayer (unchanged): setting `pinned` to candidate B while A
