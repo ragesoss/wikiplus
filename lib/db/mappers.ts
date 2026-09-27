@@ -9,11 +9,12 @@ import type { ClipRow, ContributorRow, TopicRow } from "./schema";
 // every downstream component need no shape change (parity — AC12).
 
 /**
- * The thumbnail a clip derives from its watch URL when none is stored: an Instagram clip's stable
- * thumbnail redirect path (lib/embed/facade.ts `instagramThumbnailPath`). Other platforms store
- * their thumbnail at add time, so they derive nothing.
+ * An Instagram clip's thumbnail is ALWAYS its stable redirect path derived from the watch URL
+ * (lib/embed/facade.ts `instagramThumbnailPath`), whatever the row stores — so a stored value can
+ * never point an Instagram card elsewhere, and the path follows the running basePath. Other
+ * platforms use their stored thumbnail.
  */
-function derivedThumbnail(row: ClipRow): string | undefined {
+function instagramThumbnail(row: ClipRow): string | undefined {
   if (row.platform !== "instagram") return undefined;
   const parsed = parseVideoUrl(row.watchUrl);
   return parsed?.platform === "instagram" ? parsed.thumbnailUrl : undefined;
@@ -29,7 +30,7 @@ export function rowToClip(row: ClipRow, topicQid: string): Clip {
     orientation: row.orientation as Clip["orientation"],
     watchUrl: row.watchUrl,
     embedUrl: row.embedUrl ?? undefined,
-    thumbnailUrl: row.thumbnailUrl ?? derivedThumbnail(row),
+    thumbnailUrl: instagramThumbnail(row) ?? row.thumbnailUrl ?? undefined,
     thumbGrad: row.thumbGrad ?? undefined,
     caption: row.caption,
     creator: {

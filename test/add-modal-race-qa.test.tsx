@@ -38,24 +38,10 @@ function renderAdd() {
 describe("AddModal — 'Resolved via oEmbed' eyebrow appears ONLY in state C (QA, AC3)", () => {
   beforeEach(() => resolveOEmbed.mockReset());
 
-  it("the eyebrow is absent in entry (A) and the unsupported placeholder arm (G)", async () => {
-    resolveOEmbed.mockResolvedValue({ ok: false, reason: "unsupported" });
+  it("the eyebrow is absent in entry (A)", async () => {
     renderAdd();
-    // Entry (A): nothing resolved yet.
     expect(screen.queryByText("Resolved via oEmbed")).toBeNull();
-
-    // Placeholder arm (G — unsupported Instagram): honest placeholder, still NO eyebrow.
-    await userEvent.type(
-      screen.getByPlaceholderText(/youtu\.be/),
-      "https://www.instagram.com/reel/ABC123/"
-    );
-    await userEvent.click(screen.getByRole("button", { name: "Fetch details" }));
-    expect(
-      await screen.findByText("Unresolved Instagram clip")
-    ).toBeInTheDocument();
-    expect(screen.queryByText("Resolved via oEmbed")).toBeNull();
-    // The unsupported arm offers NO "Try again" (retrying a support limitation won't help — AC6).
-    expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
+    expect(screen.queryByText("Resolved via Instagram")).toBeNull();
   });
 
   it("the eyebrow is absent in the failure state (D) and after 'Add anyway' → placeholder (E)", async () => {

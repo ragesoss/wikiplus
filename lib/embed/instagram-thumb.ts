@@ -12,11 +12,12 @@ import {
 // referenced, never hosted or proxied. Instagram signs its image URLs with a multi-day expiry, so a
 // redirect cached for hours always lands on a live URL.
 //
-// Lazy + cached (Wikimedia-style etiquette toward Instagram): the embed page is fetched only when a
-// browser requests the thumbnail (`<img loading="lazy">`), each outcome is memoized in-process, and
-// the response carries a public Cache-Control so the edge/browser absorb repeats. Only a validated
-// shortcode reaches the fixed www.instagram.com fetch URL, and the redirect target must be https on
-// Instagram's CDN — never an open redirect. Any failure is a 404, which the thumbnail's `onError`
+// Lazy + cached (Wikimedia-style etiquette toward Instagram): only a shortcode of a stored wiki+ clip
+// is served; the embed page is fetched only when a browser requests the thumbnail
+// (`<img loading="lazy">`); concurrent requests share one fetch; each outcome is memoized
+// in-process; and the response carries a public Cache-Control so the edge/browser absorb repeats.
+// Only a validated shortcode reaches the fixed www.instagram.com fetch URL, and the redirect target
+// must be https on Instagram's CDN — never an open redirect. Any failure is a 404, which the thumbnail's `onError`
 // turns into the gradient fallback.
 
 const HIT_TTL_S = 6 * 60 * 60;
@@ -35,14 +36,26 @@ function remember(code: string, url: string | null): void {
   memo.set(code, { url, expires: Date.now() + ttl * 1000 });
 }
 
+const inFlight = new Map<string, Promise<string | null>>();
+
+async function fetchThumbnail(code: string): Promise<string | null> {
+  const html = await fetchInstagramEmbed(code);
+  const imageUrl = html ? parseInstagramEmbed(html)?.imageUrl : undefined;
+  // Send exactly the URL that was validated (the normalized href), never the raw scraped string.
+  const url = imageUrl && isInstagramImageUrl(imageUrl) ? new URL(imageUrl).href : null;
+  remember(code, url);
+  return url;
+}
+
 async function lookup(code: string): Promise<string | null> {
   const cached = memo.get(code);
   if (cached && cached.expires > Date.now()) return cached.url;
-  const html = await fetchInstagramEmbed(code);
-  const imageUrl = html ? parseInstagramEmbed(html)?.imageUrl : undefined;
-  const url = imageUrl && isInstagramImageUrl(imageUrl) ? imageUrl : null;
-  remember(code, url);
-  return url;
+  // Concurrent requests for one shortcode share a single Instagram fetch.
+  const pending = inFlight.get(code);
+  if (pending) return pending;
+  const p = fetchThumbnail(code).finally(() => inFlight.delete(code));
+  inFlight.set(code, p);
+  return p;
 }
 
 function notFound(): Response {
@@ -52,9 +65,17 @@ function notFound(): Response {
   });
 }
 
-/** The redirect (302) or 404 response for an Instagram shortcode's thumbnail. */
-export async function instagramThumbResponse(code: string): Promise<Response> {
+/**
+ * The redirect (302) or 404 response for an Instagram shortcode's thumbnail. `isCurated` confirms
+ * the shortcode belongs to a stored wiki+ clip BEFORE any Instagram fetch, so the public route can
+ * never be used to make wiki+ fetch arbitrary posts from Instagram.
+ */
+export async function instagramThumbResponse(
+  code: string,
+  isCurated: (code: string) => Promise<boolean>
+): Promise<Response> {
   if (!isInstagramShortcode(code)) return notFound();
+  if (!memo.has(code) && !(await isCurated(code).catch(() => false))) return notFound();
   const url = await lookup(code);
   if (!url) return notFound();
   return new Response(null, {
@@ -69,4 +90,5 @@ export async function instagramThumbResponse(code: string): Promise<Response> {
 /** Test seam: forget memoized lookups. */
 export function __resetInstagramThumbCache(): void {
   memo.clear();
+  inFlight.clear();
 }

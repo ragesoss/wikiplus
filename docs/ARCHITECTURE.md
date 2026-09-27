@@ -498,10 +498,12 @@ correctly). Provider notes that affect integration:
   the **public embed page** (`/<p|reel>/<code>/embed/captioned/`, read server-side in
   `lib/embed/instagram.ts`): username → creator credit, caption → caption (CURATION §5.5 Instagram
   rule). Instagram's thumbnail URLs are signed and expire within days, so clips store the stable
-  **`/api/thumb/instagram/<code>`** path; that route reads the current thumbnail from the embed page
-  and **302-redirects** to Instagram's CDN (referenced, never hosted or proxied), memoized in-process
-  and served with `Cache-Control: public, max-age=21600`. The server re-derives an Instagram clip's
-  thumbnail path on write, `rowToClip` derives it for a clip stored without one, and the migrate
+  **`/api/thumb/instagram/<code>`** path; that route serves only shortcodes of stored clips (so it
+  can't be used to make wiki+ fetch arbitrary posts), reads the current thumbnail from the embed
+  page, and **302-redirects** to Instagram's CDN (referenced, never hosted or proxied), memoized
+  in-process with in-flight dedupe and served with `Cache-Control: public, max-age=21600`. The
+  add-modal preview shows the resolve's live CDN image directly; the server stores the stable path on
+  write, `rowToClip` always derives it for an Instagram clip, and the migrate
   one-shot upgrades stored Instagram placeholder clips to their resolved details
   (`lib/db/backfill-instagram.ts` — idempotent, bounded, never fails the deploy).
 

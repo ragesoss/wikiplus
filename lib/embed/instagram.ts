@@ -38,7 +38,11 @@ export interface InstagramEmbed {
   imageUrl?: string;
 }
 
-/** The resolved, persistable metadata for an Instagram clip (the `ResolvedMeta` shape). */
+/**
+ * The resolved metadata for an Instagram clip (the `ResolvedMeta` shape). `thumbnailUrl` is the
+ * post's CURRENT signed CDN image — fit for the add-modal preview only; it expires, so it is never
+ * persisted (the server stores the stable redirect path on write — lib/server/actions.ts).
+ */
 export interface InstagramMeta {
   title: string;
   authorName: string;
@@ -99,11 +103,19 @@ export function isInstagramImageUrl(raw: string): boolean {
  * "Instagram post by @username" when the post has no caption text (CURATION §5.5).
  */
 export function instagramTitle(embed: InstagramEmbed): string {
-  const caption = embed.caption.replace(/(?:\s*#[^\s#]+)+\s*$/u, "").trim();
+  // A hashtag counts only when it starts the text or follows whitespace ("We're #1" keeps its tag
+  // only if more text follows; "foo#bar" is not a hashtag).
+  const caption = embed.caption.replace(/(?:(?:^|\s+)#[^\s#]+)+\s*$/u, "").trim();
   if (!caption) return `Instagram post by @${embed.username}`;
   if (caption.length <= MAX_INSTAGRAM_CAPTION) return caption;
-  const cut = caption.slice(0, MAX_INSTAGRAM_CAPTION - 1);
-  const atWord = cut.replace(/\s+\S*$/, "");
+  // Cut on whole code points (an emoji or other astral character is never split), leaving room for
+  // the ellipsis within the cap.
+  let cut = "";
+  for (const ch of caption) {
+    if (cut.length + ch.length > MAX_INSTAGRAM_CAPTION - 1) break;
+    cut += ch;
+  }
+  const atWord = cut.replace(/\s+\S*$/u, "");
   return `${atWord.length > MAX_INSTAGRAM_CAPTION / 2 ? atWord : cut}…`;
 }
 
@@ -145,7 +157,7 @@ export async function resolveInstagram(watchUrl: string): Promise<InstagramMeta 
     title: instagramTitle(embed),
     authorName: embed.username,
     authorUrl: `https://www.instagram.com/${embed.username}/`,
-    thumbnailUrl: parsed.thumbnailUrl,
+    thumbnailUrl: embed.imageUrl,
   };
 }
 

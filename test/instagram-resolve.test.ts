@@ -18,6 +18,9 @@ import {
   __resetInstagramThumbCache,
   instagramThumbResponse,
 } from "@/lib/embed/instagram-thumb";
+
+/** Every shortcode counts as a stored wiki+ clip (the route's DB check, stubbed). */
+const curated = async () => true;
 import { backfillInstagramPlaceholders } from "@/lib/db/backfill-instagram";
 import { makeTestDb, type TestDb } from "./helpers/pglite-db";
 
@@ -73,6 +76,11 @@ describe("instagramTitle", () => {
     );
   });
 
+  it("strips only real hashtags (start of text or after whitespace)", () => {
+    expect(instagramTitle({ username: "u", caption: "foo#bar" })).toBe("foo#bar");
+    expect(instagramTitle({ username: "u", caption: "We're #1" })).toBe("We're");
+  });
+
   it("labels a captionless (or hashtag-only) post from the resolved username", () => {
     expect(instagramTitle({ username: "tailbitpets", caption: "" })).toBe(
       "Instagram post by @tailbitpets"
@@ -99,7 +107,8 @@ describe("resolveInstagram", () => {
       title: `That face says, "Maybe if I freeze, they'll forget I'm here." 🤣`,
       authorName: "tailbitpets",
       authorUrl: "https://www.instagram.com/tailbitpets/",
-      thumbnailUrl: "/api/thumb/instagram/DbtdaXkjXsL",
+      // The live CDN image, for the add-modal preview only (the server stores the stable path).
+      thumbnailUrl: IMG.replace(/&amp;/g, "&"),
     });
     const [url, init] = fetchSpy.mock.calls[0];
     expect(url).toBe("https://www.instagram.com/reel/DbtdaXkjXsL/embed/captioned/");
@@ -136,32 +145,42 @@ describe("instagramThumbResponse (GET /api/thumb/instagram/<code>)", () => {
     const fetchSpy = vi
       .spyOn(globalThis, "fetch")
       .mockResolvedValue(htmlResponse(EMBED_HTML));
-    const res = await instagramThumbResponse("DbtdaXkjXsL");
+    const res = await instagramThumbResponse("DbtdaXkjXsL", curated);
     expect(res.status).toBe(302);
     expect(res.headers.get("Location")).toBe(IMG.replace(/&amp;/g, "&"));
     expect(res.headers.get("Cache-Control")).toBe("public, max-age=21600");
     expect(fetchSpy.mock.calls[0][0]).toBe("https://www.instagram.com/p/DbtdaXkjXsL/embed/");
-    await instagramThumbResponse("DbtdaXkjXsL");
+    await instagramThumbResponse("DbtdaXkjXsL", curated);
     expect(fetchSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("404s a shortcode that no stored clip uses, without fetching Instagram", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
+    const res = await instagramThumbResponse("NotCurated1", async () => false);
+    expect(res.status).toBe(404);
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect((await instagramThumbResponse("NotCurated2", async () => {
+      throw new Error("db down");
+    })).status).toBe(404);
   });
 
   it("404s an invalid shortcode without fetching", async () => {
     const fetchSpy = vi.spyOn(globalThis, "fetch");
     for (const code of ["../etc", "a b", "x%2F", "", "a".repeat(65)]) {
-      expect((await instagramThumbResponse(code)).status).toBe(404);
+      expect((await instagramThumbResponse(code, curated)).status).toBe(404);
     }
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
   it("404s (never redirects) when the post is unavailable or the image is off-CDN", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(htmlResponse(BROKEN_HTML));
-    const broken = await instagramThumbResponse("Broken1");
+    const broken = await instagramThumbResponse("Broken1", curated);
     expect(broken.status).toBe(404);
     expect(broken.headers.get("Location")).toBeNull();
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
       htmlResponse(EMBED_HTML.replaceAll(IMG, "https://evil.example/x.jpg"))
     );
-    expect((await instagramThumbResponse("OffCdn1")).status).toBe(404);
+    expect((await instagramThumbResponse("OffCdn1", curated)).status).toBe(404);
   });
 });
 
@@ -218,11 +237,11 @@ describe("Instagram clips in the store", () => {
     expect(added.thumbnailUrl).toBe("/api/thumb/instagram/DbtdaXkjXsL");
   });
 
-  it("an Instagram clip stored without a thumbnail reads back with the derived path", async () => {
+  it("an Instagram clip always reads back with the derived path, whatever the row stores", async () => {
     const added = await addClipAction(placeholderReel(), true);
     await h.db
       .update(clipTable)
-      .set({ thumbnailUrl: null })
+      .set({ thumbnailUrl: "https://tracker.example/pixel.gif" })
       .where(eq(clipTable.id, Number(added.id)));
     const [read] = await listClipsAction("Q11982");
     expect(read.thumbnailUrl).toBe("/api/thumb/instagram/DbtdaXkjXsL");
@@ -234,7 +253,7 @@ describe("Instagram clips in the store", () => {
       title: "That face says it all",
       authorName: "tailbitpets",
       authorUrl: "https://www.instagram.com/tailbitpets/",
-      thumbnailUrl: "/api/thumb/instagram/DbtdaXkjXsL",
+      thumbnailUrl: "https://scontent.cdninstagram.com/expiring.jpg",
     }));
     expect(await backfillInstagramPlaceholders(h.db, resolve)).toBe(1);
     const [read] = await listClipsAction("Q11982");
@@ -245,6 +264,9 @@ describe("Instagram clips in the store", () => {
       handle: "@tailbitpets",
       url: "https://www.instagram.com/tailbitpets/",
     });
+    expect(read.thumbnailUrl).toBe("/api/thumb/instagram/DbtdaXkjXsL");
+    const [row] = await h.db.select().from(clipTable).where(eq(clipTable.id, Number(added.id)));
+    expect(row.thumbnailUrl).toBe("/api/thumb/instagram/DbtdaXkjXsL");
     expect(read.contextNote).toBe("My note.");
     expect(read.stance).toBe(added.stance);
     expect(read.accuracyFlag).toBe(added.accuracyFlag);

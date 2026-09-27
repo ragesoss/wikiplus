@@ -41,7 +41,8 @@ page it looks broken and gives readers nothing to decide whether to play it.
 - **AC1 — resolve.** For a live Instagram link, `resolveOEmbedAction` returns `ok: true` with
   `authorName` = the username, `authorUrl` = `https://www.instagram.com/<username>/`, `title` = the
   caption text (entity-decoded, tags/links flattened to text, whitespace collapsed, a trailing
-  hashtag run removed, capped at 300 chars), and `thumbnailUrl` = `/api/thumb/instagram/<code>`.
+  hashtag run removed, capped at 300 chars without splitting a character), and `thumbnailUrl` = the
+  post's live CDN image for the preview (the server stores `/api/thumb/instagram/<code>` on write).
 - **AC2 — honest failure.** An `EmbedBroken` page, non-2xx, timeout, network error, or a page with
   no valid username returns `{ ok: false, reason: "failed" }` (state D — Try again / Add anyway),
   never a fabricated credit. A post with a username but an empty caption resolves with the caption
@@ -51,16 +52,18 @@ page it looks broken and gives readers nothing to decide whether to play it.
   The eyebrow reads "Resolved via Instagram" for Instagram (the "oEmbed" wording is reserved for
   oEmbed providers).
 - **AC4 — thumbnail route.** `/api/thumb/instagram/<code>` validates the shortcode
-  (`[A-Za-z0-9_-]{1,64}`, else 404), fetches only `https://www.instagram.com/p/<code>/embed/`, and
+  (`[A-Za-z0-9_-]{1,64}`, else 404), serves only a shortcode of a stored clip (else 404, no fetch),
+  fetches only `https://www.instagram.com/p/<code>/embed/`, and
   302s only to an `https:` URL on `*.cdninstagram.com` or `*.fbcdn.net` (else 404 — no open
   redirect). Success carries `Cache-Control: public, max-age=21600`; failure a short-lived 404.
 - **AC5 — thumbnails everywhere.** `parseVideoUrl` yields the redirect `thumbnailUrl` for every
-  Instagram link; the server re-derives it on write; `rowToClip` supplies it for an Instagram clip
-  stored without one. A failing thumbnail falls back to the gradient (existing `onError`).
+  Instagram link; the server re-derives it on write; `rowToClip` always derives it for an Instagram
+  clip. A failing thumbnail falls back to the gradient (existing `onError`).
 - **AC6 — backfill.** The migrate one-shot upgrades each stored Instagram placeholder clip (exact
   placeholder caption + creator name) whose post resolves, updating only caption, creator
   name/handle/url, and thumbnail. It is idempotent, never throws (a failure logs and leaves the row),
-  and never blocks the deploy (bounded per-fetch timeout, at most 50 rows per run).
+  and never blocks the deploy (bounded per-fetch timeout, newest-first, at most 50 rows and 30s per
+  run).
 - **AC7 — nothing loads Instagram on render beyond the thumbnail.** The iframe still loads only on
   click; the thumbnail `<img>` stays `loading="lazy"`.
 
@@ -81,3 +84,10 @@ credit.
   flag are untouched.
 - **Follow-up:** the embed page is an unversioned HTML surface — if Instagram changes its markup,
   resolution fails honestly to state D; monitor and revisit the Meta-token path.
+- **Follow-up:** `/contribute` Instagram adds take a client-typed creator and skip the resolve —
+  route them through `resolveOEmbedAction` too (and, platform-wide, stop trusting client-sent
+  creator name/url on write).
+- **Follow-up:** add an Instagram scene (resolve mocked) to `e2e/screenshots/catalog.ts` so the
+  "Resolved via Instagram" preview and thumbnailed Instagram cards are in the baseline gallery.
+- **Follow-up:** the add-modal "Add anyway" placeholder preview shows no thumbnail, though the stored
+  clip gets one.
