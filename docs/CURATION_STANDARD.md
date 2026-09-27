@@ -369,6 +369,20 @@ gives `author_name` + `author_url` but no guaranteed clean `@handle`.
   exact copy is UX's to specify; the **standard is that it must read as unresolved, never as a real
   creator credit**.
 
+- **Instagram — credit from the public embed page.** Instagram's oEmbed needs a Meta app token, so
+  an Instagram clip resolves from the **public embed page Instagram publishes for third-party
+  embedding** (`/<p|reel>/<code>/embed/captioned/`), which meets the same standard as an oEmbed
+  resolve. The page gives the creator's **username** only (no display name), so the credit is
+  `creator.name` = the username, `creator.handle` = `@username` (the real platform handle, not a
+  derivation), and `creator.url` = `https://www.instagram.com/<username>/` — name + working link,
+  the §5.5 floor. The **username is the resolve floor**: without a valid username the clip is
+  unresolved (failure state), never credited to a guess. The caption is the post's own caption,
+  flattened to text with the trailing hashtag run dropped; when the post has no caption the clip
+  reads **"Instagram post by @username"** — a factual label from resolved data, not an invented
+  title. The resolved eyebrow names its source honestly: **"Resolved via Instagram"**, never
+  "via oEmbed". An Instagram placeholder clip that later resolves may be upgraded to its resolved
+  credit; the curator's note, stance, and accuracy flag are never touched by that upgrade.
+
 - **Embed-never-host + descriptive User-Agent.** oEmbed is used for **metadata only** — we populate
   name/handle/url/thumbnail-*reference* and still **embed by reference, never host** (§5.2;
   ARCHITECTURE "embed, never host"). The `thumbnail_url` is a referenced image URL, not a
