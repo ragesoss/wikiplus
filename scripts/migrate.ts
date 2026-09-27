@@ -81,6 +81,10 @@ async function main() {
     // Demo-seed gate (issue #75): seed UNLESS SEED_DEMO_CONTENT is off (prod opt-out).
     await maybeSeed(db);
 
+    // Upgrade stored Instagram placeholder clips to their resolved details (never throws).
+    const { backfillInstagramPlaceholders } = await import("@/lib/db/backfill-instagram");
+    await backfillInstagramPlaceholders(db);
+
     console.log("[wiki+ migrate] done.");
   } finally {
     await client.end();

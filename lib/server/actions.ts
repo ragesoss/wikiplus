@@ -118,9 +118,9 @@ function validateClipInput(
     throw new Error(`Unknown platform: ${input.platform}`);
   }
   if (input.platform === "instagram") {
-    // An Instagram clip plays in-app, so its iframe source is re-derived server-side from the
-    // watch URL (fixed www.instagram.com origin + a validated shortcode) — a client can never
-    // choose what an Instagram clip frames.
+    // An Instagram clip plays in-app, so its iframe source and its thumbnail redirect path are
+    // re-derived server-side from the watch URL (fixed www.instagram.com origin + a validated
+    // shortcode) — a client can never choose what an Instagram clip frames or shows.
     const parsed = parseVideoUrl(input.watchUrl);
     if (!parsed || parsed.platform !== "instagram") {
       throw new Error("Unrecognized Instagram link.");
@@ -129,6 +129,7 @@ function validateClipInput(
       ...input,
       watchUrl: parsed.canonicalUrl ?? input.watchUrl,
       embedUrl: parsed.embedUrl,
+      thumbnailUrl: parsed.thumbnailUrl,
     };
   }
   return input;

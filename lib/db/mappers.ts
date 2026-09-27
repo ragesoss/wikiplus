@@ -1,4 +1,5 @@
 import type { Candidate, Clip, PublicContributor, Topic } from "@/lib/data/types";
+import { parseVideoUrl } from "@/lib/embed/facade";
 import type { ClipRow, ContributorRow, TopicRow } from "./schema";
 
 // Row ⇄ domain mappers (issue #45). The DB rows are normalized/snake_case with a numeric
@@ -6,6 +7,18 @@ import type { ClipRow, ContributorRow, TopicRow } from "./schema";
 // components already consume (topicQid, nested creator{}, etc.). These keep the boundary's
 // outputs byte-for-byte the shapes the localStorage store returned, so the call sites and
 // every downstream component need no shape change (parity — AC12).
+
+/**
+ * An Instagram clip's thumbnail is ALWAYS its stable redirect path derived from the watch URL
+ * (lib/embed/facade.ts `instagramThumbnailPath`), whatever the row stores — so a stored value can
+ * never point an Instagram card elsewhere, and the path follows the running basePath. Other
+ * platforms use their stored thumbnail.
+ */
+function instagramThumbnail(row: ClipRow): string | undefined {
+  if (row.platform !== "instagram") return undefined;
+  const parsed = parseVideoUrl(row.watchUrl);
+  return parsed?.platform === "instagram" ? parsed.thumbnailUrl : undefined;
+}
 
 /** A clip row + its parent topic's QID → the app `Clip` shape. */
 export function rowToClip(row: ClipRow, topicQid: string): Clip {
@@ -17,7 +30,7 @@ export function rowToClip(row: ClipRow, topicQid: string): Clip {
     orientation: row.orientation as Clip["orientation"],
     watchUrl: row.watchUrl,
     embedUrl: row.embedUrl ?? undefined,
-    thumbnailUrl: row.thumbnailUrl ?? undefined,
+    thumbnailUrl: instagramThumbnail(row) ?? row.thumbnailUrl ?? undefined,
     thumbGrad: row.thumbGrad ?? undefined,
     caption: row.caption,
     creator: {
