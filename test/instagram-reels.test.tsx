@@ -161,7 +161,7 @@ describe("AddModal — Instagram Reels copy + canonical placeholder clip (AC5/AC
     expect(await screen.findByText("Unresolved Instagram clip")).toBeInTheDocument();
     expect(
       screen.getByText(
-        "Instagram doesn't share video details with wiki+ yet — you can still add and curate this Reel, and it plays from Instagram."
+        "Instagram doesn't share video details with wiki+ yet."
       )
     ).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();

@@ -500,8 +500,7 @@ function PlaceholderPreview({
         <p className="mt-2 text-[12px] text-ink2">
           {platformLabel === PLATFORM_LABEL.instagram ? (
             <>
-              Instagram doesn&apos;t share video details with wiki+ yet — you
-              can still add and curate this Reel, and it plays from Instagram.
+              Instagram doesn&apos;t share video details with wiki+ yet.
             </>
           ) : (
             <>

@@ -36,8 +36,8 @@
   unresolved placeholder (state G) with no network fetch; the stored clip has the "Unresolved
   Instagram clip" caption, the non-linked "Creator not resolved" credit, no handle, orientation
   `vertical`, and the canonical `watchUrl` + embed URL. The state-G limitation line names the reason
-  plainly: "Instagram doesn't share video details with wiki+ yet — you can still add and curate this
-  Reel, and it plays from Instagram."
+  plainly: "Instagram doesn't share video details with wiki+ yet." (the shared reassurance line
+  below it already says the clip can be added, curated, and played).
 
 ## 1. Personas & stories
 
@@ -70,9 +70,8 @@ render).
 - Link label: **Paste a YouTube, TikTok, or Instagram Reels link**
 - Placeholder: `https://youtu.be/… or https://www.instagram.com/reel/…`
 - Unrecognized: **Unrecognized link — paste a YouTube, TikTok, or Instagram Reels URL.**
-- State-G limitation (Instagram): **Instagram doesn't share video details with wiki+ yet — you can
-  still add and curate this Reel, and it plays from Instagram.** Other unsupported platforms keep
-  the generic "We don't fetch {Platform} video details yet" line.
+- State-G limitation (Instagram): **Instagram doesn't share video details with wiki+ yet.** Other
+  unsupported platforms keep the generic "We don't fetch {Platform} video details yet" line.
 
 ## 4. Responsive & accessibility
 
