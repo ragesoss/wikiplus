@@ -149,8 +149,8 @@ describe("AddModal — Instagram Reels copy + canonical placeholder clip (AC5/AC
     expect(resolveOEmbed).not.toHaveBeenCalled();
   });
 
-  it("a /reels/ share link lands on the honest placeholder and persists canonical URLs", async () => {
-    resolveOEmbed.mockResolvedValue({ ok: false, reason: "unsupported" });
+  it("a /reels/ share link that can't be resolved offers Add anyway and persists canonical URLs", async () => {
+    resolveOEmbed.mockResolvedValue({ ok: false, reason: "failed" });
     const onSubmit = renderAdd();
     await userEvent.type(
       screen.getByPlaceholderText(/instagram\.com\/reel/),
@@ -158,13 +158,9 @@ describe("AddModal — Instagram Reels copy + canonical placeholder clip (AC5/AC
     );
     await userEvent.click(screen.getByRole("button", { name: "Fetch details" }));
 
+    expect(await screen.findByRole("button", { name: "Try again" })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Add anyway" }));
     expect(await screen.findByText("Unresolved Instagram clip")).toBeInTheDocument();
-    expect(
-      screen.getByText(
-        "Instagram doesn't share video details with wiki+ yet."
-      )
-    ).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
 
     await userEvent.type(
       screen.getByPlaceholderText(/Separate fact/),
@@ -183,6 +179,7 @@ describe("AddModal — Instagram Reels copy + canonical placeholder clip (AC5/AC
     expect(clip.orientation).toBe("vertical");
     expect(clip.watchUrl).toBe("https://www.instagram.com/reel/C9xYz_1-Ab/");
     expect(clip.embedUrl).toBe("https://www.instagram.com/reel/C9xYz_1-Ab/embed/");
+    expect(clip.thumbnailUrl).toBe("/api/thumb/instagram/C9xYz_1-Ab");
     expect(clip.caption).toBe("Unresolved Instagram clip");
     expect(clip.creator.name).toBe("Creator not resolved");
     expect(clip.creator.handle).toBe("");

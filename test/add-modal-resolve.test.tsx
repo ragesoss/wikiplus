@@ -279,11 +279,19 @@ describe("AddModal — TikTok resolves through the YouTube path (D-TikTok: AC1/A
   });
 });
 
-describe("AddModal — Instagram/other still use the unsupported placeholder arm (state G, AC8)", () => {
+describe("AddModal — Instagram resolves through B→C (docs/design/instagram-resolve.md)", () => {
   beforeEach(() => resolveOEmbed.mockReset());
 
-  it("a recognized Instagram link goes straight to the honest placeholder + MVP-limitation line (no 'Try again')", async () => {
-    resolveOEmbed.mockResolvedValue({ ok: false, reason: "unsupported" });
+  it("a resolved Instagram link shows 'Resolved via Instagram' + the @username credit and persists it", async () => {
+    resolveOEmbed.mockResolvedValue({
+      ok: true,
+      meta: {
+        title: "That face says it all",
+        authorName: "tailbitpets",
+        authorUrl: "https://www.instagram.com/tailbitpets/",
+        thumbnailUrl: "/api/thumb/instagram/ABC123",
+      },
+    });
     const onSubmit = makeOk();
     renderAdd(onSubmit);
     await userEvent.type(
@@ -292,23 +300,20 @@ describe("AddModal — Instagram/other still use the unsupported placeholder arm
     );
     await userEvent.click(screen.getByRole("button", { name: "Fetch details" }));
 
-    expect(
-      await screen.findByText("Unresolved Instagram clip")
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText(/Instagram doesn't share video details with wiki\+ yet/)
-    ).toBeInTheDocument();
-    // No retry on the support-limitation arm (retrying won't help).
-    expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
+    expect(await screen.findByText("Resolved via Instagram")).toBeInTheDocument();
     expect(screen.queryByText("Resolved via oEmbed")).toBeNull();
+    expect(screen.getByText("@tailbitpets · Instagram")).toBeInTheDocument();
+    expect(screen.queryByText("Unresolved Instagram clip")).toBeNull();
 
     await fillNoteAndAgree();
     await userEvent.click(screen.getByRole("button", { name: /Add & curate/ }));
     const [clip] = onSubmit.mock.calls[0];
     expect(clip.platform).toBe("instagram");
-    expect(clip.caption).toBe("Unresolved Instagram clip");
-    expect(clip.creator.name).toBe("Creator not resolved");
-    expect(clip.creator.url).toBeUndefined();
+    expect(clip.caption).toBe("That face says it all");
+    expect(clip.creator.name).toBe("tailbitpets");
+    expect(clip.creator.handle).toBe("@tailbitpets");
+    expect(clip.creator.url).toBe("https://www.instagram.com/tailbitpets/");
+    expect(clip.thumbnailUrl).toBe("/api/thumb/instagram/ABC123");
   });
 });
 

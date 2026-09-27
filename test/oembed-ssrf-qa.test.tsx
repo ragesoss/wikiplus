@@ -90,14 +90,31 @@ describe("resolveOEmbedAction — SSRF posture (QA security review, issue #64 / 
 
   it("makes NO fetch at all for an unsupported platform (gate is BEFORE the network call)", async () => {
     const fetchSpy = spyFetch();
-    // Instagram/other (and any bogus/forged value) have no endpoint → short-circuit, no fetch.
-    for (const p of ["instagram", "other", "evil" as never]) {
+    // `other` (and any bogus/forged value) have no endpoint → short-circuit, no fetch.
+    for (const p of ["other", "evil" as never]) {
       expect(await resolveOEmbedAction(p as never, "http://10.0.0.1/internal")).toEqual({
         ok: false,
         reason: "unsupported",
       });
     }
     expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it("an Instagram resolve fetches only the fixed www.instagram.com embed page for the shortcode", async () => {
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockImplementation((async () => ({ ok: false })) as unknown as typeof fetch);
+    // A non-Instagram URL under platform "instagram" never reaches the network.
+    expect(await resolveOEmbedAction("instagram", "http://10.0.0.1/internal")).toEqual({
+      ok: false,
+      reason: "failed",
+    });
+    expect(fetchSpy).not.toHaveBeenCalled();
+    await resolveOEmbedAction("instagram", "https://m.instagram.com/someone/reel/Abc_123-x/?igsh=q");
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    expect(String(fetchSpy.mock.calls[0][0])).toBe(
+      "https://www.instagram.com/reel/Abc_123-x/embed/captioned/"
+    );
   });
 
   it("does NOT re-fetch the response's author_url/thumbnail_url (no second-order SSRF)", async () => {

@@ -1,6 +1,7 @@
 "use server";
 
 import type { Platform } from "@/lib/data/types";
+import { resolveInstagram } from "./instagram";
 
 // oEmbed metadata resolution for the add-by-link flow (issue #64, spec
 // docs/specs/add-link-metadata.md D-YouTube, design docs/design/add-link-metadata.md state B/C).
@@ -21,10 +22,11 @@ import type { Platform } from "@/lib/data/types";
 // own public oEmbed endpoint (`OEMBED_ENDPOINT`); the fetch, mapping, resolve floor (a non-empty
 // `title` AND `author_name` — D3), and failure routing are identical. A failure / non-200 /
 // malformed / timeout returns `{ ok: false, reason: "failed" }` (state D — Try again / Add anyway),
-// NOT `unsupported`. Instagram/other stay on the `unsupported` placeholder arm (Instagram's oEmbed
-// needs a Meta app access token), returning `{ ok: false, reason: "unsupported" }` with no fetch —
-// the modal renders the honest placeholder (no fabricated metadata, no false "resolved via oEmbed"
-// — C10). An Instagram Reel still plays in-app through its embed page (lib/embed/facade.ts).
+// NOT `unsupported`. Instagram's oEmbed needs a Meta app access token, so Instagram resolves from
+// its public embed page instead (lib/embed/instagram.ts, CURATION §5.5 Instagram rule) and routes
+// through the same `ok` / `failed` outcomes. `other` stays on the `unsupported` placeholder arm,
+// returning `{ ok: false, reason: "unsupported" }` with no fetch — the modal renders the honest
+// placeholder (no fabricated metadata, no false "resolved" — C10).
 
 // Wikimedia/Wikimedia-adjacent etiquette: a descriptive User-Agent identifying wiki+ + a contact
 // (CLAUDE.md / ARCHITECTURE "Etiquette"; consistent with the `UA` in lib/wiki/article.ts). On a
@@ -73,8 +75,8 @@ export interface ResolvedMeta {
  *                                              fetch but couldn't (network/provider/empty/malformed)
  *                                              — Try again / Add anyway.
  *   - `{ ok: false, reason: "unsupported" }` → state G (placeholder arm): a recognized platform we
- *                                              do not fetch (Instagram/other) — straight to the
- *                                              honest placeholder, no "Try again".
+ *                                              do not fetch (`other`) — straight to the honest
+ *                                              placeholder, no "Try again".
  */
 export type ResolveResult =
   | { ok: true; meta: ResolvedMeta }
@@ -90,8 +92,9 @@ export type ResolveResult =
  *     `author_name` (the D3 floor) is a resolve (`ok: true`). Anything else — non-2xx, network
  *     error, malformed/empty JSON, missing the load-bearing fields, or a timeout — is
  *     `{ ok: false, reason: "failed" }` (state D), NEVER a fabricated success (D2 / C10).
- *   - Instagram/other recognized platforms: `{ ok: false, reason: "unsupported" }` (state G
- *     placeholder arm). No fetch is made (no token-free oEmbed for our use).
+ *   - Instagram: read Instagram's public embed page (`resolveInstagram`) — the username is the
+ *     floor; an unavailable post / fetch failure / missing username is `{ ok: false, reason: "failed" }`.
+ *   - `other`: `{ ok: false, reason: "unsupported" }` (state G placeholder arm). No fetch is made.
  *
  * @param platform the parsed platform (`parseVideoUrl`'s `ParsedVideo.platform`).
  * @param watchUrl the canonical/pasted watch URL (the oEmbed `url` param).
@@ -100,8 +103,12 @@ export async function resolveOEmbedAction(
   platform: Platform,
   watchUrl: string
 ): Promise<ResolveResult> {
+  if (platform === "instagram") {
+    const meta = await resolveInstagram(watchUrl);
+    return meta ? { ok: true, meta } : { ok: false, reason: "failed" };
+  }
   const endpoint = OEMBED_ENDPOINT[platform];
-  // Platforms with no token-free oEmbed for our use (Instagram/other) stay on the placeholder arm.
+  // Platforms with no token-free metadata source (`other`) stay on the placeholder arm.
   if (!endpoint) {
     return { ok: false, reason: "unsupported" };
   }

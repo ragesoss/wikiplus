@@ -79,12 +79,23 @@ export function parseVideoUrl(raw: string): ParsedVideo | null {
         platform: "instagram",
         videoId: m[2],
         embedUrl: `${canonical}embed/`,
+        thumbnailUrl: instagramThumbnailPath(m[2]),
         canonicalUrl: canonical,
       };
     }
   }
 
   return null;
+}
+
+/**
+ * The stable wiki+ thumbnail path for an Instagram shortcode. Instagram's own thumbnail URLs are
+ * signed and expire within days, so clips store this path instead; the route
+ * (app/api/thumb/instagram/[code]/route.ts) redirects the browser to the current image on
+ * Instagram's CDN — referenced, never hosted. The caller has already validated `code`.
+ */
+export function instagramThumbnailPath(code: string): string {
+  return `${process.env.NEXT_PUBLIC_BASE_PATH || ""}/api/thumb/instagram/${code}`;
 }
 
 function youtube(id: string): ParsedVideo {

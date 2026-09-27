@@ -1,4 +1,5 @@
 import type { Candidate, Clip, PublicContributor, Topic } from "@/lib/data/types";
+import { parseVideoUrl } from "@/lib/embed/facade";
 import type { ClipRow, ContributorRow, TopicRow } from "./schema";
 
 // Row ⇄ domain mappers (issue #45). The DB rows are normalized/snake_case with a numeric
@@ -6,6 +7,17 @@ import type { ClipRow, ContributorRow, TopicRow } from "./schema";
 // components already consume (topicQid, nested creator{}, etc.). These keep the boundary's
 // outputs byte-for-byte the shapes the localStorage store returned, so the call sites and
 // every downstream component need no shape change (parity — AC12).
+
+/**
+ * The thumbnail a clip derives from its watch URL when none is stored: an Instagram clip's stable
+ * thumbnail redirect path (lib/embed/facade.ts `instagramThumbnailPath`). Other platforms store
+ * their thumbnail at add time, so they derive nothing.
+ */
+function derivedThumbnail(row: ClipRow): string | undefined {
+  if (row.platform !== "instagram") return undefined;
+  const parsed = parseVideoUrl(row.watchUrl);
+  return parsed?.platform === "instagram" ? parsed.thumbnailUrl : undefined;
+}
 
 /** A clip row + its parent topic's QID → the app `Clip` shape. */
 export function rowToClip(row: ClipRow, topicQid: string): Clip {
@@ -17,7 +29,7 @@ export function rowToClip(row: ClipRow, topicQid: string): Clip {
     orientation: row.orientation as Clip["orientation"],
     watchUrl: row.watchUrl,
     embedUrl: row.embedUrl ?? undefined,
-    thumbnailUrl: row.thumbnailUrl ?? undefined,
+    thumbnailUrl: row.thumbnailUrl ?? derivedThumbnail(row),
     thumbGrad: row.thumbGrad ?? undefined,
     caption: row.caption,
     creator: {

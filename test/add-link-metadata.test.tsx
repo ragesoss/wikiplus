@@ -79,11 +79,8 @@ describe("resolveOEmbedAction (issue #64 — server-action oEmbed resolve)", () 
     ).resolves.toEqual({ ok: false, reason: "failed" });
   });
 
-  it("AC8 — Instagram/other route to the placeholder arm (unsupported), no fetch", async () => {
+  it("AC8 — `other` routes to the placeholder arm (unsupported), no fetch", async () => {
     const fetchSpy = mockFetch(async () => ({ ok: true, json: async () => ({}) }));
-    expect(
-      await resolveOEmbedAction("instagram", "https://instagram.com/reel/x/")
-    ).toEqual({ ok: false, reason: "unsupported" });
     expect(
       await resolveOEmbedAction("other", "https://example.com/x")
     ).toEqual({ ok: false, reason: "unsupported" });

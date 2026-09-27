@@ -37,9 +37,9 @@ const PLATFORM_LABEL: Record<Platform, string> = {
 //                      "resolved via oEmbed".
 //   E PLACEHOLDER    — "Add anyway" accepted: honest non-linked "Creator not resolved" credit (C10).
 //   F UNRECOGNIZED   — existing red parse-error validation, UNCHANGED (AC9).
-//   G UNSUPPORTED    — placeholder arm: a recognized Instagram/other link skips B→C/D and resolves
-//                      straight to the E placeholder + an MVP-limitation line (no Try again). TikTok
-//                      and YouTube both resolve through B→{C|D}; TikTok no longer reaches G (D2).
+//   G UNSUPPORTED    — placeholder arm: a recognized `other` link skips B→C/D and resolves straight
+//                      to the E placeholder + an MVP-limitation line (no Try again). YouTube, TikTok,
+//                      and Instagram all resolve through B→{C|D}.
 //
 // The curate fields + Add row render ONLY once a media source the curator has SEEN is in hand —
 // state C (resolved) or state E/G (accepted placeholder) — preserving AC9's "a recognized link must
@@ -52,7 +52,7 @@ type Phase =
   | { kind: "resolving"; parsed: ParsedVideo } // B
   | { kind: "resolved"; parsed: ParsedVideo; meta: ResolvedMeta } // C
   | { kind: "failed"; parsed: ParsedVideo } // D
-  | { kind: "placeholder"; parsed: ParsedVideo; unsupported: boolean }; // E (Add anyway) / G (Instagram/other unsupported)
+  | { kind: "placeholder"; parsed: ParsedVideo; unsupported: boolean }; // E (Add anyway) / G (`other` unsupported)
 
 export function AddModal({
   sections,
@@ -109,8 +109,8 @@ export function AddModal({
       setPhase({ kind: "resolved", parsed, meta: result.meta });
       focusNoteSoon();
     } else if (result.reason === "unsupported") {
-      // Placeholder arm (state G): a recognized platform we don't fetch (Instagram/other) → honest
-      // placeholder + MVP-limitation line, no "Try again". TikTok no longer reaches here (D2).
+      // Placeholder arm (state G): a recognized platform we don't fetch (`other`) → honest
+      // placeholder + MVP-limitation line, no "Try again".
       setPhase({ kind: "placeholder", parsed, unsupported: true });
       focusNoteSoon();
     } else {
@@ -425,7 +425,9 @@ function ResolvedPreview({
             {platformLabel}
           </span>
           <p className="mt-1 text-[10px] font-bold uppercase tracking-wide text-violet">
-            Resolved via oEmbed
+            {platformLabel === PLATFORM_LABEL.instagram
+              ? "Resolved via Instagram"
+              : "Resolved via oEmbed"}
           </p>
           <p className="line-clamp-2 text-[13px] font-bold text-ink-plus">
             {meta.title}
@@ -498,16 +500,8 @@ function PlaceholderPreview({
       <p className="mt-1 truncate text-[11px] text-ink2">{link}</p>
       {unsupported && (
         <p className="mt-2 text-[12px] text-ink2">
-          {platformLabel === PLATFORM_LABEL.instagram ? (
-            <>
-              Instagram doesn&apos;t share video details with wiki+ yet.
-            </>
-          ) : (
-            <>
-              We don&apos;t fetch {platformLabel} video details yet — you can
-              still add and curate this clip.
-            </>
-          )}
+          We don&apos;t fetch {platformLabel} video details yet — you can still
+          add and curate this clip.
         </p>
       )}
       <p className="mt-1 text-[12px] text-ink2">

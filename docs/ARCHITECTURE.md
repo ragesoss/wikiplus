@@ -494,8 +494,16 @@ correctly). Provider notes that affect integration:
   (`/reel/`, `/reels/`, `/p/`, `/tv/`, username-prefixed, `?igsh=` queries; shortcode validated to
   `[A-Za-z0-9_-]+`), stores a canonical tracking-free `watchUrl`, and plays the clip **in-app**
   through Instagram's official embed page (`https://www.instagram.com/reel/<code>/embed/`) behind the
-  click-to-load facade — the same player surfaces YouTube uses. Metadata stays on the honest
-  unresolved placeholder (see *add-by-link*).
+  click-to-load facade — the same player surfaces YouTube uses. Metadata resolves token-free from
+  the **public embed page** (`/<p|reel>/<code>/embed/captioned/`, read server-side in
+  `lib/embed/instagram.ts`): username → creator credit, caption → caption (CURATION §5.5 Instagram
+  rule). Instagram's thumbnail URLs are signed and expire within days, so clips store the stable
+  **`/api/thumb/instagram/<code>`** path; that route reads the current thumbnail from the embed page
+  and **302-redirects** to Instagram's CDN (referenced, never hosted or proxied), memoized in-process
+  and served with `Cache-Control: public, max-age=21600`. The server re-derives an Instagram clip's
+  thumbnail path on write, `rowToClip` derives it for a clip stored without one, and the migrate
+  one-shot upgrades stored Instagram placeholder clips to their resolved details
+  (`lib/db/backfill-instagram.ts` — idempotent, bounded, never fails the deploy).
 
 Because some embeds inject third-party scripts, render them lazily / behind a click-to-load
 facade where possible — this protects the read path's speed and the page's privacy posture.
@@ -557,12 +565,12 @@ read-path posture as the skin toggle. (Product behavior + the complete + zero-vi
   (web/app) for a manual search; good finds come in via add-by-link. Other source buttons can
   follow the same launch-and-add pattern.
 - **Add by link (logged-in).** A logged-in user pastes a **YouTube, TikTok, or Instagram Reels
-  share link**; for YouTube and TikTok we
-  resolve real `title`/`author_name`/`author_url`/`thumbnail_url` via a **Server Action**
-  (`lib/embed/oembed.ts` `resolveOEmbedAction` — server-side because the oEmbed endpoints send no
-  CORS header), with an honest, clearly-labeled **unresolved placeholder** fallback when a fetch
-  fails (no fabricated creator, no fake link — CURATION §5.5). **Instagram/other** land on that
-  placeholder directly (no token-free oEmbed for our use). See *Prototype phase* → **add-by-link**.
+  share link**; we resolve real title / creator / creator link / thumbnail via a **Server Action**
+  (`lib/embed/oembed.ts` `resolveOEmbedAction` — server-side because the providers send no CORS
+  header): YouTube and TikTok from their oEmbed endpoints, Instagram from its public embed page.
+  An honest, clearly-labeled **unresolved placeholder** is the fallback when a fetch fails (no
+  fabricated creator, no fake link — CURATION §5.5). **Other** platforms land on that placeholder
+  directly. See *Prototype phase* → **add-by-link**.
 - **Promote / rule out.** A candidate becomes a curated clip when a curator writes its
   `context_note` and sets `stance` / `accuracy_flag` (flipping `vetted` to true); "not relevant"
   dismisses it. Browsing candidates is anonymous; **promoting or adding requires login**.
@@ -1465,8 +1473,9 @@ produces a **server build** (`.next/`, no `out/`) and `next start` serves it, re
   with **Try again / Add anyway / Cancel** (Add anyway → an honest unresolved placeholder:
   "Unresolved {Platform} clip" caption, a NON-linked "Creator not resolved" credit — no fabricated
   name, no fake/dead `creator.url`, no `"pasted"` handle, no false "resolved via oEmbed" — CURATION
-  §5.5), so the flow is never a dead end. **Instagram / other** recognized links return
-  `{ ok: false, reason: "unsupported" }` (no fetch — no token-free oEmbed for our use) and land on
+  §5.5), so the flow is never a dead end. **Instagram** resolves through the same `ok` / `failed`
+  outcomes from its public embed page (username is the floor; "Resolved via Instagram"). **Other**
+  recognized links return `{ ok: false, reason: "unsupported" }` (no fetch) and land on
   that honest placeholder directly, plus an MVP-limitation line. The card's creator credit
   (`ClipCard`) **degrades to a non-linked span when `creator.url` is absent** (never a dead/empty
   outbound link). The persisted `Clip`/`ClipMediaSource` shape carries the resolved
